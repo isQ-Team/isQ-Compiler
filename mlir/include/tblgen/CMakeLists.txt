@@ -1,0 +1,7 @@
+set(LLVM_TARGET_DEFINITIONS IR.td)
+mlir_tablegen(ISQOps.h.inc -gen-op-decls -dialect isq)
+mlir_tablegen(ISQOPs.cpp.inc -gen-op-defs -dialect isq)
+mlir_tablegen(ISQDialect.h.inc -gen-dialect-decls -dialect isq)
+mlir_tablegen(ISQDialect.cpp.inc -gen-dialect-defs -dialect isq)
+mlir_tablegen(Patterns.inc -gen-rewriters)
+add_public_tablegen_target(QuantumIRTablegen)
