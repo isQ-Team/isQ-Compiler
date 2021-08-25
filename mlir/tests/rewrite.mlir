@@ -17,7 +17,8 @@ func @bidirectional_cnot_should_not_cancel(%p1: !isq.qstate, %q1: !isq.qstate)->
     %cnot_op = isq.use_gate %cnot : !isq.gate<2, hermitian>
     %p2, %q2 = isq.apply %cnot_op(%p1, %q1): !isq.qop<(!isq.qstate, !isq.qstate)->(!isq.qstate, !isq.qstate)>
     %p3, %q3 = isq.apply %cnot_op(%q2, %p2): !isq.qop<(!isq.qstate, !isq.qstate)->(!isq.qstate, !isq.qstate)>
-    return %p3, %q3: !isq.qstate, !isq.qstate
+    %p4, %q4 = isq.apply %cnot_op(%q3, %p3): !isq.qop<(!isq.qstate, !isq.qstate)->(!isq.qstate, !isq.qstate)>
+    return %p4, %q4: !isq.qstate, !isq.qstate
 }
 func @unidirectional_cz_should_cancel(%p1: !isq.qstate, %q1: !isq.qstate)->(!isq.qstate, !isq.qstate){
     %cz = isq.gate {name="cz", gate_type = !isq.gate<2, hermitian, symmetric>}: !isq.gate<2, hermitian, symmetric>
@@ -38,13 +39,31 @@ func @cancellation_with_cse(%q: !isq.qstate)->!isq.qstate{
     %hadamard_1_op = isq.use_gate %hadamard_1 : !isq.gate<1, hermitian>
     %hadamard_2 = isq.gate {name = "hadamard", gate_type = !isq.gate<1, hermitian>} : !isq.gate<1, hermitian>
     %hadamard_2_op = isq.use_gate %hadamard_2 : !isq.gate<1, hermitian>
-    %hadamard_3 = isq.gate {name = "hadamard", gate_type = !isq.gate<1, hermitian>} : !isq.gate<1, hermitian>
-    %hadamard_3_op = isq.use_gate %hadamard_3 : !isq.gate<1, hermitian>
-    %hadamard_4 = isq.gate {name = "Z", gate_type = !isq.gate<1, hermitian>} : !isq.gate<1, hermitian>
-    %hadamard_4_op = isq.use_gate %hadamard_4 : !isq.gate<1, hermitian>
+    //%hadamard_3 = isq.gate {name = "hadamard", gate_type = !isq.gate<1, hermitian>} : !isq.gate<1, hermitian>
+    //%hadamard_3_op = isq.use_gate %hadamard_3 : !isq.gate<1, hermitian>
+    //%hadamard_4 = isq.gate {name = "hadamard", gate_type = !isq.gate<1, hermitian>} : !isq.gate<1, hermitian>
+    //%hadamard_4_op = isq.use_gate %hadamard_4 : !isq.gate<1, hermitian>
     %q1 = isq.apply %hadamard_1_op(%q): !isq.qop<(!isq.qstate)->!isq.qstate>
     %q2 = isq.apply %hadamard_2_op(%q1): !isq.qop<(!isq.qstate)->!isq.qstate>
-    %q3 = isq.apply %hadamard_3_op(%q2): !isq.qop<(!isq.qstate)->!isq.qstate>
-    %q4 = isq.apply %hadamard_4_op(%q3): !isq.qop<(!isq.qstate)->!isq.qstate>
-    return %q4: !isq.qstate
+    //%q3 = isq.apply %hadamard_3_op(%q2): !isq.qop<(!isq.qstate)->!isq.qstate>
+    //%q4 = isq.apply %hadamard_4_op(%q3): !isq.qop<(!isq.qstate)->!isq.qstate>
+    return %q2: !isq.qstate
+}
+func @two_dimensional_do_nothing(%coin: memref<?x?x!isq.qstate>)->(){
+    
+    %c0 = constant 0 : index
+    %x = memref.dim %coin, %c0 : memref<?x?x!isq.qstate>
+    %c1 = constant 1 : index
+    %y = memref.dim %coin, %c1 : memref<?x?x!isq.qstate>
+    affine.for %i = 0 to %x step 1{
+        affine.for %j = 1 to %y step 1{
+            %q = affine.load %coin[%i, %j]: memref<?x?x!isq.qstate>
+            %hadamard = isq.gate {name = "hadamard", gate_type = !isq.gate<1, hermitian>} : !isq.gate<1, hermitian>
+            %hadamard_op = isq.use_gate %hadamard : !isq.gate<1, hermitian>
+            %q1 = isq.apply %hadamard_op(%q): !isq.qop<(!isq.qstate)->!isq.qstate>
+            %q2 = isq.apply %hadamard_op(%q1): !isq.qop<(!isq.qstate)->!isq.qstate>
+            affine.store %q2, %coin[%i, %j]: memref<?x?x!isq.qstate>
+        }
+    }
+    return
 }
