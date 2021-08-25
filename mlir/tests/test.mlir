@@ -14,13 +14,12 @@ module{
     }
 
     func @two_dimensional_coins(%coin: memref<?x?x!isq.qstate>, %results: memref<?x?xi1>)->(){
-        
         %c0 = constant 0 : index
         %x = memref.dim %coin, %c0 : memref<?x?x!isq.qstate>
         %c1 = constant 1 : index
         %y = memref.dim %coin, %c1 : memref<?x?x!isq.qstate>
         affine.for %i = 0 to %x step 1{
-            affine.for %j = 1 to %y step 1{
+            affine.for %j = 0 to %y step 1{
                 %q = affine.load %coin[%i, %j]: memref<?x?x!isq.qstate>
                 %hadamard = isq.gate {name = "hadamard", gate_type = !isq.gate<1, hermitian>} : !isq.gate<1, hermitian>
                 %hadamard_op = isq.use_gate %hadamard : !isq.gate<1, hermitian>
@@ -31,6 +30,7 @@ module{
                 affine.store %outcome, %results[%i, %j]: memref<?x?xi1>
             }
         }
+
         return
     }
     func @cse_test(%q: !isq.qstate)->!isq.qstate{

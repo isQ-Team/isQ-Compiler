@@ -1,7 +1,7 @@
 /*
 Data types:
 !isq.qstate: represents an intermediate state of qubit.
-!isq.gate<n: int, [traits: Symmetric | Diagonal | AntiDiagonal | hermitian]=[]>: represents a gate, the basic unit of execution.
+!isq.gate<n: int, [traits: symmetric | diagonal | antiDiagonal | hermitian]=[]>: represents a gate, the basic unit of execution.
 !isq.qop<arguments->return type> # represents a generic operation. 
 
 
