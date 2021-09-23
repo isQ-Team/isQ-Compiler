@@ -1,1 +1,1 @@
-add_subdirectory(tblgen)
+add_subdirectory(isq)

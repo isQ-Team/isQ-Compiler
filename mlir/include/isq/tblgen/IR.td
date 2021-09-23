@@ -38,7 +38,9 @@ def ISQ_Dialect: Dialect{
 }
 
 class ISQ_Op<string mnemonic, list<OpTrait> traits = []> :
-    Op<ISQ_Dialect, mnemonic, traits>;
+    Op<ISQ_Dialect, mnemonic, traits>{
+    
+}
 
 // We use initialize-list-and-store to perform operations.
 def ISQ_QState : DialectType<ISQ_Dialect, CPred<"$_self.isa<::isq::ir::QStateType>()">, "Qubit state type.">;
@@ -88,7 +90,7 @@ def GateTypeAttr: TypeAttrBase<"::isq::ir::GateType", "Gate type as attribute">;
 def QOpTypeAttr: TypeAttrBase<"::isq::ir::QOpType", "Quantum operation type as attribute">;
     
 def ISQ_GateOp : ISQ_Op<"gate", [NoSideEffect]>{
-    let summary = "Uses a predefined gate.";
+    let summary = "Declare/define a gate.";
     let description = [{
         Declaring a predefined gate from attributes.
     }];
@@ -132,6 +134,7 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
         return ::isq::ir::verify(*this);
     }];
 }
+
 
 
 /*
