@@ -2,3 +2,5 @@
 #include "./QTypes.h"
 #include "./Operations.h"
 #include "./OpVerifier.h"
+#include "./Enums.h"
+#include "./ParsePrint.h"

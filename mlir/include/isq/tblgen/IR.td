@@ -158,6 +158,16 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
 
 
 
+// Gate traits
+
+def GateTraitGeneral: BitEnumAttrCase<"General", 0, "general">;
+def GateTraitDiagonal: BitEnumAttrCase<"Diagonal", 1, "diagonal">;
+def GateTraitAntidiagonal: BitEnumAttrCase<"Antidiagonal", 2, "antidiagonal">;
+def GateTraitSymmetric: BitEnumAttrCase<"Symmetric", 4, "symmetric">;
+def GateTraitHermitian: BitEnumAttrCase<"Hermitian", 8, "hermitian">;
+
+def GateTrait: BitEnumAttr<"GateTrait", "Gate traits/hints", [GateTraitGeneral, GateTraitDiagonal, GateTraitAntidiagonal, GateTraitSymmetric, GateTraitHermitian]>;
+
 /*
 def EliminateHermitianPairPattern: Pat<
 (ISQ_ApplyOp 
