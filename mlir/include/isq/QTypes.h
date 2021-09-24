@@ -4,6 +4,7 @@
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/TypeSupport.h>
 #include <mlir/IR/Types.h>
+#include <isq/Enums.h>
 namespace isq {
 namespace ir {
 /*class QubitType : public mlir::Type::TypeBase<QubitType, mlir::Type,
@@ -16,18 +17,15 @@ public:
     using Base::Base;
 };
 
-enum class GateTypeHint { Symmetric, Diagonal, AntiDiagonal, Hermitian };
-/// Compute hash value of GateType Hints.
-llvm::hash_code hash_value(const GateTypeHint &arg);
-using GateInfo = std::tuple<int64_t, mlir::ArrayRef<GateTypeHint>>;
+using GateInfo = std::tuple<int64_t, GateTraitAttr>;
 struct GateTypeStorage : public mlir::TypeStorage {
     using KeyTy = GateInfo;
     int64_t size;
-    mlir::ArrayRef<GateTypeHint> hints;
+    GateTraitAttr hints;
 
 private:
     GateTypeStorage(const KeyTy &c, mlir::TypeStorageAllocator &allocator)
-        : size(std::get<0>(c)), hints(allocator.copyInto(std::get<1>(c))) {}
+        : size(std::get<0>(c)), hints(std::get<1>(c)) {}
 
 public:
     static llvm::hash_code hashKey(const KeyTy &key);
@@ -43,6 +41,9 @@ public:
     using Base::Base;
     static GateType get(mlir::MLIRContext *ctx, GateInfo k);
     GateInfo getGateInfo();
+    int64_t gateSize();
+    GateTrait hints();
+    bool hasHint(GateTrait t);
 };
 
 struct QOpTypeStorage : public mlir::TypeStorage {
