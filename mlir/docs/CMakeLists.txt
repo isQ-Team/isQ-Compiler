@@ -15,7 +15,7 @@ if (DOXYGEN_FOUND)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Generating API documentation with Doxygen"
         VERBATIM )
-    add_dependencies(doc_doxygen MLIRTablegen)
+    add_dependencies(doc_doxygen MLIRTablegen mlir-doc)
 else (DOXYGEN_FOUND)
   message("Doxygen need to be installed to generate the doxygen documentation")
 endif (DOXYGEN_FOUND)

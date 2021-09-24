@@ -35,6 +35,10 @@ include "mlir/IR/BuiltinAttributes.td"
 def ISQ_Dialect: Dialect{
     let name = "isq";
     let cppNamespace = "::isq::ir";
+    let summary = "ISQ Quantum MLIR Dialect.";
+    let description = [{
+        MLIR Dialect for expressing and optimization from low-level quantum circuits, to high level quantum programs with complicated control structures.
+    }];
 }
 
 class ISQ_Op<string mnemonic, list<OpTrait> traits = []> :
@@ -43,9 +47,26 @@ class ISQ_Op<string mnemonic, list<OpTrait> traits = []> :
 }
 
 // We use initialize-list-and-store to perform operations.
-def ISQ_QState : DialectType<ISQ_Dialect, CPred<"$_self.isa<::isq::ir::QStateType>()">, "Qubit state type.">;
-def ISQ_Gate : DialectType<ISQ_Dialect, CPred<"$_self.isa<::isq::ir::GateType>()">, "Gate type.">;
-def ISQ_QOp: DialectType<ISQ_Dialect, CPred<"$_self.isa<::isq::ir::QOpType>()">, "Boxed quantum operation type.">;
+def ISQ_QState : DialectType<ISQ_Dialect, CPred<"$_self.isa<::isq::ir::QStateType>()">, "Qubit state">{
+    let description = [{
+        Represents an intermediate qubit SSA state. Written `!isq.qstate`.
+
+        **Representation of qubit**: we use `memref<!isq.qstate>` to represent qubits.
+
+        **Qubit state lifetime rule**: every `!isq.qstate` SSA value must be used **exactly once**. 
+        The source of an `!isq.qstate` should be a memory-reading operation like `affine.load`, 
+        and the drain should be a memory-writing operation like `affine.store`.
+        An `!isq.qstate` SSA value is called **alive** between its definition and its usage.
+
+        **Qubit state aliasing rule**: at any moment two alive `!isq.qstate` SSA values must refer to two different qubits.
+        This is similar to the aliasing rule for `&mut` references in Rust or the functionality of `__restrict`(`restrict`) keyword in C.
+        In this sense, all multi-qubit calls are naturally legit.
+
+        This SSA representation is inspired by [David et al.](https://arxiv.org/abs/2101.11030).
+    }];
+}
+def ISQ_Gate : DialectType<ISQ_Dialect, CPred<"$_self.isa<::isq::ir::GateType>()">, "Gate type">;
+def ISQ_QOp: DialectType<ISQ_Dialect, CPred<"$_self.isa<::isq::ir::QOpType>()">, "Boxed quantum operation type">;
 
 
 def ISQ_ApplyOp : ISQ_Op<"apply", [NoSideEffect, TypesMatchWith<
