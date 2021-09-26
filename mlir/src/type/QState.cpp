@@ -8,8 +8,7 @@ bool QStateParsePrint::isa(::mlir::Type me) const {
     return me.isa<QStateType>();
 }
 ::mlir::Type
-QStateParsePrint::parseType(::llvm::SMLoc kwLoc,
-                            ::mlir::DialectAsmParser &parser) const {
+QStateParsePrint::parseType(::mlir::DialectAsmParser &parser) const {
     return QStateType::get(parser.getBuilder().getContext());
 }
 void QStateParsePrint::printType(::mlir::Type type,

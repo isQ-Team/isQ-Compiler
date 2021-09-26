@@ -1774,3 +1774,8 @@ tt {
         background-color: #f0f0f0;
         border-radius: .2rem;
 }
+
+code {
+        background-color: #f0f0f0;
+        /*border-radius: .2rem;*/
+}

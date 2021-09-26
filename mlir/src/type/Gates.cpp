@@ -1,40 +1,15 @@
 #include "isq/Enums.h"
+#include "isq/Operations.h"
 #include <isq/QTypes.h>
 #include <isq/IR.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Support/LogicalResult.h>
 namespace isq {
 namespace ir {
-llvm::hash_code GateTypeStorage::hashKey(const KeyTy &key) {
-    return llvm::hash_value(key);
-}
-GateTypeStorage *
-GateTypeStorage::construct(mlir::TypeStorageAllocator &allocator,
-                           const KeyTy &key) {
-    return new (allocator.allocate<GateTypeStorage>())
-        GateTypeStorage(key, allocator);
-}
-bool GateTypeStorage::operator==(const KeyTy &key) const {
-    return key == KeyTy(size, hints);
-}
-GateType GateType::get(mlir::MLIRContext *ctx, GateInfo k) {
-    return Base::get(ctx, k);
-}
-GateInfo GateType::getGateInfo() {
-    return GateInfo(getImpl()->size, getImpl()->hints);
-}
 
-int64_t GateType::gateSize() { return getImpl()->size; }
-GateTrait GateType::hints() { return getImpl()->hints.getValue(); }
-bool GateType::hasHint(GateTrait t) {
-    return bitEnumContains(this->hints(), t);
-}
-
-const char *GateOpParsePrint::keyword() const { return "gate"; }
-bool GateOpParsePrint::isa(::mlir::Type me) const { return me.isa<GateType>(); }
-::mlir::Type
-GateOpParsePrint::parseType(::llvm::SMLoc kwLoc,
-                            ::mlir::DialectAsmParser &parser) const {
+const char *GateParsePrint::keyword() const { return "gate"; }
+bool GateParsePrint::isa(::mlir::Type me) const { return me.isa<GateType>(); }
+::mlir::Type GateParsePrint::parseType(::mlir::DialectAsmParser &parser) const {
     auto ctx = parser.getBuilder().getContext();
     if (parser.parseLess())
         return nullptr;
@@ -62,16 +37,15 @@ GateOpParsePrint::parseType(::llvm::SMLoc kwLoc,
         parser.emitError(typeLoc, "gate size should be positive.");
         return nullptr;
     }
-    return GateType::get(ctx, GateInfo(gate_size, GateTraitAttr::get(ctx, tr)));
+    return GateType::get(ctx, gate_size, tr);
 }
-void GateOpParsePrint::printType(::mlir::Type type,
-                                 ::mlir::DialectAsmPrinter &printer) const {
+void GateParsePrint::printType(::mlir::Type type,
+                               ::mlir::DialectAsmPrinter &printer) const {
     GateType t = type.cast<GateType>();
-    auto info = t.getGateInfo();
-    printer << "gate<" << std::get<0>(info);
-    auto traits = std::get<1>(info);
-    if (traits.getValue() != GateTrait::General) {
-        auto t = stringifyGateTrait(traits.getValue());
+    printer << "gate<" << t.getSize();
+    auto traits = t.getHints();
+    if (traits != GateTrait::General) {
+        auto t = stringifyGateTrait(traits);
         for (auto i = t.begin(); i != t.end(); i++) {
             if (*i == '|')
                 *i = ',';
@@ -82,5 +56,12 @@ void GateOpParsePrint::printType(::mlir::Type type,
     printer << ">";
 }
 
+mlir::SmallVector<mlir::Type> GateType::getApplyParameterType(GateType ty) {
+    mlir::SmallVector<mlir::Type> args;
+    for (auto i = 0; i < ty.getSize(); i++) {
+        args.push_back(QStateType::get(ty.getContext()));
+    }
+    return args;
+}
 } // namespace ir
 } // namespace isq
