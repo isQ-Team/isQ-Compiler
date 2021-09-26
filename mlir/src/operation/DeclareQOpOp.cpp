@@ -1,8 +1,18 @@
 #include "isq/QTypes.h"
 #include <isq/Operations.h>
+#include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/Identifier.h>
+#include <mlir/IR/SymbolTable.h>
+#include <mlir/Support/LogicalResult.h>
 namespace isq {
 namespace ir {
+bool DeclareQOpOp::isDeclaration() { return true; }
+/*
+::mlir::SymbolTable::Visibility DeclareQOpOp::getVisibility(){
+    return
+}
+*/
 ::mlir::Type DeclareQOpOp::getTypeWhenUsed() {
     ::mlir::SmallVector<::mlir::Type> inputs, outputs;
     ::mlir::SmallVector<::mlir::Type> tup_elements;
@@ -19,6 +29,67 @@ namespace ir {
     auto out = this->signature().getResults();
     outputs.append(out.begin(), out.end());
     return ::mlir::FunctionType::get(this->getContext(), inputs, outputs);
+}
+mlir::LogicalResult DeclareQOpOp::parseIR(::mlir::OpAsmParser &parser,
+                                          ::mlir::OperationState &result) {
+    ::mlir::StringAttr sym_nameAttr;
+    ::mlir::IntegerAttr sizeAttr;
+    ::mlir::TypeAttr signatureAttr;
+    if (parser.parseSymbolName(sym_nameAttr, "sym_name", result.attributes))
+        return ::mlir::failure();
+    ::mlir::NamedAttrList parsedAttributes;
+    auto attributeDictLocation = parser.getCurrentLocation();
+    if (parser.parseOptionalAttrDict(parsedAttributes)) {
+        return ::mlir::failure();
+    }
+    for (::mlir::StringRef disallowed :
+         {::mlir::SymbolTable::getVisibilityAttrName(),
+          ::mlir::SymbolTable::getSymbolAttrName(), ::mlir::StringRef("size"),
+          ::mlir::StringRef("signature")}) {
+        if (parsedAttributes.get(disallowed))
+            return parser.emitError(attributeDictLocation, "'")
+                   << disallowed
+                   << "' is an inferred attribute and should not be specified "
+                      "in the "
+                      "explicit attribute dictionary";
+    }
+    auto ctx = parser.getBuilder().getContext();
+    parsedAttributes.push_back(
+        ::std::make_pair(::mlir::Identifier::get("sym_visibility", ctx),
+                         ::mlir::StringAttr::get(ctx, "nested")));
+    result.attributes.append(parsedAttributes);
+    if (parser.parseColon())
+        return ::mlir::failure();
+    if (parser.parseLSquare())
+        return ::mlir::failure();
+
+    if (parser.parseAttribute(
+            sizeAttr,
+            parser.getBuilder().getIntegerType(64, /*isSigned=*/false), "size",
+            result.attributes))
+        return ::mlir::failure();
+    if (parser.parseRSquare())
+        return ::mlir::failure();
+
+    if (parser.parseAttribute(signatureAttr,
+                              parser.getBuilder().getType<::mlir::NoneType>(),
+                              "signature", result.attributes))
+        return ::mlir::failure();
+    return ::mlir::success();
+}
+void DeclareQOpOp::printIR(::mlir::OpAsmPrinter &p) {
+    p << "isq.declare_qop";
+    p << ' ';
+    p.printSymbolName(sym_nameAttr().getValue());
+    p.printOptionalAttrDict(
+        (*this)->getAttrs(),
+        /*elidedAttrs=*/{"sym_name", "size", "signature", "sym_visibility"});
+    p << ' ' << ":";
+    p << ' ' << "[";
+    p.printAttributeWithoutType(sizeAttr());
+    p << "]";
+    p << ' ';
+    p.printAttributeWithoutType(signatureAttr());
 }
 /*
 mlir::LogicalResult verify(DeclareOp op) {

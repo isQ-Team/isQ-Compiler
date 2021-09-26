@@ -6,6 +6,7 @@
 #include <mlir/IR/Types.h>
 #include <mlir/Parser.h>
 #include <mlir/Parser/AsmParserState.h>
+#include <mlir/Interfaces/DerivedAttributeOpInterface.h>
 #define GET_OP_CLASSES
 #include <isq/tblgen/ISQOps.h.inc>
 #endif

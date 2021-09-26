@@ -9,7 +9,7 @@ mlir_tablegen(ISQEnums.cpp.inc -gen-enum-defs -dialect isq)
 mlir_tablegen(ISQTypes.h.inc -gen-typedef-decls -dialect isq)
 mlir_tablegen(ISQTypes.cpp.inc -gen-typedef-defs -dialect isq)
 mlir_tablegen(__tmp_IR.md -gen-dialect-doc --dialect isq)
-#mlir_tablegen(IRAttr.md -gen-attrdef-doc --dialect isq)
+# mlir_tablegen(IRAttr.md -gen-attrdef-doc --attrdefs-dialect isq)
 add_custom_command(OUTPUT IR.md 
     COMMAND ${PROJECT_SOURCE_DIR}/scripts/fix_dialect_doc.py __tmp_IR.md IR.md
     DEPENDS __tmp_IR.md)

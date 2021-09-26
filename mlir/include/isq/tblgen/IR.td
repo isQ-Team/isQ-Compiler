@@ -15,7 +15,7 @@ def ISQ_Dialect: Dialect{
     let cppNamespace = "::isq::ir";
     let summary = "ISQ Quantum MLIR Dialect.";
     let description = [{
-        MLIR Dialect for expressing and optimization from low-level quantum circuits, to high level quantum programs with complicated control structures.
+        MLIR Dialect for expressing and optimization ranging from low-level quantum circuits, to high level quantum programs with complicated control structures.
     }];
     let dependentDialects = ["::mlir::memref::MemRefDialect"];
 }
@@ -40,11 +40,12 @@ def ISQ_QState : TypeDef<ISQ_Dialect, "QState", [MemRefElementTypeInterface]>{
         **Qubit state lifetime rule**: every `!isq.qstate` SSA value must be used **exactly once**. 
         The source of an `!isq.qstate` should be a memory-reading operation like `affine.load`, 
         and the drain should be a memory-writing operation like `affine.store`.
+        The source `load` and drain `store` must refer to exactly the same memory location.
         An `!isq.qstate` SSA value is called **alive** between its definition and its usage.
 
         **Qubit state aliasing rule**: at any moment two alive `!isq.qstate` SSA values must refer to two different qubits.
         This is similar to the aliasing rule for `&mut` references in Rust or the functionality of `__restrict`(`restrict`) keyword in C.
-        In this sense, all multi-qubit calls are naturally legit.
+        In this sense, all multi-qubit calls are naturally legal.
 
         This SSA representation is inspired by [David et al.](https://arxiv.org/abs/2101.11030).
     }];
@@ -73,7 +74,7 @@ def ISQ_Gate : TypeDef<ISQ_Dialect, "Gate", [MemRefElementTypeInterface]>{
         - `hermitian`, indicating the gate is self-adjoint, i.e. \f$U^\dagger = U\f$.
         - `diagonal`, indicating the gate is diagonal (under computational basis).
         - `antidiagonal`, indicating the gate is antidiagonal (under computational basis). This enables switching between antidiagonal gates and \f$CZ\f$ gates, or `EjectPhasedPaulis` optimization.
-        - `symmetric`, indicating the gate is symmetric over its **all** operands.
+        - `symmetric`, indicating the gate is symmetric over its **all** operands. Single qubit gates are intrinsically symmetric whether they are labeled or not.
 
         Note that we allow loading and storing gates at runtime.
     }];
@@ -119,6 +120,10 @@ def FuncTypeAttr: TypeAttrBase<"::mlir::FunctionType", "Function type attribute,
 def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol]>{
     let summary = "Defines or declares an array of gates.";
     let description = [{
+        Syntax:
+        ```
+        operation ::= $sym_name attr-dict `:` $type
+        ```
         Declares or defines an array of gate references.
 
         Defgate comes with an optional shape attribute.
@@ -127,20 +132,44 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol]>{
 
         Defgate allows multiple and overlapping definition of one gate.
         A defgate without definition is seen as declaration.
+        (TODO: ways to define a gate are still not defined. We may want to support:
+        - Matrix representation, where complex matrix is given out directly.
+        - Gate decomposition, allowing using an entire decomposition function as a single gate.
+        - ...
+        )
+
+        ```mlir
+        // Gate declaration
+        isq.defgate @cnot : !isq.gate<2, hermitian>
+        // Gate definition
+        isq.defgate @hadamard {definition = [ /* possible gate definition */ ]} : !isq.gate<1, hermitian>
+        // Gate array declaration
+        isq.defgate @one_way_equivalent_gates {shape = [10, 10]} : !isq.gate<1>
+        ```
+
+        The symbol always uses `nested` visbility.
     }];
     let arguments = (ins
         GateTypeAttr: $type,
         SymbolNameAttr: $sym_name,
+        StrAttr: $sym_visibility,
         OptionalAttr<I64ArrayAttr>: $shape,
         OptionalAttr<ArrayAttr>: $definition
     );
+    //DerivedAttr sym_visibility = DerivedAttr<"const char*", [{return "nested";}], "::mlir::StringAttr::get($_ctx, $_self)">;
     let results = (outs);
+    /*
     let assemblyFormat = [{
         $sym_name attr-dict `:` $type
     }];
+    */
+    let parser = [{return $cppClass::parseIR(parser, result);}];
+    let printer = [{return this->printIR(p);}];
     let extraClassDeclaration = [{
         bool isGateArray();
         bool isDeclaration();
+        static ::mlir::LogicalResult parseIR(::mlir::OpAsmParser& parser, ::mlir::OperationState& result);
+        void printIR(::mlir::OpAsmPrinter& p);
         ::mlir::Type getTypeWhenUsed();
     }];
 }
@@ -148,27 +177,70 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol]>{
 def ISQ_DeclareQOpOp : ISQ_Op<"declare_qop", [Symbol]>{
     let summary = "Declares general quantum operations";
     let description = [{
+        Syntax:
+        ```
+        operation ::= $sym_name attr-dict `:` `[` $size `]` $signature
+        ```
+
         Declares a general quantum operation that is most possibly not pure, i.e. a measurement.
+        A QOp can be seen as a general operation accepting several qubits as fan-in and fan-out,
+        while accepting possible (classical) inputs and outputs.
+
+
+        Difference between QOp and general functions: QOp guarantees correspondence between input and output qstates.
+        
+        (TODO: recognizing general function as qop.)
+        ```mlir
+        // Computational basis measurement, accepting 1 qubit, no input parameters and outputting a boolean value.
+        isq.declare_qop @measure : [1]()->i1
+        // Try to measure a quantum money qubit, accepting 1 bit to specity basis and outputting 1 bit.
+        isq.declare_qop @check_quantum_money_bit : [2](i1)->i1
+        ```
+
+        The symbol always uses `nested` visbility.
     }];
     let arguments = (ins
         SymbolNameAttr: $sym_name,
+        StrAttr: $sym_visibility,
         UI64Attr: $size,
         FuncTypeAttr: $signature
     );
+    //DerivedAttr sym_visibility = DerivedAttr<"const char*", [{return "nested";}], "::mlir::StringAttr::get($_ctx, $_self)">;
     let results = (outs);
+    /*
     let assemblyFormat = [{
         $sym_name attr-dict `:` `[` $size `]` $signature
     }];
+    */
+    let parser = [{return $cppClass::parseIR(parser, result);}];
+    let printer = [{return this->printIR(p);}];
+    
     let extraClassDeclaration = [{
         ::mlir::Type getTypeWhenUsed();
+        bool isDeclaration();
+        static ::mlir::LogicalResult parseIR(::mlir::OpAsmParser& parser, ::mlir::OperationState& result);
+        void printIR(::mlir::OpAsmPrinter& p);
     }];
 
 }
 def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
     let summary = "Use gate array";
     let description = [{
-        Fetching a declared/defined global gate reference array. Returned as `memref<!isq.gate<...>>`.
+        Fetching a declared/defined global gate or gate array.
         Gate arrays are readonly and writing into gate array is currently not allowed.
+
+        The return type depends on whether the `isq.defgate` declares a gate or a gate array,
+        i.e. whether the `isq.defgate` contains the `shape` attribute.
+
+        ```mlir
+        isq.defgate @one_gate : !isq.gate<1, hermitian>
+        isq.defgate @gates {shape=[10,20]}: !isq.gate<1>
+        func @use_gates()->(){
+            %g1 = isq.use @one_gate : !isq.gate<1, hermitian>
+            %g = isq.use @gates : memref<10x20x!isq.gate<1>>
+            return
+        }
+        ```
     }];
     let arguments = (ins 
     SymbolRefAttr: $name
@@ -187,7 +259,19 @@ def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
     >]>{
     let summary = "Applies a quantum gate onto qstates";
     let description = [{
-        Performing a gate reference onto qstates. Qstate outputs are in the same order as inputs.
+        Performing a gate onto qstates. Qstate outputs are in the same order as inputs.
+
+        ```mlir
+        isq.defgate @hadamard : !isq.gate<1, hermitian>
+        isq.defgate @cnot : !isq.gate<2, hermitian>
+        func @bell(%q1: !isq.qstate, %q2: !isq.qstate)->(!isq.qstate, !isq.qstate){
+            %hadamard = isq.use @hadamard : !isq.gate<1, hermitian>
+            %cnot = isq.use @cnot : !isq.gate<2, hermitian>
+            %q3 = isq.apply %hadamard(%q1): !isq.gate<1, hermitian>
+            %q4, %q5 = isq.apply %cnot(%q3, %q2): !isq.gate<2, hermitian>
+            return %q4, %q5 : !isq.qstate, !isq.qstate
+        }
+        ```
     }];
     let arguments = (ins
         ISQ_Gate: $gate,
@@ -203,7 +287,23 @@ def ISQ_CallQOpOp: ISQ_Op<"call_qop", [NoSideEffect, DeclareOpInterfaceMethods<S
     let description = [{
         Performing a quantum operation onto qstates by given symbol and input, yielding outputs.
         Quantum operation arrays are currently disallowed.
+
+        The syntax of `call_qop` resembles a function call.
+        The list of required qstates are attached to the front of argument list,
+        while the outputting qstates are attached to the front of result list.
+
+        ```mlir
+        // Measurement accepts one qubit, no inputs and yields one output.
+        isq.declare_qop @measure : [1]()->i1
+
+        func @measure_and_discard_result(%q: !isq.qstate)->!isq.qstate{
+            // Here, [1]()->i1 corresponds to (!isq.qstate)->(!isq.qstate, i1).
+            %q1, %c = isq.call_qop @measure(%q): (!isq.qstate)->(!isq.qstate, i1)
+            return %q1: !isq.qstate
+        }
+        ```
     }];
+    
     
     let arguments = (ins
         SymbolRefAttr: $callee,
@@ -298,6 +398,21 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
         This operation is used to perform safe gate reference type casting.
         For example, if we want to pass the $CZ$ gate with type `!isq.gate<2, hermitian, symmetric>` to a function
         that accepts `!isq.gate<2>` only, this operation is needed for a downcast.
+        ```mlir
+        isq.defgate @hadamard : !isq.gate<1, hermitian>
+        func @apply_twice(%g: !isq.gate<1>, %q: !isq.qstate)->!isq.qstate{
+            %q1 = isq.apply %g(%q): !isq.gate<1>
+            %q2 = isq.apply %g(%q1): !isq.gate<1>
+            return %q2: !isq.qstate
+        }
+        func @apply_hadamard_twice(%q: !isq.qstate)->!isq.qstate{
+            %hadamard = isq.use @hadamard : !isq.gate<1, hermitian>
+            // Erasing the `hermitian` trait.
+            %downgraded_hadamard = isq.downgrade (%hadamard: !isq.gate<1, hermitian>) : !isq.gate<1>
+            %q2 = std.call @apply_twice(%downgraded_hadamard, %q) : (!isq.gate<1>, !isq.qstate)->!isq.qstate
+            return %q2: !isq.qstate
+        }
+        ```
     }];
     let arguments = (ins ISQ_Gate: $args);
     let results = (outs ISQ_Gate);
