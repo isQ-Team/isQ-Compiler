@@ -7,4 +7,11 @@ if __name__ == "__main__":
         lines = f.read().splitlines()
         lines[1] = lines[1] + " {#ISQDialectDef}"
         with open(sys.argv[2], "w", encoding="utf-8") as f2:
-            f2.writelines(map(lambda l: l+"\n", lines))
+            flag = True
+            for line in lines:
+                if line == "## Type constraint definition":
+                    flag = False
+                if line == "## Operation definition":
+                    flag = True
+                if flag:
+                    f2.writelines([line+"\n"])
