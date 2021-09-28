@@ -9,6 +9,9 @@
 namespace isq {
 namespace ir {
 mlir::SmallVector<mlir::Type> getGateParameterType(GateType ty);
+::mlir::FunctionType getExpandedFunctionType(::mlir::MLIRContext *ctx,
+                                             uint64_t size,
+                                             ::mlir::FunctionType signature);
 // mlir::LogicalResult verify(DeclareOp op);
 mlir::LogicalResult verify(DowngradeGateOp op);
 // mlir::LogicalResult verify(GateOp op);

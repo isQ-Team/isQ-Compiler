@@ -13,22 +13,28 @@ bool DeclareQOpOp::isDeclaration() { return true; }
     return
 }
 */
-::mlir::Type DeclareQOpOp::getTypeWhenUsed() {
+::mlir::FunctionType getExpandedFunctionType(::mlir::MLIRContext *ctx,
+                                             uint64_t size,
+                                             ::mlir::FunctionType signature) {
     ::mlir::SmallVector<::mlir::Type> inputs, outputs;
     ::mlir::SmallVector<::mlir::Type> tup_elements;
-    for (auto i = 0; i < this->size(); i++) {
-        auto q = QStateType::get(this->getContext());
+    for (auto i = 0; i < size; i++) {
+        auto q = QStateType::get(ctx);
         tup_elements.push_back(q);
     }
     auto tup = tup_elements;
     // auto tup = ::mlir::TupleType::get(this->getContext(), tup_elements);
     inputs.append(tup.begin(), tup.end());
     outputs.append(tup.begin(), tup.end());
-    auto in = this->signature().getInputs();
+    auto in = signature.getInputs();
     inputs.append(in.begin(), in.end());
-    auto out = this->signature().getResults();
+    auto out = signature.getResults();
     outputs.append(out.begin(), out.end());
-    return ::mlir::FunctionType::get(this->getContext(), inputs, outputs);
+    return ::mlir::FunctionType::get(ctx, inputs, outputs);
+}
+::mlir::Type DeclareQOpOp::getTypeWhenUsed() {
+    return getExpandedFunctionType(this->getContext(), this->size(),
+                                   this->signature());
 }
 mlir::LogicalResult DeclareQOpOp::parseIR(::mlir::OpAsmParser &parser,
                                           ::mlir::OperationState &result) {

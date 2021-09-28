@@ -1,8 +1,10 @@
 #include "isq/Math.h"
+#include "isq/QTypes.h"
 #include <isq/IR.h>
 #include <llvm/ADT/StringSwitch.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include <mlir/Support/LLVM.h>
 #include <mlir/Support/LogicalResult.h>
 
 namespace isq {
@@ -107,6 +109,19 @@ DefgateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
                     this->emitError() << "Definition #" << id
                                       << " should reference a symbol defined "
                                          "by a `builtin.func`.";
+                    return mlir::failure();
+                }
+                ::mlir::SmallVector<::mlir::Type> qs;
+                for (auto i = 0; i < this->type().getSize(); i++) {
+                    qs.push_back(QStateType::get(this->getContext()));
+                }
+                auto fntype =
+                    ::mlir::FunctionType::get(this->getContext(), qs, qs);
+                if (fntype != resolved.getType()) {
+                    this->emitError()
+                        << "Definition #" << id
+                        << " should reference a function with signature "
+                        << fntype;
                     return mlir::failure();
                 }
             }
