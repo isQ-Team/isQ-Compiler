@@ -109,9 +109,51 @@ def ISQ_QOp: DialectType<ISQ_Dialect, CPred<"$_self.isa<::isq::ir::QOpType>()">,
 // Attributes
 ////////////////////////////////////
 
-def GateTypeAttr: TypeAttrBase<"::isq::ir::GateType", "Gate type as attribute">;
-def FuncTypeAttr: TypeAttrBase<"::mlir::FunctionType", "Function type attribute, for operands and results">;
-//def ShapeAttr: TypeAttrBase<"::mlir::shape::ShapeType", "Shape type attribute.">;
+class ISQ_Attr<string name, list<Trait> traits = []> : AttrDef<ISQ_Dialect, name, traits>;
+
+
+def GateTypeAttr: TypeAttrBase<"::isq::ir::GateType", "Gate type attribute">;
+def FuncTypeAttr: TypeAttrBase<"::mlir::FunctionType", "Function type attribute, used as tuple of operands and results">;
+
+
+// Gate traits
+
+def GateTraitGeneral: BitEnumAttrCase<"General", 0, "general">;
+def GateTraitDiagonal: BitEnumAttrCase<"Diagonal", 1, "diagonal">;
+def GateTraitAntidiagonal: BitEnumAttrCase<"Antidiagonal", 2, "antidiagonal">;
+def GateTraitSymmetric: BitEnumAttrCase<"Symmetric", 4, "symmetric">;
+def GateTraitHermitian: BitEnumAttrCase<"Hermitian", 8, "hermitian">;
+
+def GateTrait: BitEnumAttr<"GateTrait", "Gate traits/hints", [GateTraitGeneral, GateTraitDiagonal, GateTraitAntidiagonal, GateTraitSymmetric, GateTraitHermitian]>;
+
+// Gate definition
+def ISQ_GateDefType : StructFieldAttr<"type", StrAttr>;
+def ISQ_GateDefValue : StructFieldAttr<"value", AnyAttr>;
+def ISQ_GateDefinitionAttr : StructAttr<"GateDefinition", ISQ_Dialect, [ISQ_GateDefType, ISQ_GateDefValue]>;
+def ISQ_ComplexF64Attr : ISQ_Attr<"ComplexF64", []>{
+    let mnemonic = "complex";
+    let summary = "Complex number definition.";
+    let description = [{
+        A complex with a real part and an imaginary part.
+
+        For simplicity we use the notation `#isq.complex<a,b>` to represent the number \f$(a+bi)\f$.
+    }];
+    let parameters = (
+        ins
+        "::llvm::APFloat": $real,
+        "::llvm::APFloat": $imag
+    );
+    let extraClassDeclaration = [{
+        ::std::complex<double> complexValue();
+        static ::mlir::Attribute parseIR(::mlir::DialectAsmParser& parser);
+        void printIR(::mlir::DialectAsmPrinter& p) const;
+    }];
+    let parser = "return "# cppClassName # "::parseIR(parser);";
+    let printer = [{return this->printIR(printer);}];
+    
+}
+
+def ISQ_GateDefinitionList : TypedArrayAttrBase<ISQ_GateDefinitionAttr, "Gate definition array attribute">;
 
 ////////////////////////////////////
 // Operations
@@ -154,9 +196,8 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol]>{
         SymbolNameAttr: $sym_name,
         StrAttr: $sym_visibility,
         OptionalAttr<I64ArrayAttr>: $shape,
-        OptionalAttr<ArrayAttr>: $definition
+        OptionalAttr<ISQ_GateDefinitionList>: $definition
     );
-    //DerivedAttr sym_visibility = DerivedAttr<"const char*", [{return "nested";}], "::mlir::StringAttr::get($_ctx, $_self)">;
     let results = (outs);
     /*
     let assemblyFormat = [{
@@ -205,7 +246,6 @@ def ISQ_DeclareQOpOp : ISQ_Op<"declare_qop", [Symbol]>{
         UI64Attr: $size,
         FuncTypeAttr: $signature
     );
-    //DerivedAttr sym_visibility = DerivedAttr<"const char*", [{return "nested";}], "::mlir::StringAttr::get($_ctx, $_self)">;
     let results = (outs);
     /*
     let assemblyFormat = [{
@@ -315,82 +355,6 @@ def ISQ_CallQOpOp: ISQ_Op<"call_qop", [NoSideEffect, DeclareOpInterfaceMethods<S
     }];
 
 }
-/*
-def ISQ_ApplyOp : ISQ_Op<"apply", [NoSideEffect, TypesMatchWith<
-        "args equivalence", "op", "args", "$_self.cast<::isq::ir::QOpType>().getFuncType().getInputs()"
-    >,TypesMatchWith<
-        "output equivalence", "op", "output", "$_self.cast<::isq::ir::QOpType>().getFuncType().getResults()"
-    >]>{
-    let summary = "Applies a quantum operation onto a quantum state.";
-    let description = [{
-        Performs QOp on QState to generate new QState.
-    }];
-    let arguments = (ins
-        ISQ_QOp: $op,
-        Variadic<AnyType>: $args
-    );
-    let results = (outs Variadic<AnyType>: $output);
-    
-    //let parser = [{return ::isq::ir::parse$cppClass(parser, result);}];
-    //let printer = [{return ::isq::ir::print(p, *this);}];
-    //let verifier = [{return ::isq::ir::verify(*this);}];
-    
-    let assemblyFormat = [{
-        $op `(` $args `)` attr-dict `:` type($op)
-    }];
-    let hasCanonicalizer = 1;
-}
-
-def ISQ_UseOp: ISQ_Op<"use_gate", [NoSideEffect, TypesMatchWith<
-    "op type inference", "gate", "op", "::isq::ir::gateToQOp($_self.cast<::isq::ir::GateType>())"
-    >]>{
-    let summary = "Uses a gate as an operation.";
-    let arguments = (ins
-        ISQ_Gate: $gate
-    );
-    let results = (outs ISQ_QOp: $op);
-    let assemblyFormat = [{
-        $gate attr-dict `:` type($gate)
-    }];
-}
-*/
-
-//def QOpTypeAttr: TypeAttrBase<"::isq::ir::QOpType", "Quantum operation type as attribute">;
-/*
-def ISQ_GateOp : ISQ_Op<"gate", [NoSideEffect]>{
-    let summary = "Declare/define a gate.";
-    let description = [{
-        Declaring a predefined gate from attributes.
-    }];
-    let arguments = (ins
-        StrAttr: $name,
-        GateTypeAttr: $gate_type
-    );
-    let results = (outs ISQ_Gate: $outgate);
-    let assemblyFormat = [{
-        attr-dict `:` type(results)
-    }];
-    let verifier = [{
-        return ::isq::ir::verify(*this);
-    }];
-}
-*/
-/*
-
-def ISQ_DeclareOp: ISQ_Op<"declare_op", [NoSideEffect]>{
-    let summary = "Declare an external quantum operation.";
-    let arguments = (ins
-        StrAttr: $name,
-        QOpTypeAttr: $op_type
-    );
-    let results = (outs ISQ_QOp: $out_op);
-    let assemblyFormat = [{
-        attr-dict `:` type(results)
-    }];
-    let verifier = [{
-        return ::isq::ir::verify(*this);
-    }];
-}*/
 
 def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
     let summary = "Downgrade a gate by removing its traits.`";
@@ -426,19 +390,3 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
 
 
 
-// Gate traits
-
-def GateTraitGeneral: BitEnumAttrCase<"General", 0, "general">;
-def GateTraitDiagonal: BitEnumAttrCase<"Diagonal", 1, "diagonal">;
-def GateTraitAntidiagonal: BitEnumAttrCase<"Antidiagonal", 2, "antidiagonal">;
-def GateTraitSymmetric: BitEnumAttrCase<"Symmetric", 4, "symmetric">;
-def GateTraitHermitian: BitEnumAttrCase<"Hermitian", 8, "hermitian">;
-
-def GateTrait: BitEnumAttr<"GateTrait", "Gate traits/hints", [GateTraitGeneral, GateTraitDiagonal, GateTraitAntidiagonal, GateTraitSymmetric, GateTraitHermitian]>;
-
-/*
-def EliminateHermitianPairPattern: Pat<
-(ISQ_ApplyOp 
-    (ISQ_UseOp (ISQ_GateOp $name1, $attr1)), 
-    (ISQ_ApplyOp (ISQ_UseOp (ISQ_GateOp $name2, $attr2)), $qubits)), (replaceWithValue $qubits)>;
-*/
