@@ -326,10 +326,20 @@ def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
     let assemblyFormat = [{
         $gate `(` $args `)` attr-dict `:` type($gate)
     }];
+    let verifier = [{
+        return this->verifyIR();
+    }];
+    let extraClassDeclaration = [{
+        ::mlir::LogicalResult verifyIR();
+    }];
 }
 def ISQ_CallQOpOp: ISQ_Op<"call_qop", [NoSideEffect, DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
     let summary = "Applies a quantum operation onto qstates";
     let description = [{
+        Syntax:
+        ```
+        operation ::= $callee `(` $args `)` attr-dict `:` `[` $size `]` $signature
+        ```
         Performing a quantum operation onto qstates by given symbol and input, yielding outputs.
         Quantum operation arrays are currently disallowed.
 
@@ -352,12 +362,25 @@ def ISQ_CallQOpOp: ISQ_Op<"call_qop", [NoSideEffect, DeclareOpInterfaceMethods<S
     
     let arguments = (ins
         SymbolRefAttr: $callee,
-        Variadic<AnyType>: $args
+        Variadic<AnyType>: $args,
+        UI64Attr: $size,
+        FuncTypeAttr: $signature
     );
+
     let results = (outs Variadic<AnyType>);
-    let assemblyFormat = [{
-        $callee `(` $args `)` attr-dict `:` functional-type($args, results)
+    let extraClassDeclaration = [{
+        static ::mlir::ParseResult parseIR(::mlir::OpAsmParser& parser, ::mlir::OperationState& result);
+        void printIR(::mlir::OpAsmPrinter& p);
     }];
+    let parser = [{return $cppClass::parseIR(parser, result);}];
+    let printer = [{return this->printIR(p);}];
+
+
+    /*
+    let assemblyFormat = [{
+        $callee `(` $args `)` attr-dict `:` `[` $size `]` $signature
+    }];
+    */
 
 }
 

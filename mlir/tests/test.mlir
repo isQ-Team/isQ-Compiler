@@ -12,7 +12,7 @@ func @coin()->i1{
     %down = isq.downgrade (%0: !isq.gate<1, hermitian>) : !isq.gate<1>
     %1 = memref.load %coinspace[%zero] : memref<1x!isq.qstate>
     %3 = isq.apply %down (%1) : !isq.gate<1>
-    %4, %outcome = isq.call_qop @isq_builtin::@measure(%3) : (!isq.qstate)->(!isq.qstate, i1)
+    %4, %outcome = isq.call_qop @isq_builtin::@measure(%3) : [1]()->i1
     return %outcome : i1
 }
 
@@ -26,7 +26,7 @@ func @two_dimensional_coins(%coin: memref<?x?x!isq.qstate>, %results: memref<?x?
             %q = affine.load %coin[%i, %j]: memref<?x?x!isq.qstate>
             %hadamard = isq.use @isq_builtin::@hadamard : !isq.gate<1, hermitian>
             %q1 = isq.apply %hadamard(%q): !isq.gate<1, hermitian>
-            %q2, %outcome = isq.call_qop @isq_builtin::@measure(%q1) : (!isq.qstate)->(!isq.qstate, i1)
+            %q2, %outcome = isq.call_qop @isq_builtin::@measure(%q1) : [1]()->i1
             affine.store %q2, %coin[%i, %j]: memref<?x?x!isq.qstate>
             affine.store %outcome, %results[%i, %j]: memref<?x?xi1>
         }

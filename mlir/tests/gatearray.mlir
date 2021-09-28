@@ -19,7 +19,7 @@ func @scramble_all()->memref<10x20xi1>{
             %q = affine.load %qarr[%i, %j]: memref<10x20x!isq.qstate>
             %gate = affine.load %garr[%i, %j]: memref<10x20x!isq.gate<1>>
             %q1 = isq.apply %gate(%q): !isq.gate<1>
-            %q2, %outcome = isq.call_qop @isq_builtin::@measure(%q1) : (!isq.qstate)->(!isq.qstate, i1)
+            %q2, %outcome = isq.call_qop @isq_builtin::@measure(%q1) : [1]()->i1
             affine.store %q2, %qarr[%i, %j]: memref<10x20x!isq.qstate>
             affine.store %outcome, %results[%i, %j]: memref<10x20xi1>
         }
