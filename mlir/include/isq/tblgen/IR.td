@@ -158,7 +158,7 @@ def ISQ_GateDefinitionList : TypedArrayAttrBase<ISQ_GateDefinitionAttr, "Gate de
 // Operations
 ////////////////////////////////////
 
-def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol]>{
+def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
     let summary = "Defines or declares an array of gates.";
     let description = [{
         Syntax:
