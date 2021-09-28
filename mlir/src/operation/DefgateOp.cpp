@@ -1,6 +1,7 @@
 #include "isq/Math.h"
 #include <isq/IR.h>
 #include <llvm/ADT/StringSwitch.h>
+#include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/Support/LogicalResult.h>
 
@@ -77,6 +78,41 @@ void DefgateOp::printIR(::mlir::OpAsmPrinter &p) {
     p << ' ' << ":";
     p << ' ';
     p.printAttributeWithoutType(typeAttr());
+}
+mlir::LogicalResult
+DefgateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
+    if (this->definition().hasValue()) {
+        auto defs = this->definition()->getValue();
+        for (auto i = 0; i < defs.size(); i++) {
+            auto id = i;
+            auto def = defs[i].dyn_cast<GateDefinition>();
+            if (!def) {
+                this->emitError()
+                    << "Definition #" << id << " should be GateDefinition";
+                return mlir::failure();
+            }
+            auto name = def.type().getValue();
+            if (name == "decomposition") {
+                auto symbol =
+                    def.value().dyn_cast_or_null<::mlir::SymbolRefAttr>();
+                if (!symbol) {
+                    this->emitError() << "Definition #" << id
+                                      << " should use a symbol as value.";
+                    return mlir::failure();
+                }
+                auto resolved =
+                    symbolTable.lookupNearestSymbolFrom<::mlir::FuncOp>(
+                        this->getOperation(), symbol);
+                if (!resolved) {
+                    this->emitError() << "Definition #" << id
+                                      << " should reference a symbol defined "
+                                         "by a `builtin.func`.";
+                    return mlir::failure();
+                }
+            }
+        }
+    }
+    return mlir::success();
 }
 
 mlir::LogicalResult verifyGateDefinition(DefgateOp op, int id,
@@ -161,7 +197,7 @@ mlir::LogicalResult verifyGateDefinition(DefgateOp op, int id,
             }
         }
     } else if (name == "decomposition") {
-
+        // Verify by symbol.
     } else {
         op->emitError() << "Definition #" << id << " type invalid.";
         return mlir::failure();
