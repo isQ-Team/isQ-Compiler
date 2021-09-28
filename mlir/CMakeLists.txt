@@ -8,7 +8,11 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 find_package(MLIR REQUIRED CONFIG)
 message(STATUS "Found MLIR ${MLIR_PACKAGE_VERSION}")
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
-set(CMAKE_MODULE_PATH ${LLVM_CMAKE_DIR} ${MLIR_CMAKE_DIR})
+set(CMAKE_MODULE_PATH ${LLVM_CMAKE_DIR} ${MLIR_CMAKE_DIR} ${PROJECT_SOURCE_DIR}/vendor/eigen/cmake)
+# Find Eigen
+set(ENV{EIGEN3_ROOT} ${PROJECT_SOURCE_DIR}/vendor/eigen)
+find_package(Eigen3 REQUIRED 3.4.0)
+
 
 
 
@@ -17,7 +21,7 @@ include(AddLLVM)
 include(TableGen)
 include(AddMLIR)
 include_directories(${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS} "include")
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/ ${EIGEN3_INCLUDE_DIR})
 add_subdirectory(include)
 add_definitions(${LLVM_DEFINITIONS})
 file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)

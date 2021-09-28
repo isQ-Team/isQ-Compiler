@@ -17,7 +17,7 @@ def ISQ_Dialect: Dialect{
     let description = [{
         MLIR Dialect for expressing and optimization ranging from low-level quantum circuits, to high level quantum programs with complicated control structures.
     }];
-    let dependentDialects = ["::mlir::memref::MemRefDialect"];
+    let dependentDialects = ["::mlir::memref::MemRefDialect", "::mlir::AffineDialect"];
 }
 
 ////////////////////////////////////
@@ -30,7 +30,6 @@ class ISQ_Op<string mnemonic, list<OpTrait> traits = []> :
     
 }
 
-// We use initialize-list-and-store to perform operations.
 def ISQ_QState : TypeDef<ISQ_Dialect, "QState", [MemRefElementTypeInterface]>{
     let description = [{
         Represents an intermediate qubit SSA state. Written `!isq.qstate`.
@@ -206,13 +205,19 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol]>{
     */
     let parser = [{return $cppClass::parseIR(parser, result);}];
     let printer = [{return this->printIR(p);}];
+    let verifier = [{
+        return this->verifyIR();
+    }];
     let extraClassDeclaration = [{
         bool isGateArray();
         bool isDeclaration();
         static ::mlir::LogicalResult parseIR(::mlir::OpAsmParser& parser, ::mlir::OperationState& result);
         void printIR(::mlir::OpAsmPrinter& p);
         ::mlir::Type getTypeWhenUsed();
+        ::mlir::LogicalResult verifyIR();
     }];
+
+
 }
 
 def ISQ_DeclareQOpOp : ISQ_Op<"declare_qop", [Symbol]>{
