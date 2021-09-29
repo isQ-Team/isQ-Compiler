@@ -23,9 +23,13 @@ build-job:       # This job runs in the build stage, which runs first.
     - ninja
     - cd ..
     - echo "Compile complete."
+  artifacts:
+    untracked: true
 
 pages:
   stage: deploy
+  dependencies: 
+    - build-job
   script:
     - mv build/docs/html public
   artifacts:
