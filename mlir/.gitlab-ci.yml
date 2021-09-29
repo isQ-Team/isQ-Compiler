@@ -21,10 +21,11 @@ build-job:       # This job runs in the build stage, which runs first.
     - cd build
     - cmake .. -GNinja
     - ninja
+    - mv build/docs/html public
     - echo "Compile complete."
   artifacts:
     paths:
-    - build/docs/html
+    - public
 
 
 unit-test-job:   # This job runs in the test stage.
