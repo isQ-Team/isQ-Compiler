@@ -75,7 +75,7 @@ def ISQ_Gate : TypeDef<ISQ_Dialect, "Gate", [MemRefElementTypeInterface]>{
         - `antidiagonal`, indicating the gate is antidiagonal (under computational basis). This enables switching between antidiagonal gates and \f$CZ\f$ gates, or `EjectPhasedPaulis` optimization.
         - `symmetric`, indicating the gate is symmetric over its **all** operands. Single qubit gates are intrinsically symmetric whether they are labeled or not.
 
-        Note that we allow loading and storing gates at runtime.
+        Note that we allow loading gates at runtime.
     }];
     let parameters = (ins "int64_t":$size,"GateTrait":$hints);
     let summary = [{Gate reference}];
@@ -176,6 +176,8 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolU
         (TODO: ways to define a gate are still not defined. We may want to support:
         - Matrix representation, where complex matrix is given out directly.
         - Gate decomposition, allowing using an entire decomposition function as a single gate.
+        - Controlled-gate (Functors)
+        - Classical oracle conversion
         - ...
         )
 
