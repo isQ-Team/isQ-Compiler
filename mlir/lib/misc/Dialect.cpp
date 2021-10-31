@@ -1,3 +1,4 @@
+#include "isq/Dialect.h"
 #include <isq/IR.h>
 #include <llvm/ADT/StringExtras.h>
 #include <isq/tblgen/ISQDialect.cpp.inc>
@@ -78,5 +79,6 @@ void ISQDialect::initialize() {
 #include <isq/tblgen/ISQOPs.cpp.inc>
         >();
 }
+
 } // namespace ir
 } // namespace isq
