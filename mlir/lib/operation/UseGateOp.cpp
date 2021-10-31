@@ -21,7 +21,7 @@ UseGateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
     return mlir::failure();
 }
 /*
-mlir::LogicalRea        sult verify(GateOp op) {
+mlir::LogicalResult verify(GateOp op) {
 if (op.gate_type() != op.getResult().getType()) {
     op.emitOpError("gate dimension or trait mismatch.");
     return mlir::failure();

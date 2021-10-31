@@ -4,4 +4,9 @@
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <isq/tblgen/ISQDialect.h.inc>
+namespace isq {
+namespace ir {
+void ISQToolsInitialize(mlir::DialectRegistry &registry);
+}
+} // namespace isq
 #endif

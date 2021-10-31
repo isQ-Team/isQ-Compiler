@@ -12,18 +12,15 @@
 #include "llvm/Support/CommandLine.h"
 #include <mlir/InitAllPasses.h>
 #include <mlir/IR/BuiltinTypes.h>
+#include "mlir/Tools/mlir-lsp-server/MlirLspServerMain.h"
 #include <algorithm>
 
 #include <isq/IR.h>
 
-int isq_mlir_opt_main(int argc, char **argv) {
-    mlir::registerAllPasses();
+int isq_mlir_lsp_server_main(int argc, char **argv) {
     mlir::DialectRegistry registry;
-    mlir::registerAllDialects(registry);
-    registry.insert<isq::ir::ISQDialect>();
-    return mlir::asMainReturnCode(mlir::MlirOptMain(
-        argc, argv, "MLIR modular optimizer driver for ISQ dialect\n", registry,
-        /*preloadDialectsInContext=*/false));
+    isq::ir::ISQToolsInitialize(registry);
+    return failed(mlir::MlirLspServerMain(argc, argv, registry));
 }
 
-int main(int argc, char **argv) { return isq_mlir_opt_main(argc, argv); }
+int main(int argc, char **argv) { return isq_mlir_lsp_server_main(argc, argv); }
