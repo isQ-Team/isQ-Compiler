@@ -418,5 +418,10 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
     }];
 }
 
+def ISQ_PrintOp : ISQ_Op<"print"> {
+    let arguments = (ins AnyType:$input);
 
-
+    let assemblyFormat = [{
+        `(` $input `:` type($input) `)` attr-dict 
+    }];
+}

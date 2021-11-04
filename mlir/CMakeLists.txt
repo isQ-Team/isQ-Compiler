@@ -12,11 +12,6 @@ set(CMAKE_MODULE_PATH ${LLVM_CMAKE_DIR} ${MLIR_CMAKE_DIR} ${PROJECT_SOURCE_DIR}/
 # Find Eigen
 set(ENV{EIGEN3_ROOT} ${PROJECT_SOURCE_DIR}/vendor/eigen)
 find_package(Eigen3 REQUIRED 3.4.0)
-
-
-
-
-add_compile_options(-fno-rtti)
 include(AddLLVM)
 include(TableGen)
 include(AddMLIR)
@@ -33,3 +28,4 @@ add_dependencies(qir-doc mlir-dialect-doc)
 if (BUILD_DOC)
 add_subdirectory(docs)
 endif (BUILD_DOC)
+add_subdirectory(frontends)
