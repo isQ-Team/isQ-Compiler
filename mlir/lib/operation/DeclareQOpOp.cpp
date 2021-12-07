@@ -61,7 +61,7 @@ mlir::LogicalResult DeclareQOpOp::parseIR(::mlir::OpAsmParser &parser,
     }
     auto ctx = parser.getBuilder().getContext();
     parsedAttributes.push_back(
-        ::std::make_pair(::mlir::Identifier::get("sym_visibility", ctx),
+        mlir::NamedAttribute(::mlir::Identifier::get("sym_visibility", ctx),
                          ::mlir::StringAttr::get(ctx, "nested")));
     result.attributes.append(parsedAttributes);
     if (parser.parseColon())

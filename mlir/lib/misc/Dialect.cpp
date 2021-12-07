@@ -26,7 +26,7 @@ mlir::Type ISQDialect::parseType(mlir::DialectAsmParser &parser) const {
     }
     mlir::Type ty;
     auto ret =
-        generatedTypeParser(parser.getBuilder().getContext(), parser, kw, ty);
+        generatedTypeParser(parser, kw, ty);
     if (!ret.hasValue()) {
         parser.emitError(kwLoc, "unrecognized type");
         return nullptr;
@@ -50,8 +50,7 @@ mlir::Attribute ISQDialect::parseAttribute(::mlir::DialectAsmParser &parser,
         return nullptr;
     }
     mlir::Attribute attr;
-    auto ret = generatedAttributeParser(parser.getBuilder().getContext(),
-                                        parser, kw, type, attr);
+    auto ret = generatedAttributeParser(parser, kw, type, attr);
     if (!ret.hasValue()) {
         parser.emitError(kwLoc, "unrecognized attribute");
         return nullptr;

@@ -9,7 +9,7 @@ namespace ir {
 
 const char *GateParsePrint::keyword() const { return "gate"; }
 bool GateParsePrint::isa(::mlir::Type me) const { return me.isa<GateType>(); }
-::mlir::Type GateParsePrint::parseType(::mlir::DialectAsmParser &parser) const {
+::mlir::Type GateParsePrint::parseType(::mlir::AsmParser &parser) const {
     auto ctx = parser.getBuilder().getContext();
     if (parser.parseLess())
         return nullptr;
@@ -40,7 +40,7 @@ bool GateParsePrint::isa(::mlir::Type me) const { return me.isa<GateType>(); }
     return GateType::get(ctx, gate_size, tr);
 }
 void GateParsePrint::printType(::mlir::Type type,
-                               ::mlir::DialectAsmPrinter &printer) const {
+                               ::mlir::AsmPrinter &printer) const {
     GateType t = type.cast<GateType>();
     printer << "gate<" << t.getSize();
     auto traits = t.getHints();

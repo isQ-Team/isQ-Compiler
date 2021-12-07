@@ -93,7 +93,7 @@ void CallQOpOp::printIR(::mlir::OpAsmPrinter &p) {
     p << "(";
     p << args();
     p << ")";
-    p.printOptionalAttrDict((*this)->getAttrs(), /*elidedAttrs=*/{"callee"});
+    p.printOptionalAttrDict((*this)->getAttrs(), /*elidedAttrs=*/{"callee", "size", "signature"});
     p << ' ' << ":";
     p << ' ' << "[";
     p.printAttributeWithoutType(sizeAttr());

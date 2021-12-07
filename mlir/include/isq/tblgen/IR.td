@@ -144,8 +144,8 @@ def ISQ_ComplexF64Attr : ISQ_Attr<"ComplexF64", []>{
     );
     let extraClassDeclaration = [{
         ::std::complex<double> complexValue();
-        static ::mlir::Attribute parseIR(::mlir::DialectAsmParser& parser);
-        void printIR(::mlir::DialectAsmPrinter& p) const;
+        static ::mlir::Attribute parseIR(::mlir::AsmParser& parser);
+        void printIR(::mlir::AsmPrinter& p) const;
     }];
     let parser = "return "# cppClassName # "::parseIR(parser);";
     let printer = [{return this->printIR(printer);}];
