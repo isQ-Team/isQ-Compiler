@@ -24,7 +24,6 @@ class (Monad m)=>CodeSunk m where
     emitUnaryOp :: Pos->UnaryOp->SSA->SSA->m ()
     -- c = a op b
     emitBinaryOp :: Pos->BinaryOp->SSA->SSA->SSA->m ()
-    emitAllocOp :: Pos->VarType ann->SSA->m ()
     -- ret = 1-sized memory view of array.
     emitSlice :: Pos->SSA->UnitKind->SSA->SSA->Maybe Int->m ()
     -- ret = arr [offset]
@@ -48,7 +47,8 @@ class (Monad m)=>CodeSunk m where
     emitPass :: Pos->m ()
     emitGlobalDef :: Pos->SSA->VarDef Pos-> m ()
     emitLocalDef :: Pos->SSA->VarDef ann-> m ()
-
+    incrBlockIndent :: m ()
+    decrBlockIndent :: m ()
 
 
 data Codegen = Codegen {
@@ -58,7 +58,7 @@ data Codegen = Codegen {
     _ssaCounter :: Int
 } deriving Show
 
-data GrammarError = 
+data GrammarError =
       TypeMismatch {_wanted:: VarType (), _got:: VarType Pos}
     | UndefinedSymbol {_missingSymbol:: Ident Pos}
     | RedefinedSymbol {_newSymbol:: Ident Pos, _oldSymbol:: Symbol Pos}
@@ -80,7 +80,6 @@ type CodegenM m = ExceptT GrammarError (StateT Codegen m)
 instance (CodeSunk m)=>CodeSunk (CodegenM m) where
     emitUnaryOp a b c d = lift $ lift (emitUnaryOp a b c d)
     emitBinaryOp a b c d e = lift $ lift (emitBinaryOp a b c d e)
-    emitAllocOp a b c = lift $ lift (emitAllocOp a b c)
     emitSlice a b c d e f = lift $ lift (emitSlice a b c d e f)
     emitReadIntOp a b c = lift $ lift (emitReadIntOp a b c)
     emitWriteIntOp a b c = lift $ lift (emitWriteIntOp a b c)
@@ -100,6 +99,8 @@ instance (CodeSunk m)=>CodeSunk (CodegenM m) where
     emitPass a = lift $ lift (emitPass a)
     emitGlobalDef a b c = lift $ lift (emitGlobalDef a b c)
     emitLocalDef a b c = lift $ lift (emitLocalDef a b c)
+    incrBlockIndent = lift $ lift incrBlockIndent
+    decrBlockIndent = lift $ lift decrBlockIndent
 
 nextSSA :: (Monad m)=>CodegenM m SSA
 nextSSA = do
@@ -142,7 +143,8 @@ querySymbol name = do
 
 addSymbol :: (Monad m)=>Ident Pos->VarType Pos->CodegenM m SSA
 addSymbol name ty = do
-    sym<-querySymbol (name^.identName)
+    tables <- use symbolTables
+    let sym = querySymbolInTable (name^.identName) (head tables)
     case sym of
         Just sym->do
             throwError $ RedefinedSymbol name sym
@@ -202,8 +204,8 @@ requireQbitArray :: (Monad m)=>TypedSSA->CodegenM m SSA
 requireQbitArray tssa@(TypedSSA ssa (Composite Qbit _ _)) = return ssa
 requireQbitArray tssa@(TypedSSA _ t@(view annotation->pos)) = throwError $ TypeMismatch (Composite Qbit Nothing ()) t
 requireArray :: (Monad m)=>UnitKind->TypedSSA->CodegenM m SSA
-requireArray Int  = requireIntArray 
-requireArray Qbit = requireQbitArray 
+requireArray Int  = requireIntArray
+requireArray Qbit = requireQbitArray
 requireArray _ = const $ throwError InternalCompilerError
 
 -- Array size casting rule: only allowing discard of array size.
@@ -267,7 +269,7 @@ evalExpr (UnaryOp unary_op x pos) = do
 evalExpr (LeftExpr e pos) = do
     a<-evalLeftExpr e
     -- If the integer is unit value, read its value.
-    ssa<-case a^.ssaType of 
+    ssa<-case a^.ssaType of
         UnitType Int _ ->  do {ssa<-nextSSA; emitReadIntOp pos ssa (a^.ssaVal); return ssa}
         _ -> return $ a^.ssaVal
     return $ TypedSSA ssa (a^.ssaType)
@@ -300,8 +302,10 @@ evalExpr (CallExpr (ProcedureCall name args pos') pos) = do
             return $ TypedSSA return_value (UnitType (p^.returnType) pos)
         Nothing->throwError $ UndefinedSymbol name
 
-declareSymbol :: (CodeSunk m)=>Bool->VarDef Pos->CodegenM m SSA
-declareSymbol isGlobal v@(VarDef t name loc) = do
+declareSymbol :: (CodeSunk m)=>VarDef Pos->CodegenM m SSA
+declareSymbol (VarDef t name pos) = addSymbol name t
+defineSymbol :: (CodeSunk m)=>Bool->VarDef Pos->CodegenM m SSA
+defineSymbol isGlobal v@(VarDef t name loc) = do
     ssa<-addSymbol name t
     let emit = if isGlobal then emitGlobalDef else emitLocalDef
     emit loc ssa v
@@ -335,6 +339,7 @@ evalStatement st@(CintAssignStmt lhs rhs loc) = do
 evalStatement st@(IfStatement cond b_then b_else loc) = do
     cond'<-evalExpr cond
     cond''<-requireInt cond'
+    incrBlockIndent
     scope
     emitPushBlock
     b_then'<-mapM evalStatement b_then
@@ -343,9 +348,11 @@ evalStatement st@(IfStatement cond b_then b_else loc) = do
     emitPushBlock
     b_else'<-mapM evalStatement b_else
     unscope
+    decrBlockIndent
     emitIf loc cond''
 
 evalStatement st@(WhileStatement cond b loc) = do
+    incrBlockIndent
     emitPushBlock
     scope
     cond'<-evalExpr cond
@@ -355,6 +362,7 @@ evalStatement st@(WhileStatement cond b loc) = do
     scope
     b'<-mapM evalStatement b
     unscope
+    decrBlockIndent
     emitWhile loc cond''
 
 
@@ -364,11 +372,13 @@ evalStatement st@(ForStatement vname vlo vhi b loc) = do
     vlo''<-requireInt vlo'
     vhi'<-evalExpr vhi
     vhi''<-requireInt vhi'
+    incrBlockIndent
     scope
-    v_ssa<-declareSymbol False (VarDef (UnitType Int loc) vname loc) 
+    v_ssa<-declareSymbol (VarDef (UnitType Int loc) vname loc)
     emitPushBlock
     b'<-mapM evalStatement b
     unscope
+    decrBlockIndent
     emitFor loc v_ssa vlo'' vhi''
 
 evalStatement st@(PrintStatement expr loc) = do
@@ -393,7 +403,7 @@ evalStatement st@(CallStatement c ann) = do
     return ()
 evalStatement st@(VarDefStatement defs loc) = do
     s<-use symbolTables
-    mapM_ (declareSymbol (length s==1)) defs
+    mapM_ (defineSymbol (length s==1)) defs
 
 evalProcDef :: (CodeSunk m)=>ProcDef Pos->CodegenM m ()
 evalProcDef x = do
@@ -404,14 +414,16 @@ evalProcDef x = do
         Nothing->return ()
     scope
     let params = x^.parameters
-    param_ssas<-mapM (declareSymbol False) params
+    param_ssas<-mapM declareSymbol params
     -- define arguments
+    incrBlockIndent
     emitPushBlock
     mapM_ evalStatement (x^.body)
     unscope
+    decrBlockIndent
     emitProcedure (x^.annotation) x param_ssas
     definedProcs %= Map.insert i x
-    
+
 evalGateDef :: (CodeSunk m)=>GateDef Pos->CodegenM m ()
 evalGateDef x = do
     let i = x^.gateName^.identName
@@ -420,8 +432,9 @@ evalGateDef x = do
         Just y->throwError $ RedefinedGate (x^.gateName) y
         Nothing->return ()
     let sz = gateSize x
-    when (sz*sz/= length (x^.matrix^.matrixData)) $ throwError $ InvalidGateMatrix x
-    when (not $ allSame (map length (x^.matrix^.matrixData))) $ throwError $ InvalidGateMatrix x
+    let mat_size = 2^sz
+    when (mat_size /= length (x^.matrix^.matrixData)) $ throwError $ InvalidGateMatrix x
+    when (not $ allSame ((mat_size):(map length (x^.matrix^.matrixData)))) $ throwError $ InvalidGateMatrix x
     let dat = x^.matrix^.matrixData
     mat<-mapM (mapM evalComplexNumber ) dat
     emitGateDef x mat
@@ -429,7 +442,7 @@ evalGateDef x = do
 
 evalVarDef :: (CodeSunk m)=>VarDef Pos->CodegenM m ()
 evalVarDef x = do
-    ssa<-declareSymbol True x
+    ssa<-defineSymbol True x
     emitGlobalDef (x^.annotation) ssa x
     return ()
 
@@ -438,6 +451,22 @@ evalProgram prog = do
     mapM_ evalGateDef (prog^.topGatedefs)
     mapM_ evalVarDef (prog^.topVardefs)
     mapM_ evalProcDef (prog^.procedures)
+
+
+emptyCodegen :: Codegen
+emptyCodegen = Codegen {
+    _symbolTables = [SymbolTable Map.empty],
+    _definedProcs = Map.empty,
+    _definedGates = Map.empty,
+    _ssaCounter = 0
+}
+
+runCodegen :: (CodeSunk m)=>Program Pos-> m (Either GrammarError ())
+runCodegen program = do
+    let e = runExceptT $ evalProgram program
+    let s = runStateT e emptyCodegen
+    fst <$> s
+
 
 --evalExpr e@(_value->MeasureExpr name) = do
 --evalExpr e@(_value->CallExpr name args)

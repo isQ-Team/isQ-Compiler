@@ -146,5 +146,5 @@ parseProcedure = locStart $ do {pos<-getPosition; ty<-(tok "int" >> return Int) 
 gatedefStatement = locStart $ do {tok "Defgate"; name<-ident; op "="; mat<-brackets parseMatrix; op ";"; return $ GateDef name mat}
 parseMatrix = locStart $ do {mat<-semiSep (commaSep parseExpr); return $ Matrix mat}
 
-parseISQ = do {gates<-many gatedefStatement; top_var_defs<-many $ try $ do {st<-defStatement; op ";"; return $ _localVarDef st}; proc_defs<-many parseProcedure; return $ Program gates (concat top_var_defs) proc_defs}
+parseISQ = locStart $ do {gates<-many gatedefStatement; top_var_defs<-many $ try $ do {st<-defStatement; op ";"; return $ _localVarDef st}; proc_defs<-many parseProcedure; return $ Program gates (concat top_var_defs) proc_defs}
 --tparse a b = runParser a () "" b

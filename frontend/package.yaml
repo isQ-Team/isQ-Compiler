@@ -26,6 +26,7 @@ dependencies:
 - parsec
 - containers
 - extra
+- math-functions
 
 library:
   source-dirs: src
