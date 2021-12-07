@@ -8,11 +8,11 @@ bool QStateParsePrint::isa(::mlir::Type me) const {
     return me.isa<QStateType>();
 }
 ::mlir::Type
-QStateParsePrint::parseType(::mlir::DialectAsmParser &parser) const {
+QStateParsePrint::parseType(::mlir::AsmParser &parser) const {
     return QStateType::get(parser.getBuilder().getContext());
 }
 void QStateParsePrint::printType(::mlir::Type type,
-                                 ::mlir::DialectAsmPrinter &printer) const {
+                                 ::mlir::AsmPrinter &printer) const {
     printer << "qstate";
 }
 } // namespace ir
