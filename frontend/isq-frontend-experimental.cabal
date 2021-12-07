@@ -28,6 +28,7 @@ library
       ISQ.Lang.Codegen
       ISQ.Lang.Language
       ISQ.Lang.MLIRGen
+      ISQ.Lang.ParserMain
   other-modules:
       Paths_isq_frontend_experimental
   hs-source-dirs:
@@ -37,6 +38,7 @@ library
     , containers
     , extra
     , lens
+    , math-functions
     , mtl
     , parsec
   default-language: Haskell2010
@@ -54,6 +56,7 @@ executable isq-frontend-experimental-exe
     , extra
     , isq-frontend-experimental
     , lens
+    , math-functions
     , mtl
     , parsec
   default-language: Haskell2010

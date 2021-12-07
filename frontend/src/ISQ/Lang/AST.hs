@@ -3,6 +3,7 @@ module ISQ.Lang.AST where
 import Control.Lens
 import Data.Complex
 import Text.Parsec.Pos (SourcePos)
+import Numeric.SpecFunctions (log2)
 
 class Annotated x where
     annotation :: Lens (x s) (x s) s s
@@ -18,7 +19,7 @@ data GateDef ann = GateDef {
 } deriving Show
 
 gateSize :: GateDef ann -> Int
-gateSize = floor . sqrt . fromIntegral . length . _matrixData . _matrix
+gateSize = log2 . length . _matrixData . _matrix
 data UnitKind = Int | Qbit | Complex | Void deriving (Show, Eq)
 data VarType ann = UnitType {_ty :: UnitKind, _vartypeAnnotation :: ann}
              | Composite {_base :: UnitKind, _arrLen :: Maybe Int, _vartypeAnnotation :: ann} 

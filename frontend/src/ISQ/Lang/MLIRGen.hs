@@ -14,7 +14,8 @@ import Data.Either
 data MLIRGenState = MLIRGenState {
     _generatedCodes :: [[String]],
     _overloadedGlobalVars :: Map.Map SSA (VarDef Pos),
-    _tempSSAs :: Int
+    _tempSSAs :: Int,
+    _extraIndent :: Int
 } deriving Show
 makeLenses ''MLIRGenState
 
@@ -23,7 +24,7 @@ newtype MLIRGen a = MLIRGen{
 } deriving (MonadState MLIRGenState, Functor, Applicative, Monad)
 
 locationInfo :: SourcePos -> String
-locationInfo pos = printf "loc(%s, %d, %d)" (show $ sourceName pos) (sourceLine pos) (sourceColumn pos)
+locationInfo pos = printf "loc(%s:%d:%d)" (show $ sourceName pos) (sourceLine pos) (sourceColumn pos)
 
 nextTempSSA :: MLIRGen String
 nextTempSSA = do
@@ -35,10 +36,15 @@ indentStr = "    "
 emit :: String->MLIRGen ()
 emit s = do
     c<-use generatedCodes
-    let t = concat $ replicate (length c-1) indentStr
+    e<-use extraIndent
+    let t = concat $ replicate e indentStr
     -- Append code in reversed direction!
     generatedCodes %= over _head ((t++s):)
-
+emitBlock :: [String]->MLIRGen ()
+emitBlock s = do
+    c<-use generatedCodes
+    -- Append code in reversed direction!
+    mapM_ (\l->generatedCodes %= over _head (l:)) s
 popBlock :: MLIRGen [String]
 popBlock = do
     c<-use generatedCodes
@@ -138,6 +144,8 @@ printMatrix xss = "[" ++ (intercalate ", " $ map (\xs->"["++(intercalate ", " $ 
 -- In most cases: arrays represented in the form of memref<sizexindex, #onedim>
 -- Upon allocation / get_global, we need to convert them to memref<sizexindex, #onedim>
 instance CodeSunk MLIRGen where
+    incrBlockIndent = extraIndent %= (+1)
+    decrBlockIndent = extraIndent %= (\x->x-1)
     emitUnaryOp pos Neg ret val = do
         -- Problem: MLIR does not have arith.negi.
         temp_zero <- nextTempSSA
@@ -150,19 +158,19 @@ instance CodeSunk MLIRGen where
                 Sub -> ("subi", False)
                 Mul -> ("muli", False)
                 Div -> ("divi", False)
-                Less -> ("cmpi \"slt\", ", True)
-                Greater -> ("cmpi \"sgt\", ", True)
-                LessEqual -> ("cmpi \"sle\", ", True)
-                GreaterEqual -> ("cmpi \"sge\", ", True)
-                Equal -> ("cmpi \"eq\", ", True)
-                NEqual -> ("cmpi \"ne\", ", True)
+                Less -> ("cmpi \"slt\",", True)
+                Greater -> ("cmpi \"sgt\",", True)
+                LessEqual -> ("cmpi \"sle\",", True)
+                GreaterEqual -> ("cmpi \"sge\",", True)
+                Equal -> ("cmpi \"eq\",", True)
+                NEqual -> ("cmpi \"ne\",", True)
         if is_cmp then (do
             temp_value<-nextTempSSA
             -- Problem: comparison result is i1.
-            emit $ printf "%s = arith.%s %s, %s : index %s" (ssa temp_value) (ssa lhs) (ssa rhs) (locationInfo pos)
+            emit $ printf "%s = arith.%s %s, %s : index %s" (ssa temp_value) op (ssa lhs) (ssa rhs) (locationInfo pos)
             emit $ printf "%s = arith.index_cast %s: i1 to index %s" (ssa ret) (ssa temp_value) (locationInfo pos)) 
             else (do
-            emit $ printf "%s = arith.%s %s, %s : index %s" (ssa ret) (ssa lhs) (ssa rhs) (locationInfo pos))
+            emit $ printf "%s = arith.%s %s, %s : index %s" (ssa ret) op (ssa lhs) (ssa rhs) (locationInfo pos))
     emitSlice pos ret kind base offset arr_len = do
         base' <- overrideGlobalSSA pos base
         let prev_ty = Composite kind arr_len ()
@@ -185,7 +193,7 @@ instance CodeSunk MLIRGen where
             emit $ printf "    %s = arith.constant 0 : index %s" (ssa temp_zero) (locationInfo pos)
             emit $ printf "    %s = memref.subview %s[%s][1][1] : memref<1xindex> to memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> %s" (ssa old_ssa) (ssa temp_var) (ssa temp_zero) (locationInfo pos)
             ) ssa_casts
-        mapM_ emit block
+        emitBlock block
         -- Free return.
         when (p^.returnType == Void) $ emit "    return"
         emit "}"
@@ -193,35 +201,41 @@ instance CodeSunk MLIRGen where
     emitCall pos p ret args = do
         let sig = generateCallingSignature p
         let ret_ty = if (p^.returnType)==Int then printf "%s = " (ssa ret) else ""
-        emit $ printf "%scall @%s($s) : %s %s" ret_ty (p^.procName^.identName) (intercalate ", " args) sig (locationInfo pos)
+        emit $ printf "%scall @%s(%s) : %s %s" ret_ty (p^.procName^.identName) (intercalate ", " args) sig (locationInfo pos)
     emitPushBlock = do
         generatedCodes %= ([]:)
     emitIf pos cond = do
         b_else <- popBlock
         b_then <- popBlock
         emit $ printf "affine.if affine_set<(d0): (d0-1>=0)>(%s) {" (ssa cond)
-        mapM_ emit b_then
+        emitBlock b_then
         emit "} else {"
-        mapM_ emit b_else
+        emitBlock b_else
         emit $ printf "} %s" (locationInfo pos)
     emitWhile pos cond = do
         b_body <- popBlock
         b_cond <- popBlock
         emit "scf.while () : ()->(){"
-        mapM_ emit b_cond
+        emitBlock b_cond
         temp_bool<-nextTempSSA
         emit $ printf "    %s = arith.index_cast %s : index to i1 %s" (ssa temp_bool) (ssa cond) (locationInfo pos)
         emit $ printf "    scf.condition(%s) %s" (ssa temp_bool) (locationInfo pos)
         emit "} do {"
-        mapM_ emit b_body
+        emitBlock b_body
         emit "    scf.yield"
         emit $ printf "} %s" (locationInfo pos)
     emitPrint pos val = do
         emit $ printf "call @isq_print(%s): (index)->() %s" (ssa val) (locationInfo pos)
     emitFor pos var lo hi = do
         b_body <- popBlock
-        emit $ printf "affine.for %s = %s to %s step 1 {" (ssa var) (ssa lo) (ssa hi)
-        mapM_ emit b_body
+        temp_val<-nextTempSSA
+        emit $ printf "affine.for %s = %s to %s step 1 {" (ssa temp_val) (ssa lo) (ssa hi)
+        --extraIndent%=(+1)
+        emitLocalDef pos var (VarDef (UnitType Int ()) undefined ())
+        emitWriteIntOp pos var temp_val
+        --extraIndent%=(\x->x-1)
+        emitBlock b_body
+        
         emit $ printf "} %s" (locationInfo pos)
     emitReturn pos Nothing = do
         emit $ printf "return %s" (locationInfo pos)
@@ -265,3 +279,23 @@ instance CodeSunk MLIRGen where
         temp_zero <- nextTempSSA
         emitConst pos 0 temp_zero
         emit $ printf "%s = memref.subview %s[%s][%d][1] : %s to %s %s" (ssa s) (ssa temp_var) (ssa temp_zero) (knownVarDefArrLen v) (mlirGlobalType False (v^.varType)) (mlirGlobalType True (v^.varType)) (locationInfo pos)
+
+emptyMLIRGen :: MLIRGenState
+emptyMLIRGen = MLIRGenState {
+    _generatedCodes = [[]],
+    _overloadedGlobalVars = Map.empty,
+    _tempSSAs = 0,
+    _extraIndent = 0
+}
+
+runMLIRGen :: MLIRGen (Either GrammarError ()) -> Either GrammarError MLIRGenState
+runMLIRGen (MLIRGen m) = do
+    let (a,res) = runState m emptyMLIRGen in 
+        case a of
+            Left err -> Left err
+            Right _ -> Right res
+
+extractCode = reverse . head . _generatedCodes
+
+mlirGen :: Program Pos -> Either GrammarError [String]
+mlirGen x  = fmap extractCode $ runMLIRGen $ runCodegen x
