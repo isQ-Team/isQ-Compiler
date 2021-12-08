@@ -5,9 +5,9 @@ module @isq_builtin {
 }
 func @bell()->(i1, i1){
     %qarr = memref.alloca() : memref<2x!isq.qstate>
-    %i0 = constant 0 : index
+    %i0 = arith.constant 0 : index
     %q0 = affine.load %qarr[%i0]: memref<2x!isq.qstate>
-    %i1 = constant 1 : index
+    %i1 = arith.constant 1 : index
     %q1 = affine.load %qarr[%i1] : memref<2x!isq.qstate>
     %g1 = isq.use @isq_builtin::@hadamard : !isq.gate<1, hermitian>
     %g2 = isq.use @isq_builtin::@cnot : !isq.gate<2, hermitian>

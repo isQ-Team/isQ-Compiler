@@ -44,9 +44,9 @@ func @cancellation_with_cse(%q: !isq.qstate)->!isq.qstate{
 }
 func @two_dimensional_do_nothing(%coin: memref<?x?x!isq.qstate>)->(){
     
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x = memref.dim %coin, %c0 : memref<?x?x!isq.qstate>
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %y = memref.dim %coin, %c1 : memref<?x?x!isq.qstate>
     affine.for %i = 0 to %x step 1{
         affine.for %j = 1 to %y step 1{

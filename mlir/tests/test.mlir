@@ -6,7 +6,7 @@ module @isq_builtin {
 }
 
 func @coin()->i1{
-    %zero = std.constant 0: index
+    %zero = arith.constant 0: index
     %coinspace = memref.alloca() : memref<1x!isq.qstate>
     %0 = isq.use @isq_builtin::@hadamard : !isq.gate<1, hermitian>
     %down = isq.downgrade (%0: !isq.gate<1, hermitian>) : !isq.gate<1>
@@ -17,9 +17,9 @@ func @coin()->i1{
 }
 
 func @two_dimensional_coins(%coin: memref<?x?x!isq.qstate>, %results: memref<?x?xi1>)->(){
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x = memref.dim %coin, %c0 : memref<?x?x!isq.qstate>
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %y = memref.dim %coin, %c1 : memref<?x?x!isq.qstate>
     affine.for %i = 0 to %x step 1{
         affine.for %j = 0 to %y step 1{
