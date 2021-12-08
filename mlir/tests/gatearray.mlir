@@ -10,9 +10,9 @@ func @scramble_all()->memref<10x20xi1>{
     %qarr = memref.alloca() : memref<10x20x!isq.qstate>
     %garr = isq.use @gates : memref<10x20x!isq.gate<1>>
     %results = memref.alloca() : memref<10x20xi1>
-    %c0 = constant 0 : index
+    %c0 = arith.constant 0 : index
     %x = memref.dim %qarr, %c0 : memref<10x20x!isq.qstate>
-    %c1 = constant 1 : index
+    %c1 = arith.constant 1 : index
     %y = memref.dim %qarr, %c1 : memref<10x20x!isq.qstate>
     affine.for %i = 0 to %x step 1{
         affine.for %j = 0 to %y step 1 {

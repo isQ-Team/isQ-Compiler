@@ -2,11 +2,11 @@
 memref.global @x : memref<2xindex>
 func @main(){
     %g = memref.get_global @x: memref<2xindex>
-    %zero = constant 0: index
+    %zero = arith.constant 0: index
     %g1 = memref.subview %g[%zero][2][1]: memref<2xindex> to memref<2xindex, #onedim>
-    %one = constant 1: index
+    %one = arith.constant 1: index
     %0 = memref.alloc()[%one] : memref<2048xindex, #onedim>
-    %i = constant 0: index
+    %i = arith.constant 0: index
     %1 = memref.subview %0[%i][1][1]: memref<2048xindex, affine_map<(d0)[s0]->(d0+s0)>> to memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>>
     %2 = affine.load %1[%i] : memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>>
     return

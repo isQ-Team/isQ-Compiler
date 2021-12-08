@@ -1,6 +1,0 @@
-file(GLOB_RECURSE ISQ_SRC_FILES ./*.cpp)
-include_directories(/usr/local/include/antlr4-runtime)
-include_directories(/usr/include/antlr4-runtime)
-include_directories(./generate)
-add_executable(isqc ${ISQ_SRC_FILES})
-target_link_libraries(isqc isqir LLVMCore antlr4-runtime ${mlir_libs})

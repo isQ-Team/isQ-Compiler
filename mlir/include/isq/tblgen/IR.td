@@ -17,7 +17,7 @@ def ISQ_Dialect: Dialect{
     let description = [{
         MLIR Dialect for expressing and optimization ranging from low-level quantum circuits, to high level quantum programs with complicated control structures.
     }];
-    let dependentDialects = ["::mlir::memref::MemRefDialect", "::mlir::AffineDialect"];
+    let dependentDialects = ["::mlir::memref::MemRefDialect", "::mlir::AffineDialect", "::mlir::arith::ArithmeticDialect"];
 }
 
 ////////////////////////////////////
@@ -408,7 +408,9 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
         }
         ```
     }];
-    let arguments = (ins ISQ_Gate: $args);
+    let arguments = (ins 
+        ISQ_Gate: $args
+    );
     let results = (outs ISQ_Gate);
     let assemblyFormat = [{
         `(` $args `:` type($args) `)` attr-dict `:` type(results)
@@ -418,10 +420,36 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
     }];
 }
 
+def ISQ_DecorateOp: ISQ_Op<"decorate", [NoSideEffect]>{
+    let summary = "Decorate a gate by adding controlled and adjoint markers.";
+    let description = [{
+        This operations is used to derive a controlled / inverse gate from a used gate.
+    }];
+    let arguments = (
+        ins ISQ_Gate: $args,
+        BoolAttr: $adjoint,
+        BoolArrayAttr : $ctrl
+    );
+    let results = (outs ISQ_Gate);
+    let assemblyFormat = [{
+        `(` $args `:` type($args) `)` attr-dict `:` type(results)
+    }];
+    let verifier = [{
+        return ::isq::ir::verify(*this);
+    }];
+}
+
+
 def ISQ_PrintOp : ISQ_Op<"print"> {
     let arguments = (ins AnyType:$input);
 
     let assemblyFormat = [{
         `(` $input `:` type($input) `)` attr-dict 
+    }];
+}
+
+def ISQ_PassOp :ISQ_Op<"pass"> {
+    let assemblyFormat = [{
+        attr-dict
     }];
 }
