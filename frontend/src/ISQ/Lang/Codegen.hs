@@ -49,6 +49,7 @@ class (Monad m)=>CodeSunk m where
     emitLocalDef :: Pos->SSA->VarDef ann-> m ()
     incrBlockIndent :: m ()
     decrBlockIndent :: m ()
+    emitProgramHeader :: Pos->m ()
 
 
 data Codegen = Codegen {
@@ -101,6 +102,7 @@ instance (CodeSunk m)=>CodeSunk (CodegenM m) where
     emitLocalDef a b c = lift $ lift (emitLocalDef a b c)
     incrBlockIndent = lift $ lift incrBlockIndent
     decrBlockIndent = lift $ lift decrBlockIndent
+    emitProgramHeader a = lift $ lift (emitProgramHeader a)
 
 nextSSA :: (Monad m)=>CodegenM m SSA
 nextSSA = do
@@ -254,7 +256,7 @@ evalExpr (BinaryOp bin_op x y pos) = do
     a'<-requireInt a
     b'<-requireInt b
     ssa<-nextSSA
-    emitBinaryOp pos bin_op a' b' ssa
+    emitBinaryOp pos bin_op ssa a' b'
     return $ TypedSSA ssa (UnitType Int pos)
 
 evalExpr (UnaryOp unary_op x pos) = do
@@ -281,7 +283,7 @@ evalExpr (MeasureExpr leftvalue e') = do
     ssa<-requireQbit v
     ret<-nextSSA
     emitMeasure e' ssa ret
-    return $ TypedSSA ssa (UnitType Int e')
+    return $ TypedSSA ret (UnitType Int e')
 evalExpr (CallExpr (ProcedureCall name args pos') pos) = do
     let i = name^.identName
     procs<-use definedProcs
@@ -443,11 +445,12 @@ evalGateDef x = do
 evalVarDef :: (CodeSunk m)=>VarDef Pos->CodegenM m ()
 evalVarDef x = do
     ssa<-defineSymbol True x
-    emitGlobalDef (x^.annotation) ssa x
+    --emitGlobalDef (x^.annotation) ssa x
     return ()
 
 evalProgram :: (CodeSunk m) => Program Pos -> ExceptT GrammarError (StateT Codegen m) ()
 evalProgram prog = do
+    emitProgramHeader (prog^.annotation)
     mapM_ evalGateDef (prog^.topGatedefs)
     mapM_ evalVarDef (prog^.topVardefs)
     mapM_ evalProcDef (prog^.procedures)

@@ -94,7 +94,7 @@ overrideGlobalSSA p ssa_val = do
             emit $ printf "%s = memref.get_global @%s : %s %s" (ssa temp_ssa) (v^.varName^.identName) (mlirGlobalType False (v^.varType)) (locationInfo p)
             emit $ printf "%s = arith.constant 0 : index %s" (ssa temp_zero) (locationInfo p)
             emit $ printf "%s = memref.subview %s[%s][%d][1] : %s to %s %s" (ssa casted_temp_ssa) (ssa temp_ssa) (ssa temp_zero) (knownVarDefArrLen v) (mlirGlobalType False (v^.varType))  (mlirGlobalType True (v^.varType))  (locationInfo p)
-            return temp_ssa
+            return casted_temp_ssa
 
 mapVarDefToArg :: Maybe SSA->VarType ann->String
 mapVarDefToArg s v = case s of
@@ -126,12 +126,14 @@ generateCallingSignature p =
 
 loadQubit :: Pos->SSA->MLIRGen SSA
 loadQubit pos s = do
+    s'<-overrideGlobalSSA pos s
     qstate<-nextTempSSA
-    emit $ printf "%s = affine.load %s[0] : memref<1x!isq.qubit, affine_map<(d0)[s0]->(d0+s0)>> %s" (ssa qstate) (ssa s) (locationInfo pos)
+    emit $ printf "%s = affine.load %s[0] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> %s" (ssa qstate) (ssa s') (locationInfo pos)
     return qstate
 storeQubit :: Pos->SSA->SSA->MLIRGen ()
 storeQubit pos s qstate = do
-    emit $ printf "affine.store %s, %s[0] : memref<1x!isq.qubit, affine_map<(d0)[s0]->(d0+s0)>> %s" (ssa qstate) (ssa s) (locationInfo pos)
+    s'<-overrideGlobalSSA pos s
+    emit $ printf "affine.store %s, %s[0] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> %s" (ssa qstate) (ssa s') (locationInfo pos)
 
 decorToDict :: GateDecorator->String
 decorToDict decor = printf "{ctrl = [%s], adjoint = %s}" (intercalate ", " $  map (\x->if x then "true" else "false") (decor^.controlStates)) (if decor^.adjoint then "true" else "false")
@@ -177,9 +179,11 @@ instance CodeSunk MLIRGen where
         let curr_ty = Composite kind (Just 1) ()
         emit $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (ssa ret) (ssa base') (ssa offset) (mlirGlobalType True prev_ty) (mlirGlobalType True curr_ty) (locationInfo pos)
     emitReadIntOp pos ret val = do
-        emit $ printf "%s = affine.load %s[0] : memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> %s" (ssa ret) (ssa val) (locationInfo pos)
+        val' <- overrideGlobalSSA pos val
+        emit $ printf "%s = affine.load %s[0] : memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> %s" (ssa ret) (ssa val') (locationInfo pos)
     emitWriteIntOp pos arr val = do
-        emit $ printf "affine.store %s, %s[0]: memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> %s" (ssa val) (ssa arr) (locationInfo pos)
+        arr' <- overrideGlobalSSA pos arr
+        emit $ printf "affine.store %s, %s[0]: memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> %s" (ssa val) (ssa arr') (locationInfo pos)
     emitProcedure pos p args = do
         block<-popBlock
         (new_ssas, ssa_casts)<-pickoutIntSSAs args p
@@ -201,7 +205,8 @@ instance CodeSunk MLIRGen where
     emitCall pos p ret args = do
         let sig = generateCallingSignature p
         let ret_ty = if (p^.returnType)==Int then printf "%s = " (ssa ret) else ""
-        emit $ printf "%scall @%s(%s) : %s %s" ret_ty (p^.procName^.identName) (intercalate ", " args) sig (locationInfo pos)
+        args' <- mapM (overrideGlobalSSA pos) args
+        emit $ printf "%scall @%s(%s) : %s %s" ret_ty (p^.procName^.identName) (intercalate ", " $ map ssa args') sig (locationInfo pos)
     emitPushBlock = do
         generatedCodes %= ([]:)
     emitIf pos cond = do
@@ -225,7 +230,7 @@ instance CodeSunk MLIRGen where
         emit "    scf.yield"
         emit $ printf "} %s" (locationInfo pos)
     emitPrint pos val = do
-        emit $ printf "call @isq_print(%s): (index)->() %s" (ssa val) (locationInfo pos)
+        emit $ printf "call @printInt(%s): (index)->() %s" (ssa val) (locationInfo pos)
     emitFor pos var lo hi = do
         b_body <- popBlock
         temp_val<-nextTempSSA
@@ -249,10 +254,11 @@ instance CodeSunk MLIRGen where
         storeQubit pos qubit new_qstate
     emitGateApply pos decor gatedef args = do
         used_gate<-nextTempSSA
-        emit $ printf "%s = isq.use @%s : !isq.gate<%d> %s" (ssa used_gate) (gatedef^.gateName^.identName) (length args) (locationInfo pos)
+        let original_length = gateSize gatedef
+        emit $ printf "%s = isq.use @%s : !isq.gate<%d> %s" (ssa used_gate) (gatedef^.gateName^.identName) (original_length) (locationInfo pos)
         lifted_gate<-nextTempSSA
-        let new_length = ((length args)+(length $ decor^.controlStates))
-        emit $ printf "%s = isq.decorate(%s: !isq.gate<%d>) %s :!isq.gate<%d> %s" (ssa lifted_gate) (ssa used_gate) (length args) (decorToDict decor) new_length (locationInfo pos)
+        let new_length = ((length args))
+        emit $ printf "%s = isq.decorate(%s: !isq.gate<%d>) %s :!isq.gate<%d> %s" (ssa lifted_gate) (ssa used_gate) (original_length) (decorToDict decor) new_length (locationInfo pos)
         qstates <- mapM (loadQubit pos) args
         new_qstates <- sequence (replicate (length qstates) nextTempSSA)
         emit $ printf "%s = isq.apply %s(%s) : !isq.gate<%d> %s" (intercalate "," $ map ssa new_qstates) (ssa lifted_gate) (intercalate "," $ map ssa qstates) (length args) (locationInfo pos)
@@ -279,6 +285,7 @@ instance CodeSunk MLIRGen where
         temp_zero <- nextTempSSA
         emitConst pos 0 temp_zero
         emit $ printf "%s = memref.subview %s[%s][%d][1] : %s to %s %s" (ssa s) (ssa temp_var) (ssa temp_zero) (knownVarDefArrLen v) (mlirGlobalType False (v^.varType)) (mlirGlobalType True (v^.varType)) (locationInfo pos)
+    emitProgramHeader = emitHeader
 
 emptyMLIRGen :: MLIRGenState
 emptyMLIRGen = MLIRGenState {
@@ -288,6 +295,15 @@ emptyMLIRGen = MLIRGenState {
     _extraIndent = 0
 }
 
+emitHeader :: Pos->MLIRGen ()
+emitHeader p = do
+    emit "// This file is generated by the isQ Experimental compiler"
+    emit $ "// Source file name: " ++ (sourceName p)
+    emit $ "module @isq_builtin {"
+    emit $ "    isq.declare_qop @measure : [1]()->i1"
+    emit $ "    isq.declare_qop @reset : [1]()->()"
+    emit $ "}"
+    emit $ "func private @printInt(index)->()"
 runMLIRGen :: MLIRGen (Either GrammarError ()) -> Either GrammarError MLIRGenState
 runMLIRGen (MLIRGen m) = do
     let (a,res) = runState m emptyMLIRGen in 
