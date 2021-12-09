@@ -13,7 +13,7 @@ QStateParsePrint::parseType(::mlir::AsmParser &parser) const {
 }
 void QStateParsePrint::printType(::mlir::Type type,
                                  ::mlir::AsmPrinter &printer) const {
-    printer << "qstate";
+    //printer << "qstate";
 }
 } // namespace ir
 } // namespace isq

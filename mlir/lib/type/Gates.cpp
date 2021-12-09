@@ -42,7 +42,7 @@ bool GateParsePrint::isa(::mlir::Type me) const { return me.isa<GateType>(); }
 void GateParsePrint::printType(::mlir::Type type,
                                ::mlir::AsmPrinter &printer) const {
     GateType t = type.cast<GateType>();
-    printer << "gate<" << t.getSize();
+    printer << "<" << t.getSize();
     auto traits = t.getHints();
     if (traits != GateTrait::General) {
         auto t = stringifyGateTrait(traits);

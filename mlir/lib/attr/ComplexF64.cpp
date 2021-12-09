@@ -18,7 +18,7 @@ namespace ir {
                ::llvm::APFloat(imag));
 }
 void ComplexF64Attr::printIR(::mlir::AsmPrinter &p) const {
-    p << "complex<";
+    p << "<";
     p << this->getReal();
     p << ", ";
     p << this->getImag();
