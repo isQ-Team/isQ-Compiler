@@ -71,8 +71,8 @@ bool DefgateOp::isGateArray() {
 }
 
 void DefgateOp::printIR(::mlir::OpAsmPrinter &p) {
-    p << "isq.defgate";
-    p << ' ';
+    //p << "isq.defgate";
+    //p << ' ';
     p.printSymbolName(sym_nameAttr().getValue());
     p.printOptionalAttrDict(
         (*this)->getAttrs(),

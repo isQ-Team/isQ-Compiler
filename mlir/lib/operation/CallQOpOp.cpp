@@ -87,8 +87,8 @@ CallQOpOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
 }
 
 void CallQOpOp::printIR(::mlir::OpAsmPrinter &p) {
-    p << "isq.call_qop";
-    p << ' ';
+    //p << "isq.call_qop";
+    //p << ' ';
     p.printAttributeWithoutType(calleeAttr());
     p << "(";
     p << args();
