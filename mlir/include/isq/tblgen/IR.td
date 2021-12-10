@@ -18,6 +18,7 @@ def ISQ_Dialect: Dialect{
         MLIR Dialect for expressing and optimization ranging from low-level quantum circuits, to high level quantum programs with complicated control structures.
     }];
     let dependentDialects = ["::mlir::memref::MemRefDialect", "::mlir::AffineDialect", "::mlir::arith::ArithmeticDialect"];
+    let hasCanonicalizer = 1;
 }
 
 ////////////////////////////////////

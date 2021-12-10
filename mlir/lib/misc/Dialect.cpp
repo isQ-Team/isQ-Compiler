@@ -13,9 +13,13 @@
 #include <isq/tblgen/ISQAttrs.cpp.inc>
 
 #include <isq/tblgen/ISQStructAttrs.cpp.inc>
-
+#include <isq/passes/FoldAffineComparison.h>
 namespace isq {
 namespace ir {
+
+void ISQDialect::getCanonicalizationPatterns(mlir::RewritePatternSet &results) const {
+    results.add<passes::FoldAffineComparison>(this->getContext());
+}
 
 mlir::Type ISQDialect::parseType(mlir::DialectAsmParser &parser) const {
     mlir::StringRef kw;
