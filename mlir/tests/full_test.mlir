@@ -58,15 +58,15 @@ func @test2(%x10: memref<?x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>>, %t23: in
     affine.store %t22, %x13[0] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("main.isq":43:9)
     return
 }
-func @main(%x16: index, %x17: index)->(){
+func @main()->(){
     %t26 = memref.alloca() : memref<1xindex> loc("main.isq":48:13)
     %t27 = arith.constant 0 : index loc("main.isq":48:13)
     %x14 = memref.subview %t26[%t27][1][1] : memref<1xindex> to memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> loc("main.isq":48:13)
     %t28 = memref.alloca() : memref<1xindex> loc("main.isq":49:13)
     %t29 = arith.constant 0 : index loc("main.isq":49:13)
     %x15 = memref.subview %t28[%t29][1][1] : memref<1xindex> to memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> loc("main.isq":49:13)
-    //%x16 = arith.constant 1 : index loc("main.isq":50:13)
-    //%x17 = arith.constant 2 : index loc("main.isq":50:17)
+    %x16 = arith.constant 1 : index loc("main.isq":50:13)
+    %x17 = arith.constant 2 : index loc("main.isq":50:17)
     %t30 = arith.cmpi "slt", %x16, %x17 : index loc("main.isq":50:12)
     %x18 = arith.index_cast %t30: i1 to index loc("main.isq":50:12)
     affine.if affine_set<()[d0]: (d0+1==0)>()[%x18] {
