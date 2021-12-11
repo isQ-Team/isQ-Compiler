@@ -7,3 +7,4 @@ endfunction()
 
 qir_tool(opt)
 qir_tool(lsp-server)
+qir_tool(codegen)

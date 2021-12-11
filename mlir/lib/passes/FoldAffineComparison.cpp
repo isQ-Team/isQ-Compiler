@@ -48,11 +48,6 @@ FoldAffineComparison::FoldAffineComparison(mlir::MLIRContext *context)
         sgt = mlir::parseIntegerSet("()[s0, s1]: (s0-s1-1 >= 0)", context);
         // s0-s1>=0
         sge = mlir::parseIntegerSet("()[s0, s1]: (s0-s1 >= 0)", context);
-        //eq.dump();
-        //slt.dump();
-        //sle.dump();
-        //sgt.dump();
-        //sge.dump();
     }
 
 mlir::LogicalResult FoldAffineComparison::match(mlir::AffineIfOp op) const {
