@@ -12,6 +12,7 @@
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/MLIRContext.h"
@@ -78,7 +79,8 @@ using CodegenOpVisitor = OpVisitor<
     UseGateOp, DecorateOp,
     ApplyGateOp, CallQOpOp,
     CallOp, ReturnOp,DefgateOp, WhileOp, ConditionOp,
-    ModuleOp
+    ModuleOp, SubViewOp, PassOp, AffineYieldOp, scf::YieldOp,
+    memref::CastOp
     >;
 }
 
@@ -260,6 +262,13 @@ private:
         return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::ModuleOp curr_module) override{
+        auto mod_name = curr_module.sym_name();
+        if(mod_name){
+            if(*mod_name == "isq_builtin"){
+                // Just ignore it.
+                return mlir::success();
+            }
+        }
         TRY(visitBlock(curr_module.getBody()));
         return mlir::success();
     }
@@ -293,6 +302,10 @@ private:
             }else{
                 rval = get<2>(res);
             }
+        }
+        if(!if_stmt.results().empty()){
+            if_stmt.emitError("If-stmt with yielded value not supported.");
+            return mlir::failure();
         }
         openQasmIf(lval, rval, asso);
         printIndent()<< "{\n";
@@ -414,6 +427,10 @@ private:
         
         // update_symbol_use_block
         auto block = for_stmt.getBody();
+        if(block->getNumArguments()!=1){
+            for_stmt->emitError("for-loop with more than 1 arguments (a.k.a. for-body yielding) is not supported");
+            return mlir::failure();
+        }
         TRY(symbolInsert(size_t(mlir::hash_value(block->getArgument(0))), OpType::VAR, 1, tmpVarHead+to_string(tmpVarCnt++)));
         indent += 1;
         TRY(visitBlock(block));
@@ -434,6 +451,11 @@ private:
         auto id = tmpVarCnt++;
         auto name = tmpVarHead + to_string(id);
         openQasmVarDefine(name, "bit", 1);
+        return name;
+    }
+    std::string next_tempName(){
+        auto id = tmpVarCnt++;
+        auto name = tmpVarHead + to_string(id);
         return name;
     }
 
@@ -568,7 +590,9 @@ private:
     mlir::LogicalResult visitOp(UseGateOp op) override{
         auto attr = op.nameAttr();
         //os << "use gate: " << attr.getLeafReference().str() << endl;
-        return symbolInsert(op.getResult(), OpType::VAR, 0, attr.getLeafReference().str());
+        auto leaf = attr.getLeafReference().str();
+
+        return symbolInsert(op.getResult(), OpType::VAR, 0, openQasmGate(leaf));
     }
     mlir::LogicalResult visitOp(DecorateOp op) override{
         auto modifiers = std::string();
@@ -589,8 +613,11 @@ private:
         int ctrl = 0, nctrl = 0;
         string gate_name_with_modifier = "";
         gate_name_with_modifier = get<2>(getSymbol(op.gate()));
-        for (auto operand : op.args()){
+        for (auto indexed_operand : ::llvm::enumerate(op.args())){
+            auto index = indexed_operand.index();
+            auto operand = indexed_operand.value();
             auto res = getSymbol(operand);
+            TRY(symbolInsert(op.getResult(index), OpType::VAR, 1, get<2>(getSymbol(operand))));
             qlist.push_back(get<2>(res));
         }
         openQasmUnitary(gate_name_with_modifier, qlist);
@@ -611,7 +638,7 @@ private:
         call_str += ")";
         for (auto indexResult : llvm::enumerate(op->getResults())){
             auto result = indexResult.value();
-            if (result.getType().isa<mlir::IntegerType>()){
+            if (result.getType().isa<mlir::IndexType>()){
                 auto tmp = next_tempInt();
                 openQasmAssign(tmp, call_str);
                 return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, tmp);
@@ -619,6 +646,9 @@ private:
         }
         if(op.getNumResults()==0){
             openQasmCall(call_str);
+        }else{
+            op->emitError("wtf?");
+            return mlir::failure();
         }
         return mlir::success();
     }
@@ -635,17 +665,31 @@ private:
             }
             call_qop_str += get<2>(res);
         }
-        
-        for (auto indexResult : llvm::enumerate(op->getResults())){
-            auto result = indexResult.value();
+        auto result_range = op->getResults();
+
+        // First N operands: build qubit mapping for results
+        for (auto indexed_operand: llvm::enumerate(op.getOperands().take_front(op.size()))){
+            auto index = indexed_operand.index();
+            auto operand = indexed_operand.value();
+            auto res = getSymbol(operand);
+            TRY(symbolInsert(op.getResult(index), OpType::VAR, 1, get<2>(getSymbol(operand))));
+        }
+        // Rest results: assign integer.
+        for (auto indexResult: result_range.drop_front(result_range.size()-op.size())){
+            auto result = indexResult;
+            // Only consider measure.
             if (result.getType().isa<mlir::IntegerType>()){
-                if (result.use_empty())
-                    break;
                 return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, call_qop_str);
             }
+            
         }
-
-        openQasmCall(call_qop_str);
+        // Only consider reset.
+        if(op.getNumResults()==op.size()){
+            openQasmCall(call_qop_str);
+        }else{
+            op->emitError("wtf?");
+            return mlir::failure();
+        }
         return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::ReturnOp op) override{
@@ -708,7 +752,50 @@ private:
         openQasmAssign(temp_bool, cmp_str);
         return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, temp_bool);
     }
-    
+    string memrefObtainArg(mlir::Operation::operand_range args, mlir::ArrayAttr static_args, size_t index){
+        if(index>=args.size()){
+            auto constant = static_args[index-args.size()].cast<mlir::IntegerAttr>();
+            auto cval = constant.getInt();
+            auto temp_constant = next_tempInt();
+            openQasmAssign(temp_constant, to_string(cval));
+            return temp_constant;
+        }else{
+            return get<2>(getSymbol(args[0]));
+        }
+
+    }
+    mlir::LogicalResult visitOp(mlir::memref::SubViewOp op) override{
+        auto arr_in = op.source();
+        auto arr_out = op.result();
+        auto arr_in_ty = op.getSourceType();
+        auto arr_out_ty = arr_out.getType().cast<mlir::MemRefType>();
+        if(arr_in_ty.getRank()!=1 || arr_out_ty.getRank()!=1){
+            op.emitOpError("with rank!=1 is not supported");
+            return mlir::failure();
+        }
+        
+        auto offset = memrefObtainArg(op.offsets(), op.static_offsets(), 0);
+        auto size = memrefObtainArg(op.sizes(), op.static_sizes(), 0);
+        auto stride = memrefObtainArg(op.strides(), op.static_strides(), 0);
+        auto temp_val = next_tempName();
+        openQasmSlice(temp_val, get<2>(getSymbol(arr_in)), offset, string(offset)+"+"+size, stride);
+        return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, -1, temp_val);
+    }
+    mlir::LogicalResult visitOp(PassOp op) override{
+        return mlir::success();
+    }
+    mlir::LogicalResult visitOp(mlir::AffineYieldOp) override{
+        return mlir::success();
+    }
+    mlir::LogicalResult visitOp(mlir::scf::YieldOp) override{
+        return mlir::success();
+    }
+    mlir::LogicalResult visitOp(mlir::memref::CastOp op) override{
+        // todo: we hope it is identical cast.
+        auto symbol = getSymbol(op.source());
+        return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), get<0>(symbol), get<1>(symbol), get<2>(symbol));
+        return mlir::success();
+    }
     mlir::LogicalResult visitOp(mlir::Operation* op) override{
         op->emitOpError("is unsupported in code generation");
         return mlir::failure();
@@ -794,7 +881,7 @@ private:
 
     void openQasmUnitary(string name, vector<string>& qlist){
         openQasmNewLine();
-        os << openQasmGate(name) << " ";
+        os << name << " ";
         for (int i = 0; i < qlist.size(); i++){
             if (i > 0)
                 os << ", ";
@@ -826,6 +913,10 @@ private:
     void openQasmWhile(string cond){
         openQasmNewLine();
         os << "while (" << cond << ")";
+    }
+    void openQasmSlice(string ret, string arr, string lo, string hi,string stride){
+        openQasmNewLine();
+        os << "let "<<ret<<" = "<<arr<<"["<<lo<<":"<<stride<<":"<<hi<<"]\n";
     }
 
     mlir::LogicalResult symbolInsert(::mlir::Value v, OpType type, int shape, string str){
