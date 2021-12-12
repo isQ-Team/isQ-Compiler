@@ -4,7 +4,9 @@ module @isq_builtin {
     isq.declare_qop @measure : [1]()->i1
     isq.declare_qop @reset : [1]()->()
 }
-func private @printInt(index)->()
+func @printInt(%a: index)->(){
+    return
+}
 isq.defgate @Rs {definition = [{type="unitary", value = [[#isq.complex<0.5, 0.8660254>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>], [#isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>], [#isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>], [#isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>]] }]}: !isq.gate<2> loc("main.isq":1:1)
 isq.defgate @Rs2 {definition = [{type="unitary", value = [[#isq.complex<0.5, -0.8660254>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>], [#isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>], [#isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>], [#isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>]] }]}: !isq.gate<2> loc("main.isq":5:1)
 isq.defgate @Rt {definition = [{type="unitary", value = [[#isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>], [#isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>], [#isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>], [#isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.5, 0.8660254>]] }]}: !isq.gate<2> loc("main.isq":10:1)
