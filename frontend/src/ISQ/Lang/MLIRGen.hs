@@ -303,7 +303,9 @@ emitHeader p = do
     emit $ "    isq.declare_qop @measure : [1]()->i1"
     emit $ "    isq.declare_qop @reset : [1]()->()"
     emit $ "}"
-    emit $ "func private @printInt(index)->()"
+    emit $ "func @printInt(%a: index)->() {"
+    emit $ "    return"
+    emit $ "}"
 runMLIRGen :: MLIRGen (Either GrammarError ()) -> Either GrammarError MLIRGenState
 runMLIRGen (MLIRGen m) = do
     let (a,res) = runState m emptyMLIRGen in 
