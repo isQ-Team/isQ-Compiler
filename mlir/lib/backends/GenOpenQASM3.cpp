@@ -9,6 +9,9 @@
 #include <isq/IR.h>
 
 #include "isq/Operations.h"
+#include "isq/QAttrs.h"
+#include "isq/QStructs.h"
+#include "isq/utils/Decomposition.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
@@ -522,10 +525,15 @@ private:
             //os << "operand " << indexOperand.index() << ": (" << get<0>(res) << ", " << get<1>(res) << ", " << get<2>(res) << ")";
             if (indexOperand.index() == 0){
                 loadstr += get<2>(res);
-                if (get<1>(res) == 1)
-                    break;
+                //if (get<1>(res) == 1)
+                //    break;
             }else{
                 loadstr += "[" + get<2>(res) + "]";
+            }
+        }
+        if(op->getOperands().size()==2){
+            if(op.getAffineMap().isConstant()){
+                loadstr += "[" + to_string(op.getAffineMap().getConstantResults()[0]) + "]";
             }
         }
         //os << "; loadstr: " << loadstr << endl;
@@ -553,10 +561,15 @@ private:
                 }
 
                 lval = get<2>(res);
-                if (get<1>(res) == 1)
-                    break;
+                //if (get<1>(res) == 1)
+                //    break;
             }else{
                 lval += "[" + get<2>(res) + "]";
+            }
+        }
+        if(op->getOperands().size()==2){
+            if(op.getAffineMap().isConstant()){
+                lval += "[" + to_string(op.getAffineMap().getConstantResults()[0]) + "]";
             }
         }
         if (lval != rval)
@@ -572,8 +585,8 @@ private:
         auto lhs_s = get<2>(getSymbol(mlir::hash_value(lhs)));
         auto rhs_s = get<2>(getSymbol(mlir::hash_value(rhs)));
         auto temp = next_tempInt();
-        openQasmAssign(temp, lhs_s+op+rhs_s);
-        return symbolInsert(ret, op_t, 1, temp);
+        openQasmAssign(temp+"[0]", lhs_s+op+rhs_s);
+        return symbolInsert(ret, op_t, 1, temp+"[0]");
     }
     mlir::LogicalResult visitOp(mlir::arith::AddIOp op) override{
         return visitBinaryOp(OpType::ADD, '+', op.getLhs(), op.getRhs(), op.getResult());
@@ -634,14 +647,15 @@ private:
                 call_str += ", ";
             }
             call_str += get<2>(res);
+            call_str += "[0]";
         }
         call_str += ")";
         for (auto indexResult : llvm::enumerate(op->getResults())){
             auto result = indexResult.value();
             if (result.getType().isa<mlir::IndexType>()){
                 auto tmp = next_tempInt();
-                openQasmAssign(tmp, call_str);
-                return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, tmp);
+                openQasmAssign(tmp+"[0]", call_str);
+                return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, tmp+"[0]");
             }
         }
         if(op.getNumResults()==0){
@@ -664,6 +678,7 @@ private:
                 call_qop_str += ", ";
             }
             call_qop_str += get<2>(res);
+            call_qop_str += "[0]";
         }
         auto result_range = op->getResults();
 
@@ -705,11 +720,30 @@ private:
     mlir::LogicalResult visitOp(DefgateOp op) override{
         string gate_name = op.sym_name().str();
         int shape = op.type().getSize();
-        
-        if (op->hasAttr(llvm::StringRef("definition"))){
-            openQasmGateDefine(gate_name, shape);
+        if(shape!=1){
+            op->emitOpError("with shape > 1 not supported in this codegen. Decompose first.");
+            return mlir::failure();
         }
-        return mlir::success();
+        if (!op.definition()){
+            op.emitOpError("without definition not supported.");
+            return mlir::failure();
+        }
+        for(auto& def_ : *op.definition()){
+            auto def = def_.cast<GateDefinition>();
+            if(def.type()=="unitary"){
+                auto mat = def.value().cast<mlir::ArrayAttr>();
+                std::complex<double> matv[2][2];
+                for(int i=0; i<2; i++){
+                    for(int j=0; j<2; j++){
+                        matv[i][j]=mat[i].cast<mlir::ArrayAttr>()[j].cast<ComplexF64Attr>().complexValue();
+                    }
+                }
+                openQasmGateDefine(gate_name, shape, matv);
+                return mlir::success();
+            }
+        }
+        op->emitOpError("without unitary definition not supported.");
+        return mlir::failure();
     }
     mlir::LogicalResult visitOp(mlir::arith::CmpIOp op) override{
         int pred = static_cast<int>(op.getPredicate());
@@ -749,16 +783,16 @@ private:
             }
         }
         auto temp_bool = next_tempBit();
-        openQasmAssign(temp_bool, cmp_str);
-        return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, temp_bool);
+        openQasmAssign(temp_bool+"[0]", cmp_str);
+        return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, temp_bool+"[0]");
     }
     string memrefObtainArg(mlir::Operation::operand_range args, mlir::ArrayAttr static_args, size_t index){
         if(index>=args.size()){
             auto constant = static_args[index-args.size()].cast<mlir::IntegerAttr>();
             auto cval = constant.getInt();
             auto temp_constant = next_tempInt();
-            openQasmAssign(temp_constant, to_string(cval));
-            return temp_constant;
+            openQasmAssign(temp_constant+"[0]", to_string(cval));
+            return temp_constant+"[0]";
         }else{
             return get<2>(getSymbol(args[0]));
         }
@@ -829,14 +863,15 @@ private:
     void openQasmVarDefine(string name, string type, int size){
         openQasmNewLine();
         os << type;
-        if (size > 1){
-            os << "[" << size << "]";
-        }
+        //if (size > 1){
+        os << "[" << size << "]";
+        //}
         os << " " << name << ";\n";
     }
 
-    void openQasmGateDefine(string name, int shape){
+    void openQasmGateDefine(string name, int shape, std::complex<double> matrix[2][2]){
         openQasmNewLine();
+        auto zyz = zyzDecomposition(matrix);
         os << "gate "+ name;
         for (int i = 0; i < shape; i++){
             char tmp = 'a'+i;
@@ -844,7 +879,9 @@ private:
                 os << ",";
             os << " " << tmp;
         }
-        os << " {...};\n";
+        os << " {\n";
+        os << "    U("<<zyz.theta<<","<<zyz.phi<<","<<zyz.lam<<") a;\n";
+        os << "};\n";
     }
 
     void openQasmFunc(string name, vector<tuple<string, string, int>> &arglist){
@@ -885,7 +922,7 @@ private:
         for (int i = 0; i < qlist.size(); i++){
             if (i > 0)
                 os << ", ";
-            os << qlist[i];
+            os << qlist[i] << "[0]";
         }
         os << ";\n";
     }
