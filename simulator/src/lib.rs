@@ -1,5 +1,5 @@
 #![no_std]
-
+#![feature(thread_local)]
 
 #[cfg(test)]
 #[macro_use]

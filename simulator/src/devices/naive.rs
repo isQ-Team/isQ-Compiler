@@ -26,9 +26,6 @@ impl NaiveSimulator{
     fn qubit_to_state_id(&self, q: &<NaiveSimulator as QDevice>::Qubit)->usize{
         self.qubit_map.get(q).expect("Qubit freed").clone()
     }
-    fn state_id_to_qubit(&self, qs:usize)->usize{
-        self.qubit_map_inv[qs]
-    }
     // Reset all qubits to ket-0.
     pub fn reset_all(&mut self){
         self.state.iter_mut().for_each(|x| *x = Complex64::new(0.0, 0.0));
@@ -299,7 +296,7 @@ mod test{
         
 
         let (mut r_00, mut r_01, mut r_10, mut r_11) = (0, 0, 0, 0);
-        for i in 0..1000{
+        for _i in 0..1000{
             let a = device.alloc_qubit();
             let b = device.alloc_qubit();
             device.qop(H, &[&a], &[]);
