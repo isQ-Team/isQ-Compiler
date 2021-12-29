@@ -3,29 +3,32 @@ pub type QIRDouble = f64;
 pub type QIRBool = bool;
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum QIRPauli{
-    I=0, X=1, Y=2, Z=3
+pub enum QIRPauli {
+    I = 0,
+    X = 1,
+    Y = 2,
+    Z = 3,
 }
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-pub struct QIRRange{
+pub struct QIRRange {
     pub start: QIRInt,
     pub step: QIRInt,
-    pub end: QIRInt
+    pub end: QIRInt,
 }
 
-impl QIRRange{
-    pub fn iter(self)->impl Iterator<Item=usize>{
-        if self.step==0{
+impl QIRRange {
+    pub fn iter(self) -> impl Iterator<Item = usize> {
+        if self.step == 0 {
             panic!("QIRRange::iter: step must be non-zero ({:?})", self);
         }
         let mut i = self.start;
-        core::iter::from_fn(move ||{
+        core::iter::from_fn(move || {
             let ret = i;
-            i+=self.step;
-            if (self.step>0 && ret>self.end) || (self.step<0 && ret<self.end){
+            i += self.step;
+            if (self.step > 0 && ret > self.end) || (self.step < 0 && ret < self.end) {
                 None
-            }else{
+            } else {
                 Some(ret as usize)
             }
         })

@@ -1,19 +1,27 @@
 // Useful quantum ops that can be supported.
 use alloc::vec::Vec;
 #[derive(Copy, Clone, Eq, PartialEq, Debug, PartialOrd, Ord)]
-pub enum QuantumOp{
+pub enum QuantumOp {
     Reset,
-    X, Y, Z,
-    H, S, T,
-    CNOT, CZ,
-    Swap, CCNOT,
-    Rx, Ry, Rz,
-    U3
+    X,
+    Y,
+    Z,
+    H,
+    S,
+    T,
+    CNOT,
+    CZ,
+    Swap,
+    CCNOT,
+    Rx,
+    Ry,
+    Rz,
+    U3,
 }
 
-impl QuantumOp{
-    pub fn get_qubit_count(&self)->usize{
-        match self{
+impl QuantumOp {
+    pub fn get_qubit_count(&self) -> usize {
+        match self {
             QuantumOp::Reset => 1,
             QuantumOp::X => 1,
             QuantumOp::Y => 1,
@@ -28,11 +36,11 @@ impl QuantumOp{
             QuantumOp::Rx => 1,
             QuantumOp::Ry => 1,
             QuantumOp::Rz => 1,
-            QuantumOp::U3 => 1
+            QuantumOp::U3 => 1,
         }
     }
-    pub fn get_parameter_count(&self)->usize{
-        match self{
+    pub fn get_parameter_count(&self) -> usize {
+        match self {
             QuantumOp::Reset => 0,
             QuantumOp::X => 0,
             QuantumOp::Y => 0,
@@ -47,17 +55,15 @@ impl QuantumOp{
             QuantumOp::Rx => 1,
             QuantumOp::Ry => 1,
             QuantumOp::Rz => 1,
-            QuantumOp::U3 => 3
+            QuantumOp::U3 => 3,
         }
     }
 }
-pub trait QDevice{
+pub trait QDevice {
     type Qubit: Eq;
-    fn alloc_qubit(&mut self)->Self::Qubit;
+    fn alloc_qubit(&mut self) -> Self::Qubit;
     fn free_qubit(&mut self, qubit: Self::Qubit);
-    fn supported_quantum_ops()->Vec<QuantumOp>;
+    fn supported_quantum_ops() -> Vec<QuantumOp>;
     fn qop(&mut self, op_type: QuantumOp, qubits: &[&Self::Qubit], parameters: &[f64]);
-    fn measure(&mut self, qubit: &Self::Qubit)->bool;
+    fn measure(&mut self, qubit: &Self::Qubit) -> bool;
 }
-
-

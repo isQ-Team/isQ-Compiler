@@ -21,11 +21,11 @@
 //                                                     |                            |
 //                                                     |      Shared library        |
 //                                                     +----------------------------+
-pub mod types;
-pub mod resource;
-pub mod bigint;
-pub mod string;
-pub mod tuple;
 pub mod array;
+pub mod bigint;
 pub mod callable;
 pub mod context;
+pub mod resource;
+pub mod string;
+pub mod tuple;
+pub mod types;
