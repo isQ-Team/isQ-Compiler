@@ -1,0 +1,214 @@
+use super::types::*;
+pub fn isq_qir_shim_rt_array_concatenate(x0: K<QIRArray>, x1: K<QIRArray>)->K<QIRArray> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_copy(x0: K<QIRArray>, x1: bool)->K<QIRArray> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_create(x0: i32, x1: i32, x2: i64)->K<QIRArray> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_create_1d(x0: i32, x1: i64)->K<QIRArray> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_get_dim(x0: K<QIRArray>)->i32 {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_get_element_ptr(x0: K<QIRArray>, x1: *mut i64)->*mut i8 {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_get_element_ptr_1d(x0: K<QIRArray>, x1: i64)->*mut i8 {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_get_size(x0: K<QIRArray>, x1: i32)->i64 {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_get_size_1d(x0: K<QIRArray>)->i64 {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_project(x0: K<QIRArray>, x1: i32, x2: i64, x3: bool)->K<QIRArray> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_slice(x0: K<QIRArray>, x1: i32, x2: *const QIRRange, x3: bool)->K<QIRArray> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_slice_1d(x0: K<QIRArray>, x1: *const QIRRange, x2: bool)->K<QIRArray> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_update_alias_count(x0: K<QIRArray>, x1: i32)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_array_update_reference_count(x0: K<QIRArray>, x1: i32)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_add(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_bitand(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_bitor(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_bitxor(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_create_array(x0: i32, x1: *mut i8)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_create_i64(x0: i64)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_divide(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_equal(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->bool {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_get_data(x0: K<QIRBigInt>)->*mut i8 {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_get_length(x0: K<QIRBigInt>)->i32 {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_greater(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->bool {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_greater_eq(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->bool {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_modulus(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_multiply(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_negate(x0: K<QIRBigInt>)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_power(x0: K<QIRBigInt>, x1: i32)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_shiftleft(x0: K<QIRBigInt>, x1: i64)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_shiftright(x0: K<QIRBigInt>, x1: i64)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_subtract(x0: K<QIRBigInt>, x1: K<QIRBigInt>)->K<QIRBigInt> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_to_string(x0: K<QIRBigInt>)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bigint_update_reference_count(x0: K<QIRBigInt>, x1: i32)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_bool_to_string(x0: bool)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_callable_copy(x0: K<QIRCallable>, x1: bool)->K<QIRCallable> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_callable_create(x0: *mut i8, x1: *mut i8, x2: *mut i8, x3: *mut i8, x4: *mut i8, x5: *mut i8, x6: TupleBodyPtr)->K<QIRCallable> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_callable_invoke(x0: K<QIRCallable>, x1: TupleBodyPtr, x2: TupleBodyPtr)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_callable_make_adjoint(x0: K<QIRCallable>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_callable_make_controlled(x0: K<QIRCallable>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_callable_update_alias_count(x0: K<QIRCallable>, x1: i32)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_callable_update_reference_count(x0: K<QIRCallable>, x1: i32)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_capture_update_alias_count(x0: K<QIRCallable>, x1: i32)->K<QIRCallable> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_capture_update_reference_count(x0: K<QIRCallable>, x1: i32)->K<QIRCallable> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_double_to_string(x0: f64)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_fail(x0: K<QIRString>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_int_to_string(x0: i64)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_message(x0: K<QIRString>)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_pauli_to_string(x0: QIRPauli)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_qubit_allocate()->K<QIRQubit> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_qubit_allocate_array(x0: i32)->K<QIRArray> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_qubit_release(x0: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_qubit_release_array(x0: K<QIRArray>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_qubit_to_string(x0: K<QIRQubit>)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_range_to_string(x0: *const QIRRange)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_result_equal(x0: QIRResult, x1: QIRResult)->bool {
+    todo!()
+}
+pub fn isq_qir_shim_rt_result_get_one()->QIRResult {
+    todo!()
+}
+pub fn isq_qir_shim_rt_result_get_zero()->QIRResult {
+    todo!()
+}
+pub fn isq_qir_shim_rt_result_to_string(x0: QIRResult)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_result_update_reference_count(x0: QIRResult, x1: i32)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_string_concatenate(x0: K<QIRString>, x1: K<QIRString>)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_string_create(x0: *mut i8)->K<QIRString> {
+    todo!()
+}
+pub fn isq_qir_shim_rt_string_equal(x0: K<QIRString>, x1: K<QIRString>)->bool {
+    todo!()
+}
+pub fn isq_qir_shim_rt_string_get_data(x0: K<QIRString>)->*mut i8 {
+    todo!()
+}
+pub fn isq_qir_shim_rt_string_get_length(x0: K<QIRString>)->i32 {
+    todo!()
+}
+pub fn isq_qir_shim_rt_string_update_reference_count(x0: K<QIRString>, x1: i32)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_tuple_copy(x0: TupleBodyPtr, x1: bool)->TupleBodyPtr {
+    todo!()
+}
+pub fn isq_qir_shim_rt_tuple_create(x0: i64)->TupleBodyPtr {
+    todo!()
+}
+pub fn isq_qir_shim_rt_tuple_update_alias_count(x0: TupleBodyPtr, x1: i32)->() {
+    todo!()
+}
+pub fn isq_qir_shim_rt_tuple_update_reference_count(x0: TupleBodyPtr, x1: i32)->() {
+    todo!()
+}

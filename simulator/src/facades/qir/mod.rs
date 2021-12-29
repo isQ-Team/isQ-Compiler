@@ -29,3 +29,4 @@ pub mod resource;
 pub mod string;
 pub mod tuple;
 pub mod types;
+mod shim;

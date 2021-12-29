@@ -1,0 +1,20 @@
+#!/bin/bash
+echo "This will generate new QIR shims. Implementation stubs will be plated at impls.rs.template."
+read -p "Are you sure? " -n 1 -r
+echo    # (optional) move to a new line
+if [[ $REPLY =~ ^[Yy]$ ]]
+then
+    cd codegen
+    cargo run --bin gen-qir-shim --release -- qir qir > ../src/facades/qir/shim/qir_builtin/shim.ll
+    cargo run --bin gen-qir-shim --release -- qir interim > ../src/facades/qir/shim/qir_builtin/interim.rs
+    cargo run --bin gen-qir-shim --release -- qir rust > ../src/facades/qir/shim/qir_builtin/impls.rs.template
+    cargo run --bin gen-qir-shim --release -- qsharp-core qir > ../src/facades/qir/shim/qsharp_core/shim.ll
+    cargo run --bin gen-qir-shim --release -- qsharp-core interim > ../src/facades/qir/shim/qsharp_core/interim.rs
+    cargo run --bin gen-qir-shim --release -- qsharp-core rust > ../src/facades/qir/shim/qsharp_core/impls.rs.template
+    cargo run --bin gen-qir-shim --release -- qsharp-foundation qir > ../src/facades/qir/shim/qsharp_foundation/shim.ll
+    cargo run --bin gen-qir-shim --release -- qsharp-foundation interim > ../src/facades/qir/shim/qsharp_foundation/interim.rs
+    cargo run --bin gen-qir-shim --release -- qsharp-foundation rust > ../src/facades/qir/shim/qsharp_foundation/impls.rs.template
+    cargo run --bin gen-qir-shim --release -- qir export > ../src/facades/qir/shim/exports.txt
+    cargo run --bin gen-qir-shim --release -- qsharp-core export >> ../src/facades/qir/shim/exports.txt
+    cargo run --bin gen-qir-shim --release -- qsharp-foundation export >> ../src/facades/qir/shim/exports.txt
+fi

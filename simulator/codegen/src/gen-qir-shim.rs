@@ -1,8 +1,10 @@
 // Generates both LLVM and Rust shims simultaneously.
 // Since there are many kinds of signatures, we use a DSL to describe each intrinsic function.
 
-// There will be 3 shims: one for QIR spec, one in standard function signature (all arguments and return values being primitive types), one for fetched-back Rust function signature.
-
+// There will be 3 shims:
+// One written in LLVM IR, providing QIR interfaces by callling primitive interfaces.
+// One written in Rust, providing primitive interfaces by calling Rust interfaces.
+// One written in Rust, providing Rust interfaces.
 extern crate std;
 type StructExpander = fn(ssa: &str, &mut QIRInterface) -> (Vec<String>, Vec<(QIRType, String)>);
 #[derive(Copy, Clone)]
@@ -19,13 +21,13 @@ enum QIRType {
     Pauli,
     Result,
     QVoid,
-    Other(&'static str, StructExpander),
     QI1,
     QI32,
     QI64,
     QI8P,
     QI64P,
     MeasurementProbabilityArgs,
+    Other(&'static str, StructExpander),
 }
 use QIRType::*;
 const QIRPauli: QIRType = Other("%Pauli", |ssa, qir| {
@@ -369,7 +371,7 @@ impl QIRInterface {
 
         qir_code.push("}".to_owned());
         qir_code.push(format!(
-            "declare {} @{}({})",
+            "declare dllimport {} @{}({})",
             self.return_type.to_primitive_type().to_llvm_type(),
             self.interim_name(),
             interim_args
@@ -385,7 +387,7 @@ impl QIRInterface {
             .map(|x| (x.0, self.next_var_name()))
             .collect_vec();
         interim_code.push(format!(
-            "#[no_mangle]\nextern \"C\" fn {}({})->{} {{",
+            "#[no_mangle]\npub extern \"C\" fn {}({})->{} {{",
             self.interim_name(),
             rust_interim_args
                 .iter()
@@ -400,14 +402,14 @@ impl QIRInterface {
             self.rust_shim_name(),
             rust_interim_args
                 .iter()
-                .map(|(t, s)| format!("t({})", s))
+                .map(|(t, s)| format!("t::<_, {}>({})", t.to_rust_type(), s))
                 .join(", ")
         ));
         interim_code.push("}".to_owned());
 
         // rust codegen
         rust_code.push(format!(
-            "fn {}({})->{}",
+            "pub fn {}({})->{} {{",
             self.rust_shim_name(),
             rust_interim_args
                 .iter()
@@ -452,6 +454,12 @@ fn qir_builtin() -> Vec<QIRInterface> {
         "array_get_element_ptr",
         QI8P,
         &[Array, QI64P],
+    ));
+    interfaces.push(QIRInterface::new(
+        "rt",
+        "array_get_element_ptr_1d",
+        QI8P,
+        &[Array, QI64],
     ));
     interfaces.push(QIRInterface::new(
         "rt",
@@ -795,6 +803,7 @@ fn qir_microsoft_extension_core() -> Vec<QIRInterface> {
     ));
     interfaces.push(QIRInterface::new("qis", "h__body", QVoid, &[Qubit]));
     interfaces.push(QIRInterface::new("qis", "h__ctl", QVoid, &[Array, Qubit]));
+    interfaces.push(QIRInterface::new("qis", "measure__body", Result, &[Array, Array]));
     interfaces.push(QIRInterface::new(
         "qis",
         "r__body",
@@ -976,9 +985,16 @@ fn main() {
         );
         println!("{}", qir_code.join("\n"));
     } else if type_name == "interim" {
+        println!("use super::impls::*;");
+        println!("use super::types::*;");
         println!("{}", interim_code.join("\n"));
     } else if type_name == "rust" {
+        println!("use super::types::*;");
         println!("{}", rust_code.join("\n"));
+    } else if type_name == "export" {
+        for i in interfaces.iter(){
+            println!("{}", i.interim_name());
+        }
     } else {
         println!("Unknown type {}", type_name);
     }

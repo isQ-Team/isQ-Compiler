@@ -2,6 +2,7 @@ use core::{any::Any, marker::PhantomData};
 
 use alloc::{boxed::Box, collections::BTreeMap};
 
+#[repr(C)]
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ResourceKey<T: 'static + Any> {
     key: usize,

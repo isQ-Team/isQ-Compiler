@@ -45,5 +45,8 @@ pub const QIR_RESULT_ONE: QIRResultPtr = 2 as QIRResultPtr;
 
 pub type QIRResourcePtr = usize;
 pub type QIRQubit = usize;
-pub use super::bigint::QIRBigint;
+pub use super::bigint::QIRBigInt;
 pub use super::string::QIRString;
+pub use super::array::QIRArray;
+pub use super::tuple::{QIRTuple, QTupleContent};
+pub use super::callable::QIRCallable;

@@ -36,4 +36,4 @@ impl QBigInt {
     }
 }
 
-pub type QIRBigint = QBigInt;
+pub type QIRBigInt = QBigInt;
