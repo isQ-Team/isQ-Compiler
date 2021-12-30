@@ -51,22 +51,23 @@ impl<T: MeasurementResultReader> QDevice for InteractiveSimulator<T> {
         }
     }
 
-    fn supported_quantum_ops() -> alloc::vec::Vec<crate::qdevice::QuantumOp> {
+    fn supported_quantum_ops(&self) -> alloc::vec::Vec<crate::qdevice::QuantumOp> {
         use crate::qdevice::QuantumOp::*;
         vec![
             Reset, X, Y, Z, H, S, T, CNOT, CZ, Swap, CCNOT, Rx, Ry, Rz, U3,
         ]
     }
 
-    fn qop(
+    fn controlled_qop(
         &mut self,
         op_type: crate::qdevice::QuantumOp,
+        control_qubits: &[&Self::Qubit],
         qubits: &[&Self::Qubit],
         parameters: &[f64],
     ) {
         info!(
-            "Performing {:?} on qubits {:?} with parameters {:?}",
-            op_type, qubits, parameters
+            "Performing {:?} on {:?} with controls {:?} and parameters {:?}",
+            op_type, qubits, control_qubits, parameters
         );
     }
 

@@ -1,8 +1,8 @@
-use core::alloc::Layout;
+use core::{alloc::Layout, cell::UnsafeCell};
 
 use alloc::alloc::{alloc_zeroed, dealloc};
 
-use super::resource::AliasingTracker;
+use super::{resource::AliasingTracker, resource::ResourceKey};
 
 // Support for tuples.
 // QIR spec does not make clear about the alignment of elements. We use machine-word alignment for now, i.e. same alignment as isize.
@@ -11,8 +11,10 @@ use super::resource::AliasingTracker;
 
 // Dirty memory hacking, since we don't want to fight DST and its fatty pointer.
 
+// TODO: Write interior mutability correctly.
+// There seems to be a thousand UBs around.
 #[repr(C)]
-pub struct QTupleOwned(*mut usize);
+pub struct QTupleOwned(UnsafeCell<*mut usize>);
 
 pub type QTupleContent = *mut u8;
 
@@ -31,21 +33,21 @@ impl QTupleOwned {
     pub fn new(size_in_bytes: usize) -> Self {
         let mem =
             unsafe { alloc_zeroed(Self::get_layout(Self::compute_size_in_usize(size_in_bytes))) };
-        let s = Self(mem as *mut usize);
+        let s = Self(UnsafeCell::new(mem as *mut usize));
         s
     }
     pub fn to_body(&self) -> QTupleContent {
-        unsafe { (self.0).offset(QTUPLE_DATA_START) as _ }
+        unsafe { (self.0.get()).offset(QTUPLE_DATA_START) as _ }
     }
-    pub fn from_body(body: QTupleContent) -> Self {
-        let mem = unsafe { (body as *mut usize).offset(-QTUPLE_DATA_START) };
-        Self(mem)
+    pub fn from_body(body: QTupleContent) -> ResourceKey<Self> {
+        let mem = unsafe { (body as *const usize).offset(QTUPLE_RESMAN_ID-QTUPLE_DATA_START) };
+        unsafe {core::mem::transmute(*mem)}
     }
     fn offset(&self, i: isize) -> &usize {
-        unsafe { &*self.0.offset(i) }
+        unsafe { &*((*self.0.get()).offset(i)) }
     }
     fn offset_mut(&self, i: isize) -> &mut usize {
-        unsafe { &mut *self.0.offset(i) }
+        unsafe { &mut *(*self.0.get()).offset(i) }
     }
     pub fn size_in_usize(&self) -> usize {
         *self.offset(QTUPLE_SIZE_IN_USIZE)
@@ -56,10 +58,10 @@ impl QTupleOwned {
     pub fn resource_id(&self) -> usize {
         *self.offset(QTUPLE_RESMAN_ID)
     }
-    pub fn set_resource_id(&mut self, id: usize) {
+    pub fn set_resource_id(&self, id: usize) {
         *self.offset_mut(QTUPLE_RESMAN_ID) = id;
     }
-    pub fn update_alias_count(&self, delta: isize) {
+    pub fn update_alias_count_internal(&self, delta: isize) {
         let alias_count = self.offset_mut(QTUPLE_ALIAS_COUNT);
         let r = *alias_count as isize;
         if r + delta < 0 {
@@ -73,7 +75,7 @@ impl QTupleOwned {
     unsafe fn free(&self) {
         let sz = self.size_in_usize();
         let layout = Self::get_layout(sz);
-        dealloc(self.0 as *mut u8, layout);
+        dealloc(*(*self.0.get()) as *mut u8, layout);
     }
 }
 
@@ -87,12 +89,14 @@ impl AliasingTracker for QTupleOwned {
     fn get_alias_count(&self) -> usize {
         self.get_alias_count_internal()
     }
-
+    fn update_alias_count(&self, delta: isize) {
+        self.update_alias_count_internal(delta);
+    }
     fn full_copy(&self, allocated_id: usize /* backdoor for tuples */) -> Self {
         let sz = self.size_in_usize();
         let mut s = Self::new(sz);
         s.set_resource_id(allocated_id);
-        s.update_alias_count(1);
+        //s.update_alias_count(1);
         unsafe {
             core::ptr::copy_nonoverlapping(self.to_body(), s.to_body(), sz);
         }

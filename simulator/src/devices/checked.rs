@@ -4,6 +4,7 @@
 
 use crate::qdevice::*;
 use alloc::{collections::BTreeMap, vec::Vec};
+use itertools::Itertools;
 pub struct CheckedDevice<Q, T: QDevice<Qubit = Q>> {
     pub device: T,
     pub qubit_counter: usize,
@@ -45,18 +46,19 @@ impl<Q, T: QDevice<Qubit = Q>> QDevice for CheckedDevice<Q, T> {
             );
         }
     }
-    fn supported_quantum_ops() -> Vec<QuantumOp> {
-        T::supported_quantum_ops()
+    fn supported_quantum_ops(&self) -> Vec<QuantumOp> {
+        self.device.supported_quantum_ops()
     }
-    fn qop(&mut self, op_type: QuantumOp, qubits: &[&Self::Qubit], parameters: &[f64]) {
+    fn controlled_qop(&mut self, op_type: QuantumOp, controls: &[&Self::Qubit], qubits: &[&Self::Qubit], parameters: &[f64]) {
         if qubits.len() != op_type.get_qubit_count() {
             panic!("Qubit count mismatch");
         }
         if parameters.len() != op_type.get_parameter_count() {
             panic!("Parameter count mismatch");
         }
-        for i in 0..qubits.len() {
-            for j in i + 1..qubits.len() {
+        let all_qubits = controls.iter().chain(qubits.iter()).collect_vec();
+        for i in 0..all_qubits.len() {
+            for j in i + 1..all_qubits.len() {
                 if qubits[i] == qubits[j] {
                     panic!(
                         "Qubit argument #{} is used twice (next use: qubit argument #{})",
@@ -66,11 +68,15 @@ impl<Q, T: QDevice<Qubit = Q>> QDevice for CheckedDevice<Q, T> {
             }
         }
         let m = &mut self.qubit_mapping;
+        let real_controls = controls
+            .iter()
+            .map(|x| m.get(&x).expect(&format!("Control #{} does not exist", x)))
+            .collect::<Vec<_>>();
         let real_qubits = qubits
             .iter()
             .map(|x| m.get(&x).expect(&format!("Qubit #{} does not exist", x)))
             .collect::<Vec<_>>();
-        self.device.qop(op_type, &real_qubits, parameters)
+        self.device.controlled_qop(op_type, &real_controls, &real_qubits, parameters)
     }
     fn measure(&mut self, x: &Self::Qubit) -> bool {
         let real_qubit = self
@@ -78,31 +84,5 @@ impl<Q, T: QDevice<Qubit = Q>> QDevice for CheckedDevice<Q, T> {
             .get(&x)
             .expect(&format!("Qubit #{} does not exist", x));
         self.device.measure(&real_qubit)
-    }
-}
-
-pub trait NumberedQDevice {
-    fn nq_alloc_qubit(&mut self) -> usize;
-    fn nq_free_qubit(&mut self, qubit: usize);
-    fn nq_supported_quantum_ops(&self) -> Vec<QuantumOp>;
-    fn nq_qop(&mut self, op_type: QuantumOp, qubits: &[&usize], parameters: &[f64]);
-    fn nq_measure(&mut self, qubit: &usize) -> bool;
-}
-
-impl<T: QDevice<Qubit = usize>> NumberedQDevice for T {
-    fn nq_alloc_qubit(&mut self) -> usize {
-        self.alloc_qubit()
-    }
-    fn nq_free_qubit(&mut self, qubit: usize) {
-        self.free_qubit(qubit);
-    }
-    fn nq_supported_quantum_ops(&self) -> Vec<QuantumOp> {
-        T::supported_quantum_ops()
-    }
-    fn nq_qop(&mut self, op_type: QuantumOp, qubits: &[&usize], parameters: &[f64]) {
-        self.qop(op_type, qubits, parameters)
-    }
-    fn nq_measure(&mut self, qubit: &usize) -> bool {
-        self.measure(&qubit)
     }
 }

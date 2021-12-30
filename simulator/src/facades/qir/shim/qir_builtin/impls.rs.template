@@ -5,7 +5,7 @@ pub fn isq_qir_shim_rt_array_concatenate(x0: K<QIRArray>, x1: K<QIRArray>)->K<QI
 pub fn isq_qir_shim_rt_array_copy(x0: K<QIRArray>, x1: bool)->K<QIRArray> {
     todo!()
 }
-pub fn isq_qir_shim_rt_array_create(x0: i32, x1: i32, x2: i64)->K<QIRArray> {
+pub fn isq_qir_shim_rt_array_create(x0: i32, x1: i32, x2: *mut i64)->K<QIRArray> {
     todo!()
 }
 pub fn isq_qir_shim_rt_array_create_1d(x0: i32, x1: i64)->K<QIRArray> {
@@ -128,10 +128,10 @@ pub fn isq_qir_shim_rt_callable_update_alias_count(x0: K<QIRCallable>, x1: i32)-
 pub fn isq_qir_shim_rt_callable_update_reference_count(x0: K<QIRCallable>, x1: i32)->() {
     todo!()
 }
-pub fn isq_qir_shim_rt_capture_update_alias_count(x0: K<QIRCallable>, x1: i32)->K<QIRCallable> {
+pub fn isq_qir_shim_rt_capture_update_alias_count(x0: K<QIRCallable>, x1: i32)->() {
     todo!()
 }
-pub fn isq_qir_shim_rt_capture_update_reference_count(x0: K<QIRCallable>, x1: i32)->K<QIRCallable> {
+pub fn isq_qir_shim_rt_capture_update_reference_count(x0: K<QIRCallable>, x1: i32)->() {
     todo!()
 }
 pub fn isq_qir_shim_rt_double_to_string(x0: f64)->K<QIRString> {
@@ -143,7 +143,7 @@ pub fn isq_qir_shim_rt_fail(x0: K<QIRString>)->() {
 pub fn isq_qir_shim_rt_int_to_string(x0: i64)->K<QIRString> {
     todo!()
 }
-pub fn isq_qir_shim_rt_message(x0: K<QIRString>)->K<QIRString> {
+pub fn isq_qir_shim_rt_message(x0: K<QIRString>)->() {
     todo!()
 }
 pub fn isq_qir_shim_rt_pauli_to_string(x0: QIRPauli)->K<QIRString> {

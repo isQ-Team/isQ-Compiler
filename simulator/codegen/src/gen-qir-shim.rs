@@ -440,7 +440,7 @@ fn qir_builtin() -> Vec<QIRInterface> {
         "rt",
         "array_create",
         Array,
-        &[QI32, QI32, QI64],
+        &[QI32, QI32, QI64P],
     ));
     interfaces.push(QIRInterface::new(
         "rt",
@@ -660,13 +660,13 @@ fn qir_builtin() -> Vec<QIRInterface> {
     interfaces.push(QIRInterface::new(
         "rt",
         "capture_update_alias_count",
-        Callable,
+        QVoid,
         &[Callable, QI32],
     ));
     interfaces.push(QIRInterface::new(
         "rt",
         "capture_update_reference_count",
-        Callable,
+        QVoid,
         &[Callable, QI32],
     ));
     interfaces.push(QIRInterface::new(
@@ -677,7 +677,7 @@ fn qir_builtin() -> Vec<QIRInterface> {
     ));
     interfaces.push(QIRInterface::new("rt", "fail", QVoid, &[QString]));
     interfaces.push(QIRInterface::new("rt", "int_to_string", QString, &[QI64]));
-    interfaces.push(QIRInterface::new("rt", "message", QString, &[QString]));
+    interfaces.push(QIRInterface::new("rt", "message", QVoid, &[QString]));
     interfaces.push(QIRInterface::new(
         "rt",
         "pauli_to_string",

@@ -11,9 +11,9 @@ pub extern "C" fn __isq__qir__shim__rt__array_copy(x0: *mut i8, x1: bool)->*mut 
     unsafe { t(isq_qir_shim_rt_array_copy(t::<_, K<QIRArray>>(x0), t::<_, bool>(x1)))}
 }
 #[no_mangle]
-pub extern "C" fn __isq__qir__shim__rt__array_create(x0: i32, x1: i32, x2: i64)->*mut i8 {
+pub extern "C" fn __isq__qir__shim__rt__array_create(x0: i32, x1: i32, x2: *mut i8)->*mut i8 {
     use core::mem::transmute as t;
-    unsafe { t(isq_qir_shim_rt_array_create(t::<_, i32>(x0), t::<_, i32>(x1), t::<_, i64>(x2)))}
+    unsafe { t(isq_qir_shim_rt_array_create(t::<_, i32>(x0), t::<_, i32>(x1), t::<_, *mut i64>(x2)))}
 }
 #[no_mangle]
 pub extern "C" fn __isq__qir__shim__rt__array_create_1d(x0: i32, x1: i64)->*mut i8 {
@@ -216,12 +216,12 @@ pub extern "C" fn __isq__qir__shim__rt__callable_update_reference_count(x0: *mut
     unsafe { t(isq_qir_shim_rt_callable_update_reference_count(t::<_, K<QIRCallable>>(x0), t::<_, i32>(x1)))}
 }
 #[no_mangle]
-pub extern "C" fn __isq__qir__shim__rt__capture_update_alias_count(x0: *mut i8, x1: i32)->*mut i8 {
+pub extern "C" fn __isq__qir__shim__rt__capture_update_alias_count(x0: *mut i8, x1: i32)->() {
     use core::mem::transmute as t;
     unsafe { t(isq_qir_shim_rt_capture_update_alias_count(t::<_, K<QIRCallable>>(x0), t::<_, i32>(x1)))}
 }
 #[no_mangle]
-pub extern "C" fn __isq__qir__shim__rt__capture_update_reference_count(x0: *mut i8, x1: i32)->*mut i8 {
+pub extern "C" fn __isq__qir__shim__rt__capture_update_reference_count(x0: *mut i8, x1: i32)->() {
     use core::mem::transmute as t;
     unsafe { t(isq_qir_shim_rt_capture_update_reference_count(t::<_, K<QIRCallable>>(x0), t::<_, i32>(x1)))}
 }
@@ -241,7 +241,7 @@ pub extern "C" fn __isq__qir__shim__rt__int_to_string(x0: i64)->*mut i8 {
     unsafe { t(isq_qir_shim_rt_int_to_string(t::<_, i64>(x0)))}
 }
 #[no_mangle]
-pub extern "C" fn __isq__qir__shim__rt__message(x0: *mut i8)->*mut i8 {
+pub extern "C" fn __isq__qir__shim__rt__message(x0: *mut i8)->() {
     use core::mem::transmute as t;
     unsafe { t(isq_qir_shim_rt_message(t::<_, K<QIRString>>(x0)))}
 }

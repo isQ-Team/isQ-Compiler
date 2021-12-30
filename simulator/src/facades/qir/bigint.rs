@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::{vec::Vec, rc::Rc};
 use num_bigint::BigInt;
 
 // Immutable QBigInt.
@@ -11,7 +11,7 @@ pub struct QBigInt {
 }
 
 impl QBigInt {
-    fn from_bigint(a: BigInt) -> Self {
+    pub fn from_bigint(a: BigInt) -> Self {
         let mut s = QBigInt {
             body: a,
             last_raw_data: Vec::new(),

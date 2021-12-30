@@ -25,16 +25,16 @@ entry:
     ret %Array* %x5
 }
 declare dllimport i8* @__isq__qir__shim__rt__array_copy(i8*, i1)
-define %Array* @__quantum__rt__array_create (i32 %x0, i32 %x1, i64 %x2) alwaysinline {
+define %Array* @__quantum__rt__array_create (i32 %x0, i32 %x1, i64* %x2) alwaysinline {
 entry:
     %x3 = bitcast i32 %x0 to i32
     %x4 = bitcast i32 %x1 to i32
-    %x5 = bitcast i64 %x2 to i64
-    %x6 = call i8* @__isq__qir__shim__rt__array_create(i32 %x3, i32 %x4, i64 %x5)
+    %x5 = bitcast i64* %x2 to i8*
+    %x6 = call i8* @__isq__qir__shim__rt__array_create(i32 %x3, i32 %x4, i8* %x5)
     %x7 = bitcast i8* %x6 to %Array*
     ret %Array* %x7
 }
-declare dllimport i8* @__isq__qir__shim__rt__array_create(i32, i32, i64)
+declare dllimport i8* @__isq__qir__shim__rt__array_create(i32, i32, i8*)
 define %Array* @__quantum__rt__array_create_1d (i32 %x0, i64 %x1) alwaysinline {
 entry:
     %x2 = bitcast i32 %x0 to i32
@@ -409,24 +409,22 @@ entry:
     ret void
 }
 declare dllimport void @__isq__qir__shim__rt__callable_update_reference_count(i8*, i32)
-define %Callable* @__quantum__rt__capture_update_alias_count (%Callable* %x0, i32 %x1) alwaysinline {
+define void @__quantum__rt__capture_update_alias_count (%Callable* %x0, i32 %x1) alwaysinline {
 entry:
     %x2 = bitcast %Callable* %x0 to i8*
     %x3 = bitcast i32 %x1 to i32
-    %x4 = call i8* @__isq__qir__shim__rt__capture_update_alias_count(i8* %x2, i32 %x3)
-    %x5 = bitcast i8* %x4 to %Callable*
-    ret %Callable* %x5
+    call void @__isq__qir__shim__rt__capture_update_alias_count(i8* %x2, i32 %x3)
+    ret void
 }
-declare dllimport i8* @__isq__qir__shim__rt__capture_update_alias_count(i8*, i32)
-define %Callable* @__quantum__rt__capture_update_reference_count (%Callable* %x0, i32 %x1) alwaysinline {
+declare dllimport void @__isq__qir__shim__rt__capture_update_alias_count(i8*, i32)
+define void @__quantum__rt__capture_update_reference_count (%Callable* %x0, i32 %x1) alwaysinline {
 entry:
     %x2 = bitcast %Callable* %x0 to i8*
     %x3 = bitcast i32 %x1 to i32
-    %x4 = call i8* @__isq__qir__shim__rt__capture_update_reference_count(i8* %x2, i32 %x3)
-    %x5 = bitcast i8* %x4 to %Callable*
-    ret %Callable* %x5
+    call void @__isq__qir__shim__rt__capture_update_reference_count(i8* %x2, i32 %x3)
+    ret void
 }
-declare dllimport i8* @__isq__qir__shim__rt__capture_update_reference_count(i8*, i32)
+declare dllimport void @__isq__qir__shim__rt__capture_update_reference_count(i8*, i32)
 define %String* @__quantum__rt__double_to_string (double %x0) alwaysinline {
 entry:
     %x1 = bitcast double %x0 to double
@@ -450,14 +448,13 @@ entry:
     ret %String* %x3
 }
 declare dllimport i8* @__isq__qir__shim__rt__int_to_string(i64)
-define %String* @__quantum__rt__message (%String* %x0) alwaysinline {
+define void @__quantum__rt__message (%String* %x0) alwaysinline {
 entry:
     %x1 = bitcast %String* %x0 to i8*
-    %x2 = call i8* @__isq__qir__shim__rt__message(i8* %x1)
-    %x3 = bitcast i8* %x2 to %String*
-    ret %String* %x3
+    call void @__isq__qir__shim__rt__message(i8* %x1)
+    ret void
 }
-declare dllimport i8* @__isq__qir__shim__rt__message(i8*)
+declare dllimport void @__isq__qir__shim__rt__message(i8*)
 define %String* @__quantum__rt__pauli_to_string (%Pauli %x0) alwaysinline {
 entry:
     %x1 = zext %Pauli %x0 to i8

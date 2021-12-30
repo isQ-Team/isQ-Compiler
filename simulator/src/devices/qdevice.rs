@@ -63,7 +63,15 @@ pub trait QDevice {
     type Qubit: Eq;
     fn alloc_qubit(&mut self) -> Self::Qubit;
     fn free_qubit(&mut self, qubit: Self::Qubit);
-    fn supported_quantum_ops() -> Vec<QuantumOp>;
-    fn qop(&mut self, op_type: QuantumOp, qubits: &[&Self::Qubit], parameters: &[f64]);
+    fn supported_quantum_ops(&self) -> Vec<QuantumOp>;
+    fn qop(&mut self, op_type: QuantumOp, qubits: &[&Self::Qubit], parameters: &[f64]){
+        self.controlled_qop(op_type, &[], qubits, parameters)
+    }
+    fn controlled_qop(&mut self, op_type: QuantumOp, controllers: &[&Self::Qubit], qubits: &[&Self::Qubit], parameters: &[f64]){
+        if controllers.len()!=0{
+            panic!("This device does not support accelerated-controlled operations. Do decomposition first.");
+        }
+        self.qop(op_type, qubits, parameters)
+    }
     fn measure(&mut self, qubit: &Self::Qubit) -> bool;
 }

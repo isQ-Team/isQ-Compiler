@@ -4,10 +4,10 @@ pub type QIRBool = bool;
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum QIRPauli {
-    I = 0,
-    X = 1,
-    Y = 2,
-    Z = 3,
+    PauliI = 0,
+    PauliX = 1,
+    PauliY = 2,
+    PauliZ = 3,
 }
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]

@@ -1,27 +1,28 @@
-use core::cell::RefCell;
+use core::{cell::RefCell, any::Any};
 
 use alloc::{boxed::Box, rc::Rc};
 
-use crate::devices::checked::NumberedQDevice;
+use crate::{qdevice::QDevice};
 
 use super::resource::ResourceMap;
+use super::resource::ResourceManagerExt;
 
 pub struct QIRContext {
-    device: Box<dyn NumberedQDevice>,
+    device: Box<dyn QDevice<Qubit=usize>>,
     classical_resource_manager: ResourceMap,
 }
-
+use crate::facades::qir::resource::ResourceKey;
 impl QIRContext {
-    pub fn new(device: Box<dyn NumberedQDevice>) -> Self {
+    pub fn new(device: Box<dyn QDevice<Qubit=usize>>) -> Self {
         Self {
             device,
             classical_resource_manager: ResourceMap::new(),
         }
     }
-    pub fn get_device(&self) -> &dyn NumberedQDevice {
+    pub fn get_device(&self) -> &dyn QDevice<Qubit=usize> {
         &*self.device
     }
-    pub fn get_device_mut(&mut self) -> &mut dyn NumberedQDevice {
+    pub fn get_device_mut(&mut self) -> &mut dyn QDevice<Qubit=usize> {
         &mut *self.device
     }
     pub fn get_classical_resource_manager(&self) -> &ResourceMap {
@@ -29,6 +30,9 @@ impl QIRContext {
     }
     pub fn get_classical_resource_manager_mut(&mut self) -> &mut ResourceMap {
         &mut self.classical_resource_manager
+    }
+    pub fn add<T: Any + 'static>(&self, resource: T) -> ResourceKey<T> {
+        self.classical_resource_manager.add_key(resource)
     }
 }
 

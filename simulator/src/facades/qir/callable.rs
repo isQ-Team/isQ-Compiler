@@ -1,4 +1,4 @@
-use core::cell::RefCell;
+use core::cell::{RefCell, Cell};
 
 use super::{resource::AliasingTracker, tuple::QTupleContent};
 
@@ -14,20 +14,38 @@ pub struct QCallable {
     function_table: [Option<WrapperFn>; 4],
     memory_management_table: [Option<MemManFn>; 2],
     capture: QTupleContent,
-    alias_count: usize,
+    alias_count: Cell<usize>,
     is_adjoint: bool,
     is_controlled: bool,
 }
 
 impl AliasingTracker for QCallable {
     fn get_alias_count(&self) -> usize {
-        self.alias_count
+        self.alias_count.get()
     }
-
+    fn update_alias_count(&self, delta: isize) {
+        let new_val = (self.alias_count.get() as isize) + delta;
+        if new_val < 0 {
+            panic!("Alias count ({}) is negative!", new_val);
+        }
+        self.alias_count.set(new_val as usize);
+    }
     fn full_copy(&self, _allocated_id: usize) -> Self {
         let mut x = self.clone();
-        x.alias_count = 0;
+        x.alias_count.set(0);
         x
+    }
+}
+
+impl AliasingTracker for RefCell<QCallable>{
+    fn get_alias_count(&self)->usize{
+        self.borrow().alias_count.get()
+    }
+    fn update_alias_count(&self, delta: isize){
+        self.borrow_mut().update_alias_count(delta);
+    }
+    fn full_copy(&self, _allocated_id: usize)->Self{
+        RefCell::new(self.borrow().full_copy(_allocated_id))
     }
 }
 
@@ -63,7 +81,7 @@ impl QCallable {
             function_table: transmuted_function_table,
             memory_management_table: transmuted_memory_management_table,
             capture: capture,
-            alias_count: 0,
+            alias_count: Cell::new(0),
             is_adjoint: false,
             is_controlled: false,
         }

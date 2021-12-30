@@ -192,7 +192,7 @@ impl QDevice for NaiveSimulator {
         trace!("Freeing qubit {}", qubit);
     }
 
-    fn supported_quantum_ops() -> Vec<crate::qdevice::QuantumOp> {
+    fn supported_quantum_ops(&self) -> Vec<crate::qdevice::QuantumOp> {
         use crate::qdevice::QuantumOp::*;
         vec![Reset, X, Y, Z, H, S, T, CNOT, CZ, Swap, U3, Rx, Ry, Rz]
     }

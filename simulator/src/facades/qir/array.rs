@@ -1,4 +1,4 @@
-use core::cell::RefCell;
+use core::cell::{RefCell, Cell};
 
 use alloc::alloc::*;
 use alloc::vec::Vec;
@@ -8,11 +8,12 @@ use super::types::QIRRange;
 
 pub struct QArray {
     // Use machine-alignment.
+    // Foreign mutability. The Rust part will not try to dereference it.
     data: *mut usize,
     elem_size_in_byte: usize,
     dimensions: Vec<usize>,
     dimension_weights: Vec<usize>,
-    alias_counter: usize,
+    alias_counter: Cell<usize>,
 }
 
 impl QArray {
@@ -49,15 +50,30 @@ impl QArray {
             elem_size_in_byte,
             dimensions: dimensions.to_vec(),
             dimension_weights,
-            alias_counter: 0,
+            alias_counter: Cell::new(0),
         }
     }
     fn elem_size_in_usize(&self) -> usize {
         (self.elem_size_in_byte + core::mem::size_of::<usize>() - 1) / core::mem::size_of::<usize>()
     }
-    pub fn get_raw(&self) -> *mut usize {
+    pub fn get_raw(&mut self) -> *mut usize {
         self.data
     }
+    pub fn get_data(&self) -> &[usize]{
+        unsafe {
+            let ptr = self.data as *const usize;
+            let len = self.elem_size_in_usize() * self.dimensions.iter().product::<usize>();
+            core::slice::from_raw_parts(ptr, len)
+        }
+    }
+    pub fn get_data_mut(&mut self) -> &mut [usize]{
+        unsafe {
+            let ptr = self.data as *mut usize;
+            let len = self.elem_size_in_usize() * self.dimensions.iter().product::<usize>();
+            core::slice::from_raw_parts_mut(ptr, len)
+        }
+    }
+    // self size. in **elements**.
     fn total_size(&self) -> usize {
         self.dimensions.iter().product::<usize>()
     }
@@ -112,8 +128,8 @@ impl QArray {
                 .offset((offset * self.elem_size_in_usize()) as isize) as *mut i8
         }
     }
-    pub fn slice(&self, index: usize, i: usize) -> Self {
-        let mut arr = self.project(
+    pub fn project(&self, index: usize, i: usize) -> Self {
+        let mut arr = self.slice(
             index,
             QIRRange {
                 start: i as i64,
@@ -125,7 +141,7 @@ impl QArray {
         arr.dimension_weights.remove(index);
         arr
     }
-    pub fn project(&self, index: usize, range: QIRRange) -> Self {
+    pub fn slice(&self, index: usize, range: QIRRange) -> Self {
         if index >= self.dimensions.len() {
             panic!(
                 "Dimension ({}) out of range ({})!",
@@ -174,16 +190,36 @@ impl QArray {
     }
 }
 
-impl AliasingTracker for QArray {
-    fn get_alias_count(&self) -> usize {
-        self.alias_counter
-    }
-    fn full_copy(&self, _allocated_id: usize) -> Self {
-        let mut arr = Self::new(self.elem_size_in_byte, &self.dimensions);
-        arr.alias_counter = 0;
-        unsafe { core::ptr::copy_nonoverlapping(self.data, arr.data, self.total_size()) };
-        arr
+impl Drop for QArray{
+    fn drop(&mut self) {
+        unsafe {
+            let ptr = self.data as *mut usize;
+            let size = self.total_size() * self.elem_size_in_usize();
+            let align = core::mem::align_of::<usize>();
+            let layout = core::alloc::Layout::from_size_align(size, align).unwrap();
+            alloc::alloc::dealloc(ptr as *mut u8, layout);
+        }
     }
 }
 
-pub type QIRArray = RefCell<QArray>;
+impl AliasingTracker for QArray {
+    fn get_alias_count(&self) -> usize {
+        self.alias_counter.get()
+    }
+    fn full_copy(&self, _allocated_id: usize) -> Self {
+        let mut arr = Self::new(self.elem_size_in_byte, &self.dimensions);
+        arr.alias_counter.set(0);
+        unsafe { core::ptr::copy_nonoverlapping(self.data, arr.data, self.total_size()) };
+        arr
+    }
+
+    fn update_alias_count(&self, delta: isize) {
+        let new_val = (self.alias_counter.get() as isize) + delta;
+        if new_val < 0 {
+            panic!("Alias count ({}) is negative!", new_val);
+        }
+        self.alias_counter.set(new_val as usize);
+    }
+}
+
+pub type QIRArray = QArray;

@@ -1,6 +1,7 @@
 #![no_std]
 #![feature(thread_local)]
-
+#![feature(vec_into_raw_parts)]
+#![feature(generic_associated_types)]
 #[cfg(test)]
 #[macro_use]
 extern crate std;
@@ -10,7 +11,6 @@ extern crate alloc;
 extern crate core;
 pub mod devices;
 pub mod facades;
-pub mod qdevice;
-
+pub use devices::qdevice;
 #[macro_use]
 extern crate log;
