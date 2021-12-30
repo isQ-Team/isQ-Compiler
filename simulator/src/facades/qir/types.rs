@@ -6,8 +6,8 @@ pub type QIRBool = bool;
 pub enum QIRPauli {
     PauliI = 0,
     PauliX = 1,
-    PauliY = 2,
-    PauliZ = 3,
+    PauliY = 3,
+    PauliZ = 2,
 }
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]

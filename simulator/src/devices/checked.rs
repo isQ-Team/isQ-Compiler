@@ -59,7 +59,7 @@ impl<Q, T: QDevice<Qubit = Q>> QDevice for CheckedDevice<Q, T> {
         let all_qubits = controls.iter().chain(qubits.iter()).collect_vec();
         for i in 0..all_qubits.len() {
             for j in i + 1..all_qubits.len() {
-                if qubits[i] == qubits[j] {
+                if all_qubits[i] == all_qubits[j] {
                     panic!(
                         "Qubit argument #{} is used twice (next use: qubit argument #{})",
                         i, j

@@ -14,6 +14,7 @@ pub struct NaiveSimulator {
 
 impl NaiveSimulator {
     pub fn new() -> Self {
+        trace!("Naive simulator created");
         let zero_state = vec![Complex64::new(1.0, 0.0)];
         Self {
             state: zero_state,
@@ -23,7 +24,7 @@ impl NaiveSimulator {
         }
     }
     fn qubit_to_state_id(&self, q: &<NaiveSimulator as QDevice>::Qubit) -> usize {
-        self.qubit_map.get(q).expect("Qubit freed").clone()
+        self.qubit_map.get(q).expect(&format!("Qubit {} freed", q)).clone()
     }
     // Reset all qubits to ket-0.
     pub fn reset_all(&mut self) {
@@ -57,10 +58,15 @@ impl NaiveSimulator {
                 self.state[i_other] = x_this;
             }
         }
+        self.qubit_map_inv[i2]=*q1;
+        self.qubit_map_inv[i1]=*q2;
+        self.qubit_map.insert(*q1, i2);
+        self.qubit_map.insert(*q2, i1);
     }
     fn swap_qubit_to_msb(&mut self, q1: &<NaiveSimulator as QDevice>::Qubit) {
         let msb = *self.qubit_map_inv.last().expect("No qubit allocated");
         self.swap_bits(q1, &msb);
+        assert_eq!(self.qubit_map_inv.last().unwrap(), q1);
     }
 
     // Measure out the most significant qubit and get the result.
@@ -73,7 +79,8 @@ impl NaiveSimulator {
         for i in 0..self.state.len() / 2 {
             prob_zero += self.state[i].norm_sqr();
         }
-        assert_eq!(prob_zero >= 0.0 && prob_zero <= 1.0, true);
+        prob_zero = prob_zero.clamp(0.0, 1.0);
+        assert_eq!(prob_zero >= 0.0 && prob_zero <= 1.0, true, "prob_zero out of range {}", prob_zero);
         (prob_zero, 1.0f64 - prob_zero)
     }
 
@@ -115,9 +122,14 @@ impl NaiveSimulator {
         self.qubit_map_inv.push(next_id);
         next_id
     }
-    fn single_qubit_gate(&mut self, pos: usize, mat: [[Complex64; 2]; 2]) {
+    fn single_qubit_gate(&mut self, controllers: &[&usize], pos: usize, mat: [[Complex64; 2]; 2]) {
         let pos = self.qubit_to_state_id(&pos);
-        for i in 0..self.state.len() {
+        'state_arg: for i in 0..self.state.len() {
+            for c in controllers.iter().copied().copied(){
+                if i & (1 << c) == 0{
+                    continue 'state_arg;
+                }
+            }
             if (i & (1 << pos)) == 0 {
                 let a = self.state[i];
                 let b = self.state[i + (1 << pos)];
@@ -126,11 +138,16 @@ impl NaiveSimulator {
             }
         }
     }
-    fn two_qubit_gate(&mut self, pos1: usize, pos2: usize, mat: [[Complex64; 4]; 4]) {
+    fn two_qubit_gate(&mut self, controllers: &[&usize], pos1: usize, pos2: usize, mat: [[Complex64; 4]; 4]) {
         let pos1 = self.qubit_to_state_id(&pos1);
         let pos2 = self.qubit_to_state_id(&pos2);
         assert_ne!(pos1, pos2);
-        for i in 0..self.state.len() {
+        'state_arg: for i in 0..self.state.len() {
+            for c in controllers.iter().copied().copied(){
+                if i & (1 << c) == 0{
+                    continue 'state_arg;
+                }
+            }
             if (i & (1 << pos1)) == 0 && (i & (1 << pos2)) == 0 {
                 let a = self.state[i];
                 let b = self.state[i + (1 << pos2)];
@@ -188,6 +205,7 @@ impl QDevice for NaiveSimulator {
         }
         let (result, prob) = random_coin(prob_zero, prob_one);
         self.collapse_msb_qubit_into(result, prob);
+        assert_eq!(self.qubit_map_inv.last().unwrap(), &qubit);
         self.trace_out_msb_computational_qubit(result);
         trace!("Freeing qubit {}", qubit);
     }
@@ -197,16 +215,21 @@ impl QDevice for NaiveSimulator {
         vec![Reset, X, Y, Z, H, S, T, CNOT, CZ, Swap, U3, Rx, Ry, Rz]
     }
 
-    fn qop(
+    fn controlled_qop(
         &mut self,
         op_type: crate::qdevice::QuantumOp,
+        controllers: &[&Self::Qubit],
         qubits: &[&Self::Qubit],
         parameters: &[f64],
     ) {
+        trace!("Perform {:?}{:?} on {:?}-{:?}", op_type, parameters, controllers, qubits);
         use crate::qdevice::QuantumOp::*;
         let invsqrt2 = (0.5f64).sqrt();
         match op_type {
             Reset => {
+                if controllers.len()!=0{
+                    panic!("Reset is not allowed to have control qubits");
+                }
                 let ret = self.measure(qubits[0]);
                 if ret {
                     self.zeroing_msb();
@@ -214,12 +237,14 @@ impl QDevice for NaiveSimulator {
             }
             X => {
                 self.single_qubit_gate(
+                    controllers,
                     *qubits[0],
                     [[0.0.into(), 1.0.into()], [1.0.into(), 0.0.into()]],
                 );
             }
             Y => {
                 self.single_qubit_gate(
+                    controllers,
                     *qubits[0],
                     [
                         [0.0.into(), Complex64::new(0.0, 1.0)],
@@ -229,12 +254,14 @@ impl QDevice for NaiveSimulator {
             }
             Z => {
                 self.single_qubit_gate(
+                    controllers,
                     *qubits[0],
                     [[1.0.into(), 0.0.into()], [0.0.into(), (-1.0).into()]],
                 );
             }
             H => {
                 self.single_qubit_gate(
+                    controllers,
                     *qubits[0],
                     [
                         [invsqrt2.into(), invsqrt2.into()],
@@ -244,6 +271,7 @@ impl QDevice for NaiveSimulator {
             }
             S => {
                 self.single_qubit_gate(
+                    controllers,
                     *qubits[0],
                     [
                         [1.0.into(), 0.0.into()],
@@ -251,8 +279,9 @@ impl QDevice for NaiveSimulator {
                     ],
                 );
             }
-            T => {
+            SInv => {
                 self.single_qubit_gate(
+                    controllers,
                     *qubits[0],
                     [
                         [1.0.into(), 0.0.into()],
@@ -260,8 +289,29 @@ impl QDevice for NaiveSimulator {
                     ],
                 );
             }
+            T => {
+                self.single_qubit_gate(
+                    controllers,
+                    *qubits[0],
+                    [
+                        [1.0.into(), 0.0.into()],
+                        [0.0.into(), Complex64::new(invsqrt2, invsqrt2)],
+                    ],
+                );
+            }
+            TInv => {
+                self.single_qubit_gate(
+                    controllers,
+                    *qubits[0],
+                    [
+                        [1.0.into(), 0.0.into()],
+                        [0.0.into(), Complex64::new(invsqrt2, -invsqrt2)],
+                    ],
+                );
+            }
             CNOT => {
                 self.two_qubit_gate(
+                    controllers,
                     *qubits[0],
                     *qubits[1],
                     [
@@ -274,6 +324,7 @@ impl QDevice for NaiveSimulator {
             }
             CZ => {
                 self.two_qubit_gate(
+                    controllers,
                     *qubits[0],
                     *qubits[1],
                     [
@@ -286,6 +337,7 @@ impl QDevice for NaiveSimulator {
             }
             Swap => {
                 self.two_qubit_gate(
+                    controllers,
                     *qubits[0],
                     *qubits[1],
                     [
@@ -311,7 +363,7 @@ impl QDevice for NaiveSimulator {
                         (i * (phi + lambda)).exp() * (theta / 2.0).cos(),
                     ],
                 ];
-                self.single_qubit_gate(*qubits[0], mat);
+                self.single_qubit_gate(controllers, *qubits[0], mat);
             }
             Rx => {
                 let theta = parameters[0];
@@ -325,7 +377,7 @@ impl QDevice for NaiveSimulator {
                         (theta / 2.0).cos().into(),
                     ],
                 ];
-                self.single_qubit_gate(*qubits[0], mat);
+                self.single_qubit_gate(controllers, *qubits[0], mat);
             }
             Ry => {
                 let theta = parameters[0];
@@ -333,7 +385,7 @@ impl QDevice for NaiveSimulator {
                     [(theta / 2.0).cos().into(), (-((theta / 2.0).sin())).into()],
                     [(theta / 2.0).sin().into(), (theta / 2.0).cos().into()],
                 ];
-                self.single_qubit_gate(*qubits[0], mat);
+                self.single_qubit_gate(controllers, *qubits[0], mat);
             }
             Rz => {
                 let theta = parameters[0];
@@ -341,7 +393,7 @@ impl QDevice for NaiveSimulator {
                     [(-Complex64::i() * theta / 2.0).exp(), 0.0.into()],
                     [0.0.into(), (Complex64::i() * theta / 2.0).exp()],
                 ];
-                self.single_qubit_gate(*qubits[0], mat);
+                self.single_qubit_gate(controllers, *qubits[0], mat);
             }
             _ => {
                 panic!("Unsupported quantum operation: {:?}", op_type);

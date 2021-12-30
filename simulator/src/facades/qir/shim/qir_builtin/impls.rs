@@ -373,8 +373,8 @@ pub fn isq_qir_shim_rt_message(x0: K<QIRString>)->(){
     let rctx = context();
     let ctx = RefCell::borrow(&rctx);
     let s = x0.get(&ctx);
-    let r = s.get_raw().split_last().unwrap().1;
-    info!("{}", alloc::string::String::from_utf8(r.iter().map(|x| *x as u8).collect()).unwrap());
+    let r = s.get_str();
+    ctx.message(r);
 }
 pub fn isq_qir_shim_rt_pauli_to_string(x0: QIRPauli)->K<QIRString> {
     let rctx = context();
@@ -389,7 +389,7 @@ pub fn isq_qir_shim_rt_qubit_allocate()->K<QIRQubit> {
     unsafe {core::mem::transmute(q)}
 }
 pub fn isq_qir_shim_rt_qubit_allocate_array(x0: i32)->K<QIRArray> {
-    let array = isq_qir_shim_rt_array_create_1d(x0, core::mem::size_of::<usize>() as i64);
+    let array = isq_qir_shim_rt_array_create_1d(core::mem::size_of::<usize>() as i32, x0 as i64);
     let rctx = context();
     let mut ctx = RefCell::borrow_mut(&rctx);
     let mut qubits = Vec::new();
@@ -409,10 +409,13 @@ pub fn isq_qir_shim_rt_qubit_release(x0: K<QIRQubit>)->() {
     ctx.get_device_mut().free_qubit(unsafe {core::mem::transmute(x0)});
 }
 pub fn isq_qir_shim_rt_qubit_release_array(x0: K<QIRArray>)->() {
+    if x0.is_null(){
+        panic!("Attempted to release null qubit array");
+    }
     let rctx = context();
     let mut ctx = RefCell::borrow_mut(&rctx);
-    let mut arr = x0.get_mut(&mut ctx);
-    let data = arr.get_data_mut();
+    let arr = x0.get(&mut ctx);
+    let data = arr.get_1d_data_of::<usize>();
     let mut qubits = Vec::new();
     for i in 0..data.len(){
         qubits.push(data[i]);
@@ -421,6 +424,7 @@ pub fn isq_qir_shim_rt_qubit_release_array(x0: K<QIRArray>)->() {
     for qubit in qubits.iter().copied(){
         ctx.get_device_mut().free_qubit(qubit);
     }
+    x0.update_ref_count(&ctx, -1)
 }
 pub fn isq_qir_shim_rt_qubit_to_string(x0: K<QIRQubit>)->K<QIRString> {
     let qubit_id: usize = unsafe {core::mem::transmute(x0)};

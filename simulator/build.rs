@@ -7,4 +7,5 @@ fn main(){
             println!("cargo:rustc-link-arg=-Wl,--undefined={}", line);
         }
     }
+    println!("cargo:rustc-link-arg=-rdynamic");
 }

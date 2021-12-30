@@ -53,8 +53,11 @@ impl QArray {
             alias_counter: Cell::new(0),
         }
     }
-    fn elem_size_in_usize(&self) -> usize {
+    pub fn elem_size_in_usize(&self) -> usize {
         (self.elem_size_in_byte + core::mem::size_of::<usize>() - 1) / core::mem::size_of::<usize>()
+    }
+    pub fn elem_size_in_byte(&self) -> usize{
+        self.elem_size_in_byte
     }
     pub fn get_raw(&mut self) -> *mut usize {
         self.data
@@ -71,6 +74,20 @@ impl QArray {
             let ptr = self.data as *mut usize;
             let len = self.elem_size_in_usize() * self.dimensions.iter().product::<usize>();
             core::slice::from_raw_parts_mut(ptr, len)
+        }
+    }
+    pub fn get_1d_data_of<T: Sized>(&self) -> &[T]{
+        if self.dimensions.len() != 1 {
+            panic!("LHS is not 1d array!");
+        }
+        if self.elem_size_in_byte() != core::mem::size_of::<T>(){
+            panic!("Trying to fetch wrong type of data, trying to fetch {}, array element size {}",
+                core::mem::size_of::<T>(), self.elem_size_in_byte());
+        }
+        unsafe {
+            let ptr = self.data as *const T;
+            let len = self.dimensions.iter().product::<usize>();
+            core::slice::from_raw_parts(ptr, len)
         }
     }
     // self size. in **elements**.
