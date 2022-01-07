@@ -1,4 +1,4 @@
-use alloc::{vec::Vec, rc::Rc};
+use alloc::{rc::Rc, vec::Vec};
 use num_bigint::BigInt;
 
 // Immutable QBigInt.

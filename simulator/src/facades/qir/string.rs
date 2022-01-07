@@ -27,10 +27,9 @@ impl QString {
     pub fn get_raw(&self) -> &[i8] {
         &self.data
     }
-    pub fn get_str(&self) -> &str{
+    pub fn get_str(&self) -> &str {
         let raw = self.get_raw().split_last().unwrap().1;
-        unsafe {core::str::from_utf8(core::mem::transmute(raw)).unwrap()}
-
+        unsafe { core::str::from_utf8(core::mem::transmute(raw)).unwrap() }
     }
     pub fn concat(&self, other: &QString) -> Self {
         let mut s = QString { data: Vec::new() };

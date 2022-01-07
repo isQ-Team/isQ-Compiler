@@ -24,7 +24,10 @@ impl NaiveSimulator {
         }
     }
     fn qubit_to_state_id(&self, q: &<NaiveSimulator as QDevice>::Qubit) -> usize {
-        self.qubit_map.get(q).expect(&format!("Qubit {} freed", q)).clone()
+        self.qubit_map
+            .get(q)
+            .expect(&format!("Qubit {} freed", q))
+            .clone()
     }
     // Reset all qubits to ket-0.
     pub fn reset_all(&mut self) {
@@ -58,8 +61,8 @@ impl NaiveSimulator {
                 self.state[i_other] = x_this;
             }
         }
-        self.qubit_map_inv[i2]=*q1;
-        self.qubit_map_inv[i1]=*q2;
+        self.qubit_map_inv[i2] = *q1;
+        self.qubit_map_inv[i1] = *q2;
         self.qubit_map.insert(*q1, i2);
         self.qubit_map.insert(*q2, i1);
     }
@@ -80,7 +83,12 @@ impl NaiveSimulator {
             prob_zero += self.state[i].norm_sqr();
         }
         prob_zero = prob_zero.clamp(0.0, 1.0);
-        assert_eq!(prob_zero >= 0.0 && prob_zero <= 1.0, true, "prob_zero out of range {}", prob_zero);
+        assert_eq!(
+            prob_zero >= 0.0 && prob_zero <= 1.0,
+            true,
+            "prob_zero out of range {}",
+            prob_zero
+        );
         (prob_zero, 1.0f64 - prob_zero)
     }
 
@@ -125,8 +133,8 @@ impl NaiveSimulator {
     fn single_qubit_gate(&mut self, controllers: &[&usize], pos: usize, mat: [[Complex64; 2]; 2]) {
         let pos = self.qubit_to_state_id(&pos);
         'state_arg: for i in 0..self.state.len() {
-            for c in controllers.iter().copied().copied(){
-                if i & (1 << c) == 0{
+            for c in controllers.iter().copied().copied() {
+                if i & (1 << c) == 0 {
                     continue 'state_arg;
                 }
             }
@@ -138,13 +146,19 @@ impl NaiveSimulator {
             }
         }
     }
-    fn two_qubit_gate(&mut self, controllers: &[&usize], pos1: usize, pos2: usize, mat: [[Complex64; 4]; 4]) {
+    fn two_qubit_gate(
+        &mut self,
+        controllers: &[&usize],
+        pos1: usize,
+        pos2: usize,
+        mat: [[Complex64; 4]; 4],
+    ) {
         let pos1 = self.qubit_to_state_id(&pos1);
         let pos2 = self.qubit_to_state_id(&pos2);
         assert_ne!(pos1, pos2);
         'state_arg: for i in 0..self.state.len() {
-            for c in controllers.iter().copied().copied(){
-                if i & (1 << c) == 0{
+            for c in controllers.iter().copied().copied() {
+                if i & (1 << c) == 0 {
                     continue 'state_arg;
                 }
             }
@@ -222,12 +236,18 @@ impl QDevice for NaiveSimulator {
         qubits: &[&Self::Qubit],
         parameters: &[f64],
     ) {
-        trace!("Perform {:?}{:?} on {:?}-{:?}", op_type, parameters, controllers, qubits);
+        trace!(
+            "Perform {:?}{:?} on {:?}-{:?}",
+            op_type,
+            parameters,
+            controllers,
+            qubits
+        );
         use crate::qdevice::QuantumOp::*;
         let invsqrt2 = (0.5f64).sqrt();
         match op_type {
             Reset => {
-                if controllers.len()!=0{
+                if controllers.len() != 0 {
                     panic!("Reset is not allowed to have control qubits");
                 }
                 let ret = self.measure(qubits[0]);

@@ -1,4 +1,10 @@
-use core::{any::Any, marker::PhantomData, borrow::{Borrow, BorrowMut}, ops::{Deref, DerefMut}, cell::{Cell, RefCell, Ref, RefMut}};
+use core::{
+    any::Any,
+    borrow::{Borrow, BorrowMut},
+    cell::{Cell, Ref, RefCell, RefMut},
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+};
 
 use alloc::{boxed::Box, collections::BTreeMap};
 
@@ -27,35 +33,65 @@ impl<T: 'static + Any> ResourceKey<T> {
             _marker: PhantomData,
         }
     }
-    pub fn is_null(self)->bool{
-        self.key==0
+    pub fn is_null(self) -> bool {
+        self.key == 0
     }
-    pub fn get<'a, R: Deref<Target=QIRContext>>(self, context: &'a R)-><ResourceMap as ResourceManager>::GetTRet<'a, T>{
-        context.deref().get_classical_resource_manager().get_by_key(self).expect("QIRContext sanitizer: Resource {} not found")
-    }
-    
-    pub fn get_mut<'a, R: DerefMut<Target=QIRContext>>(self, context: &'a R)-><ResourceMap as ResourceManager>::GetTMutRet<'a, T>{
-        context.deref().get_classical_resource_manager().get_by_key_mut(self).expect("QIRContext sanitizer: Resource {} not found")
-    }
-    
-    pub fn validate<'a, R: Deref<Target=QIRContext>>(self, context: &'a R){
-        context.deref().get_classical_resource_manager().get_key_checked::<T>(self.key);
-    }
-    pub fn update_ref_count<R: Deref<Target=QIRContext>>(self, context: &R, i: isize){
-        self.validate(context);
-        context.deref().get_classical_resource_manager().update_ref_count(self.key, i)
+    pub fn get<'a, R: Deref<Target = QIRContext>>(
+        self,
+        context: &'a R,
+    ) -> <ResourceMap as ResourceManager>::GetTRet<'a, T> {
+        context
+            .deref()
+            .get_classical_resource_manager()
+            .get_by_key(self)
+            .expect("QIRContext sanitizer: Resource {} not found")
     }
 
+    pub fn get_mut<'a, R: DerefMut<Target = QIRContext>>(
+        self,
+        context: &'a R,
+    ) -> <ResourceMap as ResourceManager>::GetTMutRet<'a, T> {
+        context
+            .deref()
+            .get_classical_resource_manager()
+            .get_by_key_mut(self)
+            .expect("QIRContext sanitizer: Resource {} not found")
+    }
+
+    pub fn validate<'a, R: Deref<Target = QIRContext>>(self, context: &'a R) {
+        context
+            .deref()
+            .get_classical_resource_manager()
+            .get_key_checked::<T>(self.key);
+    }
+    pub fn update_ref_count<R: Deref<Target = QIRContext>>(self, context: &R, i: isize) {
+        self.validate(context);
+        context
+            .deref()
+            .get_classical_resource_manager()
+            .update_ref_count(self.key, i)
+    }
 }
-impl<T: 'static + Any + AliasingTracker> ResourceKey<T>{
-    pub fn try_copy<'a, R: Deref<Target=QIRContext>>(self, context: &'a R, force: bool)->ResourceKey<T>{
+impl<T: 'static + Any + AliasingTracker> ResourceKey<T> {
+    pub fn try_copy<'a, R: Deref<Target = QIRContext>>(
+        self,
+        context: &'a R,
+        force: bool,
+    ) -> ResourceKey<T> {
         let ctx = context.deref();
-        let k = ctx.get_classical_resource_manager().try_copy::<T>(self.key, force);
+        let k = ctx
+            .get_classical_resource_manager()
+            .try_copy::<T>(self.key, force);
         ResourceKey::from_raw(k)
     }
-    pub fn update_alias_count<R: Deref<Target=QIRContext>>(self, context: &R, i: isize){
+    pub fn update_alias_count<R: Deref<Target = QIRContext>>(self, context: &R, i: isize) {
         self.validate(context);
-        context.deref().get_classical_resource_manager().get_by_key(self).expect("QIRContext sanitizer: Resource {} not found").update_alias_count(i)
+        context
+            .deref()
+            .get_classical_resource_manager()
+            .get_by_key(self)
+            .expect("QIRContext sanitizer: Resource {} not found")
+            .update_alias_count(i)
     }
 }
 
@@ -64,8 +100,14 @@ impl<T: 'static + Any + AliasingTracker> ResourceKey<T>{
 // Trait for id alloction, resource adding.
 // We allow ``open'' data type here, i.e. we use typeid/any mechanism.
 pub trait ResourceManager {
-    type GetTRet<'a, T>: Deref<Target = T> where Self: 'a, T: 'static + ?Sized;
-    type GetTMutRet<'a, T>: DerefMut<Target = T> where Self: 'a, T: 'static + ?Sized;
+    type GetTRet<'a, T>: Deref<Target = T>
+    where
+        Self: 'a,
+        T: 'static + ?Sized;
+    type GetTMutRet<'a, T>: DerefMut<Target = T>
+    where
+        Self: 'a,
+        T: 'static + ?Sized;
     //type GetAnyRet<'a>: Deref<Target = dyn Any> where Self: 'a;
     //type GetAnyMutRet<'a>: DerefMut<Target = dyn Any> where Self: 'a;
     fn next(&self) -> usize;
@@ -73,18 +115,26 @@ pub trait ResourceManager {
     fn get_any<'a>(&'a self, id: usize) -> Option<Self::GetTRet<'a, dyn Any + 'static>>;
     fn get_any_mut<'a>(&'a self, id: usize) -> Option<Self::GetTMutRet<'a, dyn Any + 'static>>;
     fn update_ref_count(&self, id: usize, delta: isize);
-    fn ret_downcast<'a, T: 'static>
-        (obj_any: Self::GetTRet<'a, dyn Any + 'static>) -> Option<Self::GetTRet<'a, T>>;
-    fn ret_downcast_mut<'a, T: 'static>
-        (obj_any: Self::GetTMutRet<'a, dyn Any + 'static>) -> Option<Self::GetTMutRet<'a, T>>;
+    fn ret_downcast<'a, T: 'static>(
+        obj_any: Self::GetTRet<'a, dyn Any + 'static>,
+    ) -> Option<Self::GetTRet<'a, T>>;
+    fn ret_downcast_mut<'a, T: 'static>(
+        obj_any: Self::GetTMutRet<'a, dyn Any + 'static>,
+    ) -> Option<Self::GetTMutRet<'a, T>>;
 }
 pub trait ResourceManagerExt: ResourceManager {
     fn add<T: Any + 'static>(&self, resource: T) -> usize;
     fn add_key<T: Any + 'static>(&self, resource: T) -> ResourceKey<T>;
     fn get<'a, T: Any + 'static>(&'a self, id: usize) -> Option<Self::GetTRet<'a, T>>;
     fn get_mut<'a, T: Any + 'static>(&'a self, id: usize) -> Option<Self::GetTMutRet<'a, T>>;
-    fn get_by_key<'a, T: Any + 'static>(&'a self, key: ResourceKey<T>) -> Option<Self::GetTRet<'a, T>>;
-    fn get_by_key_mut<'a, T: Any + 'static>(&'a self, key: ResourceKey<T>) -> Option<Self::GetTMutRet<'a, T>>;
+    fn get_by_key<'a, T: Any + 'static>(
+        &'a self,
+        key: ResourceKey<T>,
+    ) -> Option<Self::GetTRet<'a, T>>;
+    fn get_by_key_mut<'a, T: Any + 'static>(
+        &'a self,
+        key: ResourceKey<T>,
+    ) -> Option<Self::GetTMutRet<'a, T>>;
 
     fn get_key_checked<T: Any + 'static>(&self, id: usize) -> ResourceKey<T>;
 }
@@ -99,22 +149,31 @@ where
         id
     }
     fn add_key<T: Any + 'static>(&self, resource: T) -> ResourceKey<T> {
-        ResourceKey{key: self.add(resource), _marker: PhantomData}
+        ResourceKey {
+            key: self.add(resource),
+            _marker: PhantomData,
+        }
     }
     fn get<'a, T: Any + 'static>(&'a self, id: usize) -> Option<R::GetTRet<'a, T>> {
         self.get_any(id).and_then(|any| Self::ret_downcast(any))
     }
     fn get_mut<'a, T: Any + 'static>(&'a self, id: usize) -> Option<R::GetTMutRet<'a, T>> {
-        self.get_any_mut(id).and_then(|any| Self::ret_downcast_mut(any))
+        self.get_any_mut(id)
+            .and_then(|any| Self::ret_downcast_mut(any))
     }
 
-    fn get_by_key<'a, T: Any + 'static>(&'a self, key: ResourceKey<T>) -> Option<R::GetTRet<'a, T>> {
+    fn get_by_key<'a, T: Any + 'static>(
+        &'a self,
+        key: ResourceKey<T>,
+    ) -> Option<R::GetTRet<'a, T>> {
         self.get(key.key)
     }
-    fn get_by_key_mut<'a, T: Any + 'static>(&'a self, key: ResourceKey<T>) -> Option<R::GetTMutRet<'a, T>> {
+    fn get_by_key_mut<'a, T: Any + 'static>(
+        &'a self,
+        key: ResourceKey<T>,
+    ) -> Option<R::GetTMutRet<'a, T>> {
         self.get_mut(key.key)
     }
-
 
     fn get_key_checked<T: Any + 'static>(&self, id: usize) -> ResourceKey<T> {
         let key: ResourceKey<T> = ResourceKey::from_raw(id);
@@ -137,16 +196,34 @@ impl ResourceMap {
             next_id: Cell::new(1),
         }
     }
+    pub fn leak_check(&self) {
+        let mut resources = self.resources.borrow_mut();
+        if resources.is_empty() {
+            info!("No resource leak detected.");
+            return;
+        }
+        for (id, (_, ref_count)) in resources.iter_mut() {
+            if ref_count.get() > 0 {
+                error!("Resource {} leaked!", id);
+            }
+        }
+        // resource management bug
+        panic!();
+    }
 }
 impl ResourceManager for ResourceMap {
-    fn ret_downcast<'a, T: 'static>(obj_any: Self::GetTRet<'a, dyn Any + 'static>) -> Option<Self::GetTRet<'a, T>> {
+    fn ret_downcast<'a, T: 'static>(
+        obj_any: Self::GetTRet<'a, dyn Any + 'static>,
+    ) -> Option<Self::GetTRet<'a, T>> {
         let obj = obj_any.borrow().downcast_ref::<T>();
         if obj.is_none() {
             return None;
         }
         Some(Ref::map(obj_any, |x| x.downcast_ref::<T>().unwrap()))
     }
-    fn ret_downcast_mut<'a, T: 'static>(mut obj_any: Self::GetTMutRet<'a, dyn Any + 'static>) -> Option<Self::GetTMutRet<'a, T>> {
+    fn ret_downcast_mut<'a, T: 'static>(
+        mut obj_any: Self::GetTMutRet<'a, dyn Any + 'static>,
+    ) -> Option<Self::GetTMutRet<'a, T>> {
         let obj = obj_any.borrow_mut().downcast_mut::<T>();
         if obj.is_none() {
             return None;
@@ -155,12 +232,15 @@ impl ResourceManager for ResourceMap {
     }
     fn next(&self) -> usize {
         let id = self.next_id.get();
-        self.next_id.set(id+1);
+        self.next_id.set(id + 1);
         id
     }
 
     fn add_with_id(&self, resource: Box<dyn Any>, id: usize) {
-        let r = self.resources.borrow_mut().insert(id, (resource, Cell::new(1)));
+        let r = self
+            .resources
+            .borrow_mut()
+            .insert(id, (resource, Cell::new(1)));
         if r.is_some() {
             panic!("Resource with id {} already exists", id);
         }
@@ -169,7 +249,7 @@ impl ResourceManager for ResourceMap {
     type GetTMutRet<'a, T: 'static + ?Sized> = RefMut<'a, T>;
     fn get_any<'a>(&'a self, id: usize) -> Option<Ref<'a, dyn Any>> {
         let res = self.resources.borrow();
-        if res.borrow().get(&id).is_none(){
+        if res.borrow().get(&id).is_none() {
             return None;
         }
         Some(Ref::map(res, |m| &*m.get(&id).unwrap().0))
@@ -177,7 +257,7 @@ impl ResourceManager for ResourceMap {
 
     fn get_any_mut<'a>(&'a self, id: usize) -> Option<RefMut<'a, dyn Any>> {
         let mut res = self.resources.borrow_mut();
-        if res.borrow_mut().get(&id).is_none(){
+        if res.borrow_mut().get(&id).is_none() {
             return None;
         }
         Some(RefMut::map(res, |m| &mut *m.get_mut(&id).unwrap().0))
@@ -188,7 +268,7 @@ impl ResourceManager for ResourceMap {
         let pair = res_map
             .get(&id)
             .expect(&format!("Resource with id {} not found", id));
-        pair.1.set(pair.1.get()+delta);
+        pair.1.set(pair.1.get() + delta);
 
         if pair.1.get() < 0 {
             panic!("Reference count of resource #{} dropped below zero", id);

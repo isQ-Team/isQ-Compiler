@@ -40,8 +40,8 @@ impl QTupleOwned {
         unsafe { (self.0.get()).offset(QTUPLE_DATA_START) as _ }
     }
     pub fn from_body(body: QTupleContent) -> ResourceKey<Self> {
-        let mem = unsafe { (body as *const usize).offset(QTUPLE_RESMAN_ID-QTUPLE_DATA_START) };
-        unsafe {core::mem::transmute(*mem)}
+        let mem = unsafe { (body as *const usize).offset(QTUPLE_RESMAN_ID - QTUPLE_DATA_START) };
+        unsafe { core::mem::transmute(*mem) }
     }
     fn offset(&self, i: isize) -> &usize {
         unsafe { &*((*self.0.get()).offset(i)) }

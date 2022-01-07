@@ -1,4 +1,4 @@
-use core::cell::{RefCell, Cell};
+use core::cell::{Cell, RefCell};
 
 use super::{resource::AliasingTracker, tuple::QTupleContent};
 
@@ -37,14 +37,14 @@ impl AliasingTracker for QCallable {
     }
 }
 
-impl AliasingTracker for RefCell<QCallable>{
-    fn get_alias_count(&self)->usize{
+impl AliasingTracker for RefCell<QCallable> {
+    fn get_alias_count(&self) -> usize {
         self.borrow().alias_count.get()
     }
-    fn update_alias_count(&self, delta: isize){
+    fn update_alias_count(&self, delta: isize) {
         self.borrow_mut().update_alias_count(delta);
     }
-    fn full_copy(&self, _allocated_id: usize)->Self{
+    fn full_copy(&self, _allocated_id: usize) -> Self {
         RefCell::new(self.borrow().full_copy(_allocated_id))
     }
 }

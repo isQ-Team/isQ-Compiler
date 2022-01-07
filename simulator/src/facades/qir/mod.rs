@@ -26,7 +26,7 @@ pub mod bigint;
 pub mod callable;
 pub mod context;
 pub mod resource;
+mod shim;
 pub mod string;
 pub mod tuple;
 pub mod types;
-mod shim;

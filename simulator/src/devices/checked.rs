@@ -49,7 +49,13 @@ impl<Q, T: QDevice<Qubit = Q>> QDevice for CheckedDevice<Q, T> {
     fn supported_quantum_ops(&self) -> Vec<QuantumOp> {
         self.device.supported_quantum_ops()
     }
-    fn controlled_qop(&mut self, op_type: QuantumOp, controls: &[&Self::Qubit], qubits: &[&Self::Qubit], parameters: &[f64]) {
+    fn controlled_qop(
+        &mut self,
+        op_type: QuantumOp,
+        controls: &[&Self::Qubit],
+        qubits: &[&Self::Qubit],
+        parameters: &[f64],
+    ) {
         if qubits.len() != op_type.get_qubit_count() {
             panic!("Qubit count mismatch");
         }
@@ -76,7 +82,8 @@ impl<Q, T: QDevice<Qubit = Q>> QDevice for CheckedDevice<Q, T> {
             .iter()
             .map(|x| m.get(&x).expect(&format!("Qubit #{} does not exist", x)))
             .collect::<Vec<_>>();
-        self.device.controlled_qop(op_type, &real_controls, &real_qubits, parameters)
+        self.device
+            .controlled_qop(op_type, &real_controls, &real_qubits, parameters)
     }
     fn measure(&mut self, x: &Self::Qubit) -> bool {
         let real_qubit = self

@@ -1,4 +1,4 @@
-use core::cell::{RefCell, Cell};
+use core::cell::Cell;
 
 use alloc::alloc::*;
 use alloc::vec::Vec;
@@ -56,33 +56,36 @@ impl QArray {
     pub fn elem_size_in_usize(&self) -> usize {
         (self.elem_size_in_byte + core::mem::size_of::<usize>() - 1) / core::mem::size_of::<usize>()
     }
-    pub fn elem_size_in_byte(&self) -> usize{
+    pub fn elem_size_in_byte(&self) -> usize {
         self.elem_size_in_byte
     }
     pub fn get_raw(&mut self) -> *mut usize {
         self.data
     }
-    pub fn get_data(&self) -> &[usize]{
+    pub fn get_data(&self) -> &[usize] {
         unsafe {
             let ptr = self.data as *const usize;
             let len = self.elem_size_in_usize() * self.dimensions.iter().product::<usize>();
             core::slice::from_raw_parts(ptr, len)
         }
     }
-    pub fn get_data_mut(&mut self) -> &mut [usize]{
+    pub fn get_data_mut(&mut self) -> &mut [usize] {
         unsafe {
             let ptr = self.data as *mut usize;
             let len = self.elem_size_in_usize() * self.dimensions.iter().product::<usize>();
             core::slice::from_raw_parts_mut(ptr, len)
         }
     }
-    pub fn get_1d_data_of<T: Sized>(&self) -> &[T]{
+    pub fn get_1d_data_of<T: Sized>(&self) -> &[T] {
         if self.dimensions.len() != 1 {
             panic!("LHS is not 1d array!");
         }
-        if self.elem_size_in_byte() != core::mem::size_of::<T>(){
-            panic!("Trying to fetch wrong type of data, trying to fetch {}, array element size {}",
-                core::mem::size_of::<T>(), self.elem_size_in_byte());
+        if self.elem_size_in_byte() != core::mem::size_of::<T>() {
+            panic!(
+                "Trying to fetch wrong type of data, trying to fetch {}, array element size {}",
+                core::mem::size_of::<T>(),
+                self.elem_size_in_byte()
+            );
         }
         unsafe {
             let ptr = self.data as *const T;
@@ -207,7 +210,7 @@ impl QArray {
     }
 }
 
-impl Drop for QArray{
+impl Drop for QArray {
     fn drop(&mut self) {
         unsafe {
             let ptr = self.data as *mut usize;
@@ -224,7 +227,7 @@ impl AliasingTracker for QArray {
         self.alias_counter.get()
     }
     fn full_copy(&self, _allocated_id: usize) -> Self {
-        let mut arr = Self::new(self.elem_size_in_byte, &self.dimensions);
+        let arr = Self::new(self.elem_size_in_byte, &self.dimensions);
         arr.alias_counter.set(0);
         unsafe { core::ptr::copy_nonoverlapping(self.data, arr.data, self.total_size()) };
         arr
