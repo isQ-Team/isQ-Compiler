@@ -241,7 +241,7 @@ impl ResourceManager for ResourceMap {
             .resources
             .borrow_mut()
             .insert(id, (resource, Cell::new(1)));
-        if r.is_some() {
+        if r.is_some() {    
             panic!("Resource with id {} already exists", id);
         }
     }
@@ -286,9 +286,11 @@ impl ResourceMap {
             .get::<T>(id)
             .expect(&format!("Resource with id {} not found", id));
         if force || current.get_alias_count() > 0 {
+            drop(current);
             let new_id = self.next();
             let current = self.get::<T>(id).unwrap();
             let new_instance = current.full_copy(new_id);
+            drop(current);
             self.add_with_id(Box::new(new_instance), new_id);
             new_id
         } else {

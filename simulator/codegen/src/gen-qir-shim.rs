@@ -59,7 +59,7 @@ const CallableTable: QIRType = Other("[4 x void (%Tuple*, %Tuple*, %Tuple*)*]*",
     ];
 
     for i in 0..4 {
-        code.push(format!("{} = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* {}, i32 0, i32 0", address_ssa[i], ssa));
+        code.push(format!("{} = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* {}, i32 0, i32 {}", address_ssa[i], ssa, i));
         code.push(format!(
             "{} = load void (%Tuple*, %Tuple*, %Tuple*)*, void (%Tuple*, %Tuple*, %Tuple*)** {}",
             f_ssa[i], address_ssa[i]

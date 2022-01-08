@@ -340,13 +340,13 @@ entry:
     %x3 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 0
     %x7 = load void (%Tuple*, %Tuple*, %Tuple*)*, void (%Tuple*, %Tuple*, %Tuple*)** %x3
     %x11 = bitcast void (%Tuple*, %Tuple*, %Tuple*)* %x7 to i8*
-    %x4 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 0
+    %x4 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 1
     %x8 = load void (%Tuple*, %Tuple*, %Tuple*)*, void (%Tuple*, %Tuple*, %Tuple*)** %x4
     %x12 = bitcast void (%Tuple*, %Tuple*, %Tuple*)* %x8 to i8*
-    %x5 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 0
+    %x5 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 2
     %x9 = load void (%Tuple*, %Tuple*, %Tuple*)*, void (%Tuple*, %Tuple*, %Tuple*)** %x5
     %x13 = bitcast void (%Tuple*, %Tuple*, %Tuple*)* %x9 to i8*
-    %x6 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 0
+    %x6 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 3
     %x10 = load void (%Tuple*, %Tuple*, %Tuple*)*, void (%Tuple*, %Tuple*, %Tuple*)** %x6
     %x14 = bitcast void (%Tuple*, %Tuple*, %Tuple*)* %x10 to i8*
     br label %label_0

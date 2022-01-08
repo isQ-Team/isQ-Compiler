@@ -160,6 +160,7 @@ pub fn isq_qir_shim_rt_array_slice_1d(
     x1: *const QIRRange,
     x2: bool,
 ) -> K<QIRArray> {
+    trace!("{:?}", x1);
     trace!(
         "calling qir_shim_rt_array_slice_1d({}, {:?}, {})",
         P(&x0),
@@ -450,7 +451,13 @@ pub fn isq_qir_shim_rt_callable_invoke(
     let mut ctx = RefCell::borrow(&*rctx);
     let callable = x0.get(&ctx);
     let callable_borrow = RefCell::borrow(&callable);
-    callable_borrow.invoke(x1, x2);
+    let f = callable_borrow.defer_invoke();
+    drop(callable_borrow);
+    drop(callable);
+    drop(ctx);
+    drop(rctx);
+    (f)(x1, x2);
+    trace!("returning from qir_shim_rt_callable_invoke");
 }
 pub fn isq_qir_shim_rt_callable_make_adjoint(x0: K<QIRCallable>) -> () {
     trace!("calling qir_shim_rt_callable_make_adjoint({})", P(&x0));
@@ -501,7 +508,9 @@ pub fn isq_qir_shim_rt_capture_update_alias_count(x0: K<QIRCallable>, x1: i32) -
     }
     let rctx = context();
     let ctx = RefCell::borrow(&rctx);
-    x0.get(&ctx).borrow_mut().capture_update_alias_count(x1);
+    let f = x0.get(&ctx).borrow_mut().defer_capture_update_alias_count(x1);
+    drop(ctx);
+    (f)();
 }
 pub fn isq_qir_shim_rt_capture_update_reference_count(x0: K<QIRCallable>, x1: i32) -> () {
     trace!(
@@ -514,7 +523,9 @@ pub fn isq_qir_shim_rt_capture_update_reference_count(x0: K<QIRCallable>, x1: i3
     }
     let rctx = context();
     let ctx = RefCell::borrow(&rctx);
-    x0.get(&ctx).borrow_mut().capture_update_ref_count(x1);
+    let f = x0.get(&ctx).borrow_mut().defer_capture_update_ref_count(x1);
+    drop(ctx);
+    (f)();
 }
 pub fn isq_qir_shim_rt_double_to_string(x0: f64) -> K<QIRString> {
     trace!("calling qir_shim_rt_double_to_string({})", x0);
@@ -657,6 +668,8 @@ pub fn isq_qir_shim_rt_string_concatenate(x0: K<QIRString>, x1: K<QIRString>) ->
     let a0 = x0.get(&ctx);
     let a1 = x1.get(&ctx);
     let a = QIRString::from_str(&format!("{}{}", a0.get_str(), a1.get_str()));
+    drop(a0);
+    drop(a1);
     ctx.add(a)
 }
 pub fn isq_qir_shim_rt_string_create(x0: *mut i8) -> K<QIRString> {

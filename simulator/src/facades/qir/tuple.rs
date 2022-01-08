@@ -33,21 +33,34 @@ impl QTupleOwned {
     pub fn new(size_in_bytes: usize) -> Self {
         let mem =
             unsafe { alloc_zeroed(Self::get_layout(Self::compute_size_in_usize(size_in_bytes))) };
-        let s = Self(UnsafeCell::new(mem as *mut usize));
+        let mem = mem as *mut usize;
+        unsafe {
+            *mem = Self::compute_size_in_usize(size_in_bytes);
+            *(mem.offset(1)) = size_in_bytes;
+            *(mem.offset(2)) = 0;
+            *(mem.offset(3)) = 0;
+        }
+        let s = Self(UnsafeCell::new(mem));
         s
     }
+    unsafe fn get_ptr(&self) -> *mut usize {
+        *self.0.get()
+    }
     pub fn to_body(&self) -> QTupleContent {
-        unsafe { (self.0.get()).offset(QTUPLE_DATA_START) as _ }
+        let ptr = unsafe { (self.get_ptr()).offset(QTUPLE_DATA_START) as *mut u8};
+        trace!("{} leaked key {:?}", self.resource_id(), ptr);
+        ptr
     }
     pub fn from_body(body: QTupleContent) -> ResourceKey<Self> {
         let mem = unsafe { (body as *const usize).offset(QTUPLE_RESMAN_ID - QTUPLE_DATA_START) };
+        trace!("restored key {}", unsafe {*mem});
         unsafe { core::mem::transmute(*mem) }
     }
     fn offset(&self, i: isize) -> &usize {
-        unsafe { &*((*self.0.get()).offset(i)) }
+        unsafe { &*((self.get_ptr()).offset(i)) }
     }
     fn offset_mut(&self, i: isize) -> &mut usize {
-        unsafe { &mut *(*self.0.get()).offset(i) }
+        unsafe { &mut *(self.get_ptr()).offset(i) }
     }
     pub fn size_in_usize(&self) -> usize {
         *self.offset(QTUPLE_SIZE_IN_USIZE)
@@ -74,8 +87,9 @@ impl QTupleOwned {
     }
     unsafe fn free(&self) {
         let sz = self.size_in_usize();
+        trace!("size_in_usize = {}", sz);
         let layout = Self::get_layout(sz);
-        dealloc(*(*self.0.get()) as *mut u8, layout);
+        dealloc(self.get_ptr() as *mut u8, layout);
     }
 }
 

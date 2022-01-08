@@ -113,27 +113,54 @@ impl QCallable {
         }
     }
     pub fn make_adjoint(&mut self) {
-        self.is_adjoint = true;
+        self.is_adjoint = !self.is_adjoint;
         self.get_function();
     }
     pub fn make_controlled(&mut self) {
-        self.is_controlled = true;
+        self.is_controlled = !self.is_controlled;
         self.get_function();
     }
+    pub fn defer_capture_update_ref_count(&self, val: i32)->impl FnOnce()->(){
+        let sf = self.memory_management_table[0];
+        let capture = self.capture;
+        move || {
+            if let Some(f) = sf{
+                f(capture, val);
+            }
+        }
+        
+    }
+    pub fn defer_capture_update_alias_count(&self, val: i32)->impl FnOnce()->(){
+        let sf = self.memory_management_table[1];
+        let capture = self.capture;
+        move || {
+            if let Some(f) = sf{
+                f(capture, val);
+            }
+        }
+        
+    }
+    /* 
     pub fn capture_update_ref_count(&self, val: i32) {
-        assert_ne!(self.capture, core::ptr::null_mut());
+        //assert_ne!(self.capture, core::ptr::null_mut());
         if let Some(f) = self.memory_management_table[0] {
             f(self.capture, val);
         }
     }
     pub fn capture_update_alias_count(&self, val: i32) {
-        assert_ne!(self.capture, core::ptr::null_mut());
+        //assert_ne!(self.capture, core::ptr::null_mut());
         if let Some(f) = self.memory_management_table[1] {
             f(self.capture, val);
         }
     }
+    */
     pub fn invoke(&self, args: QTupleContent, results: QTupleContent) {
         self.get_function()(self.capture, args, results);
+    }
+    pub fn defer_invoke(&self)->impl FnOnce(QTupleContent, QTupleContent)->(){
+        let f = self.get_function();
+        let capture = self.capture;
+        move |args, results| f(capture, args, results)
     }
 }
 
