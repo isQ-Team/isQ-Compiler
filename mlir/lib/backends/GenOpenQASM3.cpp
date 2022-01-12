@@ -354,7 +354,7 @@ private:
             }
         }
         // update_region
-        auto not_main = func_op->getName().getStringRef() != "main";
+        auto not_main = func_op.sym_name() != "main";
         set<size_t> block_args;
         auto& func_body = func_op.getBody();
         if(!func_body.hasOneBlock()) {
@@ -605,7 +605,7 @@ private:
         //os << "use gate: " << attr.getLeafReference().str() << endl;
         auto leaf = attr.getLeafReference().str();
 
-        return symbolInsert(op.getResult(), OpType::VAR, 0, openQasmGate(leaf));
+        return symbolInsert(op.getResult(), OpType::VAR, 0, leaf);
     }
     mlir::LogicalResult visitOp(DecorateOp op) override{
         auto modifiers = std::string();
@@ -694,7 +694,11 @@ private:
             auto result = indexResult;
             // Only consider measure.
             if (result.getType().isa<mlir::IntegerType>()){
-                return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, call_qop_str);
+                auto temp_bool = next_tempBit();
+                auto temp_int = next_tempInt();
+                openQasmAssign(temp_bool+"[0]", call_qop_str);
+                openQasmAssign(temp_int+"[0]", (string("(int)"))+temp_bool+"[0]");
+                return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, temp_int+"[0]");
             }
             
         }
