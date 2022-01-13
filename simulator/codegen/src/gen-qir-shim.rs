@@ -15,7 +15,6 @@ enum QIRType {
     QString,
     Tuple,
     Callable,
-    Range,
     Int,
     Double,
     Pauli,
@@ -36,6 +35,21 @@ const QIRPauli: QIRType = Other("%Pauli", |ssa, qir| {
         vec![format!("{} = zext %Pauli {} to i8", new_ssa, ssa)],
         vec![(Pauli, new_ssa)],
     )
+});
+const Range: QIRType = Other("%Range", |ssa, qir|{
+    let mut code = Vec::new();
+    let struct_memory = qir.next_ssa();
+    let (start_ptr, step_ptr, end_ptr) = (qir.next_ssa(), qir.next_ssa(), qir.next_ssa());
+    let (start, step, end) = (qir.next_ssa(), qir.next_ssa(), qir.next_ssa());
+    code.push(format!("{} = alloca %Range", struct_memory));
+    code.push(format!("store %Range {}, %Range* {}", ssa, struct_memory));
+    code.push(format!("{} = getelementptr inbounds %Range, %Range* {}, i64 0, i32 0", start_ptr, struct_memory));
+    code.push(format!("{} = getelementptr inbounds %Range, %Range* {}, i64 0, i32 1", step_ptr, struct_memory));
+    code.push(format!("{} = getelementptr inbounds %Range, %Range* {}, i64 0, i32 2", end_ptr, struct_memory));
+    code.push(format!("{} = load i64, i64* {}", start, start_ptr));
+    code.push(format!("{} = load i64, i64* {}", step, step_ptr));
+    code.push(format!("{} = load i64, i64* {}", end, end_ptr));
+    (code, [start, step, end].into_iter().map(|x| (QI64, x)).collect())
 });
 const CallableTable: QIRType = Other("[4 x void (%Tuple*, %Tuple*, %Tuple*)*]*", |ssa, qir| {
     let mut code = Vec::new();
@@ -146,7 +160,6 @@ impl QIRType {
             QIRType::BigInt => "%BigInt*",
             QIRType::QString => "%String*",
             QIRType::Tuple => "%Tuple*",
-            QIRType::Range => "%Range*",
             QIRType::Callable => "%Callable*",
             QIRType::Int => "i64",
             QIRType::Double => "double",
@@ -172,7 +185,6 @@ impl QIRType {
             QIRType::QString => PrimitiveType::Pointer,
             QIRType::Tuple => PrimitiveType::Pointer,
             QIRType::Callable => PrimitiveType::Pointer,
-            QIRType::Range => PrimitiveType::Pointer,
             QIRType::Int => PrimitiveType::I64,
             QIRType::Double => PrimitiveType::F64,
             QIRType::Pauli => PrimitiveType::I8,
@@ -195,7 +207,6 @@ impl QIRType {
             QIRType::QString => "K<QIRString>",
             QIRType::Tuple => "TupleBodyPtr",
             QIRType::Callable => "K<QIRCallable>",
-            QIRType::Range => "*const QIRRange",
             QIRType::Int => "i64",
             QIRType::Double => "f64",
             QIRType::Pauli => "QIRPauli",

@@ -98,27 +98,41 @@ entry:
     ret %Array* %x9
 }
 declare dllimport i8* @__isq__qir__shim__rt__array_project(i8*, i32, i64, i1)
-define %Array* @__quantum__rt__array_slice (%Array* %x0, i32 %x1, %Range* %x2, i1 %x3) alwaysinline {
+define %Array* @__quantum__rt__array_slice (%Array* %x0, i32 %x1, %Range %x2, i1 %x3) alwaysinline {
 entry:
     %x4 = bitcast %Array* %x0 to i8*
     %x5 = bitcast i32 %x1 to i32
-    %x6 = bitcast %Range* %x2 to i8*
-    %x7 = bitcast i1 %x3 to i1
-    %x8 = call i8* @__isq__qir__shim__rt__array_slice(i8* %x4, i32 %x5, i8* %x6, i1 %x7)
-    %x9 = bitcast i8* %x8 to %Array*
-    ret %Array* %x9
+    %x6 = alloca %Range
+    store %Range %x2, %Range* %x6
+    %x7 = getelementptr inbounds %Range, %Range* %x6, i64 0, i32 0
+    %x8 = getelementptr inbounds %Range, %Range* %x6, i64 0, i32 1
+    %x9 = getelementptr inbounds %Range, %Range* %x6, i64 0, i32 2
+    %x10 = load i64, i64* %x7
+    %x11 = load i64, i64* %x8
+    %x12 = load i64, i64* %x9
+    %x13 = bitcast i1 %x3 to i1
+    %x14 = call i8* @__isq__qir__shim__rt__array_slice(i8* %x4, i32 %x5, i64 %x10, i64 %x11, i64 %x12, i1 %x13)
+    %x15 = bitcast i8* %x14 to %Array*
+    ret %Array* %x15
 }
-declare dllimport i8* @__isq__qir__shim__rt__array_slice(i8*, i32, i8*, i1)
-define %Array* @__quantum__rt__array_slice_1d (%Array* %x0, %Range* %x1, i1 %x2) alwaysinline {
+declare dllimport i8* @__isq__qir__shim__rt__array_slice(i8*, i32, i64, i64, i64, i1)
+define %Array* @__quantum__rt__array_slice_1d (%Array* %x0, %Range %x1, i1 %x2) alwaysinline {
 entry:
     %x3 = bitcast %Array* %x0 to i8*
-    %x4 = bitcast %Range* %x1 to i8*
-    %x5 = bitcast i1 %x2 to i1
-    %x6 = call i8* @__isq__qir__shim__rt__array_slice_1d(i8* %x3, i8* %x4, i1 %x5)
-    %x7 = bitcast i8* %x6 to %Array*
-    ret %Array* %x7
+    %x4 = alloca %Range
+    store %Range %x1, %Range* %x4
+    %x5 = getelementptr inbounds %Range, %Range* %x4, i64 0, i32 0
+    %x6 = getelementptr inbounds %Range, %Range* %x4, i64 0, i32 1
+    %x7 = getelementptr inbounds %Range, %Range* %x4, i64 0, i32 2
+    %x8 = load i64, i64* %x5
+    %x9 = load i64, i64* %x6
+    %x10 = load i64, i64* %x7
+    %x11 = bitcast i1 %x2 to i1
+    %x12 = call i8* @__isq__qir__shim__rt__array_slice_1d(i8* %x3, i64 %x8, i64 %x9, i64 %x10, i1 %x11)
+    %x13 = bitcast i8* %x12 to %Array*
+    ret %Array* %x13
 }
-declare dllimport i8* @__isq__qir__shim__rt__array_slice_1d(i8*, i8*, i1)
+declare dllimport i8* @__isq__qir__shim__rt__array_slice_1d(i8*, i64, i64, i64, i1)
 define void @__quantum__rt__array_update_alias_count (%Array* %x0, i32 %x1) alwaysinline {
 entry:
     %x2 = bitcast %Array* %x0 to i8*
@@ -500,14 +514,21 @@ entry:
     ret %String* %x3
 }
 declare dllimport i8* @__isq__qir__shim__rt__qubit_to_string(i8*)
-define %String* @__quantum__rt__range_to_string (%Range* %x0) alwaysinline {
+define %String* @__quantum__rt__range_to_string (%Range %x0) alwaysinline {
 entry:
-    %x1 = bitcast %Range* %x0 to i8*
-    %x2 = call i8* @__isq__qir__shim__rt__range_to_string(i8* %x1)
-    %x3 = bitcast i8* %x2 to %String*
-    ret %String* %x3
+    %x1 = alloca %Range
+    store %Range %x0, %Range* %x1
+    %x2 = getelementptr inbounds %Range, %Range* %x1, i64 0, i32 0
+    %x3 = getelementptr inbounds %Range, %Range* %x1, i64 0, i32 1
+    %x4 = getelementptr inbounds %Range, %Range* %x1, i64 0, i32 2
+    %x5 = load i64, i64* %x2
+    %x6 = load i64, i64* %x3
+    %x7 = load i64, i64* %x4
+    %x8 = call i8* @__isq__qir__shim__rt__range_to_string(i64 %x5, i64 %x6, i64 %x7)
+    %x9 = bitcast i8* %x8 to %String*
+    ret %String* %x9
 }
-declare dllimport i8* @__isq__qir__shim__rt__range_to_string(i8*)
+declare dllimport i8* @__isq__qir__shim__rt__range_to_string(i64, i64, i64)
 define i1 @__quantum__rt__result_equal (%Result* %x0, %Result* %x1) alwaysinline {
 entry:
     %x2 = bitcast %Result* %x0 to i8*

@@ -29,10 +29,10 @@ pub fn isq_qir_shim_rt_array_get_size_1d(x0: K<QIRArray>)->i64 {
 pub fn isq_qir_shim_rt_array_project(x0: K<QIRArray>, x1: i32, x2: i64, x3: bool)->K<QIRArray> {
     todo!()
 }
-pub fn isq_qir_shim_rt_array_slice(x0: K<QIRArray>, x1: i32, x2: *const QIRRange, x3: bool)->K<QIRArray> {
+pub fn isq_qir_shim_rt_array_slice(x0: K<QIRArray>, x1: i32, x2: i64, x3: i64, x4: i64, x5: bool)->K<QIRArray> {
     todo!()
 }
-pub fn isq_qir_shim_rt_array_slice_1d(x0: K<QIRArray>, x1: *const QIRRange, x2: bool)->K<QIRArray> {
+pub fn isq_qir_shim_rt_array_slice_1d(x0: K<QIRArray>, x1: i64, x2: i64, x3: i64, x4: bool)->K<QIRArray> {
     todo!()
 }
 pub fn isq_qir_shim_rt_array_update_alias_count(x0: K<QIRArray>, x1: i32)->() {
@@ -164,7 +164,7 @@ pub fn isq_qir_shim_rt_qubit_release_array(x0: K<QIRArray>)->() {
 pub fn isq_qir_shim_rt_qubit_to_string(x0: K<QIRQubit>)->K<QIRString> {
     todo!()
 }
-pub fn isq_qir_shim_rt_range_to_string(x0: *const QIRRange)->K<QIRString> {
+pub fn isq_qir_shim_rt_range_to_string(x0: i64, x1: i64, x2: i64)->K<QIRString> {
     todo!()
 }
 pub fn isq_qir_shim_rt_result_equal(x0: QIRResult, x1: QIRResult)->bool {

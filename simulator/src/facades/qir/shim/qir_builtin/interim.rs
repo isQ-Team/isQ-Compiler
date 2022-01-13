@@ -51,14 +51,14 @@ pub extern "C" fn __isq__qir__shim__rt__array_project(x0: *mut i8, x1: i32, x2: 
     unsafe { t(isq_qir_shim_rt_array_project(t::<_, K<QIRArray>>(x0), t::<_, i32>(x1), t::<_, i64>(x2), t::<_, bool>(x3)))}
 }
 #[no_mangle]
-pub extern "C" fn __isq__qir__shim__rt__array_slice(x0: *mut i8, x1: i32, x2: *mut i8, x3: bool)->*mut i8 {
+pub extern "C" fn __isq__qir__shim__rt__array_slice(x0: *mut i8, x1: i32, x2: i64, x3: i64, x4: i64, x5: bool)->*mut i8 {
     use core::mem::transmute as t;
-    unsafe { t(isq_qir_shim_rt_array_slice(t::<_, K<QIRArray>>(x0), t::<_, i32>(x1), t::<_, *const QIRRange>(x2), t::<_, bool>(x3)))}
+    unsafe { t(isq_qir_shim_rt_array_slice(t::<_, K<QIRArray>>(x0), t::<_, i32>(x1), t::<_, i64>(x2), t::<_, i64>(x3), t::<_, i64>(x4), t::<_, bool>(x5)))}
 }
 #[no_mangle]
-pub extern "C" fn __isq__qir__shim__rt__array_slice_1d(x0: *mut i8, x1: *mut i8, x2: bool)->*mut i8 {
+pub extern "C" fn __isq__qir__shim__rt__array_slice_1d(x0: *mut i8, x1: i64, x2: i64, x3: i64, x4: bool)->*mut i8 {
     use core::mem::transmute as t;
-    unsafe { t(isq_qir_shim_rt_array_slice_1d(t::<_, K<QIRArray>>(x0), t::<_, *const QIRRange>(x1), t::<_, bool>(x2)))}
+    unsafe { t(isq_qir_shim_rt_array_slice_1d(t::<_, K<QIRArray>>(x0), t::<_, i64>(x1), t::<_, i64>(x2), t::<_, i64>(x3), t::<_, bool>(x4)))}
 }
 #[no_mangle]
 pub extern "C" fn __isq__qir__shim__rt__array_update_alias_count(x0: *mut i8, x1: i32)->() {
@@ -276,9 +276,9 @@ pub extern "C" fn __isq__qir__shim__rt__qubit_to_string(x0: *mut i8)->*mut i8 {
     unsafe { t(isq_qir_shim_rt_qubit_to_string(t::<_, K<QIRQubit>>(x0)))}
 }
 #[no_mangle]
-pub extern "C" fn __isq__qir__shim__rt__range_to_string(x0: *mut i8)->*mut i8 {
+pub extern "C" fn __isq__qir__shim__rt__range_to_string(x0: i64, x1: i64, x2: i64)->*mut i8 {
     use core::mem::transmute as t;
-    unsafe { t(isq_qir_shim_rt_range_to_string(t::<_, *const QIRRange>(x0)))}
+    unsafe { t(isq_qir_shim_rt_range_to_string(t::<_, i64>(x0), t::<_, i64>(x1), t::<_, i64>(x2)))}
 }
 #[no_mangle]
 pub extern "C" fn __isq__qir__shim__rt__result_equal(x0: *mut i8, x1: *mut i8)->bool {

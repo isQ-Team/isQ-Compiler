@@ -128,20 +128,23 @@ pub fn isq_qir_shim_rt_array_project(
 pub fn isq_qir_shim_rt_array_slice(
     x0: K<QIRArray>,
     x1: i32,
-    x2: *const QIRRange,
+    start: i64,
+    step: i64,
+    end: i64,
     x3: bool,
 ) -> K<QIRArray> {
+    let x2 = QIRRange{start, step, end};
     trace!(
         "calling qir_shim_rt_array_slice({}, {}, {:?}, {})",
         P(&x0),
         x1,
-        &unsafe { *x2 },
+        &x2,
         x3
     );
     let rctx = context();
     let ctx = RefCell::borrow(&rctx);
     let a0 = x0.get(&ctx);
-    let a = a0.slice(x1 as usize, unsafe { *x2 });
+    let a = a0.slice(x1 as usize, x2);
     // special handling for array.
     if a0.get_alias_count() == 0 && !x3 {
         drop(a0);
@@ -152,19 +155,23 @@ pub fn isq_qir_shim_rt_array_slice(
         x0.update_ref_count(&ctx, 1);
         x0
     } else {
+        drop(a0);
         ctx.add(a)
     }
 }
 pub fn isq_qir_shim_rt_array_slice_1d(
     x0: K<QIRArray>,
-    x1: *const QIRRange,
+    start: i64,
+    step: i64,
+    end: i64,
     x2: bool,
 ) -> K<QIRArray> {
+    let x1 = QIRRange{start, step, end};
     trace!("{:?}", x1);
     trace!(
         "calling qir_shim_rt_array_slice_1d({}, {:?}, {})",
         P(&x0),
-        &unsafe { *x1 },
+        x1,
         x2
     );
     let rctx = context();
@@ -179,7 +186,7 @@ pub fn isq_qir_shim_rt_array_slice_1d(
     drop(a0);
     drop(ctx);
     drop(rctx);
-    isq_qir_shim_rt_array_slice(x0, 0, x1, x2)
+    isq_qir_shim_rt_array_slice(x0, 0, x1.start, x1.step, x1.end, x2)
 }
 pub fn isq_qir_shim_rt_array_update_alias_count(x0: K<QIRArray>, x1: i32) -> () {
     trace!(
@@ -621,9 +628,10 @@ pub fn isq_qir_shim_rt_qubit_to_string(x0: K<QIRQubit>) -> K<QIRString> {
     let s = QIRString::from_str(&format!("qubit<{:?}>", qubit_id));
     ctx.add(s)
 }
-pub fn isq_qir_shim_rt_range_to_string(x0: *const QIRRange) -> K<QIRString> {
-    trace!("calling qir_shim_rt_range_to_string({:?})", &unsafe { *x0 });
-    let r = unsafe { *x0 };
+pub fn isq_qir_shim_rt_range_to_string(start: i64, step: i64, end: i64) -> K<QIRString> {
+    let x0 = QIRRange{start, step, end};
+    trace!("calling qir_shim_rt_range_to_string({:?})", &unsafe { x0 });
+    let r = x0;
     let rctx = context();
     let ctx = RefCell::borrow(&rctx);
     let s = QIRString::from_str(&format!("{:?}", r));

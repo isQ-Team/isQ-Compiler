@@ -1,2 +1,4 @@
 /target
 /codegen/target
+/examples/*/bin
+/examples/*/obj
