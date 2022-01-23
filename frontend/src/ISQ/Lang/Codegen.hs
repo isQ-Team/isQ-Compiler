@@ -407,14 +407,18 @@ evalStatement st@(VarDefStatement defs loc) = do
     s<-use symbolTables
     mapM_ (defineSymbol (length s==1)) defs
 
-evalProcDef :: (CodeSunk m)=>ProcDef Pos->CodegenM m ()
-evalProcDef x = do
+declareProc :: (CodeSunk m)=>ProcDef Pos->CodegenM m ()
+declareProc x = do
     let i = x^.procName^.identName
     procs<-use definedProcs
     case procs Map.!? i of
         Just y->throwError $ RedefinedProc (x^.procName) y
         Nothing->return ()
-    scope
+    let params = x^.parameters
+    definedProcs %= Map.insert i x
+
+evalProcDef :: (CodeSunk m)=>ProcDef Pos->CodegenM m ()
+evalProcDef x = do
     let params = x^.parameters
     param_ssas<-mapM declareSymbol params
     -- define arguments
@@ -424,7 +428,7 @@ evalProcDef x = do
     unscope
     decrBlockIndent
     emitProcedure (x^.annotation) x param_ssas
-    definedProcs %= Map.insert i x
+    
 
 evalGateDef :: (CodeSunk m)=>GateDef Pos->CodegenM m ()
 evalGateDef x = do
@@ -453,6 +457,7 @@ evalProgram prog = do
     emitProgramHeader (prog^.annotation)
     mapM_ evalGateDef (prog^.topGatedefs)
     mapM_ evalVarDef (prog^.topVardefs)
+    mapM_ declareProc (prog^.procedures)
     mapM_ evalProcDef (prog^.procedures)
 
 

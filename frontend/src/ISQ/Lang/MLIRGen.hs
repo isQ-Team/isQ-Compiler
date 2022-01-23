@@ -235,10 +235,10 @@ instance CodeSunk MLIRGen where
         b_body <- popBlock
         temp_val<-nextTempSSA
         emit $ printf "affine.for %s = %s to %s step 1 {" (ssa temp_val) (ssa lo) (ssa hi)
-        --extraIndent%=(+1)
+        extraIndent%=(+1)
         emitLocalDef pos var (VarDef (UnitType Int ()) undefined ())
         emitWriteIntOp pos var temp_val
-        --extraIndent%=(\x->x-1)
+        extraIndent%=(\x->x-1)
         emitBlock b_body
         
         emit $ printf "} %s" (locationInfo pos)
