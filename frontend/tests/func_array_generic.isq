@@ -1,0 +1,12 @@
+Defgate H = [0.7071067811865476,0.7071067811865476;
+			 0.7071067811865476,-0.7071067811865476];
+procedure hadamard_on_qubit(qbit x[], int c){
+	H<x[c]>;
+}
+
+procedure main(){
+    qbit x[10];
+    for(i = 0 to 9){
+        hadamard_on_qubit(x, i);
+    }
+}
