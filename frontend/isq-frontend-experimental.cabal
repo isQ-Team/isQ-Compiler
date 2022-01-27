@@ -28,7 +28,9 @@ library
       ISQ.Lang.Codegen
       ISQ.Lang.Language
       ISQ.Lang.MLIRGen
+      ISQ.Lang.MLIRTextGen
       ISQ.Lang.ParserMain
+      ISQ.Lang.QubitGroup
   other-modules:
       Paths_isq_frontend_experimental
   hs-source-dirs:
