@@ -13,7 +13,7 @@ import Control.Lens hiding (op)
 
 --import GHC.Data.Maybe
 isqTokenRules = L.javaStyle{
-    P.reservedNames = ["if", "then", "else", "fi", "for", "to", "while", "do", "od", "procedure", "int", "qbit", "M", "print", "Defgate", "pass", "return", "Ctrl", "NCtrl", "Inv", "|0>"],
+    P.reservedNames = ["if", "then", "else", "fi", "for", "to", "in", "while", "procedure", "int", "qbit", "M", "print", "Defgate", "pass", "return", "Ctrl", "NCtrl", "Inv", "|0>"],
     P.reservedOpNames = ["=", "+", "-", "*", "/", "<", ">", ",", "(", ")", "[", "]",
     "{", "}",
     ";", "==", "<=", ">=", "!="],
@@ -119,7 +119,15 @@ callStatement = locStart $ do {p<-getPosition; name<-ident; args<-parens (commaS
 
 whileStatement = locStart $ do {tok "while"; cond<-parens parseExpr; WhileStatement cond <$> region;}
 
-forStatement = locStart $ do {tok "for"; op "("; name<-ident; op "="; start<-parseExpr; tok "to"; end<-parseExpr; op ")"; ForStatement name start end <$> region;}
+--forStatement = locStart $ do {tok "for"; op "("; name<-ident; op "="; start<-parseExpr; tok "to"; end<-parseExpr; op ")"; ForStatement name start end <$> region;}
+
+rangeExpr = do {
+    start<-parseExpr; op ":"; end<-parseExpr; p<-getPosition; step<-optionMaybe (do {op ":"; P.natural isqTokenizer});
+    return (start, end, fromMaybe 1 step)
+}
+bundleExpr = sepBy1 parseExpr (op ",")
+
+forStatement = locStart $ do {tok "for"; name<-ident; tok "in";  (start, end, step)<-rangeExpr; ForStatement name start end (fromIntegral step) <$> region;}
 
 printStatement = locStart $ do {tok "print"; PrintStatement <$> parseExpr;}
 returnStatement = locStart $ do {tok "return"; expr<-optionMaybe parseExpr; return $ ReturnStatement expr}

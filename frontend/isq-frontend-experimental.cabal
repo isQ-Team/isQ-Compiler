@@ -27,7 +27,6 @@ library
       ISQ.Lang.AST
       ISQ.Lang.Codegen
       ISQ.Lang.Language
-      ISQ.Lang.MLIRGen
       ISQ.Lang.MLIRTextGen
       ISQ.Lang.ParserMain
       ISQ.Lang.QubitGroup

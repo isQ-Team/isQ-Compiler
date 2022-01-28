@@ -173,7 +173,16 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolU
         otherwise the shape will be used as a single gate.
 
         Defgate allows multiple and overlapping definition of one gate.
-        A defgate without definition is seen as declaration.
+        A defgate without shape and definition is seen as declaration.
+        Which definition to choose while optimization and lowering depends on the optimization passes.
+
+
+
+        Currently supported definitions:
+        - `unitary`, unitary matrix definition. Not compatible with attribute `shape`.
+        - `decomposition`, a `builtin.func` to represent the decomposition. The function should have the right signature and obeys correspondence between args and results.
+        - `qir`, QIR call.
+
         (TODO: ways to define a gate are still not defined. We may want to support:
         - Matrix representation, where complex matrix is given out directly.
         - Gate decomposition, allowing using an entire decomposition function as a single gate.
@@ -189,6 +198,8 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolU
         isq.defgate @hadamard {definition = [ /* possible gate definition */ ]} : !isq.gate<1, hermitian>
         // Gate array declaration
         isq.defgate @one_way_equivalent_gates {shape = [10, 10]} : !isq.gate<1>
+        // Gate family definition
+        isq.defgate @rz {parameters = [f64], definitions = [ /* external call */ ]} : !isq.gate<1, diagonal>
         ```
 
         The symbol always uses `nested` visbility.
@@ -198,7 +209,8 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolU
         SymbolNameAttr: $sym_name,
         StrAttr: $sym_visibility,
         OptionalAttr<I64ArrayAttr>: $shape,
-        OptionalAttr<ISQ_GateDefinitionList>: $definition
+        OptionalAttr<ISQ_GateDefinitionList>: $definition,
+        OptionalAttr<TypeArrayAttr>: $parameters
     );
     let results = (outs);
     /*
@@ -291,12 +303,13 @@ def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<Symbo
         ```
     }];
     let arguments = (ins 
-    SymbolRefAttr: $name
+    SymbolRefAttr: $name,
+    Variadic<AnyType>: $args
     );
     let results = (outs
     AnyType: $result);
     let assemblyFormat = [{
-        $name attr-dict `:` type(results)
+        $name `(` $args `)` attr-dict  `:` functional-type($args, results)
     }];
 }
 def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
