@@ -19,6 +19,8 @@ newtype SymbolTable ann = SymbolTable {
 makeLenses ''Symbol
 makeLenses ''SymbolTable
 
+data ScopeType = GlobalScope | FuncScope | IfScope | ForScope | WhileScope deriving (Show, Eq)
+
 class (Monad m)=>CodeSunk m where
     -- b = op a
     emitUnaryOp :: Pos->UnaryOp->SSA->SSA->m ()
@@ -28,16 +30,18 @@ class (Monad m)=>CodeSunk m where
     emitSlice :: Pos->SSA->UnitKind->SSA->SSA->Maybe Int->m ()
     -- ret = arr [offset]
     emitReadIntOp :: Pos->SSA->SSA->m ()
+    emitReadIntAtOp :: Pos->SSA->SSA->SSA->m ()
     -- arr = val
     emitWriteIntOp :: Pos->SSA->SSA->m ()
+    emitWriteIntAtOp :: Pos->SSA->SSA->SSA->m ()
     emitProcedure :: Pos->ProcDef ann->[SSA]->m ()
     emitCall :: Pos->ProcDef ann->SSA->[SSA]->m ()
     -- Push a block into code emission.
-    emitPushBlock :: m ()
+    emitPushBlock :: ScopeType->m ()
     emitIf :: Pos->SSA->m ()
     emitWhile :: Pos->SSA->m ()
     emitPrint :: Pos->SSA->m ()
-    emitFor :: Pos->SSA->SSA->SSA->m ()
+    emitFor :: Pos->SSA->SSA->SSA->Int->m ()
     emitReturn :: Pos->Maybe SSA->m ()
     emitReset :: Pos->SSA->m ()
     emitGateApply :: Pos->GateDecorator->GateDef ann->[SSA]->m ()
@@ -50,10 +54,16 @@ class (Monad m)=>CodeSunk m where
     incrBlockIndent :: m ()
     decrBlockIndent :: m ()
     emitProgramHeader :: Pos->m ()
+    emitMin :: Pos->[SSA]->m ()
+    emitIntArray :: Pos->[SSA]->SSA->m ()
+    emitEraseIntArray :: Pos->Int->SSA->SSA->m ()
+    emitEraseQbitArray :: Pos->Int->SSA->SSA->m ()
+    
 
 
 data Codegen = Codegen {
     _symbolTables :: [SymbolTable Pos],
+    _scopeTypes :: [ScopeType],
     _definedProcs :: Map.Map String (ProcDef Pos),
     _definedGates :: Map.Map String (GateDef Pos),
     _ssaCounter :: Int
@@ -71,6 +81,8 @@ data GrammarError =
     | ArraySizeMismatch {_expectedSize:: Maybe Int, _actualSize:: Maybe Int}
     | ArgumentNumberMismatch {_callingSite:: Pos, _expectedArgs:: Int, _actualArgs:: Int}
     | InvalidGateMatrix {_badMatrix :: GateDef Pos}
+    | ReturnOutsideFunction {_pos:: Pos}
+    | MissingReturnStatement {_pos:: Pos}
     | InternalCompilerError
     deriving Show
 makeLenses ''Codegen
@@ -86,11 +98,11 @@ instance (CodeSunk m)=>CodeSunk (CodegenM m) where
     emitWriteIntOp a b c = lift $ lift (emitWriteIntOp a b c)
     emitProcedure a b c = lift $ lift (emitProcedure a b c)
     emitCall a b c d = lift $ lift (emitCall a b c d)
-    emitPushBlock = lift $ lift emitPushBlock
+    emitPushBlock a = lift $ lift $ emitPushBlock a
     emitIf a b = lift $ lift (emitIf a b)
     emitWhile a b = lift $ lift (emitWhile a b)
     emitPrint a b = lift $ lift (emitPrint a b)
-    emitFor a b c d = lift $ lift (emitFor a b c d)
+    emitFor a b c d e = lift $ lift (emitFor a b c d e)
     emitReturn a b = lift $ lift (emitReturn a b)
     emitReset a b = lift $ lift (emitReset a b)
     emitGateApply a b c d = lift $ lift (emitGateApply a b c d)
@@ -103,6 +115,9 @@ instance (CodeSunk m)=>CodeSunk (CodegenM m) where
     incrBlockIndent = lift $ lift incrBlockIndent
     decrBlockIndent = lift $ lift decrBlockIndent
     emitProgramHeader a = lift $ lift (emitProgramHeader a)
+    emitEraseIntArray a b c d = lift $ lift (emitEraseIntArray a b c d)
+    emitEraseQbitArray a b c d = lift $ lift (emitEraseQbitArray a b c d)
+    
 
 nextSSA :: (Monad m)=>CodegenM m SSA
 nextSSA = do
@@ -110,19 +125,19 @@ nextSSA = do
     ssaCounter .= s+1
     return $ "x" ++ show s
 
-scope :: (Monad m)=>CodegenM m ()
-scope = do
-    m<-use symbolTables
-    symbolTables .= SymbolTable Map.empty:m
+scope :: (Monad m)=>ScopeType->CodegenM m ()
+scope s = do
+    symbolTables %= (SymbolTable Map.empty:)
+    scopeTypes %= (s:)
 
 unscope :: (Monad m)=>CodegenM m ()
 unscope = do
-    xs<-use symbolTables
-    symbolTables .= tail xs
+    symbolTables %= tail
+    scopeTypes %= tail
 
-scoped :: (Monad m)=>CodegenM m a->CodegenM m a
-scoped a = do
-    scope
+scoped :: (Monad m)=>ScopeType->CodegenM m a->CodegenM m a
+scoped s a = do
+    scope s
     x<-a
     unscope
     return x
@@ -199,25 +214,25 @@ requireUnit :: (Monad m)=>UnitKind->TypedSSA->CodegenM m SSA
 requireUnit Int = requireInt
 requireUnit Qbit = requireQbit
 requireUnit _ = const $ throwError InternalCompilerError
-requireIntArray :: (Monad m)=>TypedSSA->CodegenM m SSA
-requireIntArray tssa@(TypedSSA ssa (Composite Int _ _)) = return ssa
-requireIntArray tssa@(TypedSSA _ t@(view annotation->pos)) = throwError $ TypeMismatch (Composite Int Nothing ()) t
-requireQbitArray :: (Monad m)=>TypedSSA->CodegenM m SSA
-requireQbitArray tssa@(TypedSSA ssa (Composite Qbit _ _)) = return ssa
-requireQbitArray tssa@(TypedSSA _ t@(view annotation->pos)) = throwError $ TypeMismatch (Composite Qbit Nothing ()) t
-requireArray :: (Monad m)=>UnitKind->TypedSSA->CodegenM m SSA
-requireArray Int  = requireIntArray
-requireArray Qbit = requireQbitArray
-requireArray _ = const $ throwError InternalCompilerError
 
--- Array size casting rule: only allowing discard of array size.
-requireArrayWithCompatibleSize :: (Monad m)=>(UnitKind, Maybe Int)->TypedSSA->CodegenM m SSA
-requireArrayWithCompatibleSize (k, sz) tssa= do
-    ssa<-requireArray k tssa
-    case sz of
-        Just sz'-> let real_length = _arrLen (tssa^.ssaType) in when ((Just sz') /= real_length) $ throwError $ ArraySizeMismatch sz real_length
-        Nothing -> return ()
-    return ssa
+data ArrayCompatibleCheckResult = ArrayMatched SSA | NeedErasure Int SSA
+
+checkedComposite :: UnitKind->VarType a->Maybe (VarType a)
+checkedComposite u (Composite a b c) = if u==a then Just (Composite a b c) else Nothing
+checkedComposite _ _ = Nothing
+
+requireCompatibleArray :: (Monad m)=>UnitKind->Maybe Int->TypedSSA->CodegenM m ArrayCompatibleCheckResult
+
+requireCompatibleArray u Nothing tssa@(TypedSSA ssa t@(checkedComposite u->Just (Composite _ Nothing _))) = return $ ArrayMatched ssa
+requireCompatibleArray u (Just n) tssa@(TypedSSA ssa t@(checkedComposite u->Just (Composite _ (Just n') _))) = if n==n' then return $ ArrayMatched ssa else throwError $ ArraySizeMismatch (Just n) (Just n')
+requireCompatibleArray u (Just n) tssa@(TypedSSA ssa t@(checkedComposite u->Just (Composite _ Nothing _))) = throwError $ ArraySizeMismatch (Just n) Nothing
+requireCompatibleArray u Nothing tssa@(TypedSSA ssa t@(checkedComposite u->Just (Composite _ (Just n') _))) = return $ NeedErasure n' ssa
+requireCompatibleArray u _ tssa@(TypedSSA _ t@(view annotation->pos)) = throwError $ TypeMismatch (Composite u Nothing ()) t
+requireCompatibleIntArray :: (Monad m)=>Maybe Int->TypedSSA->CodegenM m ArrayCompatibleCheckResult
+requireCompatibleIntArray = requireCompatibleArray Int
+requireCompatibleQbitArray :: (Monad m)=>Maybe Int->TypedSSA->CodegenM m ArrayCompatibleCheckResult
+requireCompatibleQbitArray = requireCompatibleArray Qbit
+
 
 
 evalLeftExpr :: (CodeSunk m)=>LeftValueExpr Pos->CodegenM m TypedSSA
@@ -292,11 +307,17 @@ evalExpr (CallExpr (ProcedureCall name args pos') pos) = do
         Just p->do
             args'<-mapM evalExpr args
             let requiredTypes = fmap _varType $ p^.parameters
-            let check_type r@(UnitType Int _) = requireInt
-                check_type r@(UnitType Qbit _) = requireQbit
-                check_type r@(Composite Int _ _) = requireIntArray
-                check_type r@(Composite Qbit _ _) = requireQbitArray
-                check_type _ = \_->throwError InternalCompilerError
+            let 
+                performErasure Int (NeedErasure n v) = do {v'<-nextSSA; emitEraseIntArray (view annotation p) n v v'; return v'}
+                performErasure Qbit (NeedErasure n v) = do {v'<-nextSSA; emitEraseQbitArray (view annotation p) n v v'; return v'}
+                performErasure u (ArrayMatched v) = return v
+                performErasure _ _ = throwError InternalCompilerError
+                
+            let check_type r@(UnitType Int _) tssa = requireInt tssa
+                check_type r@(UnitType Qbit _) tssa = requireQbit tssa
+                check_type r@(Composite Int x _) tssa = requireCompatibleIntArray x tssa >>= performErasure Int
+                check_type r@(Composite Qbit x _) tssa = requireCompatibleQbitArray x tssa >>= performErasure Qbit
+                check_type _ _ = throwError InternalCompilerError
             when (length args' /= length requiredTypes) $ throwError $ ArgumentNumberMismatch pos (length requiredTypes) (length args')
             ssas<-zipWithM check_type requiredTypes args'
             return_value<-nextSSA
@@ -321,6 +342,7 @@ evalStatement st@(QbitInitStmt arg loc) = do
     emitReset loc arg''
 
 evalStatement st@(QbitGateStmt decor operands gatename loc) = do
+    -- First we prepare the qubit groups.
     gatedefs<-use definedGates
     let query_gate = gatedefs Map.!? (gatename^.identName)
     case query_gate of
@@ -342,12 +364,12 @@ evalStatement st@(IfStatement cond b_then b_else loc) = do
     cond'<-evalExpr cond
     cond''<-requireInt cond'
     incrBlockIndent
-    scope
-    emitPushBlock
+    scope IfScope
+    emitPushBlock IfScope
     b_then'<-mapM evalStatement b_then
     unscope
-    scope
-    emitPushBlock
+    scope IfScope
+    emitPushBlock IfScope
     b_else'<-mapM evalStatement b_else
     unscope
     decrBlockIndent
@@ -355,13 +377,13 @@ evalStatement st@(IfStatement cond b_then b_else loc) = do
 
 evalStatement st@(WhileStatement cond b loc) = do
     incrBlockIndent
-    emitPushBlock
-    scope
+    emitPushBlock WhileScope
+    scope WhileScope
     cond'<-evalExpr cond
     cond''<-requireInt cond'
     unscope
-    emitPushBlock
-    scope
+    emitPushBlock WhileScope
+    scope WhileScope
     b'<-mapM evalStatement b
     unscope
     decrBlockIndent
@@ -369,19 +391,19 @@ evalStatement st@(WhileStatement cond b loc) = do
 
 
 
-evalStatement st@(ForStatement vname vlo vhi b loc) = do
+evalStatement st@(ForStatement vname vlo vhi vstep b loc) = do
     vlo'<-evalExpr vlo
     vlo''<-requireInt vlo'
     vhi'<-evalExpr vhi
     vhi''<-requireInt vhi'
     incrBlockIndent
-    scope
+    scope ForScope
+    emitPushBlock ForScope
     v_ssa<-declareSymbol (VarDef (UnitType Int loc) vname loc)
-    emitPushBlock
     b'<-mapM evalStatement b
     unscope
     decrBlockIndent
-    emitFor loc v_ssa vlo'' vhi''
+    emitFor loc v_ssa vlo'' vhi'' vstep
 
 evalStatement st@(PrintStatement expr loc) = do
     expr'<-evalExpr expr
@@ -389,6 +411,8 @@ evalStatement st@(PrintStatement expr loc) = do
     emitPrint loc expr''
 
 evalStatement st@(ReturnStatement expr loc) = do
+    s<-use scopeTypes
+    when (head s /= FuncScope) $ throwError $ ReturnOutsideFunction loc
     e<-case expr of
         Nothing -> return Nothing
         Just e' -> do
@@ -419,12 +443,18 @@ declareProc x = do
 
 evalProcDef :: (CodeSunk m)=>ProcDef Pos->CodegenM m ()
 evalProcDef x = do
+    scope FuncScope
     let params = x^.parameters
     param_ssas<-mapM declareSymbol params
     -- define arguments
     incrBlockIndent
-    emitPushBlock
-    mapM_ evalStatement (x^.body)
+    emitPushBlock FuncScope
+    let b = x^.body
+    let fixed_b = if x^.returnType == Void then b ++ [ReturnStatement Nothing (view annotation x)] else b
+    case last fixed_b of
+        ReturnStatement _ _ -> return ()
+        _ -> throwError $ MissingReturnStatement (view annotation x)
+    mapM_ evalStatement fixed_b
     unscope
     decrBlockIndent
     emitProcedure (x^.annotation) x param_ssas
@@ -464,6 +494,7 @@ evalProgram prog = do
 emptyCodegen :: Codegen
 emptyCodegen = Codegen {
     _symbolTables = [SymbolTable Map.empty],
+    _scopeTypes = [GlobalScope],
     _definedProcs = Map.empty,
     _definedGates = Map.empty,
     _ssaCounter = 0

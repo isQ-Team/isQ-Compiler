@@ -20,6 +20,7 @@ import Text.Parsec.Pos
 import Data.List (intercalate)
 import Data.Complex
 import Data.Either
+import ISQ.Lang.Codegen (ScopeType)
 
 locationInfo :: SourcePos -> String
 locationInfo pos = printf "loc(%s:%d:%d)" (show $ sourceName pos) (sourceLine pos) (sourceColumn pos)

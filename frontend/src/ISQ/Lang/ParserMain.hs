@@ -1,6 +1,6 @@
 module ISQ.Lang.ParserMain where
 import ISQ.Lang.Language
-import ISQ.Lang.MLIRGen
+import ISQ.Lang.MLIRTextGen
 import Text.Parsec
 import Data.Functor.Identity
 import Data.List

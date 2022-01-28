@@ -48,7 +48,7 @@ data LeftValueExpr ann = ArrayRef {
     _varRefName :: Ident ann,
     _leftvalueexprAnnotation :: ann
 } deriving Show
-data BinaryOp = Add | Sub | Mul | Div | Less | Equal | NEqual | Greater | LessEqual | GreaterEqual deriving Show
+data BinaryOp = Add | Sub | Mul | Div | FloorDiv | Less | Equal | NEqual | Greater | LessEqual | GreaterEqual deriving Show
 data UnaryOp = Positive | Neg deriving Show
 data ProcedureCall ann = ProcedureCall{
     _calleeName :: Ident ann,
@@ -62,13 +62,17 @@ data Expr ann = ImmInt {_immInt :: Int, _exprAnnotation :: ann}
     | LeftExpr {_leftRef :: LeftValueExpr ann, _exprAnnotation :: ann}
     | MeasureExpr {_measureRef :: LeftValueExpr ann, _exprAnnotation :: ann} 
     | CallExpr {_exprCalling :: ProcedureCall ann, _exprAnnotation :: ann} deriving Show
+
+data QubitGroup ann = 
+    QubitRange {_qubitRangeStart :: Expr ann, _qubitRangeEnd :: Expr ann, _qubitRangeStep :: Expr ann, _qubitGroupAnnotation :: ann} 
+    | QubitBundle {_qubitList :: [Expr ann], _qubitGroupAnnotation :: ann} deriving Show
 data GateDecorator = GateDecorator {_controlStates :: [Bool], _adjoint :: Bool} deriving Show
 data Statement ann = 
       QbitInitStmt { _qubitOperand :: LeftValueExpr ann, _statementAnnotation :: ann}
     | QbitGateStmt { _decorator :: GateDecorator, _qubitOperands :: [LeftValueExpr ann], _appliedGateName :: Ident ann, _statementAnnotation :: ann}
     | CintAssignStmt { _assignLhs :: LeftValueExpr ann, _assignRhs :: Expr ann, _statementAnnotation :: ann}
     | IfStatement { _ifCondition :: Expr ann, _thenBranch :: [Statement ann], _elseBranch :: [Statement ann], _statementAnnotation :: ann}
-    | ForStatement { _forIdent :: Ident ann, _lo :: Expr ann, _hi :: Expr ann, _forBody :: [Statement ann], _statementAnnotation :: ann}
+    | ForStatement { _forIdent :: Ident ann, _lo :: Expr ann, _hi :: Expr ann, _step :: Int, _forBody :: [Statement ann], _statementAnnotation :: ann}
     | WhileStatement {_whileCondition :: Expr ann, _whileBody :: [Statement ann], _statementAnnotation :: ann}
     | PrintStatement {_printedExpr :: Expr ann, _statementAnnotation :: ann}
     | PassStatement {_statementAnnotation :: ann}
@@ -98,6 +102,7 @@ makeLenses ''Expr
 makeLenses ''GateDecorator
 makeLenses ''Statement
 makeLenses ''Program
+makeLenses ''QubitGroup
 
 instance Annotated Matrix where {annotation = matrixAnnotation}
 instance Annotated Ident where {annotation = identAnnotation}
@@ -111,5 +116,5 @@ instance Annotated Expr where {annotation = exprAnnotation}
 --instance Annotated GateDecorator where {annotation = gatedecoratorAnnotation}
 instance Annotated Statement where {annotation = statementAnnotation}
 instance Annotated Program where {annotation = programAnnotation}
-
+instance Annotated QubitGroup where {annotation = qubitGroupAnnotation}
 type Pos = SourcePos
