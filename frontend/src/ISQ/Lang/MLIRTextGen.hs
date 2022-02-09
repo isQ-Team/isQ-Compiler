@@ -342,7 +342,7 @@ instance CodeSunk MLIRGen where
         emit "    scf.yield"
         emit $ printf "} %s" (locationInfo pos)
     emitPrint pos val = do
-        emit $ printf "isq.call_qop @isq_builtin::@print_int(%s): [0](index)->() %s" (ssa val) (locationInfo pos)
+        emit $ printf "isq.print %s: index %s" (ssa val) (locationInfo pos)
     emitFor pos var lo hi step = do
         b_body <- popBlock
         temp_val<-nextTempSSA
@@ -430,7 +430,6 @@ emitHeader p = do
     emit $ "module @isq_builtin {"
     emit $ "    isq.declare_qop @measure : [1]()->i1"
     emit $ "    isq.declare_qop @reset : [1]()->()"
-    emit $ "    isq.declare_qop @print_int : [0](index)->()"
     emit $ "}"
 runMLIRGen :: MLIRGen (Either GrammarError ()) -> Either GrammarError MLIRGenState
 runMLIRGen (MLIRGen m) = do

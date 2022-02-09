@@ -14,6 +14,7 @@ UseGateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
                 << "type mismatch, expected " << gatedef.getTypeWhenUsed();
             return mlir::failure();
         }
+        /*
         if(gatedef.parameters()){
             auto params = *gatedef.parameters();
             ::mlir::SmallVector<::mlir::Type> curr_params_list;
@@ -31,7 +32,7 @@ UseGateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
                 << "type mismatch, expected " << params;
                 return mlir::failure();
             }
-        }
+        }*/
         
         return mlir::success();
     }

@@ -66,7 +66,7 @@ mlir::LogicalResult FoldAffineComparison::match(mlir::AffineIfOp op) const {
     auto cmp_insn = input.getDefiningOp<mlir::arith::CmpIOp>();
     if(!cmp_insn) return mlir::failure();
     // don't handle unsigned comparison.
-    if(static_cast<uint64_t>(cmp_insn.predicate())>5){
+    if(static_cast<uint64_t>(cmp_insn.getPredicate())>5){
         return mlir::failure();
     }
     auto index_type = mlir::IndexType::get(op->getContext());
@@ -82,8 +82,8 @@ void FoldAffineComparison::rewrite(mlir::AffineIfOp op, mlir::PatternRewriter& r
     assert(cmp_op);
     cmp_op.dump();
     mlir::SmallVector<mlir::Value> vals;
-    vals.push_back(cmp_op.lhs());
-    vals.push_back(cmp_op.rhs());
+    vals.push_back(cmp_op.getLhs());
+    vals.push_back(cmp_op.getRhs());
     auto cmp_ty = cmp_op.getPredicate();
     if(cmp_ty == mlir::arith::CmpIPredicate::eq){
         rewriter.startRootUpdate(op);
