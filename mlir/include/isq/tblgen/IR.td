@@ -303,13 +303,12 @@ def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<Symbo
         ```
     }];
     let arguments = (ins 
-    SymbolRefAttr: $name,
-    Variadic<AnyType>: $args
+    SymbolRefAttr: $name
     );
     let results = (outs
     AnyType: $result);
     let assemblyFormat = [{
-        $name `(` $args `)` attr-dict  `:` functional-type($args, results)
+        $name attr-dict  `:` type(results)
     }];
 }
 def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
@@ -458,7 +457,7 @@ def ISQ_PrintOp : ISQ_Op<"print"> {
     let arguments = (ins AnyType:$input);
 
     let assemblyFormat = [{
-        `(` $input `:` type($input) `)` attr-dict 
+        $input `:` type($input)  attr-dict
     }];
 }
 

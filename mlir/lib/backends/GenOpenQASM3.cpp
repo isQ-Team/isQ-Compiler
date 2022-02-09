@@ -637,7 +637,7 @@ private:
         return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::CallOp op) override{
-        auto func_name = op.calleeAttr();
+        auto func_name = op.getCalleeAttr();
         string call_str = func_name.getValue().str() + "(";
         for (auto indexOperand : llvm::enumerate(op->getOperands())){
             auto operand = indexOperand.value();
