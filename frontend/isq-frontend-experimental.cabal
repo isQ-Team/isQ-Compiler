@@ -26,6 +26,9 @@ library
   exposed-modules:
       ISQ.Lang.AST
       ISQ.Lang.Codegen
+      ISQ.Lang.ISQv2Grammar
+      ISQ.Lang.ISQv2Parser
+      ISQ.Lang.ISQv2Tokenizer
       ISQ.Lang.Language
       ISQ.Lang.MLIRTextGen
       ISQ.Lang.ParserMain
@@ -34,8 +37,12 @@ library
       Paths_isq_frontend_experimental
   hs-source-dirs:
       src
+  build-tools:
+      alex
+    , happy
   build-depends:
-      base >=4.7 && <5
+      array
+    , base >=4.7 && <5
     , containers
     , extra
     , lens
@@ -51,8 +58,12 @@ executable isq-frontend-experimental-exe
   hs-source-dirs:
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-tools:
+      alex
+    , happy
   build-depends:
-      base >=4.7 && <5
+      array
+    , base >=4.7 && <5
     , containers
     , extra
     , isq-frontend-experimental

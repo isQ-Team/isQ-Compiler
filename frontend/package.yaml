@@ -27,6 +27,11 @@ dependencies:
 - containers
 - extra
 - math-functions
+- array
+
+build-tools:
+- happy
+- alex
 
 library:
   source-dirs: src
