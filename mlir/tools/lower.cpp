@@ -86,8 +86,9 @@ int isq_mlir_codegen_main(int argc, char **argv) {
     mlir::PassManager pm(&context);
     // Apply any generic pass manager command line options and run the pipeline.
     applyPassManagerCLOptions(pm);
+    pm.addNestedPass<mlir::FuncOp>(mlir::createCanonicalizerPass());
     pm.addPass(mlir::isqLower::createLowerToLLVMPass());
-    
+    //pm.addPass(mlir::isqLower::createMLIRToLLVMPass());
     if (mlir::failed(pm.run(module_op))){
         llvm::errs() << "lower to mlir-llvm error\n";
         return -1;

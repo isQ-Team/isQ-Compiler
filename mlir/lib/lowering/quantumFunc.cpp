@@ -1,7 +1,8 @@
 #include "isq/lowering/quantumFunc.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include <set>
-#include "isq/qsyn.h"
+#include <math.h>
+#include <iostream>
 
 using namespace Eigen;
 using qsyn::ComplexPair;
@@ -167,20 +168,10 @@ FlatSymbolRefAttr getOrInsertBaseGate(PatternRewriter &rewriter, ModuleOp module
     return SymbolRefAttr::get(context, qir_gate);
 }
 
-bool decomposed(PatternRewriter &rewriter, ModuleOp module, mlir::ArrayAttr& definition, int shape, MutableArrayRef<mlir::BlockArgument> operands){
+bool decomposed(PatternRewriter &rewriter, ModuleOp module, qsyn::UnitaryVector &Uvector, int shape, MutableArrayRef<mlir::BlockArgument> operands){
         
     double esp = 1e-6;
-    qsyn::UnitaryVector Uvector;
     
-    for (int i = 0; i < definition.size(); i++){
-        auto line = definition[i].dyn_cast<mlir::ArrayAttr>();
-        for (int j = 0; j < line.size(); j++){
-            auto value = line[j].dyn_cast<isq::ir::ComplexF64Attr>();
-            double real = value.getReal().convertToDouble();
-            double imag = value.getImag().convertToDouble();
-            Uvector.push_back(ComplexPair(real, imag));
-        }
-    }
     qsyn::qsyn A(shape, Uvector);
     qsyn::DecomposedGates sim_gates = qsyn::simplify(A.gates);
     
@@ -264,7 +255,18 @@ FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertGate(PatternRewriter &rewriter, Mo
             auto def = def_.cast<isq::ir::GateDefinition>();
             if(def.type()=="unitary"){
                 auto mat = def.value().cast<mlir::ArrayAttr>();
-                decomposed(rewriter, module, mat, gate_size, entryBlock.getArguments());
+                qsyn::UnitaryVector Uvector;
+                for (int i = 0; i < mat.size(); i++){
+                    auto line = mat[i].dyn_cast<mlir::ArrayAttr>();
+                    for (int j = 0; j < line.size(); j++){
+                        auto value = line[j].dyn_cast<isq::ir::ComplexF64Attr>();
+                        double real = value.getReal().convertToDouble();
+                        double imag = value.getImag().convertToDouble();
+                        Uvector.push_back(ComplexPair(real, imag));
+                    }
+                }
+                mat_def.insert(make_pair(gate_name_low, make_pair(gate_size, Uvector)));
+                decomposed(rewriter, module, Uvector, gate_size, entryBlock.getArguments());
             }
         }
 
@@ -274,15 +276,192 @@ FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertGate(PatternRewriter &rewriter, Mo
     return SymbolRefAttr::get(context, qir_gate);
 }
 
+// get u's pos
+// if NCtrl, pos is at the upper left of mat
+// if Ctrl pos is at the lower right of mat
+int getPos(const string& ctrl, int idx, int size, int pos){
+    size /= 2;
+    if (ctrl.size() == idx){
+        return pos;
+    }
 
-FlatSymbolRefAttr LLVMQuantumFunc::getGate(ModuleOp module, string gate_name){
+    if (ctrl[idx] == 'f'){
+        return getPos(ctrl, idx+1, size, pos);
+    }else{
+        return getPos(ctrl, idx+1, size, pos+size);
+    }
+}
+
+FlatSymbolRefAttr LLVMQuantumFunc::getGate(PatternRewriter &rewriter, ModuleOp module, string gate_name, llvm::ArrayRef<Attribute> ctrl, bool inv){
 
     auto *context = module.getContext();
-    
+    set<string> base_gate = {"h", "x", "y", "z", "cnot", "s", "t"};
+
     string gate_name_low = gate_name;
     transform(gate_name.begin(), gate_name.end(), gate_name_low.begin(), [](unsigned char c) { return tolower(c); });
 
-    string qir_gate = qir_gate_head + gate_name_low;
-    return SymbolRefAttr::get(context, qir_gate);
+    if (ctrl.size() == 0 && (!inv || base_gate.count(gate_name_low) == 1)){
+        string qir_gate = qir_gate_head + gate_name_low;
+        return SymbolRefAttr::get(context, qir_gate);
+    }else{
+        auto size_mat = getInfo(gate_name_low);
 
+        int ori_size = size_mat.first;
+        int ori_shape = (1 << ori_size);
+        qsyn::UnitaryVector ori_mat = size_mat.second;
+        
+        string inv_head = "";
+        if (inv && base_gate.count(gate_name_low) == 0){
+            // if not base gate, get inverse mat
+            inv_head = "inv_";
+            qsyn::UnitaryVector ori_mat_inv;
+            for (int i = 0; i < ori_shape; i++){
+                for (int j = 0; j < ori_shape; j++){
+                    ori_mat_inv.push_back(ComplexPair(ori_mat[j*ori_shape+i].first, -1*ori_mat[j*ori_shape+i].second));
+                }
+            }
+            ori_mat = ori_mat_inv;
+        }
+
+        
+        string qir_gate = qir_gate_head + inv_head + gate_name_low;
+        string ctrl_head = "";
+        if (ctrl.size() > 0){
+            for (auto &attr: ctrl){
+                auto c = attr.cast<mlir::BoolAttr>().getValue();
+                if (c){
+                    ctrl_head += "t";
+                }else{
+                    ctrl_head += "f";
+                }
+            }
+            qir_gate = qir_gate_head + inv_head + ctrl_head + "_" + gate_name_low;
+        }
+        
+        if (module.lookupSymbol<LLVM::LLVMFuncOp>(qir_gate))
+            return SymbolRefAttr::get(context, qir_gate);
+        
+        int size = ori_size + ctrl.size();
+        qsyn::UnitaryVector Uvector;
+        
+        cout << qir_gate << ", size: " << size << endl;
+
+        int shape = (1 << size);
+        for (int i = 0; i < shape; i++){
+            for (int j = 0; j < shape; j++){
+                if (i == j){
+                    Uvector.push_back(ComplexPair(1., 0.));
+                }else{
+                    Uvector.push_back(ComplexPair(0., 0.));
+                }
+            }
+        }
+        
+        int pos = getPos(ctrl_head, 0, shape, 0);
+
+        for (int i = 0; i < ori_shape; i++){
+            for (int j = 0; j < ori_shape; j++){
+                Uvector[(i+pos)*shape+(j+pos)] = ori_mat[i*ori_shape+j];
+            }
+        }
+        /*
+        cout << "size: " << size << endl;
+        for (int i = 0; i < shape; i++){
+            for (int j = 0; j < shape; j++){
+                cout << '(' << Uvector[i*shape+j].first << ',' << Uvector[i*shape+j].second << "),";
+            }
+            cout << endl;
+        }*/
+        
+        auto res_type = LLVM::LLVMVoidType::get(context);
+        llvm::SmallVector<Type> qbit_type;
+        for (int i = 0; i < size; i++)
+            qbit_type.push_back(LLVM::LLVMPointerType::get(LLVM::LLVMStructType::getOpaque("Qubit", context)));
+        auto reset_ftype =
+            LLVM::LLVMFunctionType::get(res_type, qbit_type, false);
+
+        // Insert the function declaration and definition
+        PatternRewriter::InsertionGuard insertGuard(rewriter);
+        rewriter.setInsertionPointToStart(module.getBody());
+        auto funcOp = rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(),
+                                        qir_gate, reset_ftype);
+        
+        auto &entryBlock = *funcOp.addEntryBlock();
+        rewriter.setInsertionPointToStart(&entryBlock);
+        if (!decomposed(rewriter, module, Uvector, size, entryBlock.getArguments())){
+            cout << "decompose error" << endl;
+        }
+        rewriter.create<LLVM::ReturnOp>(module.getLoc(), llvm::None);
+
+        return SymbolRefAttr::get(context, qir_gate);
+    }
+}
+
+pair<int, qsyn::UnitaryVector> LLVMQuantumFunc::getInfo(string gate_name){
+    
+    set<string> base_gate = {"h", "x", "y", "z", "cnot", "s", "t"};
+
+    auto iter = mat_def.find(gate_name);
+    if (iter == mat_def.end()){
+        if (base_gate.count(gate_name) == 1){
+            if (gate_name == "h"){
+                qsyn::UnitaryVector Uvector = {
+                    ComplexPair(sqrt(0.5), 0.),ComplexPair(sqrt(0.5), 0.),
+                    ComplexPair(sqrt(0.5), 0.),ComplexPair(-sqrt(0.5), 0.)
+                };
+                mat_def.insert(make_pair(gate_name, make_pair(1, Uvector)));
+            }
+            if (gate_name == "x"){
+                qsyn::UnitaryVector Uvector = {
+                    ComplexPair(0., 0.),ComplexPair(1., 0.),
+                    ComplexPair(1., 0.),ComplexPair(0., 0.)
+                };
+                mat_def.insert(make_pair(gate_name, make_pair(1, Uvector)));
+            }
+            if (gate_name == "y"){
+                qsyn::UnitaryVector Uvector = {
+                    ComplexPair(0., 0.),ComplexPair(0., -1.),
+                    ComplexPair(0., 1.),ComplexPair(0., 0.)
+                };
+                mat_def.insert(make_pair(gate_name, make_pair(1, Uvector)));
+            }
+            if (gate_name == "z"){
+                qsyn::UnitaryVector Uvector = {
+                    ComplexPair(1., 0.),ComplexPair(0., 0.),
+                    ComplexPair(0., 0.),ComplexPair(-1., 0.)
+                };
+                mat_def.insert(make_pair(gate_name, make_pair(1, Uvector)));
+            }
+            if (gate_name == "s"){
+                qsyn::UnitaryVector Uvector = {
+                    ComplexPair(1., 0.),ComplexPair(0., 0.),
+                    ComplexPair(0., 0.),ComplexPair(0., 1.)
+                };
+                mat_def.insert(make_pair(gate_name, make_pair(1, Uvector)));
+            }
+            if (gate_name == "t"){
+                qsyn::UnitaryVector Uvector = {
+                    ComplexPair(1., 0.),ComplexPair(0., 0.),
+                    ComplexPair(0., 0.),ComplexPair(sqrt(0.5), sqrt(0.5))
+                };
+                mat_def.insert(make_pair(gate_name, make_pair(1, Uvector)));
+            }
+            if (gate_name == "cnot"){
+                qsyn::UnitaryVector Uvector = {
+                    ComplexPair(1,0.),ComplexPair(0.,0.),ComplexPair(0.,0.),ComplexPair(0.,0.),
+                    ComplexPair(0.,0.),ComplexPair(1.,0.),ComplexPair(0.,0.),ComplexPair(0.,0.),
+                    ComplexPair(0.,0.),ComplexPair(0.,0.),ComplexPair(0.,0.),ComplexPair(1.,0.),
+                    ComplexPair(0.,0.),ComplexPair(0.,0.),ComplexPair(1.,0.),ComplexPair(0.,0.)
+                };
+                mat_def.insert(make_pair(gate_name, make_pair(2, Uvector)));
+            }
+        }else{
+            cout << "not found: " << gate_name << endl;
+            qsyn::UnitaryVector Uvector = {
+                ComplexPair(1,0.)
+            };
+            return make_pair(0, Uvector);
+        }
+    }
+    return mat_def.find(gate_name)->second;
 }

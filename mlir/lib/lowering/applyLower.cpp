@@ -20,16 +20,23 @@ LogicalResult applyGateOpLowering::matchAndRewrite(Operation *op, ArrayRef<Value
     auto applyOp = cast<isq::ir::ApplyGateOp>(op);
     auto decorateOp = applyOp.gate().getDefiningOp<isq::ir::DecorateOp>();
 
-    isq::ir::UseGateOp gateOp;
+    //isq::ir::UseGateOp gateOp;
 
     if (decorateOp == nullptr){
-        gateOp = applyOp.gate().getDefiningOp<isq::ir::UseGateOp>();
-    }else{
+        cout << "decorate null" << endl;
+        return mlir::failure();
+        //gateOp = applyOp.gate().getDefiningOp<isq::ir::UseGateOp>();
+    }/*
+    else{
         gateOp = decorateOp.args().getDefiningOp<isq::ir::UseGateOp>();
-    }
+    }*/
 
+    auto gateOp = decorateOp.args().getDefiningOp<isq::ir::UseGateOp>();
+    
+    auto ctrl = decorateOp.ctrl();
+    auto inv = decorateOp.adjoint();
     auto gate_name = gateOp.name().getRootReference().getValue().str();
-    auto func_name = LLVMQuantumFunc::getGate(parentModule, gate_name);
+    auto func_name = LLVMQuantumFunc::getGate(rewriter, parentModule, gate_name, ctrl.getValue(), inv);
     rewriter.create<CallOp>(loc, func_name, llvm::None, operands.drop_front());
 
     for (int i = 1; i < operands.size(); i++){
