@@ -78,144 +78,105 @@ LogicalResult GlobalMemrefOpLowering::matchAndRewrite(memref::GlobalOp global, O
   }
 
 LogicalResult GlobalMemrefOpLowering::initAndRelease(memref::GlobalOp global, ConversionPatternRewriter &rewriter) const{
-  
-  cout << "--------- start ---------" << endl;
-  for (auto &op : global->getParentRegion()->front()){
-      cout << op.getName().getStringRef().str() << endl;
-      for (auto &r : op.getRegions()){
-          for (auto &b : r.getBlocks()){
-                    cout << "operations: " << b.getOperations().size() << endl;
-                    for (auto &p : b.getOperations()){
-                        cout << p.getName().getStringRef().str() << endl;
-                    }
-                }          
+    
+    ModuleOp parentModule = global->getParentOfType<ModuleOp>();
+    MLIRContext *context = rewriter.getContext();
+
+    Operation* funcOp;
+    if (parentModule.lookupSymbol<LLVM::LLVMFuncOp>("main")){
+
+        funcOp = parentModule.lookupSymbol<LLVM::LLVMFuncOp>("main");
+        
+    }else{
+
+      for (auto &op : global->getParentRegion()->front()){
+
+        auto fOp = dyn_cast_or_null<mlir::FuncOp>(&op);
+        if (fOp){
+            if (fOp.sym_name().equals("main")){    
+                funcOp = &op;
+                break;
+            }
+        }
       }
-      cout << "------------------" << endl;
+    }
       
-      auto funcOp = dyn_cast_or_null<mlir::FuncOp>(&op);
-      if (funcOp){
-          if (funcOp.sym_name().equals("main")){
+    rewriter.setInsertionPointToStart(&funcOp->getRegion(0).front());         
+    auto loc = global.getLoc();
               
-              cout << funcOp.sym_name().str() << endl;
-              
-              cout << "region: " << op.getNumRegions() << endl;
-              
-              for (auto &r:op.getRegions()){
-                
-                cout << "block: " << r.getBlocks().size() << endl;
-                
-                if (r.getBlocks().size() > 0){
-                
-                // init global var at the start of main function
-                rewriter.setInsertionPointToStart(&r.getBlocks().front());
-                
-                auto loc = global.getLoc();
-                ModuleOp parentModule = global->getParentOfType<ModuleOp>();
-                MLIRContext *context = rewriter.getContext();
-
-                MemRefType type = global.type();
-                unsigned memSpace = type.getMemorySpaceAsInt();
-                Type arrayTy = convertGlobalMemrefTypeToLLVM(type, *getTypeConverter());
-                auto addressOf = rewriter.create<LLVM::AddressOfOp>(
-                    loc, LLVM::LLVMPointerType::get(arrayTy, memSpace), global.sym_name());
-
-                // Get the address of the first element in the array by creating a GEP with
-                // the address of the GV as the base, and (rank + 1) number of 0 indices.
-                
-                Type elementType = typeConverter->convertType(type.getElementType());
-                Type elementPtrType = LLVM::LLVMPointerType::get(elementType, memSpace);
-
-                SmallVector<Value> operands;
-                operands.insert(operands.end(), type.getRank() + 1,
-                                createIndexConstant(rewriter, loc, 0));
-                auto gep = rewriter.create<LLVM::GEPOp>(loc, elementPtrType, addressOf, operands);
-
-                
-                // for loop to init
-                auto start = rewriter.create<arith::ConstantIndexOp>(loc, 0);
-                auto end = rewriter.create<arith::ConstantIndexOp>(loc, memSpace);
-                auto step = rewriter.create<arith::ConstantIndexOp>(loc, 1);
-                
-                auto initloop = rewriter.create<scf::ForOp>(loc, start, end, step);
-                PatternRewriter::InsertionGuard insertGuard(rewriter);
-                /*
-                for (Operation &nested : *initloop.getBody()){
-                    rewriter.eraseOp(&nested);
-                }*/
-                rewriter.setInsertionPointToStart(initloop.getBody());
-                
-                mlir::Value val;
-                if (type.getElementType().isa<isq::ir::QStateType>()){  
-                    auto func_name = LLVMQuantumFunc::getOrInsertAllocQubit(rewriter, parentModule);
-                    auto call = rewriter.create<CallOp>(loc, func_name, elementType, llvm::None);
-                    val = call.getResult(0);
-                }else{
-                    val = rewriter.create<LLVM::ConstantOp>(loc, 
-                              IntegerType::get(rewriter.getContext(), 64),
-                              rewriter.getIntegerAttr(rewriter.getI64Type(), 0));
-                }
-                auto arg = initloop.getInductionVar();
-                auto idx = rewriter.create<mlir::arith::IndexCastOp>(loc, IntegerType::get(rewriter.getContext(), 64), arg);
-                
-                auto ele_ptr = rewriter.create<LLVM::GEPOp>(loc, LLVM::LLVMPointerType::get(elementType), 
-                                    gep, llvm::ArrayRef<mlir::Value>({idx}));
-                
-                rewriter.create<LLVM::StoreOp>(loc, val, ele_ptr);
-                
-                cout << "-------for op-------" << endl;
-                for (Operation &nested : *initloop.getBody()){
-                    cout << nested.getName().getStringRef().str() << endl;
-                }
-                cout << "-------end for-------" << endl;
-                
-                
-                for (auto &r : op.getRegions()){
-                    for (auto &b : r.getBlocks()){
-                              cout << "operations: " << b.getOperations().size() << endl;
-                              for (auto &p : b.getOperations()){
-                                  cout << p.getName().getStringRef().str() << endl;
-                              }
-                          }          
-                }
-                //rewriter.create<scf::YieldOp>(loc);
-                
-                // for loop to release
-                /*
-                if (type.getElementType().isa<isq::ir::QStateType>()){
-                  auto iter = funcOp.body().back().end();
-                  iter--;
-                  rewriter.setInsertionPoint(&(*iter));
-
-                  auto releaseloop = rewriter.create<scf::ForOp>(loc, start, end, step);
-                  
-                  for (Operation &nested : *releaseloop.getBody()){
-                      rewriter.eraseOp(&nested);
-                  }
-                  rewriter.setInsertionPointToEnd(releaseloop.getBody());
-                  
-                  auto arg = releaseloop.getInductionVar();
-                  auto idx = rewriter.create<mlir::arith::IndexCastOp>(loc, IntegerType::get(rewriter.getContext(), 64), arg);
-                
-                  auto ele_ptr = rewriter.create<LLVM::GEPOp>(loc, LLVM::LLVMPointerType::get(elementType), 
-                                      gep, llvm::ArrayRef<mlir::Value>({idx}));
-                  auto val = rewriter.create<LLVM::LoadOp>(loc, elementType, ele_ptr);
-
-                  auto func_name = LLVMQuantumFunc::getOrInsertReleaseQubit(rewriter, parentModule);
-                  rewriter.create<CallOp>(loc, func_name, llvm::None, val.getResult());
-                    
-                  rewriter.create<scf::YieldOp>(loc);
-                  
-                }*/
-                }
-                
-                
-              }
-
-              
-          }
+    MemRefType type = global.type();
+    unsigned memSpace = type.getMemorySpaceAsInt();
+    int size = type.getShape().front();
+    Type arrayTy = convertGlobalMemrefTypeToLLVM(type, *getTypeConverter());
+    auto addressOf = rewriter.create<LLVM::AddressOfOp>(
+        loc, LLVM::LLVMPointerType::get(arrayTy, memSpace), global.sym_name());
+    // Get the address of the first element in the array by creating a GEP with
+    // the address of the GV as the base, and (rank + 1) number of 0 indices.
+    
+    Type elementType = typeConverter->convertType(type.getElementType());
+    Type elementPtrType = LLVM::LLVMPointerType::get(elementType, memSpace);
+    SmallVector<Value> operands;
+    operands.insert(operands.end(), type.getRank() + 1,
+                    createIndexConstant(rewriter, loc, 0));
+    auto gep = rewriter.create<LLVM::GEPOp>(loc, elementPtrType, addressOf, operands);
+    
+    {
+      // for loop to init
+      auto start = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+      auto end = rewriter.create<arith::ConstantIndexOp>(loc, size);
+      auto step = rewriter.create<arith::ConstantIndexOp>(loc, 1);
+      
+      auto initloop = rewriter.create<scf::ForOp>(loc, start, end, step);
+      PatternRewriter::InsertionGuard insertGuard(rewriter);
+      
+      for (Operation &nested : *initloop.getBody()){
+          rewriter.eraseOp(&nested);
       }
-  }
-
+      
+      rewriter.setInsertionPointToEnd(initloop.getBody());
+      mlir::Value val;
+      if (type.getElementType().isa<isq::ir::QStateType>()){  
+          auto func_name = LLVMQuantumFunc::getOrInsertAllocQubit(rewriter, parentModule);
+          auto call = rewriter.create<CallOp>(loc, func_name, elementType, llvm::None);
+          val = call.getResult(0);
+      }else{
+          val = rewriter.create<LLVM::ConstantOp>(loc, 
+                    IntegerType::get(rewriter.getContext(), 64),
+                    rewriter.getIntegerAttr(rewriter.getI64Type(), 0));
+      }
+      auto arg = initloop.getInductionVar();
+      auto idx = rewriter.create<mlir::arith::IndexCastOp>(loc, IntegerType::get(rewriter.getContext(), 64), arg);
+      
+      auto ele_ptr = rewriter.create<LLVM::GEPOp>(loc, LLVM::LLVMPointerType::get(elementType), 
+                          gep, llvm::ArrayRef<mlir::Value>({idx}));
+      
+      rewriter.create<LLVM::StoreOp>(loc, val, ele_ptr);
+      rewriter.create<scf::YieldOp>(loc);
+               
+      // for loop to release  
+      if (type.getElementType().isa<isq::ir::QStateType>()){
+        auto iter = funcOp->getRegion(0).back().end();
+        iter--;
+        rewriter.setInsertionPoint(&(*iter));
+        auto releaseloop = rewriter.create<scf::ForOp>(loc, start, end, step);
+        
+        for (Operation &nested : *releaseloop.getBody()){
+            rewriter.eraseOp(&nested);
+        }
+        rewriter.setInsertionPointToEnd(releaseloop.getBody());
+        
+        auto arg = releaseloop.getInductionVar();
+        auto idx = rewriter.create<mlir::arith::IndexCastOp>(loc, IntegerType::get(rewriter.getContext(), 64), arg);
+      
+        auto ele_ptr = rewriter.create<LLVM::GEPOp>(loc, LLVM::LLVMPointerType::get(elementType), 
+                            gep, llvm::ArrayRef<mlir::Value>({idx}));
+        auto val = rewriter.create<LLVM::LoadOp>(loc, elementType, ele_ptr);
+        auto func_name = LLVMQuantumFunc::getOrInsertReleaseQubit(rewriter, parentModule);
+        rewriter.create<CallOp>(loc, func_name, llvm::None, val.getResult());
+          
+        rewriter.create<scf::YieldOp>(loc);
+      }
+    }
   return mlir::success();
 
 }

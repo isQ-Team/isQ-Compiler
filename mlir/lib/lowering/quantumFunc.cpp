@@ -344,7 +344,7 @@ FlatSymbolRefAttr LLVMQuantumFunc::getGate(PatternRewriter &rewriter, ModuleOp m
         int size = ori_size + ctrl.size();
         qsyn::UnitaryVector Uvector;
         
-        cout << qir_gate << ", size: " << size << endl;
+        //cout << qir_gate << ", size: " << size << endl;
 
         int shape = (1 << size);
         for (int i = 0; i < shape; i++){
