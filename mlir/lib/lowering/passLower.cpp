@@ -1,4 +1,4 @@
-#include "isq/lowering/decorateLower.h"
+#include "isq/lowering/passLower.h"
 #include "isq/lowering/quantumFunc.h"
 #include "isq/IR.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
@@ -7,7 +7,7 @@ using namespace std;
 using namespace mlir;
 
 
-LogicalResult decorateOpLowering::matchAndRewrite(Operation *op, ArrayRef<Value> operands,
+LogicalResult passOpLowering::matchAndRewrite(Operation *op, ArrayRef<Value> operands,
                     ConversionPatternRewriter &rewriter) const{
     
 
@@ -17,13 +17,7 @@ LogicalResult decorateOpLowering::matchAndRewrite(Operation *op, ArrayRef<Value>
 
     ModuleOp parentModule = op->getParentOfType<ModuleOp>();
 
-    auto decorateOp = cast<isq::ir::DecorateOp>(op);
-    
-    /*
-    auto res = decorateOp.getResult();
-    for (auto user : res.getUsers()) {
-        user->replaceUsesOfWith(res, operands[0]);
-    }*/
+    auto passOp = cast<isq::ir::PassOp>(op);
 
     rewriter.eraseOp(op);
     return mlir::success();

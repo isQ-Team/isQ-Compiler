@@ -23,6 +23,7 @@
 
 #include "isq/IR.h"
 
+#include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
@@ -52,6 +53,7 @@
 #include "isq/lowering/useLower.h"
 #include "isq/lowering/allocLower.h"
 #include "isq/lowering/deallocLower.h"
+#include "isq/lowering/passLower.h"
 
 using namespace std;
 using namespace mlir;
@@ -69,6 +71,35 @@ struct IsQToLLVMLoweringPass
     }
     void runOnOperation() final;
 };
+
+struct MLIRToLLVMLoweringPass
+    : public PassWrapper<MLIRToLLVMLoweringPass, OperationPass<ModuleOp>> {
+    void getDependentDialects(DialectRegistry &registry) const override {
+        registry.insert<LLVM::LLVMDialect, mlir::scf::SCFDialect, mlir::arith::ArithmeticDialect>();
+    }
+    void runOnOperation() final;
+};
+}
+
+void MLIRToLLVMLoweringPass::runOnOperation() {
+    
+    ConversionTarget target(getContext());
+    target.addLegalOp<mlir::ModuleOp>();
+    target.addLegalDialect<LLVM::LLVMDialect>();
+
+    LLVMTypeConverter typeConverter(&getContext());
+    
+    RewritePatternSet patterns(&getContext());
+
+    populateLoopToStdConversionPatterns(patterns);
+    arith::populateArithmeticToLLVMConversionPatterns(typeConverter, patterns);
+    populateStdToLLVMConversionPatterns(typeConverter, patterns);
+    
+    auto module = getOperation();
+
+    if (failed(applyFullConversion(module, target, std::move(patterns))))
+        signalPassFailure();
+
 }
 
 void IsQToLLVMLoweringPass::runOnOperation() {
@@ -81,25 +112,13 @@ void IsQToLLVMLoweringPass::runOnOperation() {
             return !op.getName().hasValue();
         }
     );
-    target.addIllegalOp<isq::ir::PrintOp>();
-    target.addIllegalOp<isq::ir::CallQOpOp>();
-    target.addIllegalOp<isq::ir::DeclareQOpOp>();
-    target.addIllegalOp<isq::ir::DefgateOp>();
-    target.addIllegalOp<isq::ir::ApplyGateOp>();
-    target.addIllegalOp<isq::ir::DecorateOp>();
-    target.addIllegalOp<isq::ir::UseGateOp>();
 
+    //target.addLegalDialect<LLVM::LLVMDialect, mlir::scf::SCFDialect, mlir::arith::ArithmeticDialect>();
     target.addLegalDialect<LLVM::LLVMDialect>();
     
     LLVMTypeConverter typeConverter(&getContext());
     cout << typeConverter.getIndexTypeBitwidth() << endl;
     
-    /*
-    typeConverter.addConversion([&](isq::ir::QStateType type) { 
-        return LLVM::LLVMStructType::getNewIdentified(&getContext(), StringRef("Qubit"), 
-                        llvm::ArrayRef<Type>(IntegerType::get(&getContext(), 1)));
-        
-    });*/
 
     typeConverter.addConversion([&](isq::ir::QStateType type) {
         return LLVM::LLVMPointerType::get(LLVM::LLVMStructType::getOpaque(StringRef("Qubit"), &getContext()));
@@ -113,12 +132,6 @@ void IsQToLLVMLoweringPass::runOnOperation() {
         return llvm::None;
     });*/
 
-    /*
-    cout << typeConverter.isLegal(isq::ir::QStateType::get(&getContext()));
-    cout << LLVM::LLVMPointerType::isValidElementType(isq::ir::QStateType::get(&getContext()));
-
-    auto ptr = LLVM::LLVMPointerType::get(isq::ir::QStateType::get(&getContext()), 2);
-    */
     RewritePatternSet patterns(&getContext());
     
         
@@ -135,17 +148,16 @@ void IsQToLLVMLoweringPass::runOnOperation() {
 
     patterns.add<StoreOpLowering>(&getContext());
     patterns.add<PrintOpLowering>(&getContext());
+    patterns.add<passOpLowering>(&getContext());
     
     populateMemRefToLLVMConversionPatterns(typeConverter, patterns);
     
-    //patterns.add<GlobalMemrefOpLowering>(typeConverter);
     patterns.add<AllocOpLowering>(typeConverter);
     patterns.add<DeallocOpLowering>(typeConverter);
-
+    //patterns.add<GlobalMemrefOpLowering>(typeConverter);
+    
     arith::populateArithmeticToLLVMConversionPatterns(typeConverter, patterns);
     populateStdToLLVMConversionPatterns(typeConverter, patterns);
-    
-    
     
     auto module = getOperation();
 
@@ -157,4 +169,8 @@ void IsQToLLVMLoweringPass::runOnOperation() {
 /// well as `Affine` and `Std`, to the LLVM dialect for codegen.
 std::unique_ptr<mlir::Pass> mlir::isqLower::createLowerToLLVMPass() {
     return std::make_unique<IsQToLLVMLoweringPass>();
+}
+
+std::unique_ptr<mlir::Pass> mlir::isqLower::createMLIRToLLVMPass() {
+    return std::make_unique<MLIRToLLVMLoweringPass>();
 }

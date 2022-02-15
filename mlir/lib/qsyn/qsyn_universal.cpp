@@ -191,13 +191,15 @@ qsyn::DecomposedGates qsyn::simplify(DecomposedGates& gates){
             }
         }else{
             // Identity
+            
             if (abs(get<2>(gates[i])) < esp && abs(get<3>(gates[i])) < esp && abs(get<4>(gates[i])) < esp){
                 flag = false;
-            }else{  // adjacent U
+            }
+            else{  // adjacent U
                 if (sim_gates.size() > 0){
                     auto pre = sim_gates.back();
                     auto pre_pos = get<1>(pre);
-                    if (pos[0] == pre_pos[0] && abs(get<2>(gates[i]) - get<2>(pre)) < esp && abs(get<3>(gates[i]) - get<3>(pre)) < esp && abs(get<3>(gates[i]) - get<3>(pre)) < esp){
+                    if (get<0>(pre) == type && pos[0] == pre_pos[0] && abs(get<2>(gates[i]) - get<2>(pre)) < esp && abs(get<3>(gates[i]) - get<3>(pre)) < esp && abs(get<3>(gates[i]) - get<3>(pre)) < esp){
                         sim_gates.pop_back();
                         flag = false;
                     }
@@ -258,6 +260,7 @@ bool qsyn::verify(int n, UnitaryVector& Uvector, DecomposedGates& gates, double 
         {0.,1.}
     };
     for (int j=0; j<gates.size(); j++) {
+        //printf("%d  %d %lf\t%lf\t%lf\n", get<0>(gates[j]), get<1>(gates[j])[0], get<2>(gates[j]), get<3>(gates[j]), get<4>(gates[j]));
         
         if (get<0>(gates[j]) == CNOT) {
             MatrixXcd Temp = MatrixXd::Zero(4,2*n);
@@ -297,6 +300,7 @@ bool qsyn::verify(int n, UnitaryVector& Uvector, DecomposedGates& gates, double 
         }
     }
     MatrixXcd A = dcomplex(cos(phase), sin(phase)) * V * U.conjugate().transpose();
+    //std::cout << "Gate sequence * U^dagger" << std::endl << A.diagonal() << std::endl;
     A += -1.0*I;
     auto s = A.sum();
     if (abs(s.real()) < esp && abs(s.imag()) < esp)
