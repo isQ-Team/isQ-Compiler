@@ -154,7 +154,7 @@ void IsQToLLVMLoweringPass::runOnOperation() {
     
     patterns.add<AllocOpLowering>(typeConverter);
     patterns.add<DeallocOpLowering>(typeConverter);
-    //patterns.add<GlobalMemrefOpLowering>(typeConverter);
+    patterns.add<GlobalMemrefOpLowering>(typeConverter);
     
     arith::populateArithmeticToLLVMConversionPatterns(typeConverter, patterns);
     populateStdToLLVMConversionPatterns(typeConverter, patterns);
