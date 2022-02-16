@@ -114,10 +114,10 @@ int isq_mlir_codegen_main(int argc, char **argv) {
     // Initialize LLVM targets.
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
-    
+
     /// Optionally run an optimization pipeline over the llvm module.
     auto optPipeline = mlir::makeOptimizingTransformer(
-        /*optLevel=*/3, /*sizeLevel=*/0,
+        /*optLevel=*/0, /*sizeLevel=*/0,
         /*targetMachine=*/nullptr);
     if (auto err = optPipeline(llvmModule.get())) {
         llvm::errs() << "Failed to optimize LLVM IR " << err << "\n";
