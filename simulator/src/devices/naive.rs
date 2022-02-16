@@ -226,7 +226,7 @@ impl QDevice for NaiveSimulator {
 
     fn supported_quantum_ops(&self) -> Vec<crate::qdevice::QuantumOp> {
         use crate::qdevice::QuantumOp::*;
-        vec![Reset, X, Y, Z, H, S, T, CNOT, CZ, Swap, U3, Rx, Ry, Rz]
+        vec![Reset, X, Y, Z, H, S, T, CNOT, CZ, Swap, U3, Rx, Ry, Rz, GPhase]
     }
 
     fn controlled_qop(

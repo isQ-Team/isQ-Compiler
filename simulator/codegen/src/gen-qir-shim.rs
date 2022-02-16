@@ -954,6 +954,14 @@ fn qir_microsoft_extension_foundation() -> Vec<QIRInterface> {
     return interfaces;
 }
 
+// Extensions for isQ.
+fn qir_isq() -> Vec<QIRInterface> {
+    let mut interfaces: Vec<QIRInterface> = Vec::new();
+    interfaces.push(QIRInterface::new("qis", "u3", QVoid, &[Qubit, Double, Double, Double]));
+    interfaces.push(QIRInterface::new("qis", "gphase", QVoid, &[Double]));
+    return interfaces;
+}
+
 fn main() {
     if std::env::args().len() < 3 {
         println!(
@@ -970,6 +978,8 @@ fn main() {
         qir_microsoft_extension_core()
     } else if preset_name == "qsharp-foundation" {
         qir_microsoft_extension_foundation()
+    } else if preset_name == "isq"{
+        qir_isq()
     } else {
         panic!("Unknown preset: {}", preset_name);
     };
