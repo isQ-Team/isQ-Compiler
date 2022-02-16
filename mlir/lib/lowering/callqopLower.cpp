@@ -40,7 +40,7 @@ LogicalResult callQOpLowering::matchAndRewrite(Operation *op, ArrayRef<Value> op
         auto eq = rewriter.create<CallOp>(loc, equal_name, mlir::IntegerType::get(context, 1),
                         llvm::ArrayRef<mlir::Value>({call.getResult(0), one.getResult(0)}));
 
-        
+        auto o = rewriter.create<mlir::LLVM::ZExtOp>(loc, mlir::IntegerType::get(context, 64), eq.getResult(0));      
         /*
         auto bitcast = rewriter.create<LLVM::BitcastOp>(
             loc, LLVM::LLVMPointerType::get(rewriter.getIntegerType(1)),
@@ -53,7 +53,7 @@ LogicalResult callQOpLowering::matchAndRewrite(Operation *op, ArrayRef<Value> op
         //cout << o.getRes().getType().isInteger(1) << endl;
         
         for (auto user : ires.getUsers()){
-            user->replaceUsesOfWith(ires, eq.getResult(0));
+            user->replaceUsesOfWith(ires, o.getRes());
         }
 
     }else if (callee.equals(StringRef("reset"))){
