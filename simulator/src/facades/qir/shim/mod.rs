@@ -56,3 +56,4 @@ pub(crate) fn sq_op(controls: Option<K<QIRArray>>, op: QuantumOp, arg: &[f64], q
 pub mod qir_builtin;
 pub mod qsharp_core;
 pub mod qsharp_foundation;
+pub mod isq;

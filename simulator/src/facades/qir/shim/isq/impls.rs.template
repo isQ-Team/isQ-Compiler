@@ -1,0 +1,7 @@
+use super::types::*;
+pub fn isq_qir_shim_qis_u3(x0: K<QIRQubit>, x1: f64, x2: f64, x3: f64)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_gphase(x0: f64)->() {
+    todo!()
+}
