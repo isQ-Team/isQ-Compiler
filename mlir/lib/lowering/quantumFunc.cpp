@@ -175,12 +175,18 @@ FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertReset(PatternRewriter &rewriter, M
 
 FlatSymbolRefAttr getOrInsertBaseGate(PatternRewriter &rewriter, ModuleOp module, string gate_name, int gate_size){
     
+    set<string> base_gate = {"h", "x", "y", "z", "cnot", "s", "t"};
+    
     auto *context = module.getContext();
     string gate_name_low = gate_name;
     transform(gate_name.begin(), gate_name.end(), gate_name_low.begin(), [](unsigned char c) { return tolower(c); });
 
-    string qir_gate_head = "__quantum__qir__";
+    string qir_gate_head = "__quantum__qis__";
     string qir_gate = qir_gate_head + gate_name_low;
+
+    if (base_gate.count(gate_name_low) == 1 && gate_name_low != "cnot"){
+        qir_gate += "__body";
+    }
 
     if (module.lookupSymbol<LLVM::LLVMFuncOp>(qir_gate))
         return SymbolRefAttr::get(context, qir_gate);
@@ -272,6 +278,10 @@ FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertGate(PatternRewriter &rewriter, Mo
 
     string qir_gate = qir_gate_head + gate_name_low;
 
+    if (base_gate.count(gate_name_low) == 1 && gate_name_low != "cnot"){
+        qir_gate += "__body";
+    }
+
     if (module.lookupSymbol<LLVM::LLVMFuncOp>(qir_gate))
         return SymbolRefAttr::get(context, qir_gate);
     
@@ -343,6 +353,9 @@ FlatSymbolRefAttr LLVMQuantumFunc::getGate(PatternRewriter &rewriter, ModuleOp m
 
     if (ctrl.size() == 0 && (!inv || base_gate.count(gate_name_low) == 1)){
         string qir_gate = qir_gate_head + gate_name_low;
+        if (base_gate.count(gate_name_low) == 1 && gate_name_low != "cnot"){
+            qir_gate += "__body";
+        }
         return SymbolRefAttr::get(context, qir_gate);
     }else{
         auto size_mat = getInfo(gate_name_low);

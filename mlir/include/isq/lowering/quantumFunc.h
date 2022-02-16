@@ -26,9 +26,9 @@ private:
     inline static const std::string qir_alloc_qubit_array = "__quantum__rt__qubit_allocate_array";
     inline static const std::string qir_alloc_qubit = "__quantum__rt__qubit_allocate";
     inline static const std::string qir_release_qubit = "__quantum__rt__qubit_release";
-    inline static const std::string qir_measure = "__quantum__rt__measure";
+    inline static const std::string qir_measure = "__quantum__qis__measure";
     inline static const std::string qir_result_get_one = "__quantum__rt__result_get_one";
     inline static const std::string qir_result_equal = "__quantum__rt__result_equal";
-    inline static const std::string qir_reset = "__quantum__rt__reset";
-    inline static const std::string qir_gate_head = "__quantum__qir__";
+    inline static const std::string qir_reset = "__quantum__qis__reset";
+    inline static const std::string qir_gate_head = "__quantum__qis__";
 };
