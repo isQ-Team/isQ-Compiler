@@ -5,3 +5,9 @@ pub fn isq_qir_shim_qis_u3(x0: K<QIRQubit>, x1: f64, x2: f64, x3: f64)->() {
 pub fn isq_qir_shim_qis_gphase(x0: f64)->() {
     todo!()
 }
+pub fn isq_qir_shim_qis_cnot(x0: K<QIRQubit>, x1: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_measure(x0: K<QIRQubit>)->QIRResult {
+    todo!()
+}

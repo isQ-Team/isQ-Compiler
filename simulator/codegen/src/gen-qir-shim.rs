@@ -959,6 +959,8 @@ fn qir_isq() -> Vec<QIRInterface> {
     let mut interfaces: Vec<QIRInterface> = Vec::new();
     interfaces.push(QIRInterface::new("qis", "u3", QVoid, &[Qubit, Double, Double, Double]));
     interfaces.push(QIRInterface::new("qis", "gphase", QVoid, &[Double]));
+    interfaces.push(QIRInterface::new("qis", "cnot", QVoid, &[Qubit, Qubit]));
+    interfaces.push(QIRInterface::new("qis", "measure", Result, &[Qubit]));
     return interfaces;
 }
 
