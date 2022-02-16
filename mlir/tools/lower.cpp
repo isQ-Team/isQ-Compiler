@@ -49,6 +49,16 @@ static cl::opt<enum Action> emitAction(
                           "output the MLIR LLVM Dialect dump")));
 
 
+static cl::opt<bool> Opt1(
+    "O1", cl::desc("Optimization level 1. Similar to clang -O1. "));
+
+static cl::opt<bool> Opt2(
+    "O2", cl::desc("Optimization level 2. Similar to clang -O2. "));
+
+static cl::opt<bool> Opt3(
+    "O3", cl::desc("Optimization level 3. Similar to clang -O3. "));
+
+
 int isq_mlir_codegen_main(int argc, char **argv) {
     mlir::registerAsmPrinterCLOptions();
     mlir::registerMLIRContextCLOptions();
@@ -114,10 +124,10 @@ int isq_mlir_codegen_main(int argc, char **argv) {
     // Initialize LLVM targets.
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
-    
+
     /// Optionally run an optimization pipeline over the llvm module.
     auto optPipeline = mlir::makeOptimizingTransformer(
-        /*optLevel=*/3, /*sizeLevel=*/0,
+        /*optLevel=*/Opt3?3:(Opt2?2:(Opt1?1:0)), /*sizeLevel=*/0,
         /*targetMachine=*/nullptr);
     if (auto err = optPipeline(llvmModule.get())) {
         llvm::errs() << "Failed to optimize LLVM IR " << err << "\n";

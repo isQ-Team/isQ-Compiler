@@ -111,6 +111,47 @@ FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertMeasure(PatternRewriter &rewriter,
     return SymbolRefAttr::get(context, qir_measure);
 }
 
+FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertResultGetOne(PatternRewriter &rewriter, ModuleOp module){
+
+    auto *context = module.getContext();
+    if (module.lookupSymbol<LLVM::LLVMFuncOp>(qir_result_get_one))
+        return SymbolRefAttr::get(context, qir_result_get_one);
+    
+    auto res_type = LLVM::LLVMPointerType::get(LLVM::LLVMStructType::getOpaque("Result", context));
+    auto result_get_one_ftype =
+        LLVM::LLVMFunctionType::get(res_type, llvm::None, false);
+
+    // Insert the function declaration
+    PatternRewriter::InsertionGuard insertGuard(rewriter);
+    rewriter.setInsertionPointToStart(module.getBody());
+    rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(),
+                                      qir_result_get_one, result_get_one_ftype);
+    
+    return SymbolRefAttr::get(context, qir_result_get_one);
+}
+
+FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertResultEqual(PatternRewriter &rewriter, ModuleOp module){
+
+    auto *context = module.getContext();
+    if (module.lookupSymbol<LLVM::LLVMFuncOp>(qir_result_equal))
+        return SymbolRefAttr::get(context, qir_result_equal);
+    
+    auto res_type = mlir::IntegerType::get(context, 1);
+    llvm::SmallVector<Type> result_type;
+    result_type.push_back(LLVM::LLVMPointerType::get(LLVM::LLVMStructType::getOpaque("Result", context)));
+    result_type.push_back(LLVM::LLVMPointerType::get(LLVM::LLVMStructType::getOpaque("Result", context)));
+    auto result_equal_ftype =
+        LLVM::LLVMFunctionType::get(res_type, result_type, false);
+
+    // Insert the function declaration
+    PatternRewriter::InsertionGuard insertGuard(rewriter);
+    rewriter.setInsertionPointToStart(module.getBody());
+    rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(),
+                                      qir_result_equal, result_equal_ftype);
+    
+    return SymbolRefAttr::get(context, qir_result_equal);
+}
+
 FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertReset(PatternRewriter &rewriter, ModuleOp module){
 
     auto *context = module.getContext();
