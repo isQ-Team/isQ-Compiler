@@ -31,18 +31,29 @@ LogicalResult callQOpLowering::matchAndRewrite(Operation *op, ArrayRef<Value> op
         auto call = rewriter.create<CallOp>(loc, func_name, 
                         LLVM::LLVMPointerType::get(LLVM::LLVMStructType::getOpaque("Result", context)),
                         operands);
+        
+        auto one_name = LLVMQuantumFunc::getOrInsertResultGetOne(rewriter, parentModule);
+        auto one = rewriter.create<CallOp>(loc, one_name, LLVM::LLVMPointerType::get(LLVM::LLVMStructType::getOpaque("Result", context)),
+                        llvm::None);
+        
+        auto equal_name = LLVMQuantumFunc::getOrInsertResultEqual(rewriter, parentModule);
+        auto eq = rewriter.create<CallOp>(loc, equal_name, mlir::IntegerType::get(context, 1),
+                        llvm::ArrayRef<mlir::Value>({call.getResult(0), one.getResult(0)}));
+
+        
+        /*
         auto bitcast = rewriter.create<LLVM::BitcastOp>(
             loc, LLVM::LLVMPointerType::get(rewriter.getIntegerType(1)),
             call.getResult(0));
         
         auto o = rewriter.create<LLVM::LoadOp>(loc, rewriter.getIntegerType(1), bitcast.getRes());
-        
+        */
         auto ires = callqop.getResult(1);
         //cout << ires.getType().isInteger(1) << endl;
         //cout << o.getRes().getType().isInteger(1) << endl;
         
         for (auto user : ires.getUsers()){
-            user->replaceUsesOfWith(ires, o.getRes());
+            user->replaceUsesOfWith(ires, eq.getResult(0));
         }
 
     }else if (callee.equals(StringRef("reset"))){
