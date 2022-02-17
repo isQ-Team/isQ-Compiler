@@ -1,7 +1,7 @@
 let
   moz_overlay = import (builtins.fetchTarball https://github.com/mozilla/nixpkgs-mozilla/archive/master.tar.gz);
-  pkgs = import <nixpkgs> { overlays = [ moz_overlay ]; };
-  lib = (import <nixpkgs/lib>);
+  pkgs = import (builtins.fetchTarball https://github.com/NixOS/nixpkgs/archive/c6019d8efb5.tar.gz) { overlays = [ moz_overlay ]; };
+  lib = pkgs.lib;
   rustChannel = (pkgs.rustChannelOf { rustToolchain = ./rust-toolchain; });
   callPackage = lib.callPackageWith pkgs;
   mlir = pkgs.callPackage ./vendor/mlir.nix {};

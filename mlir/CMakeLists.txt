@@ -23,7 +23,7 @@ string(STRIP "${MLIR_TABLEGEN_EXE_ABSOLUTE}" MLIR_TABLEGEN_EXE_ABSOLUTE)
 set(MLIR_TABLEGEN_EXE ${MLIR_TABLEGEN_EXE_ABSOLUTE})
 #include(UseGold)
 # Find Eigen
-set(ENV{EIGEN3_ROOT} ${PROJECT_SOURCE_DIR}/vendor/eigen)
+# set(ENV{EIGEN3_ROOT} ${PROJECT_SOURCE_DIR}/vendor/eigen)
 find_package(Eigen3 REQUIRED 3.4.0)
 
 include(TableGen)
