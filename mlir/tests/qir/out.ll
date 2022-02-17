@@ -31,7 +31,7 @@ declare void @__quantum__qis__reset(%Qubit*)
 
 declare %Result* @__quantum__qis__measure(%Qubit*)
 
-define void @main() !dbg !3 {
+define void @test_main() !dbg !3 {
   br label %1, !dbg !7
 
 1:                                                ; preds = %4, %0
@@ -94,7 +94,7 @@ define void @main() !dbg !3 {
 !0 = distinct !DICompileUnit(language: DW_LANG_C, file: !1, producer: "mlir", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug)
 !1 = !DIFile(filename: "LLVMDialectModule", directory: "/")
 !2 = !{i32 2, !"Debug Info Version", i32 3}
-!3 = distinct !DISubprogram(name: "main", linkageName: "main", scope: null, file: !4, line: 11, type: !5, scopeLine: 11, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0, retainedNodes: !6)
+!3 = distinct !DISubprogram(name: "test_main", linkageName: "test_main", scope: null, file: !4, line: 11, type: !5, scopeLine: 11, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0, retainedNodes: !6)
 !4 = !DIFile(filename: "../tests/out.mlir", directory: "/Users/huazhelou/Documents/quantum/llvm/isqv2/mlir/build")
 !5 = !DISubroutineType(types: !6)
 !6 = !{}
