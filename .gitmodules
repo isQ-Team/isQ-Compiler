@@ -1,3 +1,0 @@
-[submodule "mlir/vendor/eigen"]
-	path = mlir/vendor/eigen
-	url = https://gitlab.com/libeigen/eigen.git
