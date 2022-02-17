@@ -19,8 +19,9 @@ public:
     static FlatSymbolRefAttr getOrInsertGate(PatternRewriter &rewriter, ModuleOp module, isq::ir::DefgateOp op);
     static FlatSymbolRefAttr getGate(PatternRewriter &rewriter, ModuleOp module, std::string gate_name, llvm::ArrayRef<Attribute> ctrl, bool inv);
     static std::pair<int, qsyn::UnitaryVector> getInfo(std::string gate_name);
+    static std::string getMainFuncName();
 private:
-    
+    inline static const std::string main_func = "test_main";
     inline static std::map<std::string, std::pair<int, qsyn::UnitaryVector>> mat_def;
     inline static const std::string qir_printf = "printf";
     inline static const std::string qir_alloc_qubit_array = "__quantum__rt__qubit_allocate_array";

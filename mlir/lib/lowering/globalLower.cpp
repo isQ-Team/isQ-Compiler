@@ -82,10 +82,11 @@ LogicalResult GlobalMemrefOpLowering::initAndRelease(memref::GlobalOp global, Co
     ModuleOp parentModule = global->getParentOfType<ModuleOp>();
     MLIRContext *context = rewriter.getContext();
 
+    string main_func_name = LLVMQuantumFunc::getMainFuncName();
     Operation* funcOp;
-    if (parentModule.lookupSymbol<LLVM::LLVMFuncOp>("main")){
+    if (parentModule.lookupSymbol<LLVM::LLVMFuncOp>(main_func_name)){
 
-        funcOp = parentModule.lookupSymbol<LLVM::LLVMFuncOp>("main");
+        funcOp = parentModule.lookupSymbol<LLVM::LLVMFuncOp>(main_func_name);
         
     }else{
 
@@ -93,7 +94,7 @@ LogicalResult GlobalMemrefOpLowering::initAndRelease(memref::GlobalOp global, Co
 
         auto fOp = dyn_cast_or_null<mlir::FuncOp>(&op);
         if (fOp){
-            if (fOp.sym_name().equals("main")){    
+            if (fOp.sym_name().equals(main_func_name)){    
                 funcOp = &op;
                 break;
             }
