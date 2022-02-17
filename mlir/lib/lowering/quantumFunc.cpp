@@ -10,6 +10,10 @@ using qsyn::ComplexPair;
 using namespace mlir;
 using namespace std;
 
+string LLVMQuantumFunc::getMainFuncName(){
+    return main_func;
+}
+
 FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertPrintf(PatternRewriter &rewriter, ModuleOp module){
     auto *context = module.getContext();
     if (module.lookupSymbol<LLVM::LLVMFuncOp>(qir_printf))
@@ -173,15 +177,10 @@ FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertReset(PatternRewriter &rewriter, M
     return SymbolRefAttr::get(context, qir_reset);
 }
 
-FlatSymbolRefAttr getOrInsertBaseGate(PatternRewriter &rewriter, ModuleOp module, string gate_name, int gate_size){
+FlatSymbolRefAttr getOrInsertBaseGate(PatternRewriter &rewriter, ModuleOp module, string gate_name_low, string qir_gate, int gate_size){
     
     auto *context = module.getContext();
-    string gate_name_low = gate_name;
-    transform(gate_name.begin(), gate_name.end(), gate_name_low.begin(), [](unsigned char c) { return tolower(c); });
-
-    string qir_gate_head = "__quantum__qir__";
-    string qir_gate = qir_gate_head + gate_name_low;
-
+    
     if (module.lookupSymbol<LLVM::LLVMFuncOp>(qir_gate))
         return SymbolRefAttr::get(context, qir_gate);
     
@@ -223,8 +222,10 @@ bool decomposed(PatternRewriter &rewriter, ModuleOp module, qsyn::UnitaryVector 
     auto loc = module.getLoc();
     auto *context = module.getContext();
 
+    string qir_gate_head = "__quantum__qis__";
+
     if (abs(A.phase) > esp){
-        auto func_name = getOrInsertBaseGate(rewriter, module, "gphase", 0);
+        auto func_name = getOrInsertBaseGate(rewriter, module, qir_gate_head + "gphase",  "gphase", 0);
         mlir::Value val = val = rewriter.create<LLVM::ConstantOp>(loc, FloatType::getF64(context), 
                                 rewriter.getF64FloatAttr(A.phase));
         auto call = rewriter.create<CallOp>(loc, func_name, 
@@ -235,7 +236,7 @@ bool decomposed(PatternRewriter &rewriter, ModuleOp module, qsyn::UnitaryVector 
         auto type = get<0>(sim_gates[j]);
         auto pos = get<1>(sim_gates[j]);
         if (type == qsyn::GateType::CNOT){
-            auto func_name = getOrInsertBaseGate(rewriter, module, "cnot", 2);
+            auto func_name = getOrInsertBaseGate(rewriter, module, qir_gate_head + "cnot", "cnot", 2);
             auto call = rewriter.create<CallOp>(loc, func_name, 
                         llvm::None, llvm::ArrayRef<mlir::Value>({operands[pos[0]], operands[pos[1]]}));
         }else{
@@ -249,7 +250,7 @@ bool decomposed(PatternRewriter &rewriter, ModuleOp module, qsyn::UnitaryVector 
             }
             args.push_back(operands[pos[0]]);
 
-            auto func_name = getOrInsertBaseGate(rewriter, module, "u3", 1);
+            auto func_name = getOrInsertBaseGate(rewriter, module, qir_gate_head + "u3", "u3", 1);
             auto call = rewriter.create<CallOp>(loc, func_name, llvm::None, 
                                 llvm::makeArrayRef(args));
         }
@@ -271,6 +272,10 @@ FlatSymbolRefAttr LLVMQuantumFunc::getOrInsertGate(PatternRewriter &rewriter, Mo
     transform(gate_name.begin(), gate_name.end(), gate_name_low.begin(), [](unsigned char c) { return tolower(c); });
 
     string qir_gate = qir_gate_head + gate_name_low;
+
+    if (base_gate.count(gate_name_low) == 1 && gate_name_low != "cnot"){
+        qir_gate += "__body";
+    }
 
     if (module.lookupSymbol<LLVM::LLVMFuncOp>(qir_gate))
         return SymbolRefAttr::get(context, qir_gate);
@@ -337,12 +342,20 @@ FlatSymbolRefAttr LLVMQuantumFunc::getGate(PatternRewriter &rewriter, ModuleOp m
 
     auto *context = module.getContext();
     set<string> base_gate = {"h", "x", "y", "z", "cnot", "s", "t"};
-
+    set<string> hermite = {"h", "x", "y", "z", "cnot"};
     string gate_name_low = gate_name;
     transform(gate_name.begin(), gate_name.end(), gate_name_low.begin(), [](unsigned char c) { return tolower(c); });
 
     if (ctrl.size() == 0 && (!inv || base_gate.count(gate_name_low) == 1)){
         string qir_gate = qir_gate_head + gate_name_low;
+        if (base_gate.count(gate_name_low) == 1 && gate_name_low != "cnot"){
+            if (inv && hermite.count(gate_name_low) == 0){
+                qir_gate += "__adj";
+            }else{
+                qir_gate += "__body";
+            }
+            return getOrInsertBaseGate(rewriter, module, gate_name_low, qir_gate, 1);
+        }
         return SymbolRefAttr::get(context, qir_gate);
     }else{
         auto size_mat = getInfo(gate_name_low);
@@ -352,7 +365,7 @@ FlatSymbolRefAttr LLVMQuantumFunc::getGate(PatternRewriter &rewriter, ModuleOp m
         qsyn::UnitaryVector ori_mat = size_mat.second;
         
         string inv_head = "";
-        if (inv && base_gate.count(gate_name_low) == 0){
+        if (inv && hermite.count(gate_name_low) == 0){
             // if not base gate, get inverse mat
             inv_head = "inv_";
             qsyn::UnitaryVector ori_mat_inv;

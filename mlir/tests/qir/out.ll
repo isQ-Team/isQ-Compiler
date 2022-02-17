@@ -23,15 +23,15 @@ declare void @__quantum__rt__qubit_release(%Qubit*)
 
 declare %Qubit* @__quantum__rt__qubit_allocate()
 
-declare void @__quantum__qir__cnot(%Qubit*, %Qubit*)
+declare void @__quantum__qis__cnot(%Qubit*, %Qubit*)
 
-declare void @__quantum__qir__h(%Qubit*)
+declare void @__quantum__qis__h__body(%Qubit*)
 
-declare void @__quantum__rt__reset(%Qubit*)
+declare void @__quantum__qis__reset(%Qubit*)
 
-declare %Result* @__quantum__rt__measure(%Qubit*)
+declare %Result* @__quantum__qis__measure(%Qubit*)
 
-define void @main() !dbg !3 {
+define void @test_main() !dbg !3 {
   br label %1, !dbg !7
 
 1:                                                ; preds = %4, %0
@@ -48,21 +48,21 @@ define void @main() !dbg !3 {
 
 8:                                                ; preds = %1
   %9 = load %Qubit*, %Qubit** getelementptr inbounds ([2 x %Qubit*], [2 x %Qubit*]* @q, i64 0, i64 0), align 8, !dbg !10
-  call void @__quantum__qir__h(%Qubit* %9), !dbg !10
+  call void @__quantum__qis__h__body(%Qubit* %9), !dbg !10
   %10 = load %Qubit*, %Qubit** getelementptr inbounds ([2 x %Qubit*], [2 x %Qubit*]* @q, i64 0, i64 0), align 8, !dbg !11
   %11 = load %Qubit*, %Qubit** getelementptr inbounds ([2 x %Qubit*], [2 x %Qubit*]* @q, i64 0, i64 1), align 8, !dbg !11
-  call void @__quantum__qir__cnot(%Qubit* %10, %Qubit* %11), !dbg !11
+  call void @__quantum__qis__cnot(%Qubit* %10, %Qubit* %11), !dbg !11
   %12 = load %Qubit*, %Qubit** getelementptr inbounds ([2 x %Qubit*], [2 x %Qubit*]* @q, i64 0, i64 0), align 8, !dbg !12
-  %13 = call %Result* @__quantum__rt__measure(%Qubit* %12), !dbg !12
+  %13 = call %Result* @__quantum__qis__measure(%Qubit* %12), !dbg !12
   %14 = call %Result* @__quantum__rt__result_get_one(), !dbg !12
   %15 = call i1 @__quantum__rt__result_equal(%Result* %13, %Result* %14), !dbg !12
-  %16 = sext i1 %15 to i64, !dbg !12
+  %16 = zext i1 %15 to i64, !dbg !12
   store i64 %16, i64* getelementptr inbounds ([2 x i64], [2 x i64]* @a, i64 0, i64 0), align 4, !dbg !13
   %17 = load %Qubit*, %Qubit** getelementptr inbounds ([2 x %Qubit*], [2 x %Qubit*]* @q, i64 0, i64 1), align 8, !dbg !14
-  %18 = call %Result* @__quantum__rt__measure(%Qubit* %17), !dbg !14
+  %18 = call %Result* @__quantum__qis__measure(%Qubit* %17), !dbg !14
   %19 = call %Result* @__quantum__rt__result_get_one(), !dbg !14
   %20 = call i1 @__quantum__rt__result_equal(%Result* %18, %Result* %19), !dbg !14
-  %21 = sext i1 %20 to i64, !dbg !14
+  %21 = zext i1 %20 to i64, !dbg !14
   store i64 %21, i64* getelementptr inbounds ([2 x i64], [2 x i64]* @a, i64 0, i64 1), align 4, !dbg !15
   %22 = load i64, i64* getelementptr inbounds ([2 x i64], [2 x i64]* @a, i64 0, i64 0), align 4, !dbg !16
   %23 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @frmt_spec, i64 0, i64 0), i64 %22), !dbg !17
@@ -94,7 +94,7 @@ define void @main() !dbg !3 {
 !0 = distinct !DICompileUnit(language: DW_LANG_C, file: !1, producer: "mlir", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug)
 !1 = !DIFile(filename: "LLVMDialectModule", directory: "/")
 !2 = !{i32 2, !"Debug Info Version", i32 3}
-!3 = distinct !DISubprogram(name: "main", linkageName: "main", scope: null, file: !4, line: 11, type: !5, scopeLine: 11, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0, retainedNodes: !6)
+!3 = distinct !DISubprogram(name: "test_main", linkageName: "test_main", scope: null, file: !4, line: 11, type: !5, scopeLine: 11, spFlags: DISPFlagDefinition | DISPFlagOptimized, unit: !0, retainedNodes: !6)
 !4 = !DIFile(filename: "../tests/out.mlir", directory: "/Users/huazhelou/Documents/quantum/llvm/isqv2/mlir/build")
 !5 = !DISubroutineType(types: !6)
 !6 = !{}
