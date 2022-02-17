@@ -21,7 +21,7 @@ func @foo(){
 }
 func @test()->(){
     %a = "toy.foo"() : ()->!isq.gate<1>
-    %b = "isqq.upgrade" (%a) {control_states = [true, false, true], adjoint = false} : (!isq.gate<1>)->!isq.gate<2>
+    %b = "isq.upgrade" (%a) {control_states = [true, false, true], adjoint = false} : (!isq.gate<1>)->!isq.gate<2>
     return
 }
 

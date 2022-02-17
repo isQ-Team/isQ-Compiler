@@ -10,9 +10,10 @@ pkgs.mkShell rec {
   buildInputs = with pkgs; [
       llvmPackages_13.bintools
       llvmPackages_13.clang
+      llvmPackages_13.lldb
       cmake
       rustChannel.rust
-      llvmPackages_latest.lld
+      llvmPackages_13.lld
       eigen
       mlir
       ninja
