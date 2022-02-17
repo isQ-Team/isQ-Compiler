@@ -1,5 +1,5 @@
 module Main where
-import ISQ.Lang.ParserMain
+import ISQ.Driver.Main
 import Text.Parsec
 main :: IO ()
-main = parserMain
+main = parseStdin

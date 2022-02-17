@@ -19,6 +19,17 @@ def ISQ_Dialect: Dialect{
     }];
     let dependentDialects = ["::mlir::memref::MemRefDialect", "::mlir::AffineDialect", "::mlir::arith::ArithmeticDialect"];
     let hasCanonicalizer = 1;
+    let useDefaultTypePrinterParser = 0;
+    let useDefaultAttributePrinterParser = 0;
+    let extraClassDeclaration = [{
+        ::mlir::Type parseType(::mlir::DialectAsmParser &parser) const override;
+        void printType(::mlir::Type type,
+                        ::mlir::DialectAsmPrinter &printer) const override;
+        ::mlir::Attribute parseAttribute(::mlir::DialectAsmParser &parser,
+                                                ::mlir::Type type) const override;
+        void printAttribute(::mlir::Attribute attr,
+                                        ::mlir::DialectAsmPrinter &os) const override;
+    }];
 }
 
 ////////////////////////////////////
@@ -26,7 +37,7 @@ def ISQ_Dialect: Dialect{
 ////////////////////////////////////
 
 class ISQ_Type<string name> : TypeDef<ISQ_Dialect, name>{}
-class ISQ_Op<string mnemonic, list<OpTrait> traits = []> :
+class ISQ_Op<string mnemonic, list<Trait> traits = []> :
     Op<ISQ_Dialect, mnemonic, traits>{
     
 }

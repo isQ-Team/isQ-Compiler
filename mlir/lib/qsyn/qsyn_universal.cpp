@@ -3,7 +3,7 @@
 #include "isq/qsyn.h"
 
 using namespace Eigen;
-
+using std::get;
 qsyn::qsyn::qsyn(int n, UnitaryVector uvector, double e) {
     using namespace std;
     GateMatrix gate(1<<n, 1<<n);
