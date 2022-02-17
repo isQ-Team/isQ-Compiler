@@ -1,25 +1,25 @@
-Defgate Rs =[0.5+0.8660254j,0,0,0;
+defgate Rs =[0.5+0.8660254j,0,0,0;
 	     0,1,0,0;
 	     0,0,1,0;
          0,0,0,1];
-Defgate Rs2 =[0.5-0.8660254j,0,0,0;
+defgate Rs2 =[0.5-0.8660254j,0,0,0;
 	     0,1,0,0;
 	     0,0,1,0;
          0,0,0,1];
 
-Defgate Rt = [1,0,0,0;
+defgate Rt = [1,0,0,0;
 	     0,1,0,0;
 	     0,0,1,0;
          0,0,0,0.5+0.8660254j];
-Defgate Rt2 = [1,0,0,0;
+defgate Rt2 = [1,0,0,0;
 	     0,1,0,0;
 	     0,0,1,0;
          0,0,0,0.5-0.8660254j];
-Defgate CNOT = [1,0,0,0;
+defgate CNOT = [1,0,0,0;
 	     0,1,0,0;
 	     0,0,0,1;
 		 0,0,1,0];
-Defgate H = [0.7071067811865476,0.7071067811865476;
+defgate H = [0.7071067811865476,0.7071067811865476;
 			 0.7071067811865476,-0.7071067811865476];
 
 /*
@@ -47,26 +47,26 @@ procedure main(){
 	
 	int x;
 	int y;
-	if (1 < 2)
+	if (1 < 2){
 		x = (a+3*2)*(b+c);
-	else{
+	} else{
 		int y;
 		y = c+1;
 	}
-	for (a = 1 to b){
+	for a in 1:b{
 		pass;
 	}
 	int d[5];
 	a = d[c]+2;
     b = test(p, p, x);
-	a = M<q[0]>;
+    a = M<q[0]>;
 	CNOT<p, q[0]>;
 
-	Inv Ctrl(2) H<q[0], q[1], p>;
-	Ctrl(2) H<q[1], q[0], p>;
-	NCtrl Inv H<q[0], p>;
-	Ctrl Inv NCtrl(2) H<q[0], q[1], q[2], p>;
-	NCtrl Ctrl Rt2<q[0], q[2], p, q[1]>;
+	inv ctrl<2> H<q[0], q[1], p>;
+	ctrl<2> H<q[1], q[0], p>;
+	nctrl inv H<q[0], p>;
+	ctrl inv nctrl<2> H<q[0], q[1], q[2], p>;
+	nctrl ctrl Rt2<q[0], q[2], p, q[1]>;
 
 	while (a < 2){
 		a = a + 1;

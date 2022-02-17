@@ -2,7 +2,6 @@
 #include <isq/Operations.h>
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinTypes.h>
-#include <mlir/IR/Identifier.h>
 #include <mlir/IR/SymbolTable.h>
 #include <mlir/Support/LogicalResult.h>
 namespace isq {
@@ -61,7 +60,7 @@ mlir::LogicalResult DeclareQOpOp::parseIR(::mlir::OpAsmParser &parser,
     }
     auto ctx = parser.getBuilder().getContext();
     parsedAttributes.push_back(
-        mlir::NamedAttribute(::mlir::Identifier::get("sym_visibility", ctx),
+        mlir::NamedAttribute(::mlir::StringAttr::get(ctx, "sym_visibility"),
                          ::mlir::StringAttr::get(ctx, "nested")));
     result.attributes.append(parsedAttributes);
     if (parser.parseColon())
