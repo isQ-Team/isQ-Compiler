@@ -5,6 +5,7 @@ let
   rustChannel = (pkgs.rustChannelOf { rustToolchain = ./rust-toolchain; });
   callPackage = lib.callPackageWith pkgs;
   mlir = pkgs.callPackage ./vendor/mlir.nix {};
+  rust = rustChannel.rust.override (old: { extensions = ["rust-src" "rust-analysis"]; });
 in
 pkgs.mkShell rec {
   buildInputs = with pkgs; [
@@ -12,7 +13,7 @@ pkgs.mkShell rec {
       llvmPackages_13.clang
       llvmPackages_13.lldb
       cmake
-      rustChannel.rust
+      rust
       llvmPackages_13.lld
       eigen
       mlir
@@ -21,5 +22,5 @@ pkgs.mkShell rec {
       graphviz
       libxml2
   ];
-  RUST_SRC_PATH = "${rustChannel.rust-src}";
+  RUST_SRC_PATH = "${rustChannel.rust-src}/lib/rustlib/src/rust/src";
 }
