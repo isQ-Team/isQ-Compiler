@@ -28,6 +28,7 @@ dependencies:
 - extra
 - math-functions
 - array
+- pretty-simple
 
 build-tools:
 - happy

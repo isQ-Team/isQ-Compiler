@@ -17,7 +17,7 @@ $idrestchar   = [$alpha $digit \_]
 
 @reservedid = 
 	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|return|
-    ctrl|nctrl|inv|bool|true|false|let|const|unit|M
+    ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue
 @reservedop = "|0>"|"=="|"="|"+"|"-"|"*"|"/"|"<"|">"|"<="|">="|"!="|"&&"|"||"|"!"|
               ","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"
 

@@ -1,0 +1,10 @@
+.vscode/
+build/
+.cache/
+*.swp
+/simulator/target
+/simulator/codegen/target
+/simulator/examples/*/bin
+/simulator/examples/*/obj
+/frontend/.stack-work
+/frontend/.vscode/

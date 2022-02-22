@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE Rank2Types, DeriveFunctor #-}
 module ISQ.Lang.ISQv2Grammar (module ISQ.Lang.ISQv2Grammar, Pos) where
 import ISQ.Lang.ISQv2Tokenizer
 import Data.Complex
@@ -6,9 +6,9 @@ import Numeric.SpecFunctions (log2)
 import qualified Data.Map.Lazy as Map
 import Control.Monad.Fix
 type Ident = String
-type ASTBlock v ann = [AST v ann]
-data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | FixedArray Int | UnknownArray | UserType String | IntRange String deriving Show
-data Type ann = Type { annotationType :: ann, ty :: BuiltinType, subTypes :: [Type ann]} deriving Show
+type ASTBlock ann = [AST ann]
+data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | FixedArray Int | UnknownArray | UserType String | IntRange | Gate Int | FuncTy deriving (Show, Eq)
+data Type ann = Type { annotationType :: ann, ty :: BuiltinType, subTypes :: [Type ann]} deriving (Show,Functor, Eq)
 
 intType ann = Type ann Int []
 qbitType ann = Type ann Qbit []
@@ -16,73 +16,97 @@ boolType ann = Type ann Bool []
 doubleType ann = Type ann Double []
 complexType ann = Type ann Complex []
 unitType ann = Type ann Unit []
+refType ann s = Type ann Ref [s]
 
 
 data CmpType = Equal | NEqual | Greater | Less | GreaterEq | LessEq deriving Show
 data BinaryOperator = Add | Sub | Mul | Div | Cmp CmpType deriving Show
 data UnaryOperator = Neg | Positive deriving Show
-data Expr v ann = 
+data Expr ann = 
        EIdent { annotationExpr :: ann, identName :: String}
-     | EBinary { annotationExpr :: ann, binaryOp :: BinaryOperator, binaryLhs :: Expr v ann, binaryRhs :: Expr v ann}
-     | EUnary { annotationExpr :: ann, unaryOp :: UnaryOperator, unaryOperand :: Expr v ann}
-     | ESubscript { annotationExpr :: ann, usedExpr :: Expr v ann, subscript :: Expr v ann}
-     | ECall { annotationExpr :: ann, callee :: Expr v ann, callArgs :: [Expr v ann]}
+     | EBinary { annotationExpr :: ann, binaryOp :: BinaryOperator, binaryLhs :: Expr ann, binaryRhs :: Expr ann}
+     | EUnary { annotationExpr :: ann, unaryOp :: UnaryOperator, unaryOperand :: Expr ann}
+     | ESubscript { annotationExpr :: ann, usedExpr :: Expr ann, subscript :: Expr ann}
+     | ECall { annotationExpr :: ann, callee :: Expr ann, callArgs :: [Expr ann]}
      | EIntLit { annotationExpr :: ann, intLitVal :: Int}
      | EFloatingLit { annotationExpr :: ann, floatingLitVal :: Double}
      | EImagLit { annotationExpr :: ann, imagLitVal :: Double}
      | EBoolLit { annotationExpr :: ann, boolLitVal :: Bool }
-     | ERange {annotationExpr :: ann, rangeLo :: Maybe (Expr v ann), rangeHi :: Maybe (Expr v ann), rangeStep :: Maybe (Expr v ann)}
-     | ECoreMeasure { annotationExpr :: ann, measureOperand :: Expr v ann }
-     | EList { annotationExpr :: ann, exprListElems :: [Expr v ann] }
+     | ERange {annotationExpr :: ann, rangeLo :: Maybe (Expr ann), rangeHi :: Maybe (Expr ann), rangeStep :: Maybe (Expr ann)}
+     | ECoreMeasure { annotationExpr :: ann, measureOperand :: Expr ann }
+     | EList { annotationExpr :: ann, exprListElems :: [Expr ann] }
      -- Analysis/transformation intermediate nodes.
-     | EDeref {annotationExpr :: ann, derefVal :: Expr v ann}
-     | EImplicitCast { annotationExpr :: ann, castedExpr :: Expr v ann}
-     | EVar { annotationExpr :: ann,  varExpr :: v}
-     deriving Show
-instance Annotated (Expr v) where
+     | EDeref {annotationExpr :: ann, derefVal :: Expr ann}
+     | EImplicitCast { annotationExpr :: ann, castedExpr :: Expr ann}
+     | ETempVar {annotationExpr :: ann, tempVarId :: Int}
+     | ETempArg {annotationExpr :: ann, tempArgId :: Int}
+     | EUnitLit {annotationExpr :: ann}
+     | EResolvedIdent {annotationExpr :: ann, resolvedId :: Int}
+     | EEraselist {annotationExpr :: ann, subList :: Expr ann}
+     deriving (Show,Functor)
+instance Annotated Expr where
   annotation = annotationExpr
 instance Annotated Type where
   annotation = annotationType
 
-newtype HOAS x = HOAS {unHOAS :: x}
-instance Show (HOAS x) where
-  show _ = "<<<hoas>>>"
-data AST v ann = 
-       NIf { annotationAST :: ann, condition :: Expr v ann, thenBlock :: [AST v ann], elseBlock :: [AST v ann]}
-     | NFor { annotationAST :: ann, forVar :: Ident, forRange :: Expr v ann, body :: ASTBlock v ann}
-     | NPass { annotationAST :: ann }
-     | NWhile { annotationAST :: ann, condition :: Expr v ann,  body :: ASTBlock v ann}
-     | NCall { annotationAST :: ann, callExpr :: Expr v ann}
-     | NDefvar { annotationAST :: ann, definitions :: [(Type ann, Ident, Maybe (Expr v ann))]}
-     | NAssign { annotationAST :: ann, assignLhs :: Expr v ann, assignRhs :: Expr v ann}
-     | NGatedef { annotationAST :: ann, gateName :: String, gateRhs :: [[Expr v ann]]}
-     | NReturn { annotationAST :: ann, returnedVal :: Expr v ann}
-     | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr v ann, unitaryOperands :: [Expr v ann], gateModifiers :: [GateModifier]}
-     | NCoreReset { annotationAST :: ann, resetOperands :: Expr v ann}
-     | NCorePrint { annotationAST :: ann, printOperands :: Expr v ann}
-     | NCoreMeasure {annotationAST :: ann, measExpr :: Expr v ann}
-     | NProcedure { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST v ann]}
-    -- Analysis/transformation intermediate nodes.
-     | NAllocRef { annotationAST :: ann, next :: HOAS (v->[AST v ann])}
-     | NFreeRef { annotationAST :: ann, freedVal :: AST v ann}
-     | NResolvedGatedef { annotationAST :: ann, gateName :: String, resolvedGateRhs :: [[Complex Double]], gateSize :: Int}
-     deriving Show
 
-data GateModifier = Inv | Ctrl Bool Int deriving Show
--- Literal AST: no need to tie the knot.
-type LAST = AST () Pos
-type LExpr = Expr () Pos
+
+data AST ann = 
+       NIf { annotationAST :: ann, condition :: Expr ann, thenBlock :: [AST ann], elseBlock :: [AST ann]}
+     | NFor { annotationAST :: ann, forVar :: Ident, forRange :: Expr ann, body :: ASTBlock ann}
+     | NPass { annotationAST :: ann }
+     | NWhile { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann}
+     | NCall { annotationAST :: ann, callExpr :: Expr ann}
+     | NDefvar { annotationAST :: ann, definitions :: [(Type ann, Ident, Maybe (Expr ann))]}
+     | NAssign { annotationAST :: ann, assignLhs :: Expr ann, assignRhs :: Expr ann}
+     | NGatedef { annotationAST :: ann, gateName :: String, gateRhs :: [[Expr ann]]}
+     | NReturn { annotationAST :: ann, returnedVal :: Expr ann}
+     | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier]}
+     | NCoreReset { annotationAST :: ann, resetOperands :: Expr ann}
+     | NCorePrint { annotationAST :: ann, printOperands :: Expr ann}
+     | NCoreMeasure {annotationAST :: ann, measExpr :: Expr ann}
+     | NProcedure { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann]}
+     | NContinue { annotationAST :: ann }
+     | NBreak { annotationAST :: ann }
+    -- Analysis/transformation intermediate nodes.
+     | NResolvedFor { annotationAST :: ann, forVarId :: Int, forRange :: Expr ann, body :: ASTBlock ann}
+     | NResolvedGatedef { annotationAST :: ann, gateName :: String, resolvedGateRhs :: [[Complex Double]], gateSize :: Int}
+     | NWhileWithGuard { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann, breakFlag :: Expr ann}
+     | NProcedureWithRet { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann], retVal :: Expr ann}
+     | NResolvedProcedureWithRet { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, resolvedProcArgs :: [(Type (), Int)], procBody :: [AST ann], retVal :: Expr ann}
+     -- Shortcut for jump to end of current region.
+     -- In funciton body: jumps to end of function.
+     -- In while guard: jumps out of loop (continue)
+     -- In while body: jumps to end of loop (continue and break)
+     -- In if body: jumps to end of branch.
+     -- The jump check should be placed after every operation that has a block.
+     | NJumpToEndOnFlag { annotationAST :: ann , flagId :: Expr ann } 
+     | NJumpToEnd { annotationAST :: ann }
+     | NTempvar { annotationAST :: ann, tempVar :: (Type (), Int, Maybe (Expr ann))}
+     | NResolvedDefvar { annotationAST :: ann, resolvedDefinitions :: [(Type (), Int, Maybe (Expr ann))]}
+     deriving (Show,Functor)
+
+data GateModifier = Inv | Ctrl Bool Int deriving (Show, Eq)
+
+addedQubits :: GateModifier->Int
+addedQubits Inv = 0
+addedQubits (Ctrl _ x) = x
+
+
+type LAST = AST Pos
+type LExpr = Expr Pos
 type LType = Type Pos
-instance Annotated (AST v) where
+instance Annotated AST where
   annotation = annotationAST
 
+newtype InternalCompilerError = InternalCompilerError String deriving Show
 
-
-data CompileError = 
-    TypeMismatch {badExpr :: LExpr, expectedType :: LType, foundType :: LType}
-  | BadMatrixElement {badExpr :: LExpr}
+data GrammarError = 
+    BadMatrixElement {badExpr :: LExpr}
   | BadMatrixShape {badMatrix :: LAST}
-  | IdentifierNotFound
+  | IdentifierNotFound deriving Show
+
+
 foldConstantComplex :: LExpr->Either LExpr (Complex Double)
 foldConstantComplex x@(EBinary _ op lhs rhs) = do
     l<-foldConstantComplex lhs
@@ -108,7 +132,7 @@ foldConstantComplex' = go . foldConstantComplex where
   go (Right z) = Right z
 checkGateSize :: [[a]]-> Maybe Int
 checkGateSize arr = let logsize = log2 $ length arr in if all ((==length arr) . length) arr  && 2 ^ logsize == length arr then Just logsize else Nothing
-passVerifyDefgate :: [LAST] -> Either CompileError [LAST]
+passVerifyDefgate :: [LAST] -> Either GrammarError [LAST]
 passVerifyDefgate = mapM go where
     go g@(NGatedef ann name mat) = do
         new_mat<-mapM (mapM foldConstantComplex') mat
@@ -117,6 +141,3 @@ passVerifyDefgate = mapM go where
           Nothing -> Left $ BadMatrixShape g
 
     go x = Right x
-
-type SymbolTable v = Map.Map String v
-

@@ -25,11 +25,13 @@ source-repository head
 library
   exposed-modules:
       ISQ.Driver.Main
+      ISQ.Lang.CompileError
       ISQ.Lang.ISQv2Grammar
       ISQ.Lang.ISQv2Parser
       ISQ.Lang.ISQv2Tokenizer
-      ISQ.Lang.MLIRTextGen
+      ISQ.Lang.MLIRGen
       ISQ.Lang.MLIRTree
+      ISQ.Lang.RAIICheck
       ISQ.Lang.TypeCheck
   other-modules:
       Paths_isq_frontend_experimental
@@ -47,6 +49,7 @@ library
     , math-functions
     , mtl
     , parsec
+    , pretty-simple
   default-language: Haskell2010
 
 executable isq-frontend-experimental-exe
@@ -69,4 +72,5 @@ executable isq-frontend-experimental-exe
     , math-functions
     , mtl
     , parsec
+    , pretty-simple
   default-language: Haskell2010

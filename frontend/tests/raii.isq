@@ -1,25 +1,10 @@
-int raii_int(int a, int b){
-    return 10;
-    int p;
-    int q;
-    return p;
-    int r;
-    return r;
-}
-
-procedure raii_void(int a, int b){
-    return;
-    int p;
-    int q;
-    return;
-    int r;
-}
-
-procedure raii_void_2(int a, int b){
-    return;
-    int p;
-    int q;
-    return;
-    int r;
-    return;
+int for_test(){
+    for i in 0:10{
+        for j in 0:10:2{
+            if(i+j==10){
+                return 1;
+            }
+        }
+    }
+    
 }
