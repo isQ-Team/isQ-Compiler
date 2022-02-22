@@ -33,6 +33,8 @@ import Data.Maybe (catMaybes)
     let { TokenReservedId $$ "let" }
     const { TokenReservedId $$ "const" }
     unit { TokenReservedId $$ "unit" }
+    continue { TokenReservedId $$ "continue" }
+    break { TokenReservedId $$ "break" }
     '|0>' { TokenReservedOp $$ "|0>" }
     '=' { TokenReservedOp $$ "=" }
     '==' { TokenReservedOp $$ "==" }
@@ -167,7 +169,7 @@ AssignStatement : Expr1Left '=' Expr { NAssign $2 $1 $3 }
 
 ReturnStatement :: {LAST}
 ReturnStatement : return Expr {NReturn $1 $2}
-
+                | return {NReturn $1 (EUnitLit $1)}
 
 ISQCore_GatedefMatrix :: {[[LExpr]]}
 ISQCore_GatedefMatrix : '[' ISQCore_GatedefMatrixContent ']' { $2 }
@@ -191,6 +193,7 @@ GateModifierListNonEmpty : GateModifierListNonEmpty GateModifier { $1 ++ [$2] }
 ISQCore_UnitaryStatement :: {LAST}
 ISQCore_UnitaryStatement : ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $1) $1 $3 []}
                          | GateModifierListNonEmpty ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $2) $2 $4 $1}
+                         | GateModifierListNonEmpty ExprCallable '(' Expr1LeftListNonEmpty ')' { NCoreUnitary (annotation $2) $2 $4 $1}
 ISQCore_MeasureExpr :: {LExpr}
 ISQCore_MeasureExpr : M '<' Expr1Left '>' { ECoreMeasure $1 $3 }
                 | M '(' Expr1Left ')' { ECoreMeasure $1 $3 }
@@ -200,6 +203,11 @@ ISQCore_ResetStatement :: {LAST}
 ISQCore_ResetStatement : Expr1Left '=' '|0>' { NCoreReset (annotation $1) $1 }
 ISQCore_PrintStatement :: {LAST}
 ISQCore_PrintStatement : print Expr { NCorePrint $1 $2 }
+
+ContinueStatement :: {LAST}
+ContinueStatement : continue { NContinue $1 }
+BreakStatement :: {LAST}
+BreakStatement : break { NBreak $1 }
 
 StatementNonEmpty :: {LAST}
 StatementNonEmpty : PassStatement ';' { $1 }
