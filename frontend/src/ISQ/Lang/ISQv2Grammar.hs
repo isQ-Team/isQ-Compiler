@@ -42,6 +42,7 @@ data Expr ann =
      | ETempArg {annotationExpr :: ann, tempArgId :: Int}
      | EUnitLit {annotationExpr :: ann}
      | EResolvedIdent {annotationExpr :: ann, resolvedId :: Int}
+     | EGlobalName {annotationExpr :: ann, globalName :: String}
      | EEraselist {annotationExpr :: ann, subList :: Expr ann}
      deriving (Show,Functor)
 instance Annotated Expr where
@@ -73,7 +74,7 @@ data AST ann =
      | NResolvedGatedef { annotationAST :: ann, gateName :: String, resolvedGateRhs :: [[Complex Double]], gateSize :: Int}
      | NWhileWithGuard { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann, breakFlag :: Expr ann}
      | NProcedureWithRet { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann], retVal :: Expr ann}
-     | NResolvedProcedureWithRet { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, resolvedProcArgs :: [(Type (), Int)], procBody :: [AST ann], retVal :: Expr ann}
+     | NResolvedProcedureWithRet { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, resolvedProcArgs :: [(Type (), Int)], procBody :: [AST ann], retVal :: Expr ann, retVarSSA :: Maybe (Type (), Int)}
      -- Shortcut for jump to end of current region.
      -- In funciton body: jumps to end of function.
      -- In while guard: jumps out of loop (continue)
@@ -84,6 +85,7 @@ data AST ann =
      | NJumpToEnd { annotationAST :: ann }
      | NTempvar { annotationAST :: ann, tempVar :: (Type (), Int, Maybe (Expr ann))}
      | NResolvedDefvar { annotationAST :: ann, resolvedDefinitions :: [(Type (), Int, Maybe (Expr ann))]}
+     | NGlobalDefvar {annotationAST :: ann, globalDefinitions :: [(Type (), Int, String, Maybe (Expr ann))]}
      deriving (Show,Functor)
 
 data GateModifier = Inv | Ctrl Bool Int deriving (Show, Eq)

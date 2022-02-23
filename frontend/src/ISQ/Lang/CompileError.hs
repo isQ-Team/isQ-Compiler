@@ -8,4 +8,14 @@ data CompileError =
     GrammarError GrammarError
   | TypeCheckError TypeCheckError 
   | RAIIError RAIIError
-  | InternalCompilerError InternalCompilerError 
+  | InternalCompilerError InternalCompilerError deriving Show
+class CompileErr e where
+  fromError :: e->CompileError
+instance CompileErr GrammarError where
+  fromError = GrammarError 
+instance CompileErr TypeCheckError where
+  fromError = TypeCheckError 
+instance CompileErr RAIIError where
+  fromError = RAIIError 
+instance CompileErr InternalCompilerError where
+  fromError = ISQ.Lang.CompileError.InternalCompilerError 
