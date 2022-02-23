@@ -57,7 +57,8 @@ type TypeCheck = ExceptT TypeCheckError (State TypeCheckEnv)
 data DefinedSymbol = DefinedSymbol{
     definedPos :: Pos,
     definedType :: EType,
-    definedSSA :: Int
+    definedSSA :: Int,
+    isGlobal :: Bool
 } deriving (Show)
 
 addSym :: Symbol->DefinedSymbol->TypeCheck ()
@@ -74,7 +75,13 @@ getSym pos k = do
 defineSym :: Symbol->Pos->EType->TypeCheck Int
 defineSym a b c= do
     ssa<-nextId
-    addSym a (DefinedSymbol b c ssa)
+    addSym a (DefinedSymbol b c ssa False)
+    return ssa
+
+defineGlobalSym :: Symbol->Pos->EType->TypeCheck Int
+defineGlobalSym a b c= do
+    ssa<-nextId
+    addSym a (DefinedSymbol b c ssa True)
     return ssa
 
 
@@ -143,7 +150,11 @@ typeCheckExpr' :: (Expr Pos->TypeCheck (Expr TypeCheckData))->Expr Pos->TypeChec
 typeCheckExpr' f (EIdent pos ident) = do
     sym<-getSym pos (SymVar ident)
     ssa<-nextId
-    return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) (definedSSA sym)
+    case isGlobal sym of
+        True ->return $ EGlobalName (TypeCheckData pos (definedType sym) ssa) ident
+        False -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) (definedSSA sym)
+    
+
 
 typeCheckExpr' f (EBinary pos op lhs rhs) = do
     lhs'<-f lhs
@@ -220,6 +231,7 @@ typeCheckExpr' f (ETempArg pos ident) = do
     return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) (definedSSA sym)
 typeCheckExpr' f (EUnitLit pos) = EUnitLit . TypeCheckData pos (unitType ()) <$> nextId
 typeCheckExpr' f x@EResolvedIdent{} = error "Unreachable."
+typeCheckExpr' f x@EGlobalName{} = error "Unreachable."
 typeCheckExpr' f x@EEraselist{} = error "Unreachable."
 typeCheckExpr :: Expr Pos -> TypeCheck (Expr TypeCheckData)
 typeCheckExpr = fix typeCheckExpr'
@@ -249,8 +261,8 @@ typeCheckAST' f (NIf pos cond bthen belse) = do
     return $ NIf (okStmt pos) cond'' bthen' belse'
 typeCheckAST' f (NFor pos v r b) = do
     scope
-    v'<-defineSym (SymVar v) pos (intType ())
     r'<-typeCheckExpr r
+    v'<-defineSym (SymVar v) pos (intType ())
     r''<-matchType [Exact (Type () IntRange [])] r'
     b'<-mapM f b
     unscope
@@ -334,7 +346,7 @@ typeCheckAST' f (NWhileWithGuard pos cond body break) = do
     body'<-mapM f body
     return $ NWhileWithGuard (okStmt pos) cond'' body' break''
 typeCheckAST' f (NProcedureWithRet _ _ _ _ _ _) = error "not top"
-typeCheckAST' f (NResolvedProcedureWithRet _ _ _ _ _ _) = error "unreachable"
+typeCheckAST' f (NResolvedProcedureWithRet _ _ _ _ _ _ _) = error "unreachable"
 typeCheckAST' f (NJumpToEndOnFlag pos flag) = do
     flag'<-typeCheckExpr flag
     flag''<-matchType [Exact (boolType ())] flag'
@@ -342,17 +354,18 @@ typeCheckAST' f (NJumpToEndOnFlag pos flag) = do
 typeCheckAST' f (NJumpToEnd pos) = return $ NJumpToEnd (okStmt pos)
 typeCheckAST' f (NTempvar pos def) = do
     let def_one (ty, id, initializer) = do
-        i'<-case initializer of
-            Just r->do
-                    r'<-typeCheckExpr r
-                    r''<-matchType [Exact (void ty)] r'
-                    return $ Just r''
-            Nothing -> return Nothing
-        s<-defineSym (SymTempVar id) pos $ definedRefType $ void ty
-        return (void ty, s, i')
+            i'<-case initializer of
+                Just r->do
+                        r'<-typeCheckExpr r
+                        r''<-matchType [Exact (void ty)] r'
+                        return $ Just r''
+                Nothing -> return Nothing
+            s<-defineSym (SymTempVar id) pos $ definedRefType $ void ty
+            return (void ty, s, i')
     def'<-def_one def
     return $ NResolvedDefvar (okStmt pos) [def']
 typeCheckAST' f NResolvedDefvar{} = error "unreachable"
+typeCheckAST' f NGlobalDefvar {} = error "unreachable"
 typeCheckAST :: AST Pos -> TypeCheck (AST TypeCheckData)
 typeCheckAST = fix typeCheckAST'
 
@@ -364,9 +377,11 @@ typeCheckToplevel ast = do
                 NDefvar pos def -> do
                     -- Create separate scope to prevent cross-reference.
                     lift scope
-                    node'<-lift $ typeCheckAST node
+                    p<-lift $ typeCheckAST node
+                    let (NResolvedDefvar a defs') = p
                     s<-lift unscope
-                    modify' (s:)
+                    modify' (fmap (\x->x{isGlobal=True}) s:)
+                    let node' = NGlobalDefvar a (zipWith (\(a1, a2, a3) (_, a4, _) ->(a1, a2, a4, a3)) defs' def)
                     return $ Right node'
                 x -> return $ Left x
             ) ast
@@ -377,7 +392,7 @@ typeCheckToplevel ast = do
     resolved_headers<-mapM (\node->case node of
             Right x->return (Right x)
             Left (NResolvedGatedef pos name matrix size) -> do
-                defineSym (SymVar name) pos (Type () (Gate size) [])
+                defineGlobalSym (SymVar name) pos (Type () (Gate size) [])
                 return $ Right (NResolvedGatedef (okStmt pos) name matrix size)
             Left (NProcedureWithRet pos ty name args body ret) -> do
                 -- check arg types and return types
@@ -392,7 +407,8 @@ typeCheckToplevel ast = do
                     Type _ (FixedArray _) [a] -> return $ void ty
                     _ -> throwError $ BadProcedureArgType pos (void ty, i)
                     ) args
-                defineSym (SymVar name) pos (Type () FuncTy (ty':args'))
+                defineGlobalSym (SymVar name) pos (Type () FuncTy (ty':args'))
+                -- NTempvar a (void b, procRet, Nothing)
                 return $ Left (pos, ty', name, zip args' (fmap snd args), body, ret)
             _ -> error "unreachable"
         ) resolved_defvar
@@ -400,8 +416,14 @@ typeCheckToplevel ast = do
     -- Note that we need to store byval-passed values (e.g. int) into new variables.
     mapM (\node->case node of
         Right x->return x
-        Left (pos, ty, name, args, body, ret)-> do
+        Left (pos, ty, name, args, body, ret@(ETempArg pret ret_id))-> do
             scope
+            -- resolve return value
+            ret_var<-case ty of
+                Type _ Unit [] -> return Nothing
+                _ -> do
+                    s<-defineSym (SymTempVar ret_id) pret (Type () Ref [ty])
+                    return $ Just (Type () Ref [ty], s)
             -- resolve args
             (args', new_tempvars)<-flip runStateT [] $ mapM (\(ty, i)->case ty of
                 Type _ Int [] -> do
@@ -420,7 +442,8 @@ typeCheckToplevel ast = do
             ret'<-typeCheckExpr ret
             ret''<-matchType [Exact ty] ret'
             unscope
-            return $ NResolvedProcedureWithRet (okStmt pos) ty name args' body' ret''
+            return $ NResolvedProcedureWithRet (okStmt pos) ty name args' body' ret'' ret_var
+        Left _ -> error "unreachable"
         ) resolved_headers
 
 

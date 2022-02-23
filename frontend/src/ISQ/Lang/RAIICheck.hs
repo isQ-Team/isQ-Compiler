@@ -121,11 +121,10 @@ eliminateNonAffineForStmts' f (NIf a b c d) = do {c'<-mapM f c; d'<-mapM f d; re
 eliminateNonAffineForStmts' f (NWhile a b c) = do {c'<-mapM f c; return [NWhile (snd a) (eraseSafe b) (concat c')]}
 eliminateNonAffineForStmts' f (NFor (Safe, ann) v expr body) = do {b'<-mapM f body; return [NFor ann v (eraseSafe expr) (concat b')]}
 eliminateNonAffineForStmts' f (NFor (s1, ann) v (ERange (s2, ann2) (Just a) (Just b) Nothing) body) = eliminateNonAffineForStmts' f (NFor (s1, ann) v (ERange (s2, ann2) (Just a) (Just b) (Just (EIntLit (Safe, ann) 1))) body)
-eliminateNonAffineForStmts' f (NFor (_, ann) v (ERange (_, ann2) (Just a) (Just b) (Just c)) body) = do {
-    id<-nextId;
+eliminateNonAffineForStmts' f (NFor (_, ann) vn (ERange (_, ann2) (Just a) (Just b) (Just c)) body) = do {
     idlo<-nextId; idhi<-nextId;idstep<-nextId;
     b'<-mapM f body;
-    let v = ETempVar ann id
+    let v = EIdent ann vn
         lo = ETempVar ann2 idlo
         hi = ETempVar ann2 idhi
         step = ETempVar ann2 idstep
@@ -133,9 +132,9 @@ eliminateNonAffineForStmts' f (NFor (_, ann) v (ERange (_, ann2) (Just a) (Just 
         NTempvar ann (intType (), idlo, Just $ eraseSafe a),
         NTempvar ann (intType (), idhi, Just $ eraseSafe b),
         NTempvar ann (intType (), idstep, Just $ eraseSafe c),
-        NTempvar ann (intType (), id, Just lo),
+        NDefvar ann [(intType ann, vn, Just lo)],
         NWhile ann (EBinary ann2 (Cmp Less) v hi)
-        (concat b' ++ [NAssign ann (ETempVar ann id) (EBinary ann2 Add v step)])]
+        (concat b' ++ [NAssign ann v (EBinary ann2 Add v step)])]
     }
 eliminateNonAffineForStmts' f NFor{} = error "For-statement with non-standard range indices not supported."
 eliminateNonAffineForStmts' f (NProcedure a b c d e) = do
@@ -187,7 +186,7 @@ raiiTransform' f (NProcedure a b c d e) = do
     e'<-mapM f e
     popRegion
     -- no finalizer
-    return [NProcedureWithRet a b c d (NTempvar a (void b, procRet, Nothing) : concat e') (ETempVar a procRet)]
+    return [NProcedureWithRet a b c d (concat e') (ETempVar a procRet)]
 
 -- The transformations below should also work with labeled loops.
 raiiTransform' f (NBreak ann) = do

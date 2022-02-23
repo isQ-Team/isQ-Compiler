@@ -1,17 +1,19 @@
 module ISQ.Lang.MLIRTree where
-import ISQ.Lang.ISQv2Grammar hiding (Bool, Gate)
+import ISQ.Lang.ISQv2Grammar hiding (Bool, Gate, Double)
 import Control.Monad.Fix
 import Data.List (intercalate)
 import Text.Printf (printf)
 import Data.Complex (Complex ((:+)))
 
 data MLIRType =
-    Bool | Index | Qubit | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
-  | Gate Int deriving Show
+    Bool | I2 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
+  | Gate Int | Double deriving Show
 mlirType :: MLIRType->String
 mlirType Bool = "i1"
+mlirType I2 = "i2"
 mlirType Index = "index"
-mlirType Qubit = "!isq.qubit"
+mlirType Double = "f64"
+mlirType QState = "!isq.qstate"
 mlirType (Memref Nothing ty) = "memref<?x" ++ mlirType ty ++ ">"
 mlirType (Memref x ty) = "memref<"++show x++"x" ++ mlirType ty ++ ">"
 mlirType (BorrowedRef ty) = "memref<1x"++ mlirType ty ++", affine_map<(d0)[s0]->(d0+s0)>"
@@ -33,7 +35,7 @@ data MLIRBlock = MLIRBlock {
 } deriving Show
 
 data MLIRPos = MLIRLoc {
-  fileName :: String, line :: String, column :: String
+  fileName :: String, line :: Int, column :: Int
 } | MLIRPosUnknown deriving Show
 
 mlirPos :: MLIRPos->String
@@ -47,21 +49,35 @@ mlirAddi = mlirBinaryOp ("addi", Index, Index, Index)
 mlirSubi = mlirBinaryOp ("subi", Index, Index, Index)
 mlirMuli = mlirBinaryOp ("muli", Index, Index, Index)
 mlirDivsi = mlirBinaryOp ("divsi", Index, Index, Index)
-mlirFloorDiv = mlirBinaryOp ("floordivsi", Index, Index, Index)
-mlirSltI = mlirBinaryOp ("slt", Index, Index, Bool)
-mlirSgtI = mlirBinaryOp ("sgt", Index, Index, Bool)
-mlirSleI = mlirBinaryOp ("sle", Index, Index, Bool)
-mlirSgeI = mlirBinaryOp ("sge", Index, Index, Bool)
-mlirEqI = mlirBinaryOp ("eq", Index, Index, Bool)
-mlirNeI = mlirBinaryOp ("ne", Index, Index, Bool)
-mlirEqB = mlirBinaryOp ("eq", Bool, Bool, Bool)
-mlirNeB = mlirBinaryOp ("ne", Bool, Bool, Bool)
+mlirFloorDivsi = mlirBinaryOp ("floordivsi", Index, Index, Index) -- Use this by default
+mlirAddf = mlirBinaryOp ("addf", Double, Double, Double)
+mlirSubf = mlirBinaryOp ("subf", Double, Double, Double)
+mlirMulf = mlirBinaryOp ("mulf", Double, Double, Double)
+mlirDivf = mlirBinaryOp ("divf", Double, Double, Double)
+mlirSltI = mlirBinaryOp ("cmpi \"slt\"", Index, Index, Bool)
+mlirSgtI = mlirBinaryOp ("cmpi \"sgt\"", Index, Index, Bool)
+mlirSleI = mlirBinaryOp ("cmpi \"sle\"", Index, Index, Bool)
+mlirSgeI = mlirBinaryOp ("cmpi \"sge\"", Index, Index, Bool)
+mlirEqI = mlirBinaryOp ("cmpi \"eq\"", Index, Index, Bool)
+mlirNeI = mlirBinaryOp ("cmpi \"ne\"", Index, Index, Bool)
+mlirSltF = mlirBinaryOp ("cmpf \"slt\"", Index, Index, Bool)
+mlirSgtF = mlirBinaryOp ("cmpf \"sgt\"", Index, Index, Bool)
+mlirSleF = mlirBinaryOp ("cmpf \"sle\"", Index, Index, Bool)
+mlirSgeF = mlirBinaryOp ("cmpf \"sge\"", Index, Index, Bool)
+mlirEqF = mlirBinaryOp ("cmpf \"eq\"", Index, Index, Bool)
+mlirNeF = mlirBinaryOp ("cmpf \"ne\"", Index, Index, Bool)
+mlirEqB = mlirBinaryOp ("cmpi \"eq\"", Bool, Bool, Bool)
+mlirNeB = mlirBinaryOp ("cmpi \"ne\"", Bool, Bool, Bool)
 
 data MLIRUnaryOp = MLIRUnaryOp {unaryOpType :: String, argType :: MLIRType, unaryResultType :: MLIRType} deriving Show
 
 mlirUnaryOp (a, b, c) = MLIRUnaryOp a b c
 
-mlirNeg = mlirUnaryOp ("negi", Index, Index)
+mlirNegI = mlirUnaryOp ("negi", Index, Index)
+mlirNegF = mlirUnaryOp ("negf", Double, Double)
+
+mlirI1toI2 = mlirUnaryOp ("extui", Bool, I2)
+mlirI2toIndex = mlirUnaryOp ("index_cast", I2, Index)
 
 type TypedSSA = (MLIRType, SSA)
 
@@ -73,16 +89,18 @@ data MLIROp =
     | MQApplyGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA}
     | MQMeasure { location :: MLIRPos, measResult :: SSA, measQOut :: SSA, measQIn :: SSA}
     | MQReset { location :: MLIRPos, resetQOut :: SSA, resetQIn :: SSA}
-    | MQPrint { location :: MLIRPos, printIn :: SSA}
+    | MQPrint { location :: MLIRPos, printIn :: (MLIRType, SSA)}
     -- | MQCallQop { location :: MLIRPos, values :: [(MLIRType, SSA)], funcName :: FuncName, operands :: [(MLIRType, SSA)]}
     | MBinary {location :: MLIRPos, value :: SSA, lhs :: SSA, rhs :: SSA, bopType :: MLIRBinaryOp}
     | MUnary {location :: MLIRPos, value :: SSA, unaryOperand :: SSA, uopType :: MLIRUnaryOp}
-    | MLoad {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), arrayOffset :: SSA}
-    | MStore {location :: MLIRPos, array :: (MLIRType, SSA), arrayOffset :: SSA, storedVal :: SSA}
+    | MCast {location::MLIRPos, value :: SSA, unaryOperand :: SSA, uopType :: MLIRUnaryOp}
+    | MLoad {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
+    | MStore {location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA}
     | MTakeRef {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), arrayOffset :: SSA}
     | MEraseMemref {location :: MLIRPos, value :: SSA, rankedMemref :: (MLIRType, SSA)}
     | MLitInt {location :: MLIRPos, value :: SSA, litInt :: Int}
     | MLitBool {location :: MLIRPos, value :: SSA, litBool :: Bool}
+    | MLitDouble {location :: MLIRPos, value :: SSA, litDouble :: Double}
     | MAllocMemref {location :: MLIRPos, value :: SSA, allocType :: MLIRType}
     | MFreeMemref {location :: MLIRPos, value :: SSA, freeType :: MLIRType}
     | MJmp {location :: MLIRPos, jmpBlock :: BlockName}
@@ -90,14 +108,19 @@ data MLIROp =
     | MModule {location :: MLIRPos, topOps :: [MLIROp]}
     | MCall {location :: MLIRPos, callRet :: Maybe (MLIRType, SSA), funcName :: FuncName, operands :: [(MLIRType, SSA)]}
     -- Affine control flows.
-    | MAffineIf {location :: MLIRPos, ifCondition :: (AffineSet, SSA, SSA), thenRegion ::[MLIROp], elseRegion :: [MLIROp]}
-    | MSCFWhile {location :: MLIRPos, condBlock :: [MLIROp], condExpr :: SSA, whileBody :: [MLIROp]}
+    | MAffineIf {location :: MLIRPos, affineIfCondition :: (AffineSet, SSA, SSA), thenRegion ::[MLIROp], elseRegion :: [MLIROp]}
+    | MSCFIf {location :: MLIRPos, ifCondition :: SSA, thenRegion :: [MLIROp], elseRegion :: [MLIROp]}
+    | MSCFWhile {location :: MLIRPos, breakBlock :: [MLIROp], condBlock :: [MLIROp], condExpr :: SSA, breakCond :: SSA, whileBody :: [MLIROp]}
     | MAffineFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
     | MSCFExecRegion {location :: MLIRPos, blocks :: [MLIRBlock]}
     | MSCFYield {location :: MLIRPos}
+    | MReturn {location :: MLIRPos, returnVal :: TypedSSA}
+    | MReturnUnit {location :: MLIRPos}
+    | MGlobalMemref {location :: MLIRPos, globalMemrefType :: MLIRType}
+    | MUseGlobalMemref {location :: MLIRPos, usedVal :: SSA, usedName :: String, globalMemrefType :: MLIRType}
     deriving Show
 
-data MLIREmitEnv = MLIREmitEnv {
+newtype MLIREmitEnv = MLIREmitEnv {
   indent :: Int
 } deriving Show
 
@@ -156,17 +179,21 @@ emitOpStep f env (MQDecorate loc value trait size) = let (d, sz) = decorToDict t
 emitOpStep f env (MQApplyGate loc values args gate) = indented env $ printf "%s = isq.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
 emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @isq_builtin::@measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qop @isq_builtin::@reset(%s): [1]()->() %s" (unSsa out)  (unSsa arg) (mlirPos loc)
-emitOpStep f env (MQPrint loc arg) = indented env $ printf "isq.call_qop @isq_builtin::@print_int(%s): [1]()->() %s" (unSsa arg) (mlirPos loc)
+emitOpStep f env (MQPrint loc (Index, arg)) = indented env $ printf "isq.call_qop @isq_builtin::@print_int(%s): [1]()->() %s" (unSsa arg) (mlirPos loc)
+emitOpStep f env (MQPrint loc (Double, arg)) = indented env $ printf "isq.call_qop @isq_builtin::@print_double(%s): [1]()->() %s" (unSsa arg) (mlirPos loc)
+emitOpStep f env (MQPrint loc (_, arg)) = error "unsupported"
 emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = arith.%s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
 emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = arith.%s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
-emitOpStep f env (MLoad loc value (arr_type, arr_val) offset) = indented env $ printf "%s = affine.load %s[%s] : %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_type) (mlirPos loc)
-emitOpStep f env (MStore loc (arr_type, arr_val) offset value) = indented env $ printf "affine.store %s, %s[%s] : %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_type) (mlirPos loc)
+emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = arith.%s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
+emitOpStep f env (MLoad loc value (arr_type, arr_val)) = indented env $ printf "%s = affine.load %s[0] : %s %s" (unSsa value) (unSsa arr_val) (mlirType arr_type) (mlirPos loc)
+emitOpStep f env (MStore loc (arr_type, arr_val) value) = indented env $ printf "affine.store %s, %s[0] : %s %s" (unSsa value) (unSsa arr_val) (mlirType arr_type) (mlirPos loc)
 emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset) = indented env $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirType $ BorrowedRef elem_ty) (mlirPos loc)
 emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset) = error "wtf?"
 emitOpStep f env (MEraseMemref loc value (arr_ty@(Memref (Just x) elem_ty), arr_val)) = indented env $ printf "%s = memref.cast %s : %s to %s %s" (unSsa value) (unSsa arr_val) (mlirType arr_ty) (mlirType $ Memref Nothing elem_ty) (mlirPos loc)
 emitOpStep f env (MEraseMemref loc value (arr_ty, arr_val)) = error "wtf?"
 emitOpStep f env (MLitInt loc value val) = indented env $ printf "%s = arith.constant %d : index %s" (unSsa value) val (mlirPos loc)
 emitOpStep f env (MLitBool loc value val) = indented env $ printf "%s = arith.constant %d : i1 %s" (unSsa value) (if val then 1::Int else 0) (mlirPos loc)
+emitOpStep f env (MLitDouble loc value val) = indented env $ printf "%s = arith.constant %f : i1 %s" (unSsa value) val (mlirPos loc)
 
 emitOpStep f env (MAllocMemref loc val ty) = indented env $ printf "%s = memref.alloc() : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MFreeMemref loc val ty) = indented env $ printf "memref.dealloc %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)
@@ -175,15 +202,31 @@ emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "
 emitOpStep f env (MCall loc Nothing fn args) = indented env $ printf "call %s(%s) : (%s)->() %s" (unFuncName fn) (intercalate "\n" $ fmap (unSsa.snd) args) (intercalate "\n" $ fmap (mlirType.fst) args) (mlirPos loc)
 emitOpStep f env (MCall loc (Just (retty, retval)) fn args) = indented env $ printf "%s = call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate "\n" $ fmap (unSsa.snd) args) (intercalate "\n" $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
 emitOpStep f env (MAffineIf loc (cond, lhs, rhs) then' else') = emitWithIndent env $ [
-  indented env $ printf "affine.if affine_set<%s>(%s, %s) {"]
+  indented env $ printf "affine.if affine_set<%s>(%s, %s) {" (affineSet cond)  (unSsa lhs)  (unSsa rhs)]
   ++fmap (f (incrIndent env)) then'
   ++[indented env $ "} else {"]
   ++fmap (f (incrIndent env)) else'
   ++[indented env $ "}"]
-emitOpStep f env (MSCFWhile loc condb cond body) = emitWithIndent env $
+emitOpStep f env (MSCFIf loc cond then' else') = emitWithIndent env $ [
+  indented env $ printf "scf.if %s {" $ unSsa cond]
+  ++fmap (f (incrIndent env)) then'
+  ++[indented env $ "} else {"]
+  ++fmap (f (incrIndent env)) else'
+  ++[indented env $ "}"]
+emitOpStep f env (MSCFWhile loc breakb condb break cond body) = emitWithIndent env $
   [indented env $ "scf.while () : ()->() {"]
+  ++ [indented env $ "    %cond = scf.execute_region->i1 {"]
+  ++ [indented env $ "        ^break_check:"]
+  ++ fmap (f (incrIndent $ incrIndent env)) breakb
+  ++ [indented env $ printf "        cond_br %s, ^break, ^while_cond" (unSsa break)]
+  ++ [indented env $ printf "        ^while_cond:"]
   ++ fmap (f (incrIndent env)) condb
-  ++ [indented env $ printf "scf.condition (%s)" (unSsa cond)]
+  ++ [indented env $ printf "        scf.yield %s: i1" (unSsa cond)]
+  ++ [indented env $ "        ^break:" ]
+  ++ [indented env $ "        %zero=arith.constant 0: i1" ]
+  ++ [indented env $ "        scf.yield %zero: i1" ]
+  ++ [indented env $ "    }"]
+  ++ [indented env $ "    scf.condition(%cond)"]
   ++ [indented env $ "} do {"]
   ++ fmap (f (incrIndent env)) body
   ++ [indented env $ "scf.yield"]
@@ -197,6 +240,9 @@ emitOpStep f env (MAffineFor loc lo hi step var body) = emitWithIndent env $
   [indented env $ printf "affine.for %s = %s to %s step %d {" (unSsa var) (unSsa lo) (unSsa hi) step]
   ++ fmap (f (incrIndent env)) body
   ++ [indented env $ printf "} %s" (mlirPos loc)]
+emitOpStep f env (MReturn loc (ty, v)) = indented env $ printf "return %s : %s %s" (unSsa v) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MReturnUnit loc) = indented env $ printf "return %s" (mlirPos loc)
+
 emitOp :: MLIREmitEnv -> MLIROp -> String
 emitOp = fix emitOpStep
 
