@@ -22,8 +22,8 @@ type TypeCheckInfo = TypeCheckData
 data Symbol = SymVar String | SymTempVar Int | SymTempArg Int deriving (Show, Eq, Ord)
 
 data TypeCheckError =
-      RedefinedSymbol { pos :: Pos, synbolName :: Symbol , firstDefinedAt :: Pos}
-    | UndefinedSymbol { pos :: Pos, synbolName :: Symbol}
+      RedefinedSymbol { pos :: Pos, symbolName :: Symbol , firstDefinedAt :: Pos}
+    | UndefinedSymbol { pos :: Pos, symbolName :: Symbol}
     | TypeMismatch { pos :: Pos, expectedType :: [MatchRule], actualType :: Type ()}
     | ViolateNonCloningTheorem { pos :: Pos }
     | ArgNumberMismatch { pos :: Pos, expectedArgs :: Int, actualArgs :: Int }
@@ -205,6 +205,9 @@ typeCheckExpr' f (EImagLit pos x) = do
 typeCheckExpr' f (EBoolLit pos x) = do
     ssa<-nextId
     return $ EBoolLit (TypeCheckData pos (boolType ()) ssa) x
+typeCheckExpr' f (ERange pos lo hi Nothing) = do
+    let step = Just ( EIntLit pos 1)
+    f (ERange pos lo hi step)
 typeCheckExpr' f (ERange pos lo hi step) = do
     let resolve (Just x) = do {x'<-f x; x''<-matchType [Exact (Type () Int [])] x'; return $ Just x''}
         resolve Nothing = return Nothing
@@ -295,7 +298,7 @@ typeCheckAST' f (NDefvar pos defs) = do
                         return $ Just r''
                 Nothing -> return Nothing
             s<-defineSym (SymVar name) pos $ definedRefType $ void ty
-            return (void ty, s, i')
+            return (definedRefType $ void ty, s, i')
     defs'<-mapM def_one defs
     return $ NResolvedDefvar (okStmt pos) defs'
 typeCheckAST' f (NAssign pos lhs rhs) = do
@@ -324,15 +327,15 @@ typeCheckAST' f (NCoreReset pos qubit) = do
 typeCheckAST' f (NCorePrint pos val) = do
     val'<-typeCheckExpr val
     val''<-matchType [
-        Exact (refType () $ intType ()),
-        Exact (refType () $ doubleType ()),
-        Exact (refType () $ complexType ())
+        Exact (intType ()),
+        Exact (doubleType ()),
+        Exact (complexType ())
         ] val'
-    return $ NCoreReset (okStmt pos) val''
+    return $ NCorePrint (okStmt pos) val''
 typeCheckAST' f (NCoreMeasure pos qubit) = do
     qubit'<-typeCheckExpr qubit
     qubit''<-matchType [Exact (refType () $ qbitType ())] qubit'
-    return $ NCoreReset (okStmt pos) qubit''
+    return $ NCoreMeasure (okStmt pos) qubit''
 typeCheckAST' f (NProcedure _ _ _ _ _) = error "unreachable"
 typeCheckAST' f (NContinue _) = error "unreachable"
 typeCheckAST' f (NBreak _) = error "unreachable"
@@ -361,7 +364,7 @@ typeCheckAST' f (NTempvar pos def) = do
                         return $ Just r''
                 Nothing -> return Nothing
             s<-defineSym (SymTempVar id) pos $ definedRefType $ void ty
-            return (void ty, s, i')
+            return (definedRefType $ void ty, s, i')
     def'<-def_one def
     return $ NResolvedDefvar (okStmt pos) [def']
 typeCheckAST' f NResolvedDefvar{} = error "unreachable"
@@ -416,7 +419,7 @@ typeCheckToplevel ast = do
     -- Note that we need to store byval-passed values (e.g. int) into new variables.
     mapM (\node->case node of
         Right x->return x
-        Left (pos, ty, name, args, body, ret@(ETempArg pret ret_id))-> do
+        Left (pos, ty, func_name, args, body, ret@(ETempVar pret ret_id))-> do
             scope
             -- resolve return value
             ret_var<-case ty of
@@ -427,11 +430,11 @@ typeCheckToplevel ast = do
             -- resolve args
             (args', new_tempvars)<-flip runStateT [] $ mapM (\(ty, i)->case ty of
                 Type _ Int [] -> do
-                    temp_arg<-lift $ nextId
+                    temp_arg<-lift $ nextId -- Temporary argument
                     s<-lift $ defineSym (SymTempArg temp_arg) pos (intType ())
                     -- Leave the good name for defvar.
-                    real_arg<-lift $ defineSym (SymVar name) pos (refType () (intType ()))
-                    modify' (++[NDefvar pos [(refType pos $ intType pos, name, Just $ ETempArg pos temp_arg )]])
+                    --real_arg<-lift $ defineSym (SymVar i) pos (refType () (intType ()))
+                    modify' (++[NDefvar pos [(intType pos, i, Just $ ETempArg pos temp_arg )]])
                     return (ty, s)
                 x -> do
                     s<-lift $ defineSym (SymVar i) pos x
@@ -439,10 +442,14 @@ typeCheckToplevel ast = do
                     ) args
             -- resolve body
             body'<-mapM typeCheckAST (new_tempvars++body)
-            ret'<-typeCheckExpr ret
-            ret''<-matchType [Exact ty] ret'
+            ret''<-case ty of
+                Type _ Unit [] -> return Nothing
+                _ -> do
+                    ret'<-typeCheckExpr ret
+                    ret''<-matchType [Exact ty] ret'
+                    return $ Just ret''
             unscope
-            return $ NResolvedProcedureWithRet (okStmt pos) ty name args' body' ret'' ret_var
+            return $ NResolvedProcedureWithRet (okStmt pos) ty func_name args' body' ret'' ret_var
         Left _ -> error "unreachable"
         ) resolved_headers
 

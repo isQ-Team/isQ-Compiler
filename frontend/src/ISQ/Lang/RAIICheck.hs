@@ -5,6 +5,7 @@ import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.ISQv2Tokenizer (annotation, Annotated)
 import Control.Monad.Except
 import Data.Bifunctor
+import Debug.Trace (trace)
 
 {-
 Module for transforming AST tree into RAII form, eliminating intermediate return/continue/break.
@@ -160,7 +161,7 @@ raiiTransform' f (NIf ann cond t e) = do
     i<-nextId
     pushRegion (If i)
     t'<-mapM f t
-    e'<-mapM f t
+    e'<-mapM f e
     popRegion
     finalize<-checkCurrentScope ann
     return [tempBool ann i, NIf ann cond (concat t') (concat e'), finalize]
@@ -183,7 +184,7 @@ raiiTransform' f (NProcedure a b c d e) = do
     procRet<-nextId
     procFlag<-nextId
     pushRegion (Func procRet procFlag)
-    e'<-mapM f e
+    e'<-mapM f (tempBool a procFlag : e)
     popRegion
     -- no finalizer
     return [NProcedureWithRet a b c d (concat e') (ETempVar a procRet)]
@@ -212,7 +213,9 @@ raiiTransform' f (NReturn ann val) = do
             _ -> []) regions
     let break_passing_bodies = fmap (\x->setFlag ann (flag x)) $ tail regions
     let Func v f = last regions
-    return $ break_all_loops ++ break_passing_bodies ++ [setReturnVal ann v val, NJumpToEnd ann]
+    case val of
+        EUnitLit _ -> return $ break_all_loops ++ break_passing_bodies ++ [NJumpToEnd ann]
+        _ -> return $ break_all_loops ++ break_passing_bodies ++ [setReturnVal ann v val, NJumpToEnd ann]
 
 raiiTransform' _ ast = return [ast]
 

@@ -71,7 +71,6 @@ def ISQ_QState : TypeDef<ISQ_Dialect, "QState", [MemRefElementTypeInterface]>{
         QStateParsePrint p;
         return p.parseType($_parser);
     }];
-    
 }
 def ISQ_Gate : TypeDef<ISQ_Dialect, "Gate", [MemRefElementTypeInterface]>{
     let description = [{
@@ -319,7 +318,7 @@ def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<Symbo
     let results = (outs
     AnyType: $result);
     let assemblyFormat = [{
-        $name attr-dict  `:` type(results)
+        $name attr-dict  `:` qualified(type(results))
     }];
 }
 def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
@@ -350,7 +349,7 @@ def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
     );
     let results = (outs Variadic<ISQ_QState>: $r);
     let assemblyFormat = [{
-        $gate `(` $args `)` attr-dict `:` type($gate)
+        $gate `(` $args `)` attr-dict `:` qualified(type($gate))
     }];
     let verifier = [{
         return this->verifyIR();
@@ -437,7 +436,7 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
     );
     let results = (outs ISQ_Gate);
     let assemblyFormat = [{
-        `(` $args `:` type($args) `)` attr-dict `:` type(results)
+        `(` $args `:` qualified(type($args)) `)` attr-dict `:`qualified(type(results))
     }];
     let verifier = [{
         return ::isq::ir::verify(*this);
@@ -456,7 +455,7 @@ def ISQ_DecorateOp: ISQ_Op<"decorate", [NoSideEffect]>{
     );
     let results = (outs ISQ_Gate);
     let assemblyFormat = [{
-        `(` $args `:` type($args) `)` attr-dict `:` type(results)
+        `(` $args `:` qualified(type($args)) `)` attr-dict `:` qualified(type(results))
     }];
     let verifier = [{
         return ::isq::ir::verify(*this);
@@ -468,7 +467,7 @@ def ISQ_PrintOp : ISQ_Op<"print"> {
     let arguments = (ins AnyType:$input);
 
     let assemblyFormat = [{
-        $input `:` type($input)  attr-dict
+        $input `:` qualified(type($input))  attr-dict
     }];
 }
 

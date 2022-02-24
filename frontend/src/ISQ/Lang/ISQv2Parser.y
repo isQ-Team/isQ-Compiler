@@ -218,6 +218,8 @@ StatementNonEmpty : PassStatement ';' { $1 }
           | CallStatement ';' { $1 }
           | AssignStatement ';' { $1 }
           | ReturnStatement ';' { $1 }
+          | ContinueStatement ';' { $1 }
+          | BreakStatement ';' { $1 }
           | ISQCore_UnitaryStatement ';' { $1 }
           | ISQCore_MeasureStatement ';' { $1 }
           | ISQCore_ResetStatement ';' { $1 }

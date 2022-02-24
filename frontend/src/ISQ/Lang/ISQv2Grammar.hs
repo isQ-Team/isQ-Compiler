@@ -74,7 +74,7 @@ data AST ann =
      | NResolvedGatedef { annotationAST :: ann, gateName :: String, resolvedGateRhs :: [[Complex Double]], gateSize :: Int}
      | NWhileWithGuard { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann, breakFlag :: Expr ann}
      | NProcedureWithRet { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann], retVal :: Expr ann}
-     | NResolvedProcedureWithRet { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, resolvedProcArgs :: [(Type (), Int)], procBody :: [AST ann], retVal :: Expr ann, retVarSSA :: Maybe (Type (), Int)}
+     | NResolvedProcedureWithRet { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, resolvedProcArgs :: [(Type (), Int)], procBody :: [AST ann], retValR :: Maybe (Expr ann), retVarSSA :: Maybe (Type (), Int)}
      -- Shortcut for jump to end of current region.
      -- In funciton body: jumps to end of function.
      -- In while guard: jumps out of loop (continue)
@@ -106,6 +106,7 @@ newtype InternalCompilerError = InternalCompilerError String deriving Show
 data GrammarError = 
     BadMatrixElement {badExpr :: LExpr}
   | BadMatrixShape {badMatrix :: LAST}
+  | MissingGlobalVarSize {badDefPos :: Pos, badDefName :: String}
   | IdentifierNotFound deriving Show
 
 
@@ -143,3 +144,11 @@ passVerifyDefgate = mapM go where
           Nothing -> Left $ BadMatrixShape g
 
     go x = Right x
+
+
+checkTopLevelVardef :: [LAST]->Either GrammarError [LAST]
+checkTopLevelVardef = mapM go where
+  go v@(NDefvar pos defs) = NDefvar pos <$> mapM go' defs where
+    go' (Type _ UnknownArray _,b,c) = Left $ MissingGlobalVarSize pos b
+    go' (a,b,c) = Right (a,b,c)
+  go v = return v
