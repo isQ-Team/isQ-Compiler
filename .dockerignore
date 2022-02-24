@@ -7,3 +7,4 @@ build/
 /simulator/examples/*/bin
 /simulator/examples/*/obj
 /frontend/.stack-work
+/frontend/.vscode/

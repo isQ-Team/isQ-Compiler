@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.34.5.
 --
 -- see: https://github.com/sol/hpack
 
@@ -24,15 +24,15 @@ source-repository head
 
 library
   exposed-modules:
-      ISQ.Lang.AST
-      ISQ.Lang.Codegen
+      ISQ.Driver.Main
+      ISQ.Lang.CompileError
       ISQ.Lang.ISQv2Grammar
       ISQ.Lang.ISQv2Parser
       ISQ.Lang.ISQv2Tokenizer
-      ISQ.Lang.Language
-      ISQ.Lang.MLIRTextGen
-      ISQ.Lang.ParserMain
-      ISQ.Lang.QubitGroup
+      ISQ.Lang.MLIRGen
+      ISQ.Lang.MLIRTree
+      ISQ.Lang.RAIICheck
+      ISQ.Lang.TypeCheck
   other-modules:
       Paths_isq_frontend_experimental
   hs-source-dirs:
@@ -49,6 +49,7 @@ library
     , math-functions
     , mtl
     , parsec
+    , pretty-simple
   default-language: Haskell2010
 
 executable isq-frontend-experimental-exe
@@ -71,4 +72,5 @@ executable isq-frontend-experimental-exe
     , math-functions
     , mtl
     , parsec
+    , pretty-simple
   default-language: Haskell2010

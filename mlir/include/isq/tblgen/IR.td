@@ -19,6 +19,17 @@ def ISQ_Dialect: Dialect{
     }];
     let dependentDialects = ["::mlir::memref::MemRefDialect", "::mlir::AffineDialect", "::mlir::arith::ArithmeticDialect"];
     let hasCanonicalizer = 1;
+    let useDefaultTypePrinterParser = 0;
+    let useDefaultAttributePrinterParser = 0;
+    let extraClassDeclaration = [{
+        ::mlir::Type parseType(::mlir::DialectAsmParser &parser) const override;
+        void printType(::mlir::Type type,
+                        ::mlir::DialectAsmPrinter &printer) const override;
+        ::mlir::Attribute parseAttribute(::mlir::DialectAsmParser &parser,
+                                                ::mlir::Type type) const override;
+        void printAttribute(::mlir::Attribute attr,
+                                        ::mlir::DialectAsmPrinter &os) const override;
+    }];
 }
 
 ////////////////////////////////////
@@ -26,7 +37,7 @@ def ISQ_Dialect: Dialect{
 ////////////////////////////////////
 
 class ISQ_Type<string name> : TypeDef<ISQ_Dialect, name>{}
-class ISQ_Op<string mnemonic, list<OpTrait> traits = []> :
+class ISQ_Op<string mnemonic, list<Trait> traits = []> :
     Op<ISQ_Dialect, mnemonic, traits>{
     
 }
@@ -60,7 +71,6 @@ def ISQ_QState : TypeDef<ISQ_Dialect, "QState", [MemRefElementTypeInterface]>{
         QStateParsePrint p;
         return p.parseType($_parser);
     }];
-    
 }
 def ISQ_Gate : TypeDef<ISQ_Dialect, "Gate", [MemRefElementTypeInterface]>{
     let description = [{
@@ -308,7 +318,7 @@ def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<Symbo
     let results = (outs
     AnyType: $result);
     let assemblyFormat = [{
-        $name attr-dict  `:` type(results)
+        $name attr-dict  `:` qualified(type(results))
     }];
 }
 def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
@@ -339,7 +349,7 @@ def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
     );
     let results = (outs Variadic<ISQ_QState>: $r);
     let assemblyFormat = [{
-        $gate `(` $args `)` attr-dict `:` type($gate)
+        $gate `(` $args `)` attr-dict `:` qualified(type($gate))
     }];
     let verifier = [{
         return this->verifyIR();
@@ -426,7 +436,7 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
     );
     let results = (outs ISQ_Gate);
     let assemblyFormat = [{
-        `(` $args `:` type($args) `)` attr-dict `:` type(results)
+        `(` $args `:` qualified(type($args)) `)` attr-dict `:`qualified(type(results))
     }];
     let verifier = [{
         return ::isq::ir::verify(*this);
@@ -445,7 +455,7 @@ def ISQ_DecorateOp: ISQ_Op<"decorate", [NoSideEffect]>{
     );
     let results = (outs ISQ_Gate);
     let assemblyFormat = [{
-        `(` $args `:` type($args) `)` attr-dict `:` type(results)
+        `(` $args `:` qualified(type($args)) `)` attr-dict `:` qualified(type(results))
     }];
     let verifier = [{
         return ::isq::ir::verify(*this);
@@ -457,7 +467,7 @@ def ISQ_PrintOp : ISQ_Op<"print"> {
     let arguments = (ins AnyType:$input);
 
     let assemblyFormat = [{
-        $input `:` type($input)  attr-dict
+        $input `:` qualified(type($input))  attr-dict
     }];
 }
 

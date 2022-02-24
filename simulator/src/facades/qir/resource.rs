@@ -155,24 +155,24 @@ where
         }
     }
     fn get<'a, T: Any + 'static>(&'a self, id: usize) -> Option<R::GetTRet<'a, T>> {
-        self.get_any(id).and_then(|any| Self::ret_downcast(any))
+        self.get_any(id).and_then(|any| Self::ret_downcast::<T>(any))
     }
     fn get_mut<'a, T: Any + 'static>(&'a self, id: usize) -> Option<R::GetTMutRet<'a, T>> {
         self.get_any_mut(id)
-            .and_then(|any| Self::ret_downcast_mut(any))
+            .and_then(|any| Self::ret_downcast_mut::<T>(any))
     }
 
     fn get_by_key<'a, T: Any + 'static>(
         &'a self,
         key: ResourceKey<T>,
     ) -> Option<R::GetTRet<'a, T>> {
-        self.get(key.key)
+        self.get::<T>(key.key)
     }
     fn get_by_key_mut<'a, T: Any + 'static>(
         &'a self,
         key: ResourceKey<T>,
     ) -> Option<R::GetTMutRet<'a, T>> {
-        self.get_mut(key.key)
+        self.get_mut::<T>(key.key)
     }
 
     fn get_key_checked<T: Any + 'static>(&self, id: usize) -> ResourceKey<T> {

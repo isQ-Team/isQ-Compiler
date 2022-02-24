@@ -12,7 +12,7 @@
 #include <cstdint>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include "mlir/Analysis/AffineStructures.h"
+#include "mlir/Dialect/Affine/Analysis/AffineStructures.h"
 #include "isq/passes/FoldAffineComparison.h"
 #include "llvm/Support/raw_ostream.h"
 namespace isq{

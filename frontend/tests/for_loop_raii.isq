@@ -1,0 +1,11 @@
+int for_test(){
+    for i in 0:10{
+        for j in 0:10:2{
+            int k=0;
+            if(i+j==10){
+                continue;
+            }
+        }
+    }
+    
+}

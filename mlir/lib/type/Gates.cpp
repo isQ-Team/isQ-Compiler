@@ -11,6 +11,9 @@ const char *GateParsePrint::keyword() const { return "gate"; }
 bool GateParsePrint::isa(::mlir::Type me) const { return me.isa<GateType>(); }
 ::mlir::Type GateParsePrint::parseType(::mlir::AsmParser &parser) const {
     auto ctx = parser.getBuilder().getContext();
+    /*if (parser.parseKeyword(this->keyword())){
+        return nullptr;
+    }*/
     if (parser.parseLess())
         return nullptr;
     auto typeLoc = parser.getCurrentLocation();
@@ -42,6 +45,7 @@ bool GateParsePrint::isa(::mlir::Type me) const { return me.isa<GateType>(); }
 void GateParsePrint::printType(::mlir::Type type,
                                ::mlir::AsmPrinter &printer) const {
     GateType t = type.cast<GateType>();
+    //printer << this->keyword();
     printer << "<" << t.getSize();
     auto traits = t.getHints();
     if (traits != GateTrait::General) {

@@ -17,9 +17,9 @@ $idrestchar   = [$alpha $digit \_]
 
 @reservedid = 
 	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|return|
-    ctrl|nctrl|inv
+    ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue
 @reservedop = "|0>"|"=="|"="|"+"|"-"|"*"|"/"|"<"|">"|"<="|">="|"!="|"&&"|"||"|"!"|
-              ","|"("|")"|"{"|"}"|"["|"]"|"."|":"
+              ","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"
 
 tokens :-
     <0> $white+ {skip}
@@ -64,13 +64,13 @@ alexEOF = return $ Just $ TokenEOF undefined
 
 tokenize str = runAlex str $ do
   let step = do
-      tok<-alexMonadScan
-      case tok of
-        (Just (TokenEOF _)) -> return []
-        Nothing -> step
-        (Just tok) -> do
-            rest<-step
-            return $ tok:rest
+        tok<-alexMonadScan
+        case tok of
+          (Just (TokenEOF _)) -> return []
+          Nothing -> step
+          (Just tok) -> do
+              rest<-step
+              return $ tok:rest
   step
 
 }

@@ -54,7 +54,7 @@ int isq_mlir_codegen_main(int argc, char **argv) {
     }
     llvm::SourceMgr sourceMgr;
     sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
-    mlir::OwningModuleRef module = mlir::parseSourceFile(sourceMgr, &context);
+    mlir::OwningOpRef<mlir::ModuleOp> module = mlir::parseSourceFile(sourceMgr, &context);
     if (!module) {
         llvm::errs() << "Error can't load file " << inputFilename << "\n";
         return 3;

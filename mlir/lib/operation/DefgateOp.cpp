@@ -59,7 +59,7 @@ bool DefgateOp::isGateArray() {
     }
     auto ctx = parser.getBuilder().getContext();
     parsedAttributes.push_back(
-        mlir::NamedAttribute(::mlir::Identifier::get("sym_visibility", ctx),
+        mlir::NamedAttribute(::mlir::StringAttr::get(ctx, "sym_visibility"),
                          ::mlir::StringAttr::get(ctx, "nested")));
     result.attributes.append(parsedAttributes);
     if (parser.parseColon())
