@@ -1,5 +1,5 @@
-{ pkgs ? import ./pkgs.nix }:
-let buildenv = (import ./default.nix { inherit pkgs; });
+{ pkgs ? import ./buildscript/pkgs.nix }:
+let buildenv = (import ./buildscript/default.nix {});
 in 
 pkgs.mkShell ({
   buildInputs = [ buildenv ];
