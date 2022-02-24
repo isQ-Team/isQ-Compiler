@@ -6,3 +6,4 @@ build/
 /simulator/codegen/target
 /simulator/examples/*/bin
 /simulator/examples/*/obj
+/frontend/.stack-work

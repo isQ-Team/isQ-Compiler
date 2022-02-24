@@ -9,10 +9,15 @@ bool QStateParsePrint::isa(::mlir::Type me) const {
 }
 ::mlir::Type
 QStateParsePrint::parseType(::mlir::AsmParser &parser) const {
+    /*
+    if (parser.parseKeyword(this->keyword())){
+        return nullptr;
+    }*/
     return QStateType::get(parser.getBuilder().getContext());
 }
 void QStateParsePrint::printType(::mlir::Type type,
                                  ::mlir::AsmPrinter &printer) const {
+    //printer << this->keyword();
     //printer << "qstate";
 }
 } // namespace ir

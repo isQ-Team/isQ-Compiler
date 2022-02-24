@@ -38,7 +38,7 @@ mapType _ = error "unsupported type"
 
 -- Create an empty region builder, with entry and exit.
 generalRegion :: String->[(MLIRType, SSA)]->[MLIROp]->RegionBuilder
-generalRegion name init_args end_body = RegionBuilder 1 1 (MLIRBlock (BlockName "entry") init_args []) [] [MLIRBlock (BlockName "exit") [] end_body] name
+generalRegion name init_args end_body = RegionBuilder 1 1 (MLIRBlock (BlockName "^entry") init_args []) [] [MLIRBlock (BlockName "^exit") [] end_body] name
 
 -- Called to emit a branch statement according to a flag.
 pushBlock :: MLIRPos->SSA->State RegionBuilder ()
@@ -67,7 +67,7 @@ finalizeBlock = do
     let curr' = curr{blockBody=reverse $ MJmp MLIRPosUnknown (blockId $ head last) : blockBody curr}
     heads<-use headBlocks
     tails<-use tailBlocks
-    return $ heads++[curr']++tails
+    return $ (reverse heads)++[curr']++tails
 
 
 pushOp :: MLIROp->State RegionBuilder ()
@@ -128,6 +128,7 @@ binopTranslate _ _ = undefined
 
 unaryopTranslate Neg M.Double = mlirNegF
 unaryopTranslate Neg Index = mlirNegI
+unaryopTranslate _ _ = undefined
 
 emitExpr' :: (Expr TypeCheckData->State RegionBuilder SSA)->Expr TypeCheckData->State RegionBuilder SSA
 emitExpr' f (EIdent ann name) = error "unreachable"
@@ -198,7 +199,7 @@ emitExpr' f x@(EDeref ann val) = do
     val'<-f val
     pos<-mpos ann
     let i = ssa ann
-    pushOp $ MLoad pos i (astMType x, val')
+    pushOp $ MLoad pos i (astMType val, val')
     return i
 emitExpr' f x@(EImplicitCast ann@(mType->M.Index) val@(astMType->M.Bool)) = do
     val'<-f val
@@ -218,11 +219,11 @@ emitExpr' f (EResolvedIdent ann i) = do
     return $ fromSSA i
 emitExpr' f (EGlobalName ann@(mType->BorrowedRef _) name) = do
     pos<-mpos ann
-    pushOp $ MUseGlobalMemref pos (ssa ann) name (mType ann)
+    pushOp $ MUseGlobalMemref pos (ssa ann) (fromFuncName name) (mType ann)
     return (ssa ann)
 emitExpr' f (EGlobalName ann@(mType->(Memref (Just _) _)) name) = do
     pos<-mpos ann
-    pushOp $ MUseGlobalMemref pos (ssa ann) name (mType ann)
+    pushOp $ MUseGlobalMemref pos (ssa ann) (fromFuncName name) (mType ann)
     return (ssa ann)
 emitExpr' f (EGlobalName ann _) = error "first-class global gate/function not supported"
 emitExpr' f (EEraselist ann sublist) = do
@@ -260,7 +261,7 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
         folded_mods = foldr go ([], False) mods
     ops'<-mapM emitExpr ops
     pos<-mpos ann
-    let i = ssa ann
+    let i = ssa ann2
     let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..(length ops)]
     let used_gate = i;
     let gate_type@(M.Gate gate_size) = mType ann2;
@@ -269,7 +270,7 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
             ([], False)->return i
             (ctrls, adj)->do
                 let decorated_gate = SSA $ unSsa i ++ "_decorated"
-                pushOp $ MQDecorate pos decorated_gate folded_mods gate_size
+                pushOp $ MQDecorate pos decorated_gate used_gate folded_mods gate_size
                 return $ decorated_gate
     zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins ops'
     pushOp $ MQApplyGate pos outs ins decorated_gate
@@ -278,8 +279,8 @@ emitStatement' f NCoreUnitary{} = error "first-class gate unsupported"
 emitStatement' f (NCoreReset ann operand) = do
     operand'<-emitExpr operand
     pos<-mpos ann
-    let i_in = SSA $ (unSsa (ssa ann)) ++"_in"
-    let i_out = SSA $ (unSsa (ssa ann)) ++ "_out"
+    let i_in = SSA $ unSsa operand' ++"_in"
+    let i_out = SSA $ unSsa operand' ++ "_out"
     pushOp $ MLoad pos i_in (BorrowedRef QState, operand')
     pushOp $ MQReset pos i_out i_in
     pushOp $ MStore pos (BorrowedRef QState, operand') i_out
@@ -310,7 +311,7 @@ emitStatement' f (NWhileWithGuard ann cond body breakflag) = do
     let cond_ssa = fromSSA $ termId $ annotation cond
     pushOp $ MSCFWhile pos break_block cond_block cond_ssa break_ssa [MSCFExecRegion pos body_block]
 emitStatement' f NProcedureWithRet{} = error "unreachable"
-emitStatement' f (NResolvedProcedureWithRet ann ret name args body retval (Just retvar)) = do
+emitStatement' f (NResolvedProcedureWithRet ann ret name args body (Just retval) (Just retvar)) = do
     pos<-mpos ann
     let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
     load_return_value<-unscopedStatement (emitExpr retval)
@@ -320,11 +321,12 @@ emitStatement' f (NResolvedProcedureWithRet ann ret name args body retval (Just 
     let body_head = head body'
     let body'' = (body_head{blockBody = first_alloc : blockBody body_head}):tail body'
     pushOp $ MFunc pos (fromFuncName name) (Just $ mapType ret) body''
-emitStatement' f (NResolvedProcedureWithRet ann ret name args body retval Nothing) = do
+emitStatement' f (NResolvedProcedureWithRet ann ret name args body Nothing Nothing) = do
     pos<-mpos ann
     let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
     body'<-scopedStatement first_args [MReturnUnit pos] (mapM f body)
-    pushOp $ MFunc pos (fromFuncName name) (Nothing) body'
+    pushOp $ MFunc pos (fromFuncName name) Nothing body'
+emitStatement' f NResolvedProcedureWithRet{} = error "unreachable"
 emitStatement' f (NJumpToEndOnFlag ann flag) = do
     pos<-mpos ann
     flag'<-emitExpr flag
@@ -383,21 +385,24 @@ emitTop file x@NResolvedProcedureWithRet{} = do
     mainModule %= (fn:)
 emitTop file (NGlobalDefvar ann defs) = do
     let Pos l c = sourcePos ann
-    let pos = pos
+    let pos = MLIRLoc file l c
     let def_one (ty, s, name, initializer) = do
-        let stmt = MGlobalMemref pos (mapType ty)
-        mainModule %= (stmt:)
-        let maybe_initializer = do
-            let use_global_ref = MUseGlobalMemref pos (fromSSA s) name (mapType ty)
-            i<-initializer
-            let compute_init_value = unscopedStatement' file (emitExpr i)
-            let store_back = MStore pos (mapType ty, fromSSA s) (ssa $ annotation i)
-            return $ use_global_ref : (compute_init_value ++ [store_back])
-        case maybe_initializer of
-            Just init->globalInitializers%=(reverse init++)
-            Nothing->return ()
+            let stmt = MGlobalMemref pos (fromFuncName name) (mapType ty)
+            mainModule %= (stmt:)
+            let maybe_initializer = do
+                    let use_global_ref = MUseGlobalMemref pos (fromSSA s) (fromFuncName name) (mapType ty)
+                    i<-initializer
+                    let compute_init_value = unscopedStatement' file (emitExpr i)
+                    let store_back = MStore pos (mapType ty, fromSSA s) (ssa $ annotation i)
+                    return $ use_global_ref : (compute_init_value ++ [store_back])
+            case maybe_initializer of
+                Just init->globalInitializers%=(reverse init++)
+                Nothing->return ()
     mapM_ def_one defs
-emitTop _ _ = error "unreachable"
+emitTop file x@NResolvedGatedef{} = do
+    let [fn] = unscopedStatement' file (emitStatement x)
+    mainModule %= (fn:)
+emitTop _ x = error $ "unreachable" ++ show x
 
 
 generateMLIRModule :: String->[AST TypeCheckData]->MLIROp
