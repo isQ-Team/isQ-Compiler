@@ -8,7 +8,8 @@ data CompileError =
     GrammarError GrammarError
   | TypeCheckError TypeCheckError 
   | RAIIError RAIIError
-  | InternalCompilerError InternalCompilerError deriving Show
+  | InternalCompilerError InternalCompilerError
+  | SyntaxError String  deriving Show
 class CompileErr e where
   fromError :: e->CompileError
 instance CompileErr GrammarError where
