@@ -29,6 +29,7 @@ dependencies:
 - math-functions
 - array
 - pretty-simple
+- text
 
 build-tools:
 - happy

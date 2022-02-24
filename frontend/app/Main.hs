@@ -1,5 +1,5 @@
 module Main where
 import Text.Parsec
-import ISQ.Driver.Main (raiiMain)
+import qualified ISQ.Driver.Main as M (main)
 main :: IO ()
-main = raiiMain
+main = M.main

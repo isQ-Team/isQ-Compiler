@@ -1,73 +1,75 @@
 module ISQ.Driver.Main where
-import ISQ.Lang.ISQv2Parser
-import ISQ.Lang.ISQv2Tokenizer
-import ISQ.Lang.ISQv2Grammar
-import ISQ.Lang.CompileError
-import Control.Monad.Except 
-import ISQ.Lang.TypeCheck (typeCheckTop, TCAST)
-import ISQ.Lang.RAIICheck (raiiCheck)
+import System.Console.GetOpt
+import System.Environment
+import Control.Monad (when, foldM, forM_)
+import System.Exit (exitSuccess)
+import Data.IORef
+import Data.Maybe (fromMaybe)
+import ISQ.Driver.Passes
 import Text.Pretty.Simple
-import ISQ.Lang.MLIRGen (generateMLIRModule)
-import ISQ.Lang.MLIRTree (emitOp)
-import System.Environment (getArgs)
-parseToAST :: String->Either String [LAST]
-parseToAST s = do
-    tokens <- tokenize s
-    return $ isqv2 tokens
-    
-parseFile :: String->IO (Either String [LAST])
-parseFile path = do
-    f<-readFile path
-    return $ parseToAST f
-
-parseStdin :: IO ()
-parseStdin = do
-    f<-getContents
-    print $ parseToAST f
-
-pass :: (CompileErr e, Monad m)=>Either e a->ExceptT CompileError m a
-pass (Left x) = throwError $ fromError x
-pass (Right y) = return y
+import Data.Text.Lazy (unpack)
+import Data.Bifunctor
+import ISQ.Lang.CompileError
+data Flag = Input String | Output String | Version | Mode String deriving Eq
 
 
-compileRAII :: [LAST] -> Either CompileError [LAST]
-compileRAII ast = runExcept $ do
-    ast_verify_defgate <- pass $ passVerifyDefgate ast
-    ast_verify_top_vardef<-pass $ checkTopLevelVardef ast_verify_defgate
-    ast_raii <- pass $ raiiCheck ast_verify_top_vardef
-    return ast_raii
+options :: [OptDescr Flag]
+options = [
+    Option ['i'] ["input"] (ReqArg Input "FILE") "Input isQ source file.",
+    Option ['o'] ["output"] (ReqArg Output "FILE") "Output file.",
+    Option ['v'] ["version"] (NoArg Version) "Show version.",
+    Option ['m'] ["mode"] (ReqArg Mode "MODE") "Compilation mode. Supported modes: ast, raii, typecheck, mlir(default)"
+    ]
+header :: [Char]
+header = "Usage: isqc [OPTION...] files..."
+ensureJust :: String->Maybe a->IO a
+ensureJust errs Nothing = ioError (userError ( errs ++ usageInfo header options))
+ensureJust _ (Just a) = return a
+compilerOpts :: [String]->IO [Flag]
+compilerOpts argv = do
+    case getOpt Permute options argv of
+        (o, [], []) -> return o
+        (_,_,errs) -> ioError (userError (concat errs ++ usageInfo header options))
 
-compileTypecheck :: [LAST]->Either CompileError [TCAST]
-compileTypecheck ast = runExcept $ do
-    ast_raii<- liftEither $ compileRAII ast
-    ast_tc <- pass $ typeCheckTop ast_raii
-    return ast_tc
 
-compile :: String->[LAST] -> Either CompileError String
-compile s ast = runExcept $ do
-    ast_tc<-liftEither $ compileTypecheck ast
-    let mlir_module = generateMLIRModule s ast_tc
-    return $ emitOp mlir_module
+setExactlyOnce :: IORef (Maybe a)->a->String->IO ()
+setExactlyOnce r v err = do
+    v'<-readIORef r
+    case v' of
+        Nothing -> writeIORef r (Just v)
+        Just _ -> ioError (userError (err ++ usageInfo header options))
 
-p :: Show a=>a->IO ()
-p = pPrint
-
-printRAII s = do
-    Right f<-parseFile s
-    return $ compileRAII f
-printTC s = do
-    Right f<-parseFile s
-    return $ compileTypecheck f
-
-genMLIR s = do
-    Right f<-parseFile s
-    case compile s f of
-        Left x -> print x
-        Right mlir -> putStrLn mlir
-
-raiiMain :: IO ()
-raiiMain = do
-    (input:_) <- getArgs;
-    ast<-printRAII input
-    pPrintNoColor ast
+writeOut :: (Show a)=>String->Either a String->IO ()
+writeOut _ (Left err) = error (show err)
+writeOut p (Right f) = writeFile p f
+main = do
+    args<-getArgs
+    flags<-compilerOpts args
+    when (Version `elem` flags) $ do
+        putStrLn $ "isqc (isQ Compiler)"
+        exitSuccess
+        return ()
+    input<-newIORef Nothing
+    output<-newIORef Nothing
+    mode<-newIORef Nothing
+    forM_ flags $ \f->do
+            case f of
+                Input s -> setExactlyOnce input s "Input file set multiple times!"
+                Output s -> setExactlyOnce output s  "Output file set multiple times!"
+                Mode m -> setExactlyOnce mode m "Mode set multiple times!"
+                Version -> undefined
+    input'<-readIORef input >>= ensureJust "Input not specified!\n"
+    output'<-readIORef output >>= ensureJust "Output not specified!\n"
+    mode'<-fromMaybe "mlir" <$> readIORef mode
+    ast<-first SyntaxError <$> parseFile input'
+    case mode' of
+        "mlir"-> do
+            writeOut output' (ast >>= compile input')
+        "ast"-> do
+            writeOut output' (unpack . pShowNoColor <$> ast)
+        "raii"-> do
+            writeOut output' (ast >>= (unpack . pShowNoColor<$>) <$> compileRAII)
+        "typecheck" -> do
+            writeOut output' (ast >>= (unpack . pShowNoColor<$>) <$> compileTypecheck)
+        _-> ioError (userError $ "Bad mode "++mode')
     return ()
