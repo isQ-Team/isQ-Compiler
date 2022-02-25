@@ -1,9 +1,9 @@
-{dependencies? import ./dependencies.nix {} }:
+{pkgs? import ./pkgs.nix }:
 let 
-  source_files = (dependencies.pkgs.nix-gitignore.gitignoreSource [] ../.);
+  source_files = (pkgs.nix-gitignore.gitignoreSource [] ../.);
 in
 {
-  source_pkg = dependencies.pkgs.buildEnv rec {
+  source_pkg = pkgs.buildEnv rec {
     name = "isqv2-sources";
     paths = [ source_files ];
     extraPrefix = [ "/opt/isqsources/" ];

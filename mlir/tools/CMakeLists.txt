@@ -3,6 +3,7 @@ add_executable(qir-${tool_name} ${tool_name}.cpp)
 target_link_libraries(qir-${tool_name} isqir ${mlir_libs})
 add_custom_command(TARGET qir-${tool_name} POST_BUILD
     COMMAND ${CMAKE_STRIP} qir-${tool_name})
+install(TARGETS qir-${tool_name} DESTINATION bin)
 endfunction()
 
 qir_tool(opt)
