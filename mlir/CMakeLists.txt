@@ -41,5 +41,8 @@ add_custom_target(qir-doc ALL)
 add_dependencies(qir-doc mlir-dialect-doc)
 if (BUILD_DOC)
 add_subdirectory(docs)
+install(TARGETS isqir DESTINATION share/doc)
 endif (BUILD_DOC)
+
+install(TARGETS isqir DESTINATION lib)
 # add_subdirectory(frontends)

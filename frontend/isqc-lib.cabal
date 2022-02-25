@@ -4,23 +4,20 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 
-name:           isq-frontend-experimental
+name:           isqc-lib
 version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/githubuser/isq-frontend-exp#readme>
-homepage:       https://github.com/githubuser/isq-frontend-experimental#readme
-bug-reports:    https://github.com/githubuser/isq-frontend-experimental/issues
+homepage:       https://github.com/gjz010/isqv2-frontend#readme
+bug-reports:    https://github.com/gjz010/isqv2-frontend/issues
 author:         Author name here
 maintainer:     example@example.com
 copyright:      2021 Author name here
 license:        BSD3
 build-type:     Simple
-extra-source-files:
-    README.md
-    ChangeLog.md
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/isq-frontend-experimental
+  location: https://github.com/gjz010/isqv2-frontend
 
 library
   exposed-modules:
@@ -35,7 +32,7 @@ library
       ISQ.Lang.RAIICheck
       ISQ.Lang.TypeCheck
   other-modules:
-      Paths_isq_frontend_experimental
+      Paths_isqc_lib
   hs-source-dirs:
       src
   build-tools:
@@ -54,10 +51,10 @@ library
     , text
   default-language: Haskell2010
 
-executable isq-frontend-experimental-exe
+executable isqc
   main-is: Main.hs
   other-modules:
-      Paths_isq_frontend_experimental
+      Paths_isqc_lib
   hs-source-dirs:
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -69,7 +66,7 @@ executable isq-frontend-experimental-exe
     , base >=4.7 && <5
     , containers
     , extra
-    , isq-frontend-experimental
+    , isqc-lib
     , lens
     , math-functions
     , mtl
