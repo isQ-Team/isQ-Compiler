@@ -26,7 +26,20 @@ public:
     ::mlir::Type parseType(::mlir::AsmParser &parser) const;
     void printType(::mlir::Type type, ::mlir::AsmPrinter &printer) const;
 };
-
+class QIRQubitParsePrint : public ISQTypeParserPrinterCase {
+public:
+    const char *keyword() const;
+    bool isa(::mlir::Type me) const;
+    ::mlir::Type parseType(::mlir::AsmParser &parser) const;
+    void printType(::mlir::Type type, ::mlir::AsmPrinter &printer) const;
+};
+class QIRResultParsePrint : public ISQTypeParserPrinterCase {
+public:
+    const char *keyword() const;
+    bool isa(::mlir::Type me) const;
+    ::mlir::Type parseType(::mlir::AsmParser &parser) const;
+    void printType(::mlir::Type type, ::mlir::AsmPrinter &printer) const;
+};
 } // namespace ir
 } // namespace isq
 

@@ -35,6 +35,10 @@ MatrixDefinition::MatrixDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::G
         mat.push_back(std::move(row_vec));
     }
 }
+
+const std::vector<std::vector<std::complex<double>>>& MatrixDefinition::getMatrix() const{
+    return this->mat;
+}
 ::mlir::LogicalResult MatrixDefinition::verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute) {
     if(op.shape()){
         op->emitError()
@@ -132,6 +136,7 @@ DecompositionDefinition::DecompositionDefinition(::isq::ir::DefgateOp op, int id
 }
 ::mlir::LogicalResult DecompositionDefinition::verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute value, ::mlir::SymbolTableCollection &symbolTable) {
     if(!value.isa<::mlir::SymbolRefAttr>()){
+        value.dump();
         op->emitError() << "Definition #" << id
                             << " should refer to a decomposed function name.";
         return mlir::failure();

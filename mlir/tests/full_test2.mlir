@@ -9,7 +9,7 @@ func @printInt(%a: index)->(){
 }
 isq.defgate @X {definition = [{type="unitary", value = [[#isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>], [#isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>]] }]}: !isq.gate<1> loc("main.isq":1:1)
 isq.defgate @H {definition = [{type="unitary", value = [[#isq.complex<0.7071067811865476, 0.0>, #isq.complex<0.7071067811865476, 0.0>], [#isq.complex<0.7071067811865476, 0.0>, #isq.complex<-0.7071067811865476, -0.0>]] }]}: !isq.gate<1> loc("main.isq":3:1)
-func @main()->(){
+func @test_main()->(){
     %t0 = memref.alloca() : memref<1x!isq.qstate> loc("main.isq":7:10)
     %t1 = arith.constant 0 : index loc("main.isq":7:10)
     %x0 = memref.subview %t0[%t1][1][1] : memref<1x!isq.qstate> to memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("main.isq":7:10)

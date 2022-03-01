@@ -18,7 +18,7 @@ public:
     static FlatSymbolRefAttr getOrInsertReset(PatternRewriter &rewriter, ModuleOp module);
     static FlatSymbolRefAttr getOrInsertGate(PatternRewriter &rewriter, ModuleOp module, isq::ir::DefgateOp op);
     static FlatSymbolRefAttr getGate(PatternRewriter &rewriter, ModuleOp module, std::string gate_name, llvm::ArrayRef<Attribute> ctrl, bool inv);
-    static std::pair<int, qsyn::UnitaryVector> getInfo(std::string gate_name);
+    static std::pair<int, synthesis::UnitaryVector> getInfo(std::string gate_name);
     static std::string getMainFuncName();
 private:
     inline static const std::string main_func = "test_main";

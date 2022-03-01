@@ -1,4 +1,6 @@
-#include <isq/IR.h>
+#include <isq/ParsePrint.h>
+#include <isq/QTypes.h>
+#include <mlir/IR/Builders.h>
 #include <mlir/Support/LogicalResult.h>
 namespace isq {
 namespace ir {

@@ -1,6 +1,8 @@
 #include "isq/GateDefTypes.h"
 #include "isq/Math.h"
 #include "isq/QTypes.h"
+#include "mlir/IR/Attributes.h"
+#include "llvm/ADT/SmallVector.h"
 #include <isq/IR.h>
 #include <llvm/ADT/StringSwitch.h>
 #include <mlir/IR/BuiltinAttributes.h>
@@ -42,6 +44,27 @@ bool DefgateOp::isGateArray() {
     if (parser.parseSymbolName(sym_nameAttr, "sym_name", result.attributes))
         return ::mlir::failure();
     ::mlir::NamedAttrList parsedAttributes;
+    auto parametersLocation = parser.getCurrentLocation();
+    llvm::SmallVector<mlir::Attribute> partypeattrs;
+    ::mlir::ArrayAttr shapeAttr;
+    if (mlir::succeeded(parser.parseOptionalLParen())){
+        llvm::SmallVector<mlir::Type> partypes;
+        if(parser.parseTypeList(partypes)){
+            return ::mlir::failure();
+        }
+        for(auto& ty: partypes){
+            partypeattrs.push_back(mlir::TypeAttr::get(ty));
+        }
+        if(parser.parseRParen()){
+            return ::mlir::failure();
+        }
+    } else {
+        ::mlir::OptionalParseResult parseResult = parser.parseOptionalAttribute(shapeAttr, parser.getBuilder().getType<::mlir::NoneType>(), "shape", result.attributes);
+        if(parseResult.hasValue() && mlir::failed(*parseResult)){
+            return ::mlir::failure();
+        }
+    }
+    result.attributes.push_back(mlir::NamedAttribute(mlir::StringAttr::get(parser.getContext(), "parameters"), mlir::ArrayAttr::get(parser.getContext(), partypeattrs)));
     auto attributeDictLocation = parser.getCurrentLocation();
     if (parser.parseOptionalAttrDict(parsedAttributes)) {
         return ::mlir::failure();
@@ -49,7 +72,9 @@ bool DefgateOp::isGateArray() {
     for (::mlir::StringRef disallowed :
          {::mlir::SymbolTable::getVisibilityAttrName(),
           ::mlir::SymbolTable::getSymbolAttrName(),
-          ::mlir::StringRef("type")}) {
+          ::mlir::StringRef("type"),
+          ::mlir::StringRef("parameters"),
+          ::mlir::StringRef("shape")}) {
         if (parsedAttributes.get(disallowed))
             return parser.emitError(attributeDictLocation, "'")
                    << disallowed
@@ -74,11 +99,24 @@ bool DefgateOp::isGateArray() {
 
 void DefgateOp::printIR(::mlir::OpAsmPrinter &p) {
     //p << "isq.defgate";
-    //p << ' ';
+    p << ' ';
     p.printSymbolName(sym_nameAttr().getValue());
+    if(parameters().size()){
+        p<<'(';
+        bool flag=false;
+        for(auto& pa: parameters()){
+            if(flag) p<<", ";
+            p.printType(pa.cast<mlir::TypeAttr>().getValue());
+            flag=true;
+        }
+        p<<')';
+    }
+    if(shape()){
+        p.printAttributeWithoutType(*shape());
+    }
     p.printOptionalAttrDict(
         (*this)->getAttrs(),
-        /*elidedAttrs=*/{"sym_name", "type", "sym_visibility"});
+        /*elidedAttrs=*/{"sym_name", "type", "sym_visibility", "shape", "parameters"});
     p << ' ' << ":";
     p << ' ';
     p.printAttributeWithoutType(typeAttr());
@@ -103,6 +141,32 @@ DefgateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
     }
     return mlir::success();
 }
+
+/*
+bool DefgateOp::parseGateVisibility(::mlir::OpAsmParser& parser, ::mlir::StringAttr& v){
+    ::mlir::StringRef visibility;
+    auto kwLoc = parser.getCurrentLocation();
+    if(succeeded(parser.parseOptionalKeyword(&visibility))){
+        if(visibility=="nested" || visibility=="public" || visibility=="private"){
+            v=parser.getBuilder().getStringAttr(visibility);
+            return false;
+        }else{
+            parser.emitError(kwLoc, "Bad visibility! Must be one of nested/public/private.");
+            return true;
+        }
+    }else{
+        v=parser.getBuilder().getStringAttr("nested");
+        return false;
+    }
+
+
+}
+void DefgateOp::printGateVisibility(::mlir::OpAsmPrinter& p, DefgateOp op, ::mlir::StringAttr v){
+    if(v.getValue()!="nested"){
+        p.printKeywordOrString(v.getValue());
+    }
+}
+*/
 
 mlir::LogicalResult verifyGateDefinition(DefgateOp op, int id,
                                          GateDefinition def, GateType ty) {

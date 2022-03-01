@@ -20,10 +20,15 @@ parseFile path = do
     f<-readFile path
     return $ parseToAST f
 
-parseStdin :: IO ()
+parseStdin :: IO (Either String [LAST])
 parseStdin = do
     f<-getContents
-    print $ parseToAST f
+    return $ parseToAST f
+
+parseFileOrStdin :: Maybe String -> IO (Either String [LAST])
+parseFileOrStdin (Just x) = parseFile x
+parseFileOrStdin Nothing = parseStdin
+
 
 pass :: (CompileErr e, Monad m)=>Either e a->ExceptT CompileError m a
 pass (Left x) = throwError $ fromError x
