@@ -172,12 +172,20 @@ emitOpStep :: (MLIREmitEnv->MLIROp->String)->(MLIREmitEnv->MLIROp->String)
 emitOpStep f env (MModule _ ops) =
   let s = fmap (f (incrIndent env)) ops in intercalate "\n" $ 
   ([indented env "module{"] ++ [
-      indented env $ "    module @isq_builtin {",
-      indented env $ "        isq.declare_qop @measure : [1]()->i1",
-      indented env $ "        isq.declare_qop @reset : [1]()->()",
-      indented env $ "        isq.declare_qop @print_int : [0](index)->()",
-      indented env $ "        isq.declare_qop @print_double : [0](f64)->()",
-      indented env $ "    }"
+      -- indented env $ "    module @isq_builtin {",
+      -- indented env $ "        isq.declare_qop @measure : [1]()->i1",
+      -- indented env $ "        isq.declare_qop @reset : [1]()->()",
+      -- indented env $ "        isq.declare_qop @print_int : [0](index)->()",
+      -- indented env $ "        isq.declare_qop @print_double : [0](f64)->()",
+      -- indented env $ "    }"
+      indented env $ "isq.declare_qop @__isq__builtin__measure : [1]()->i1",
+      indented env $ "isq.declare_qop @__isq__builtin__reset : [1]()->()",
+      indented env $ "isq.declare_qop @__isq__builtin__print_int : [0](index)->()",
+      indented env $ "isq.declare_qop @__isq__builtin__print_double : [0](f64)->()",
+      indented env $ "isq.defgate @__isq__builtin__u3(f64, f64, f64) {definition = [{type = \"qir\", value = \"__quantum__qis__u3\"}]} : !isq.gate<1>",
+      indented env $ "isq.defgate @__isq__builtin__cnot {definition = [{type = \"qir\", value = \"__quantum__qis__cnot\"}]} : !isq.gate<2>",
+      indented env $ "func private @__quantum__qis__u3(f64, f64, f64, !isq.qir.qubit)",
+      indented env $ "func private @__quantum__qis__cnot(!isq.qir.qubit, !isq.qir.qubit)"
   ]++s ++ [indented env "}"])
 emitOpStep f env (MFunc loc name ret blocks) = let s = fmap (emitBlock f env) blocks in intercalate "\n" ([indented env $ funcHeader name ret (fmap fst $ blockArgs $ head blocks), indented env "{"] ++ s ++ [indented env $ printf "} %s" (mlirPos loc)])
 emitOpStep f env (MQDefGate loc name mat size) = indented env $ printf "isq.defgate %s {definition = [{type=\"unitary\", value = %s}]}: !isq.gate<%d> %s" (unFuncName name) (printRow (printRow printComplex) mat) size (mlirPos loc)
@@ -185,16 +193,23 @@ emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz)) = indented env 
 emitOpStep f env (MQUseGate loc val usedgate usedtype) = error "wtf?"
 emitOpStep f env (MQDecorate loc value source trait size) = let (d, sz) = decorToDict trait in indented env $ printf "%s = isq.decorate(%s: !isq.gate<%d>) %s : !isq.gate<%d> %s" (unSsa value) (unSsa source) size d (size+sz) (mlirPos loc)
 emitOpStep f env (MQApplyGate loc values args gate) = indented env $ printf "%s = isq.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
-emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @isq_builtin::@measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
-emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qop @isq_builtin::@reset(%s): [1]()->() %s" (unSsa out)  (unSsa arg) (mlirPos loc)
-emitOpStep f env (MQPrint loc (Index, arg)) = indented env $ printf "isq.call_qop @isq_builtin::@print_int(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
-emitOpStep f env (MQPrint loc (Double, arg)) = indented env $ printf "isq.call_qop @isq_builtin::@print_double(%s): [0](f64)->() %s" (unSsa arg) (mlirPos loc)
+emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @__isq__builtin__measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
+emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qop @__isq__builtin__reset(%s): [1]()->() %s" (unSsa out)  (unSsa arg) (mlirPos loc)
+emitOpStep f env (MQPrint loc (Index, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_int(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
+emitOpStep f env (MQPrint loc (Double, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_double(%s): [0](f64)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (t, arg)) = error $ "unsupported "++ show t
 emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = arith.%s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
 emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = arith.%s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
 emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = arith.%s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
-emitOpStep f env (MLoad loc value (arr_type, arr_val)) = indented env $ printf "%s = affine.load %s[0] : %s %s" (unSsa value) (unSsa arr_val) (mlirType arr_type) (mlirPos loc)
-emitOpStep f env (MStore loc (arr_type, arr_val) value) = indented env $ printf "affine.store %s, %s[0] : %s %s" (unSsa value) (unSsa arr_val) (mlirType arr_type) (mlirPos loc)
+emitOpStep f env (MLoad loc value (arr_type, arr_val)) = intercalate "\n" $
+  [indented env $ printf "%s_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
+  indented env $ printf "%s = memref.load %s[%s_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)]
+
+emitOpStep f env (MStore loc (arr_type, arr_val) value) = intercalate "\n" $ 
+  [
+    indented env $ printf "%s_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
+    indented env $ printf "memref.store %s, %s[%s_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)
+  ]
 emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset) = indented env $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirType $ BorrowedRef elem_ty) (mlirPos loc)
 emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset) = error "wtf?"
 emitOpStep f env (MEraseMemref loc value (arr_ty@(Memref (Just x) elem_ty), arr_val)) = indented env $ printf "%s = memref.cast %s : %s to %s %s" (unSsa value) (unSsa arr_val) (mlirType arr_ty) (mlirType $ Memref Nothing elem_ty) (mlirPos loc)

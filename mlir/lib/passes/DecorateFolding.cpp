@@ -48,7 +48,7 @@ std::vector<std::vector<std::complex<double>>> appendMatrix(const std::vector<st
 }
 
 
-struct DecorateFoldRewriteRule : mlir::OpRewritePattern<isq::ir::ApplyGateOp>{
+struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGateOp>{
     mlir::ModuleOp rootModule;
     DecorateFoldRewriteRule(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1), rootModule(module){
 
@@ -142,7 +142,7 @@ struct DecorateFoldingPass : public mlir::PassWrapper<DecorateFoldingPass, mlir:
         (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
     }
   mlir::StringRef getArgument() const final {
-    return "fold-constant-decorated-gates";
+    return "isq-fold-constant-decorated-gates";
   }
   mlir::StringRef getDescription() const final {
     return  "Constant folding for known and decorated gates.";

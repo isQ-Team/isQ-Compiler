@@ -5,7 +5,9 @@ namespace ir{
 namespace passes{
 
 void registerDecorateFolding();
-
+void registerQSD();
+void registerExpandDecomposition();
+void registerLowerToQIRRep();
 }
 }
 }

@@ -1,6 +1,9 @@
 #invsqrt2 = #isq.complex<0.7071067811865475, 0.0>
 #ninvsqrt2 = #isq.complex<-0.7071067811865475, 0.0>
 
+isq.defgate @__isq__builtin__u3(f64, f64, f64) {definition = [{type = "qir", value = "__quantum__qis__u3"}]} : !isq.gate<1>
+isq.defgate @__isq__builtin__cnot {definition = [{type = "qir", value = "__quantum__qis__cnot"}]} : !isq.gate<2>
+
 isq.defgate @hadamard {definition = [{type = "unitary", value = [
     [#invsqrt2,#invsqrt2],
     [#invsqrt2,#ninvsqrt2]]}]}: !isq.gate<1>

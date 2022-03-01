@@ -158,7 +158,8 @@ emitExpr' f (ESubscript ann base offset) = do
     let i = ssa ann
     pushOp $ MTakeRef pos i (astMType base, base') offset'
     return i
-emitExpr' f x@(ECall ann (EGlobalName ann2 name) args) = do
+emitExpr' f x@(ECall ann (EGlobalName ann2 mname) args) = do
+    let name = if mname=="main" then "__isq__main" else mname
     args'<-mapM f args
     let args'' = zip (fmap astMType args) args'
     let ret = if (ty $ termType $ ann) == Unit then Nothing else Just (astMType x, ssa ann)
@@ -311,7 +312,8 @@ emitStatement' f (NWhileWithGuard ann cond body breakflag) = do
     let cond_ssa = fromSSA $ termId $ annotation cond
     pushOp $ MSCFWhile pos break_block cond_block cond_ssa break_ssa [MSCFExecRegion pos body_block]
 emitStatement' f NProcedureWithRet{} = error "unreachable"
-emitStatement' f (NResolvedProcedureWithRet ann ret name args body (Just retval) (Just retvar)) = do
+emitStatement' f (NResolvedProcedureWithRet ann ret mname args body (Just retval) (Just retvar)) = do
+    let name = if mname=="main" then "__isq__main" else mname
     pos<-mpos ann
     let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
     load_return_value<-unscopedStatement (emitExpr retval)
@@ -321,7 +323,9 @@ emitStatement' f (NResolvedProcedureWithRet ann ret name args body (Just retval)
     let body_head = head body'
     let body'' = (body_head{blockBody = first_alloc : blockBody body_head}):tail body'
     pushOp $ MFunc pos (fromFuncName name) (Just $ mapType ret) body''
-emitStatement' f (NResolvedProcedureWithRet ann ret name args body Nothing Nothing) = do
+emitStatement' f (NResolvedProcedureWithRet ann ret mname args body Nothing Nothing) = do
+    let name = if mname=="main" then "__isq__main" else mname
+    pos<-mpos ann
     pos<-mpos ann
     let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
     body'<-scopedStatement first_args [MReturnUnit pos] (mapM f body)
@@ -410,7 +414,14 @@ generateMLIRModule file xs =
     let builder = execState (mapM_ (emitTop file) xs) (TopBuilder [] [])
         main = _mainModule builder
         initialize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_initialize") Nothing [MLIRBlock (fromBlockName 1) [] (reverse (_globalInitializers builder) ++[MReturnUnit MLIRPosUnknown])]
-    in MModule MLIRPosUnknown (reverse $ initialize:view mainModule builder)
+        finalize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_finalize") Nothing [MLIRBlock (fromBlockName 1) [] [MReturnUnit MLIRPosUnknown]]
+        entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) [] [
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [],
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") [],
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [],
+                MReturnUnit MLIRPosUnknown 
+            ]]
+    in MModule MLIRPosUnknown (reverse $ entry : finalize : initialize:view mainModule builder)
 
 
 --mlirGen :: [TCAST]->MLIRGen [MLIROp]
