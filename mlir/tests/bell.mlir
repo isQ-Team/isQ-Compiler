@@ -1,8 +1,11 @@
-module @isq_builtin {
-    isq.declare_qop @measure : [1]()->i1
-    isq.defgate @hadamard : !isq.gate<1, hermitian>
-    isq.defgate @cnot : !isq.gate<2, hermitian>
-}
+isq.declare_qop @__isq__builtin__measure : [1]()->i1
+isq.declare_qop @__isq__builtin__reset : [1]()->()
+isq.declare_qop @__isq__builtin__print_int : [0](index)->()
+isq.declare_qop @__isq__builtin__print_double : [0](f64)->()
+isq.defgate @__isq__builtin__u3(f64, f64, f64) {definition = [{type = "qir", value = "__quantum__qis__u3"}]} : !isq.gate<1>
+isq.defgate @__isq__builtin__cnot {definition = [{type = "qir", value = "__quantum__qis__cnot"}]} : !isq.gate<2>
+func private @__quantum__qis__u3(f64, f64, f64, !isq.qir.qubit)
+func private @__quantum__qis__cnot(!isq.qir.qubit, !isq.qir.qubit)
 func @bell()->(i1, i1){
     %qarr = memref.alloca() : memref<2x!isq.qstate>
     %i0 = arith.constant 0 : index

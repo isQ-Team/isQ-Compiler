@@ -10,6 +10,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerQSD();
     passes::registerExpandDecomposition();
     passes::registerLowerToQIRRep();
+    passes::registerQIR2LLVM();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
 }

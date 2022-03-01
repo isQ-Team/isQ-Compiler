@@ -4,6 +4,7 @@
 #include "isq/QStructs.h"
 #include "isq/QTypes.h"
 #include "isq/GateDefTypes.h"
+#include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -27,6 +28,7 @@ namespace{
 
 const char* ISQ_DEINITIALIZED = "isq_deinitialized";
 const char* ISQ_INITIALIZED = "isq_initialized";
+const char* ISQ_FIRST_STORE = "isq_first_store";
 mlir::Value qubit_ref(mlir::Location loc, mlir::PatternRewriter& rewriter, mlir::Value v){
     auto r = rewriter.create<mlir::UnrealizedConversionCastOp>(loc, mlir::TypeRange{QIRQubitType::get(rewriter.getContext())}, mlir::ValueRange{v});
     return r.getResult(0);
@@ -77,7 +79,8 @@ public:
         rewriter.updateRootInPlace(loop, [&]{
             rewriter.setInsertionPointToEnd(loop.getBody());
             auto alloc_qubit = utils.allocQubit(loc, rewriter, rootModule);
-            rewriter.create<mlir::memref::StoreOp>(loc, qubit_unref(loc, rewriter, alloc_qubit), op.memref(), mlir::ValueRange{loop.getInductionVar()});
+            auto store = rewriter.create<mlir::memref::StoreOp>(loc, qubit_unref(loc, rewriter, alloc_qubit), op.memref(), mlir::ValueRange{loop.getInductionVar()});
+            store->setAttr(ISQ_FIRST_STORE, ::mlir::UnitAttr::get(ctx));
             rewriter.create<mlir::scf::YieldOp>(loc);
         });
         return mlir::success();
@@ -170,7 +173,8 @@ public:
         rewriter.updateRootInPlace(ctor_loop, [&]{
             rewriter.setInsertionPointToEnd(ctor_loop.getBody());
             auto alloc_qubit = utils.allocQubit(loc, rewriter, rootModule);
-            rewriter.create<mlir::memref::StoreOp>(loc, qubit_unref(loc, rewriter, alloc_qubit), ctor_used_memref.result(), mlir::ValueRange{ctor_loop.getInductionVar()});
+            auto store = rewriter.create<mlir::memref::StoreOp>(loc, qubit_unref(loc, rewriter, alloc_qubit), ctor_used_memref.result(), mlir::ValueRange{ctor_loop.getInductionVar()});
+            store->setAttr(ISQ_FIRST_STORE, ::mlir::UnitAttr::get(ctx));
             rewriter.create<mlir::scf::YieldOp>(loc);
         });
 
@@ -297,7 +301,7 @@ public:
 
     }
     mlir::LogicalResult matchAndRewrite(mlir::memref::StoreOp op,  mlir::PatternRewriter &rewriter) const override{
-        if(op.value().getType().isa<QStateType>()){
+        if(op.value().getType().isa<QStateType>() && !op->hasAttr(ISQ_FIRST_STORE)){
             rewriter.eraseOp(op);
             return mlir::success();
         }
@@ -347,6 +351,20 @@ public:
     }
 };
 
+class RuleRemoveFirstStoreAttr : public mlir::OpRewritePattern<mlir::memref::StoreOp>{
+public:
+    RuleRemoveFirstStoreAttr(mlir::MLIRContext* ctx): mlir::OpRewritePattern<mlir::memref::StoreOp>(ctx, 1){
+
+    }
+    mlir::LogicalResult matchAndRewrite(mlir::memref::StoreOp op,  mlir::PatternRewriter &rewriter) const override{
+        if(!op->hasAttr(ISQ_FIRST_STORE)){
+            return ::mlir::failure();
+        }
+        op->removeAttr(ISQ_FIRST_STORE);
+        return ::mlir::success();
+    }
+};
+
 template<class T>
 class TypeReplacer : public mlir::OpConversionPattern<T>{
 protected:
@@ -369,14 +387,9 @@ public:
     LowerLoad(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::LoadOp>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::LoadOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
         rewriter.startRootUpdate(op);
-        auto curr_memref = op.getMemRef();
-        auto c = legalize(op->getLoc(), rewriter, curr_memref);
-        op.setMemRef(c.getResult(0));
-        mlir::ConversionPatternRewriter::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPointAfter(op);
-        auto new_val = unlegalize(op->getLoc(), rewriter, op.result());
+        op.setMemRef(adaptor.memref());
+        op.result().setType(converter.convertType(op.result().getType()));
         rewriter.finalizeRootUpdate(op);
-        rewriter.replaceOp(op, new_val->getResults());
         return mlir::success();
     }
 };
@@ -385,59 +398,38 @@ public:
     LowerStore(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::StoreOp>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::StoreOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
         rewriter.startRootUpdate(op);
-        auto curr_memref = op.getMemRef();
-        auto c = legalize(op->getLoc(), rewriter, curr_memref);
-        op.setMemRef(c.getResult(0));
-        auto curr_val = op.getValueToStore();
-        auto c2 = legalize(op->getLoc(), rewriter, curr_val);
-        op.setOperand(0, c2.getResult(0));
-        mlir::ConversionPatternRewriter::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPointAfter(op);
+        auto new_value = this->legalize(op->getLoc(), rewriter, adaptor.value());
+        op.valueMutable().assign(new_value.getResult(0));
+        op.setMemRef(adaptor.memref());
         rewriter.finalizeRootUpdate(op);
         return mlir::success();
     }
 };
+
+
 template<class T>
 class LowerAllocLike : public TypeReplacer<T>{
 public:
     LowerAllocLike(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<T>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(T op, typename TypeReplacer<T>::OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
         rewriter.startRootUpdate(op);
-        mlir::ConversionPatternRewriter::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPointAfter(op);
-        auto new_val = this->unlegalize(op->getLoc(), rewriter, op.memref());
+        op.memref().setType(this->converter.convertType(op.memref().getType()));
         rewriter.finalizeRootUpdate(op);
-        rewriter.replaceOp(op, new_val->getResults());
         return mlir::success();
     }
 };
 using LowerAlloc = LowerAllocLike<mlir::memref::AllocOp>;
 using LowerAlloca = LowerAllocLike<mlir::memref::AllocaOp>;
-class LowerDealloc : public TypeReplacer<mlir::memref::DeallocOp>{
-public:
-    LowerDealloc(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::DeallocOp>(ctx, converter){}
-    mlir::LogicalResult matchAndRewrite(mlir::memref::DeallocOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
-        rewriter.startRootUpdate(op);
-        auto curr_memref = op.memref();
-        auto c = legalize(op->getLoc(), rewriter, curr_memref);
-        op.setOperand(c.getResult(0));
-        rewriter.finalizeRootUpdate(op);
-        return mlir::success();
-    }
-};
+
 class LowerSubView : public TypeReplacer<mlir::memref::SubViewOp>{
 public:
     LowerSubView(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::SubViewOp>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::SubViewOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
+        
         rewriter.startRootUpdate(op);
-        auto curr_memref = op.source();
-        auto c = legalize(op->getLoc(), rewriter, curr_memref);
-        op.sourceMutable().assign(c.getResult(0));
-        mlir::ConversionPatternRewriter::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPointAfter(op);
-        auto new_val = unlegalize(op->getLoc(), rewriter, op.result());
+        op->setOperands(adaptor.getOperands());
+        op.result().setType(this->converter.convertType(op.result().getType()));
         rewriter.finalizeRootUpdate(op);
-        rewriter.replaceOp(op, new_val->getResults());
         return mlir::success();
     }
 };
@@ -446,14 +438,9 @@ public:
     LowerCast(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::CastOp>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::CastOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
         rewriter.startRootUpdate(op);
-        auto curr_memref = op.source();
-        auto c = legalize(op->getLoc(), rewriter, curr_memref);
-        op.sourceMutable().assign(c.getResult(0));
-        mlir::ConversionPatternRewriter::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPointAfter(op);
-        auto new_val = unlegalize(op->getLoc(), rewriter, op.getResult());
+        op->setOperands(adaptor.getOperands());
+        op.getResult().setType(this->converter.convertType(op.getResult().getType()));
         rewriter.finalizeRootUpdate(op);
-        rewriter.replaceOp(op, new_val->getResults());
         return mlir::success();
     }
 };
@@ -473,11 +460,8 @@ public:
     LowerGetGlobal(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::GetGlobalOp>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::GetGlobalOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
         rewriter.startRootUpdate(op);
-        mlir::ConversionPatternRewriter::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPointAfter(op);
-        auto new_val = unlegalize(op->getLoc(), rewriter, op.getResult());
+        op.result().setType(this->converter.convertType(op.result().getType()));
         rewriter.finalizeRootUpdate(op);
-        rewriter.replaceOp(op, new_val->getResults());
         return mlir::success();
     }
 };
@@ -512,6 +496,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
         rps2.add<RuleErase<DeclareQOpOp>>(ctx);
         rps2.add<RuleErase<UseGateOp>>(ctx);
         rps2.add<RuleErase<DefgateOp>>(ctx);
+        rps2.add<RuleRemoveFirstStoreAttr>(ctx);
         mlir::FrozenRewritePatternSet frps2(std::move(rps2));
         (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps2);
         // finally, convert all types.
@@ -540,10 +525,9 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
             converter.addSourceMaterialization(addUnrealizedCast);
             converter.addTargetMaterialization(addUnrealizedCast);
             rps.add<LowerLoad>(ctx, converter);
-            //rps.add<LowerStore>(ctx, converter);
+            rps.add<LowerStore>(ctx, converter);
             rps.add<LowerAlloc>(ctx, converter);
             rps.add<LowerAlloca>(ctx, converter);
-            rps.add<LowerDealloc>(ctx, converter);
             rps.add<LowerCast>(ctx, converter);
             rps.add<LowerSubView>(ctx, converter);
             rps.add<LowerGlobal>(ctx, converter);
@@ -561,6 +545,9 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
                 return converter.isSignatureLegal(op.getCalleeType());
             });
             target.addDynamicallyLegalDialect<mlir::memref::MemRefDialect>([&](mlir::Operation* op){
+                if(auto global = mlir::dyn_cast<mlir::memref::GlobalOp>(op)){
+                    return converter.isLegal(global.type());
+                }
                 return converter.isLegal(op);
             });
             if (failed(applyPartialConversion(m, target, std::move(rps)))){
@@ -569,71 +556,14 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
                 return;
             }
         }while(0);
-    }
-        /*
-        // Type conversion.
-        mlir::TypeConverter converter;
-        converter.addConversion([](mlir::Type ty){
-            return ty;
-        });
-        converter.addConversion([&](QStateType ty){
-            return QIRQubitType::get(ctx);
-        });
-        
-        converter.addConversion([&](mlir::FunctionType ty){
-            return llvm::None;
-        });
-        
-        converter.addConversion([&](mlir::MemRefType ty){
-            return mlir::MemRefType::get(ty.getShape(), converter.convertType(ty.getElementType()), ty.getLayout(), ty.getMemorySpace());
-        });
-        
-        
-        
-        populateUsefulPatternSets(rps, converter);
-        
-        mlir::ConversionTarget target(*ctx);
-        target.addIllegalDialect<ISQDialect>();
-        target.addLegalDialect<mlir::arith::ArithmeticDialect>();
-        target.addLegalOp<DeclareQOpOp>();
-        target.addLegalOp<DefgateOp>();
-        target.addLegalOp<UseGateOp>();
-        target.addLegalOp<mlir::UnrealizedConversionCastOp>();
-        target.addDynamicallyLegalOp<mlir::memref::AllocOp>(
-            [&](mlir::memref::AllocOp op){
-                return converter.isLegal(op->getResults());
-            }
-        );
-        target.addDynamicallyLegalOp<mlir::memref::DeallocOp>(
-            [&](mlir::memref::DeallocOp op){
-                return converter.isLegal();
-            }
-        );
-        target.addDynamicallyLegalOp<mlir::memref::CastOp>(
-            [&](mlir::memref::AllocOp op){
-                return converter.isLegal(op);
-            }
-        );
-        target.addDynamicallyLegalOp<mlir::memref::SubViewOp>(
-            [&](mlir::memref::AllocOp op){
-                return converter.isLegal(op);
-            }
-        );
-        target.addDynamicallyLegalOp<mlir::FuncOp>(
-            [&](mlir::FuncOp op) { return converter.isSignatureLegal(op.getType()); });
-        target.addDynamicallyLegalOp<mlir::ReturnOp>(
-            [&](mlir::ReturnOp op) { return converter.isLegal(op.getOperandTypes()); });
-        target.addDynamicallyLegalOp<mlir::CallOp>([&](mlir::CallOp op) {
-            return converter.isSignatureLegal(op.getCalleeType());
-        });
-        if (failed(applyPartialConversion(m, target, std::move(rps)))){
-            m.dump();
-            signalPassFailure();
-            return;
-        }
- 
+        // Lastly, throw off intermediate unrealized casts.
+        do{
+            mlir::RewritePatternSet rps(ctx);
+            mlir::populateReconcileUnrealizedCastsPatterns(rps);
+            mlir::FrozenRewritePatternSet frps(std::move(rps));
+            (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
         }while(0);
-        */
+    }
   mlir::StringRef getArgument() const final {
     return "isq-lower-to-qir-rep";
   }

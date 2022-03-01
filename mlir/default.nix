@@ -9,5 +9,5 @@ llvmPackages_13.stdenv.mkDerivation {
   name = "isq-qir";
   nativeBuildInputs = [ cmake ninja doxygen graphviz python3 which git lld_13 ];
   buildInputs = [ eigen mlir ];
-  src = ./.;
+  src = nix-gitignore.gitignoreSource [] ./.;
 }

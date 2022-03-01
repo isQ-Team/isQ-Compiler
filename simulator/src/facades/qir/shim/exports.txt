@@ -124,3 +124,6 @@ __isq__qir__shim__qis__u3
 __isq__qir__shim__qis__gphase
 __isq__qir__shim__qis__cnot
 __isq__qir__shim__qis__measure
+__isq__qir__shim__qis__reset
+__isq__qir__shim__qis__isq_print_i64
+__isq__qir__shim__qis__isq_print_f64

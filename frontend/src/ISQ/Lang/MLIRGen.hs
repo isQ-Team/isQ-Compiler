@@ -418,7 +418,7 @@ generateMLIRModule file xs =
         entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) [] [
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [],
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") [],
-                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [],
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_finalize") [],
                 MReturnUnit MLIRPosUnknown 
             ]]
     in MModule MLIRPosUnknown (reverse $ entry : finalize : initialize:view mainModule builder)
