@@ -103,6 +103,38 @@ def ISQ_Gate : TypeDef<ISQ_Dialect, "Gate", [MemRefElementTypeInterface]>{
         ::mlir::SmallVector<mlir::Type> getApplyParameterType(GateType ty);
     }];
 }
+def ISQ_QIRQubit : TypeDef<ISQ_Dialect, "QIRQubit", [MemRefElementTypeInterface]>{
+    let description = [{
+        Represents an opaque value `%Qubit` in QIR(LLVM).
+    }];
+    let summary = [{QIR Opaque Qubit value.}];
+    let mnemonic = "qir.qubit";
+
+    let printer = [{
+        QIRQubitParsePrint p;
+        p.printType(*this, $_printer);
+    }];
+    let parser = [{
+        QIRQubitParsePrint p;
+        return p.parseType($_parser);
+    }];
+}
+def ISQ_QIRResult : TypeDef<ISQ_Dialect, "QIRResult", [MemRefElementTypeInterface]>{
+    let description = [{
+        Represents an opaque value `%Result` in QIR(LLVM).
+    }];
+    let summary = [{QIR Opaque measurement result value.}];
+    let mnemonic = "qir.result";
+
+    let printer = [{
+        QIRResultParsePrint p;
+        p.printType(*this, $_printer);
+    }];
+    let parser = [{
+        QIRResultParsePrint p;
+        return p.parseType($_parser);
+    }];
+}
 /*
 def ISQ_QOp: DialectType<ISQ_Dialect, CPred<"$_self.isa<::isq::ir::QOpType>()">, "General quantum operation type">{
     let description = [{
@@ -207,9 +239,9 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolU
         // Gate definition
         isq.defgate @hadamard {definition = [ /* possible gate definition */ ]} : !isq.gate<1, hermitian>
         // Gate array declaration
-        isq.defgate @one_way_equivalent_gates {shape = [10, 10]} : !isq.gate<1>
+        isq.defgate @one_way_equivalent_gates [10, 10] : !isq.gate<1>
         // Gate family definition
-        isq.defgate @rz {parameters = [f64], definitions = [ /* external call */ ]} : !isq.gate<1, diagonal>
+        isq.defgate @rz(f64) { definitions = [ /* external call */ ]} : !isq.gate<1, diagonal>
         ```
 
         The symbol always uses `nested` visbility.
@@ -220,16 +252,19 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolU
         StrAttr: $sym_visibility,
         OptionalAttr<I64ArrayAttr>: $shape,
         OptionalAttr<ISQ_GateDefinitionList>: $definition,
-        OptionalAttr<TypeArrayAttr>: $parameters
+        TypeArrayAttr: $parameters
     );
     let results = (outs);
+    
     /*
     let assemblyFormat = [{
-        $sym_name attr-dict `:` $type
+        custom<GateVisibility>($sym_visibility) $sym_name (`(` $parameters^ `)`)? ( $shape^ )? attr-dict `:` $type
     }];
     */
+    
     let parser = [{return $cppClass::parseIR(parser, result);}];
     let printer = [{return this->printIR(p);}];
+    
     let verifier = [{
         return this->verifyIR();
     }];
@@ -238,6 +273,8 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolU
         bool isDeclaration();
         static ::mlir::LogicalResult parseIR(::mlir::OpAsmParser& parser, ::mlir::OperationState& result);
         void printIR(::mlir::OpAsmPrinter& p);
+        static bool parseGateVisibility(::mlir::OpAsmParser& parser, ::mlir::StringAttr& v);
+        void printGateVisibility(::mlir::OpAsmPrinter& p, DefgateOp op, ::mlir::StringAttr v);
         ::mlir::Type getTypeWhenUsed();
         ::mlir::LogicalResult verifyIR();
     }];
@@ -305,21 +342,27 @@ def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<Symbo
         ```mlir
         isq.defgate @one_gate : !isq.gate<1, hermitian>
         isq.defgate @gates {shape=[10,20]}: !isq.gate<1>
+        isq.defgate @u3(f64, f64, f64) : !isq.gate<1>
         func @use_gates()->(){
             %g1 = isq.use @one_gate : !isq.gate<1, hermitian>
             %g = isq.use @gates : memref<10x20x!isq.gate<1>>
+            %zero = arith.constant 0.0 : f64
+            %identity = isq.use @u3(%zero, %zero, %zero) : (f64, f64, f64)->!isq.gate<1>
             return
         }
         ```
     }];
     let arguments = (ins 
-    SymbolRefAttr: $name
+    SymbolRefAttr: $name,
+    Variadic<AnyType>: $parameters
     );
     let results = (outs
     AnyType: $result);
+    
     let assemblyFormat = [{
-        $name attr-dict  `:` qualified(type(results))
+        $name attr-dict  ( `(` $parameters^ `)` `:` `(` qualified(type($parameters)) `)` `->`):(`:`)? qualified(type(results))
     }];
+    
 }
 def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
     TypesMatchWith<
@@ -460,6 +503,7 @@ def ISQ_DecorateOp: ISQ_Op<"decorate", [NoSideEffect]>{
     let verifier = [{
         return ::isq::ir::verify(*this);
     }];
+    let hasCanonicalizer = 1;
 }
 
 

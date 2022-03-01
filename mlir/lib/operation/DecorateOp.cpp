@@ -1,4 +1,6 @@
 #include "isq/Enums.h"
+#include "isq/passes/canonicalization/MergeDecorateGates.h"
+#include "mlir/IR/PatternMatch.h"
 #include <isq/Operations.h>
 namespace isq {
 namespace ir {
@@ -26,6 +28,12 @@ mlir::LogicalResult verify(DecorateOp op) {
 
     return mlir::success();
 }
+
+void DecorateOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
+                                       mlir::MLIRContext *context) {
+    patterns.add<passes::canonicalize::MergeDecorate>(context);
+}
+
 
 } // namespace ir
 } // namespace isq

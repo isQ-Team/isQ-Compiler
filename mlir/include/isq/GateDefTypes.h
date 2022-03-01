@@ -54,6 +54,7 @@ public:
     }
     static ::mlir::LogicalResult verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute);
     static ::mlir::LogicalResult verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute, ::mlir::SymbolTableCollection &symbolTable);
+    const std::vector<std::vector<std::complex<double>>>& getMatrix() const;
 };
 
 // Define by decomposition.
@@ -128,7 +129,7 @@ public:
     };
     static ::mlir::LogicalResult verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::isq::ir::GateDefinition def, ::mlir::SymbolTableCollection &symbolTable){
         if(def.type().strref() == T::defKindName()){
-            return T::verifySymTable(op, id, ty, def, symbolTable);
+            return T::verifySymTable(op, id, ty, def.value(), symbolTable);
         }else{
             return GateDefParser<U...>::verifySymTable(op, id, ty, def, symbolTable);
         }

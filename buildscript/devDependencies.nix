@@ -30,6 +30,8 @@ pkgs.buildEnv rec {
       crate2nix
       cabal-install
       git
+      clang-tools
+      which
   ] ++ frontend-deps.nativeBuildInputs;
   passthru = {
     environmentVars = {

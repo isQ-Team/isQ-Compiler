@@ -1,6 +1,5 @@
 #include <isq/Operations.h>
 #include <mlir/IR/PatternMatch.h>
-#include <isq/passes/EliminateHermitianPairs.h>
 #include <mlir/Support/LogicalResult.h>
 namespace isq {
 namespace ir {

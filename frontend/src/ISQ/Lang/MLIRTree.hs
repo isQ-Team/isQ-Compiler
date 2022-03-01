@@ -204,8 +204,12 @@ emitOpStep f env (MLitBool loc value val) = indented env $ printf "%s = arith.co
 emitOpStep f env (MLitDouble loc value val) = indented env $ printf "%s = arith.constant %f : i1 %s" (unSsa value) val (mlirPos loc)
 
 -- TODO: remove this dirty hack
-emitOpStep f env (MAllocMemref loc val ty@(BorrowedRef _)) = indented env (printf "%s_zero = arith.constant 0 : index" (unSsa val))++ "\n" ++ indented env ( printf "%s = memref.alloc()[%s_zero] : %s %s" (unSsa val) (unSsa val) (mlirType ty) (mlirPos loc) )
+emitOpStep f env (MAllocMemref loc val ty@(BorrowedRef subty)) = intercalate "\n" $ fmap (indented env) [
+  printf "%s_real = memref.alloc() : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc),
+  printf "%s_zero = arith.constant 0 : index" (unSsa val),
+  printf "%s = memref.subview %s_real[%s_zero][1][1] : memref<1x%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) (mlirType subty) (mlirType ty) (mlirPos loc)]
 emitOpStep f env (MAllocMemref loc val ty) = indented env $ printf "%s = memref.alloc() : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MFreeMemref loc val ty@(BorrowedRef subty)) = indented env $ printf "memref.dealloc %s_real : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc)
 emitOpStep f env (MFreeMemref loc val ty) = indented env $ printf "memref.dealloc %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MJmp loc blk) = indented env $ printf "br %s %s" (unBlockName blk) (mlirPos loc)
 emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "cond_br %s, %s, %s %s" (unSsa val) (unBlockName trueDst) (unBlockName falseDst) (mlirPos loc)
@@ -252,7 +256,13 @@ emitOpStep f env (MAffineFor loc lo hi step var body) = intercalate "\n" $
   ++ [indented env $ printf "} %s" (mlirPos loc)]
 emitOpStep f env (MReturn loc (ty, v)) = indented env $ printf "return %s : %s %s" (unSsa v) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MReturnUnit loc) = indented env $ printf "return %s" (mlirPos loc)
+emitOpStep f env (MGlobalMemref loc name ty@(BorrowedRef subty)) = indented env $ printf "memref.global %s : memref<1x%s> = uninitialized %s"  (unFuncName name) (mlirType subty) (mlirPos loc)
 emitOpStep f env (MGlobalMemref loc name ty) = indented env $ printf "memref.global %s : %s = uninitialized %s"  (unFuncName name) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MUseGlobalMemref loc val name ty@(BorrowedRef subty)) = intercalate "\n" $ fmap (indented env) [ 
+  printf "%s_uncast = memref.get_global %s : memref<1x%s> %s" (unSsa val) (unFuncName name) (mlirType subty) (mlirPos loc),
+  printf "%s_zero = arith.constant 0 : index" (unSsa val),
+  printf "%s = memref.subview %s_uncast[%s_zero][1][1] : memref<1x%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) (mlirType subty) (mlirType ty) (mlirPos loc)
+  ]
 emitOpStep f env (MUseGlobalMemref loc val name ty) = indented env $ printf "%s = memref.get_global %s : %s %s" (unSsa val) (unFuncName name) (mlirType ty) (mlirPos loc) 
 emitOp' :: MLIREmitEnv -> MLIROp -> String
 emitOp' = fix emitOpStep

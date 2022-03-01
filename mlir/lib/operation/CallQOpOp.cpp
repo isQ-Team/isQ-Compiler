@@ -1,7 +1,7 @@
 #include <isq/Operations.h>
 #include <mlir/IR/PatternMatch.h>
-#include <isq/passes/EliminateHermitianPairs.h>
 #include <mlir/Support/LogicalResult.h>
+#include <isq/OpVerifier.h>
 namespace isq {
 namespace ir {
 ::mlir::LogicalResult

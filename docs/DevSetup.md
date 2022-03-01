@@ -21,7 +21,7 @@ TODO: Nix on Mac?
 Docker Image
 ----------------------------
 
-We also provide a (Docker development image)[https://hub.docker.com/repository/docker/gjz010/isqv2-dev], shipping required build tools installed in an Ubuntu container to save the trouble of learning how to install or use Nix.
+We also provide a [Docker development image](https://hub.docker.com/repository/docker/gjz010/isqv2-dev), shipping required build tools installed in an Ubuntu container to save the trouble of learning how to install or use Nix.
 
 ### Quick start
 

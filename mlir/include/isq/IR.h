@@ -8,4 +8,5 @@
 #include "./ParsePrint.h"
 #include "./Math.h"
 #include "./Backends.h"
-#include "./lowering/lower.h"
+#include "./Lower.h"
+#include "./QSynthesis.h"
