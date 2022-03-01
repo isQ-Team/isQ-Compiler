@@ -3,7 +3,7 @@ use super::types::*;
 use crate::devices::qdevice::QuantumOp::*;
 use crate::qdevice::QuantumOp;
 use core::cell::RefCell;
-pub fn isq_qir_shim_qis_u3(x0: K<QIRQubit>, theta: f64, phi: f64, lam: f64)->() {
+pub fn isq_qir_shim_qis_u3(theta: f64, phi: f64, lam: f64, x0: K<QIRQubit>)->() {
     trace!(
         "calling isq_qir_shim_qis_u3(x0: {}, theta: {}, phi: {}, lam: {})",
         P(&x0),
@@ -42,4 +42,18 @@ pub fn isq_qir_shim_qis_measure(x0: K<QIRQubit>)->QIRResult {
         QIR_RESULT_ZERO
     }
 
+}
+pub fn isq_qir_shim_qis_reset(x0: K<QIRQubit>)->() {
+    trace!("calling isq_qir_shim_qis_reset(x0: {})", P(&x0));
+    let rctx = context();
+    let mut ctx = RefCell::borrow_mut(&rctx);
+    let device = ctx.get_device_mut();
+    device.controlled_qop(Reset, &[], &[&x0.key], &[]);
+}
+
+pub fn isq_qir_shim_qis_isq_print_i64(x0: i64)->() {
+    info!("{}", x0);
+}
+pub fn isq_qir_shim_qis_isq_print_f64(x0: f64)->() {
+    info!("{}", x0);
 }

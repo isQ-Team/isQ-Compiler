@@ -23,6 +23,7 @@ enum QIRType {
     QI1,
     QI32,
     QI64,
+    QF64,
     QI8P,
     QI64P,
     MeasurementProbabilityArgs,
@@ -169,6 +170,7 @@ impl QIRType {
             QIRType::QI1 => "i1",
             QIRType::QI32 => "i32",
             QIRType::QI64 => "i64",
+            QIRType::QF64 => "double",
             QIRType::QI8P => "i8*",
             QIRType::QI64P => "i64*",
             QIRType::MeasurementProbabilityArgs => {
@@ -193,6 +195,7 @@ impl QIRType {
             QIRType::QI1 => PrimitiveType::I1,
             QIRType::QI32 => PrimitiveType::I32,
             QIRType::QI64 => PrimitiveType::I64,
+            QIRType::QF64 => PrimitiveType::F64,
             QIRType::QI8P => PrimitiveType::Pointer,
             QIRType::QI64P => PrimitiveType::Pointer,
             QIRType::MeasurementProbabilityArgs => PrimitiveType::Pointer,
@@ -215,6 +218,7 @@ impl QIRType {
             QIRType::QI1 => "bool",
             QIRType::QI32 => "i32",
             QIRType::QI64 => "i64",
+            QIRType::QF64 => "f64",
             QIRType::QI8P => "*mut i8",
             QIRType::QI64P => "*mut i64",
             QIRType::MeasurementProbabilityArgs => "*const MeasurementProbabilityArgs",
@@ -957,10 +961,13 @@ fn qir_microsoft_extension_foundation() -> Vec<QIRInterface> {
 // Extensions for isQ.
 fn qir_isq() -> Vec<QIRInterface> {
     let mut interfaces: Vec<QIRInterface> = Vec::new();
-    interfaces.push(QIRInterface::new("qis", "u3", QVoid, &[Qubit, Double, Double, Double]));
+    interfaces.push(QIRInterface::new("qis", "u3", QVoid, &[Double, Double, Double, Qubit]));
     interfaces.push(QIRInterface::new("qis", "gphase", QVoid, &[Double]));
     interfaces.push(QIRInterface::new("qis", "cnot", QVoid, &[Qubit, Qubit]));
     interfaces.push(QIRInterface::new("qis", "measure", Result, &[Qubit]));
+    interfaces.push(QIRInterface::new("qis", "reset", QVoid, &[Qubit]));
+    interfaces.push(QIRInterface::new("qis", "isq_print_i64", QVoid, &[QI64]));
+    interfaces.push(QIRInterface::new("qis", "isq_print_f64", QVoid, &[QF64]));
     return interfaces;
 }
 

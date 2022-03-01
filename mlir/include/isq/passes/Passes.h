@@ -8,6 +8,7 @@ void registerDecorateFolding();
 void registerQSD();
 void registerExpandDecomposition();
 void registerLowerToQIRRep();
+void registerQIR2LLVM();
 }
 }
 }

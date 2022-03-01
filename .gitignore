@@ -8,3 +8,4 @@ build/
 /simulator/examples/*/obj
 /frontend/.stack-work
 result
+/frontend/dist-newstyle

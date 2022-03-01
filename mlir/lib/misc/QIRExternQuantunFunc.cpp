@@ -36,8 +36,8 @@ const std::string qir_result_equal = "__quantum__rt__result_equal";
 const std::string qir_reset = "__quantum__qis__reset";
 const std::string qir_gate_head = "__quantum__qis__";
 const std::string isq_decomposed_head = "__isq__decomposed__";
-const std::string qir_print_i64 = "__quantum__rt__isq_print_i64";
-const std::string qir_print_f64 = "__quantum__rt__isq_print_f64";
+const std::string qir_print_i64 = "__quantum__qis__isq_print_i64";
+const std::string qir_print_f64 = "__quantum__qis__isq_print_f64";
 
 void createExternOp(::mlir::PatternRewriter& rewriter, ::mlir::MLIRContext* ctx, ::mlir::StringRef externOpName, ::mlir::ArrayRef<::mlir::Type> argsType, ::mlir::ArrayRef<::mlir::Type> returnType){
     auto fntype = FunctionType::get(ctx, argsType, returnType);

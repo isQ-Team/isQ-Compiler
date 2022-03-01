@@ -215,7 +215,7 @@ impl QDevice for NaiveSimulator {
                 "Qubit {} is not in computational state! prob = ({}, {})",
                 qubit, prob_zero, prob_one
             );
-            warn!("This may be seen as an error in Q# environment. However we perform trace-out here.");
+            warn!("This may be treated as an error in Q# environment. However we perform trace-out here.");
         }
         let (result, prob) = random_coin(prob_zero, prob_one);
         self.collapse_msb_qubit_into(result, prob);

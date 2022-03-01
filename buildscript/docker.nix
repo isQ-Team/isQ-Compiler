@@ -2,7 +2,7 @@
 let 
 isqv2 = import ./. {inherit pkgs;};
 in
-dev_imagepkgs.dockerTools.buildLayeredImage {
+pkgs.dockerTools.buildLayeredImage {
   contents =  [isqv2];
   name = "isqv2";
 }
