@@ -7,6 +7,9 @@ namespace ir {
 void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     mlir::registerAllPasses();
     passes::registerDecorateFolding();
+    passes::registerQSD();
+    passes::registerExpandDecomposition();
+    passes::registerLowerToQIRRep();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
 }

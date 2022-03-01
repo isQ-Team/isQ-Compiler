@@ -17,7 +17,7 @@ def ISQ_Dialect: Dialect{
     let description = [{
         MLIR Dialect for expressing and optimization ranging from low-level quantum circuits, to high level quantum programs with complicated control structures.
     }];
-    let dependentDialects = ["::mlir::memref::MemRefDialect", "::mlir::AffineDialect", "::mlir::arith::ArithmeticDialect"];
+    let dependentDialects = ["::mlir::memref::MemRefDialect", "::mlir::AffineDialect", "::mlir::arith::ArithmeticDialect", "::mlir::scf::SCFDialect"];
     let hasCanonicalizer = 1;
     let useDefaultTypePrinterParser = 0;
     let useDefaultAttributePrinterParser = 0;
@@ -401,7 +401,7 @@ def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
         ::mlir::LogicalResult verifyIR();
     }];
 }
-def ISQ_CallQOpOp: ISQ_Op<"call_qop", [NoSideEffect, DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
+def ISQ_CallQOpOp: ISQ_Op<"call_qop", [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
     let summary = "Applies a quantum operation onto qstates";
     let description = [{
         Syntax:

@@ -31,6 +31,8 @@ data TypeCheckError =
     | BadProcedureReturnType { pos :: Pos, arg :: (Type (), Ident)}
     | ICETypeCheckError
     | UnsupportedReturnType { pos::Pos, badReturnType :: Type () }
+    | MainUndefined
+    | BadMainSignature { actualMainSignature :: Type () }
     deriving Show
 type SymbolTableLayer = Map.Map Symbol DefinedSymbol
 type SymbolTable = [SymbolTableLayer]
@@ -46,11 +48,12 @@ insertSymbol sym ast (x:xs) = case x Map.!? sym of
 
 data TypeCheckEnv = TypeCheckEnv {
     symbolTable :: SymbolTable,
-    ssaAllocator :: Int
+    ssaAllocator :: Int,
+    mainDefined :: Bool
 }
 
 newTypeCheckEnv :: TypeCheckEnv
-newTypeCheckEnv = TypeCheckEnv [Map.empty] 0
+newTypeCheckEnv = TypeCheckEnv [Map.empty] 0 False
 
 type TypeCheck = ExceptT TypeCheckError (State TypeCheckEnv)
 
@@ -81,6 +84,10 @@ defineSym a b c= do
 defineGlobalSym :: Symbol->Pos->EType->TypeCheck Int
 defineGlobalSym a b c= do
     ssa<-nextId
+    when (a==SymVar "main" && c /= Type () FuncTy [Type () Unit []]) $ do
+        throwError $ BadMainSignature c
+    when (a==SymVar "main") $ do
+        modify' (\x->x{mainDefined = True})
     addSym a (DefinedSymbol b c ssa True)
     return ssa
 
@@ -417,7 +424,7 @@ typeCheckToplevel ast = do
         ) resolved_defvar
     -- Finally, resolve procedure bodies.
     -- Note that we need to store byval-passed values (e.g. int) into new variables.
-    mapM (\node->case node of
+    body<-mapM (\node->case node of
         Right x->return x
         Left (pos, ty, func_name, args, body, ret@(ETempVar pret ret_id))-> do
             scope
@@ -452,8 +459,10 @@ typeCheckToplevel ast = do
             return $ NResolvedProcedureWithRet (okStmt pos) ty func_name args' body' ret'' ret_var
         Left _ -> error "unreachable"
         ) resolved_headers
-
-
+    m<-gets mainDefined
+    when (not m) $ do
+        throwError $ MainUndefined
+    return body
 --typeCheckAST :: AST Pos->Either TypeCheckError (AST TypeCheckData)
 
 typeCheckTop :: [LAST]->Either TypeCheckError [AST TypeCheckData]

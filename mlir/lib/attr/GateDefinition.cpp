@@ -131,6 +131,9 @@ DecompositionDefinition::DecompositionDefinition(::isq::ir::DefgateOp op, int id
     this->decomposition = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(op, callee);
     assert(this->decomposition);
 }
+mlir::FuncOp DecompositionDefinition::getDecomposedFunc(){
+    return this->decomposition;
+}
 ::mlir::LogicalResult DecompositionDefinition::verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute){
     return ::mlir::success();
 }
@@ -171,6 +174,9 @@ DecompositionDefinition::DecompositionDefinition(::isq::ir::DefgateOp op, int id
 QIRDefinition::QIRDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_QIR){
     auto qir_name = value.cast<::mlir::StringAttr>();
     this->qir_name = qir_name.getValue();
+}
+::mlir::StringRef QIRDefinition::getQIRName(){
+    return this->qir_name;
 }
 ::mlir::LogicalResult QIRDefinition::verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute){
     auto qir_name = attribute.dyn_cast_or_null<::mlir::StringAttr>();

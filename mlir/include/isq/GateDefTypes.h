@@ -62,6 +62,7 @@ class DecompositionDefinition: public GateDefinitionAttribute{
 private:
     mlir::FuncOp decomposition;
 public:
+    ::mlir::FuncOp getDecomposedFunc();
     DecompositionDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value);
     static bool classof(const GateDefinitionAttribute *attr) {
         return attr->getKind() == GateDefinitionAttribute::GD_DECOMPOSITION;
@@ -78,6 +79,7 @@ class QIRDefinition: public GateDefinitionAttribute{
 private:
     std::string qir_name;
 public:
+    ::mlir::StringRef getQIRName();
     QIRDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value);
     static bool classof(const GateDefinitionAttribute *attr) {
         return attr->getKind() == GateDefinitionAttribute::GD_QIR;
