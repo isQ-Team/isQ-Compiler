@@ -2,16 +2,12 @@
 , lens, lib, math-functions, mtl, parsec, pretty-simple, text
 }:
 mkDerivation {
-  pname = "isqc-lib";
+  pname = "isqc";
   version = "0.1.0.0";
   src = ./.;
-  isLibrary = true;
+  isLibrary = false;
   isExecutable = true;
-  libraryHaskellDepends = [
-    array base containers extra lens math-functions mtl parsec
-    pretty-simple text
-  ];
-  libraryToolDepends = [ alex happy hpack ];
+  libraryToolDepends = [ hpack ];
   executableHaskellDepends = [
     array base containers extra lens math-functions mtl parsec
     pretty-simple text

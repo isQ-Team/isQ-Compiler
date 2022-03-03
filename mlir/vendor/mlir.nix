@@ -12,11 +12,10 @@ in stdenv.mkDerivation {
   buildInputs = [cmake ninja python3 git lld_13];
   cmakeFlags = with stdenv; [
     "-DLLVM_ENABLE_PROJECTS=llvm;mlir"
-    "-DLLVM_BUILD_EXAMPLES=ON"
+    "-DLLVM_BUILD_EXAMPLES=OFF"
     "-DLLVM_TARGETS_TO_BUILD=X86;NVPTX;AMDGPU"
     "-DLLVM_ENABLE_ASSERTIONS=ON"
-    "-DLLVM_BUILD_LLVM_DYLIB=ON"
-    "-DLLVM_LINK_LLVM_DYLIB=ON"
+    "-DBUILD_SHARED_LIBS=ON"
     "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
     "-DCMAKE_C_COMPILER=clang"
     "-DCMAKE_CXX_COMPILER=clang++"

@@ -6,6 +6,11 @@ let
   mlir = pkgs.callPackage ../mlir/vendor/mlir.nix {};
   rust = rustChannel.rust.override (old: { extensions = ["rust-src" "rust-analysis"]; });
   frontend-deps = (import ../frontend/shell.nix {});
+  nix-bundle = pkgs.nix-bundle.overrideAttrs (attrs: {
+    postInstall = attrs.postInstall + ''
+      sed -i "s/g++/g++ -static-libstdc++/" $out/share/nix-bundle/nix-user-chroot/Makefile
+    '';
+  });
 in
 pkgs.buildEnv rec {
   name = "isqv2-tools";
@@ -32,6 +37,7 @@ pkgs.buildEnv rec {
       git
       clang-tools
       which
+      nix-bundle
   ] ++ frontend-deps.nativeBuildInputs;
   passthru = {
     environmentVars = {

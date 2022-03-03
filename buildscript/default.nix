@@ -6,6 +6,6 @@ let
   mlir14 = pkgs.callPackage ../mlir/vendor/mlir.nix {};
 in
 pkgs.buildEnv rec {
-  name = "isqv2-tools";
+  name = "isqv2";
   paths = [ frontend mlir simulator mlir14 ];
 }

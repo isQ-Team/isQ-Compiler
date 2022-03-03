@@ -1,4 +1,4 @@
-name:                isqc-lib
+name:                isqc
 version:             0.1.0.0
 github:              "gjz010/isqv2-frontend"
 license:             BSD3
@@ -32,19 +32,14 @@ build-tools:
 - happy
 - alex
 
-library:
-  source-dirs: src
-
 executables:
   isqc:
     main:                Main.hs
-    source-dirs:         app
+    source-dirs:         src
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    dependencies:
-    - isqc-lib
 
 #tests:
 #  isq-frontend-experimental-test:
