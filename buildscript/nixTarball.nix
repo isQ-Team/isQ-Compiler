@@ -5,7 +5,7 @@ nix-user-chroot = ./nix-user-chroot;
 target_path = (builtins.toString target);
 startup_script = writeScript "startup" ''
     #!/bin/sh
-    if [ -z "$@" ]; then
+    if [ -z "$1" ]; then
     echo isQv2 Toolchain wrapper.
     echo Usage: $0 [TOOL_NAME]
     echo Tools directory: .${target_path}/bin/
