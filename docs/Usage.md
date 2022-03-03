@@ -1,10 +1,37 @@
 Usage
 =========================
 
-We packed all tools into a Docker container.
+We packed all tools into a tarball.
+
+Preparation
+-------------------------
+
+Note that since our tarball depends on (nix-user-chroot)[https://github.com/nix-community/nix-user-chroot], you need to make sure that your kernel is configured with `CONFIG_USER_NS=y`.
+
+To check: 
 
 ```bash
-alias isqv2="docker run -i --rm isqv2:<tag>"
+$ unshare --user --pid echo YES
+YES
+```
+
+`run` is a thin wrapper around `nix-user-chroot`.
+
+```bash
+$ ./run
+isQv2 Toolchain wrapper.
+Usage: ./run [TOOL_NAME]
+Tools directory: ./nix/store/8rsrr6dc3kl20g5gi7kclbv409m1kq7l-isqv2/bin/
+# Lists all tools available.
+$ ls ./nix/store/8rsrr6dc3kl20g5gi7kclbv409m1kq7l-isqv2/bin/
+isqc isq-opt mlir-translate ...
+```
+
+
+We use these aliases:
+
+```bash
+alias isqv2="./run"
 alias isqc="isqv2 isqc"
 alias isq-opt="isqv2 isq-opt"
 alias mlir-translate="isqv2 mlir-translate"
