@@ -9,7 +9,7 @@ Preparation
 
 ### Requirements
 
-Note that since our tarball depends on (nix-user-chroot)[https://github.com/nix-community/nix-user-chroot], you need to make sure that your kernel is configured with `CONFIG_USER_NS=y`.
+Note that since our tarball depends on [nix-user-chroot](https://github.com/nix-community/nix-user-chroot), you need to make sure that your kernel is configured with `CONFIG_USER_NS=y`.
 
 To check: 
 
@@ -32,7 +32,7 @@ isqc (isQ Compiler)
 The second approach is simpler: just throw the `nix` folder into root folder as `/nix`, and the commands under the folder followed by "`Tools directory:`" when running `run` (see Command Usage) will be available. In this case, the `run` wrapper, as well as `SYS_ADMIN` capability, is no longer required.
 
 ```bash
-$ docker run --rm -v `pwd`/nix:/nix -it ubuntu /nix/store/8rsrr6dc3kl20g5gi7kclbv409m1kq7l-isqv2/bin/isqc -v
+$ docker run --rm -v `pwd`/nix:/nix -it ubuntu /nix/store/${ISQ_HASH_HERE}-isqv2/bin/isqc -v
 isqc (isQ Compiler)
 ```
 
@@ -45,9 +45,9 @@ isqc (isQ Compiler)
 $ ./run
 isQv2 Toolchain wrapper.
 Usage: ./run [TOOL_NAME]
-Tools directory: ./nix/store/8rsrr6dc3kl20g5gi7kclbv409m1kq7l-isqv2/bin/
+Tools directory: ./nix/store/${ISQ_HASH_HERE}-isqv2/bin/
 # Lists all tools available.
-$ ls ./nix/store/8rsrr6dc3kl20g5gi7kclbv409m1kq7l-isqv2/bin/
+$ ls ./nix/store/${ISQ_HASH_HERE}-isqv2/bin/
 isqc isq-opt mlir-translate ...
 ```
 
@@ -60,6 +60,7 @@ alias isqc="isqv2 isqc"
 alias isq-opt="isqv2 isq-opt"
 alias mlir-translate="isqv2 mlir-translate"
 alias simulator="isqv2 simulator"
+export ISQ_ROOT="`pwd`/nix/store/${ISQ_HASH_HERE}-isqv2/"
 ```
 
 isQ Compiler Frontend
@@ -80,6 +81,13 @@ mlir-translate --mlir-to-llvmir < test1_llvm.mlir > test1.ll
 isQ Simulator
 -------------------------
 
-TODO: Building.
-
-TODO: You need to mount a local volume into the container for accessing.
+```bash
+cat > test1.c <<EOF
+void __isq__entry();
+void isq_simulator_entry(){
+  __isq__entry();
+}
+EOF
+clang test1.c test1.ll $ISQ_ROOT/share/isq-simulator/isq-simulator.bc -O3 -shared -fPIC -o test1.so
+RUST_LOG=INFO simulator ./test1.so
+```
