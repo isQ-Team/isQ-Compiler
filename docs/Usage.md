@@ -31,6 +31,11 @@ isqc (isQ Compiler)
 
 The second approach is simpler: just throw the `nix` folder into root folder as `/nix`, and the commands under the folder followed by "`Tools directory:`" when running `run` (see Command Usage) will be available. In this case, the `run` wrapper, as well as `SYS_ADMIN` capability, is no longer required.
 
+```bash
+$ docker run --rm -v `pwd`/nix:/nix -it ubuntu /nix/store/8rsrr6dc3kl20g5gi7kclbv409m1kq7l-isqv2/bin/isqc -v
+isqc (isQ Compiler)
+```
+
 
 ### Command usage
 
