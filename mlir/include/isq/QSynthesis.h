@@ -16,7 +16,7 @@ using namespace Eigen;
     using std::pair;
 
     enum GateType {
-        NONE, RX, RY, RZ, CNOT, MX, MY, MZ
+        NONE, RX, RY, RZ, CNOT, MX, MY, MZ, TOFFOLI, H, X
     };
 
     typedef vector<int> GateLocation;
@@ -29,6 +29,7 @@ using namespace Eigen;
     typedef vector<ComplexPair> UnitaryVector;
     typedef tuple<GateType, GateLocation, GateAngle, GateAngle, GateAngle> ElementGate;
     typedef vector<ElementGate> DecomposedGates;
+    typedef tuple<double, double, double, double> UAngle;
 
     // Single Pauli matrices
     // Matrix2cd Rx(double angle);
@@ -68,6 +69,8 @@ using namespace Eigen;
             void AddDecomposedGate(Gate gate);
             GateSequence remain_gates;
     };
+
+    DecomposedGates mcdecompose_u(UnitaryVector uvector, std::string ctrl);
 }    
 
     //DecomposedGates Universal(int n, UnitaryVector uvector);
