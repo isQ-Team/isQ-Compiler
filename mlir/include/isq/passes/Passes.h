@@ -4,6 +4,7 @@ namespace isq{
 namespace ir{
 namespace passes{
 
+void registerQuantumGatePass();
 void registerDecorateFolding();
 void registerQSD();
 void registerExpandDecomposition();
