@@ -11,7 +11,7 @@ in stdenv.mkDerivation {
   };
   buildInputs = [cmake ninja python3 git lld_13];
   cmakeFlags = with stdenv; [
-    "-DLLVM_ENABLE_PROJECTS=llvm;mlir"
+    "-DLLVM_ENABLE_PROJECTS=llvm;mlir;lld"
     "-DLLVM_BUILD_EXAMPLES=OFF"
     "-DLLVM_TARGETS_TO_BUILD=X86;NVPTX;AMDGPU"
     "-DLLVM_ENABLE_ASSERTIONS=ON"

@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 module ISQ.Driver.Main where
 import System.Console.GetOpt
 import System.Environment
@@ -10,9 +11,14 @@ import Text.Pretty.Simple
 import Data.Text.Lazy (unpack)
 import Data.Bifunctor
 import ISQ.Lang.CompileError
-import System.IO (hPutStrLn, stderr)
-data Flag = Input String | Output String | Version | Mode String deriving Eq
-
+import System.IO (hPutStrLn, stderr, stdout)
+import Control.Monad.Cont.Class
+import Control.Monad.Cont
+import Control.Monad.Except 
+import Data.Aeson
+import ISQ.Driver.Jsonify
+import qualified Data.ByteString.Lazy as BS
+data Flag = Input String | Output String | Version | Mode String | Help  deriving Eq
 
 
 
@@ -21,13 +27,14 @@ options = [
     Option ['i'] ["input"] (ReqArg Input "FILE") "Input isQ source file.",
     Option ['o'] ["output"] (ReqArg Output "FILE") "Output file.",
     Option ['v'] ["version"] (NoArg Version) "Show version.",
-    Option ['m'] ["mode"] (ReqArg Mode "MODE") "Compilation mode. Supported modes: ast, raii, typecheck, mlir(default)"
+    Option ['m'] ["mode"] (ReqArg Mode "MODE") "Output mode. Supported modes: ast, raii, typecheck, mlir, mlir-llvm, llvm, so(default)",
+    Option ['h'] ["help"] (NoArg Help) "Show help."
     ]
 
 
 
 header :: [Char]
-header = "Usage: isqc [OPTION...] files..."
+header = "Usage: isqc1 [OPTION...] files..."
 
 usage :: [Char]
 usage = usageInfo header options
@@ -57,13 +64,24 @@ setExactlyOnce r v err = do
         Nothing -> writeIORef r (Just v)
         Just _ -> raiseError True err
 
+writeOut :: (ToJSON a, ToJSON b)=>Maybe String->Either a b->IO ()
+writeOut (Just p) x = BS.writeFile p (encode x)
+writeOut Nothing x = BS.hPut stdout (encode x)
+
+
+
+{-
 writeOut :: (Show a)=>Maybe String->Either a String->IO ()
 writeOut _ (Left err) = raiseError False (show err)
 writeOut (Just p) (Right f) = writeFile p f
 writeOut Nothing (Right f) = putStrLn f
+-}
 main = do
     args<-getArgs
     flags<-compilerOpts args
+    when (Help `elem` flags) $ do
+        putStrLn usage 
+        exitSuccess
     when (Version `elem` flags) $ do
         putStrLn $ "isqc (isQ Compiler)"
         exitSuccess
@@ -80,16 +98,18 @@ main = do
     input'<-readIORef input
     output'<-readIORef output
     mode'<-fromMaybe "mlir" <$> readIORef mode
-    ast<-first SyntaxError <$> parseFileOrStdin input'
+    ast<- parseFileOrStdin input'
     let inputFileName = fromMaybe "<stdin>" input'
+    
+
     case mode' of
         "mlir"-> do
             writeOut output' (ast >>= compile inputFileName)
         "ast"-> do
-            writeOut output' (unpack . pShowNoColor <$> ast)
+            writeOut output' ast
         "raii"-> do
-            writeOut output' (ast >>= (unpack . pShowNoColor<$>) <$> compileRAII)
+            writeOut output' (ast >>=  compileRAII)
         "typecheck" -> do
-            writeOut output' (ast >>= (unpack . pShowNoColor<$>) <$> compileTypecheck)
-        _-> raiseError True  $ ("Bad mode "++mode')
+            writeOut output' (ast >>= compileTypecheck)
+        _-> raiseError True ("Bad mode "++mode')
     return ()

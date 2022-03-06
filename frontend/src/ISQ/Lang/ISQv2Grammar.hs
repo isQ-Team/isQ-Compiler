@@ -1,4 +1,5 @@
 {-# LANGUAGE Rank2Types, DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
 module ISQ.Lang.ISQv2Grammar (module ISQ.Lang.ISQv2Grammar, Pos) where
 import ISQ.Lang.ISQv2Tokenizer
 import Data.Complex
@@ -106,9 +107,8 @@ newtype InternalCompilerError = InternalCompilerError String deriving Show
 data GrammarError = 
     BadMatrixElement {badExpr :: LExpr}
   | BadMatrixShape {badMatrix :: LAST}
-  | MissingGlobalVarSize {badDefPos :: Pos, badDefName :: String}
-  | IdentifierNotFound deriving Show
-
+  | MissingGlobalVarSize {badDefPos :: Pos, badDefName :: String} 
+  | UnexpectedToken {token :: Token Pos} deriving Show
 
 foldConstantComplex :: LExpr->Either LExpr (Complex Double)
 foldConstantComplex x@(EBinary _ op lhs rhs) = do
@@ -152,3 +152,5 @@ checkTopLevelVardef = mapM go where
     go' (Type _ UnknownArray _,b,c) = Left $ MissingGlobalVarSize pos b
     go' (a,b,c) = Right (a,b,c)
   go v = return v
+
+

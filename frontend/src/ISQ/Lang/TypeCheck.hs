@@ -28,9 +28,8 @@ data TypeCheckError =
     | ViolateNonCloningTheorem { pos :: Pos }
     | ArgNumberMismatch { pos :: Pos, expectedArgs :: Int, actualArgs :: Int }
     | BadProcedureArgType { pos :: Pos, arg :: (Type (), Ident)}
-    | BadProcedureReturnType { pos :: Pos, arg :: (Type (), Ident)}
+    | BadProcedureReturnType { pos :: Pos, ret :: (Type (), Ident)}
     | ICETypeCheckError
-    | UnsupportedReturnType { pos::Pos, badReturnType :: Type () }
     | MainUndefined
     | BadMainSignature { actualMainSignature :: Type () }
     deriving Show
@@ -409,15 +408,19 @@ typeCheckToplevel ast = do
                 ty'<-case ty of
                     Type _ Int [] -> return $ void ty
                     Type _ Unit [] -> return $ void ty
+                    Type _ Double [] -> return $ void ty
+                    Type _ Bool [] -> return $ void ty
                     _ -> throwError $ BadProcedureReturnType pos (void ty, name)
                 args'<-mapM (\(ty, i)->case ty of
                     Type _ Int [] -> return $ void ty
+                    Type _ Double [] -> return $ void ty
+                    Type _ Bool [] -> return $ void ty
                     Type _ Qbit [] -> return $ Type () Ref [void ty]
                     Type _ UnknownArray [a] -> return $ void ty
                     Type _ (FixedArray _) [a] -> return $ void ty
-                    _ -> throwError $ BadProcedureArgType pos (void ty, i)
+                    _ -> throwError $ BadProcedureArgType (annotation ty) (void ty, i)
                     ) args
-                defineGlobalSym (SymVar name) pos (Type () FuncTy (ty':args'))
+                defineGlobalSym (SymVar name) (annotation ty) (Type () FuncTy (ty':args'))
                 -- NTempvar a (void b, procRet, Nothing)
                 return $ Left (pos, ty', name, zip args' (fmap snd args), body, ret)
             _ -> error "unreachable"
@@ -430,7 +433,9 @@ typeCheckToplevel ast = do
             scope
             -- resolve return value
             ret_var<-case ty of
-                Type _ Unit [] -> return Nothing
+                Type _ Unit [] -> do
+                    s<-defineSym (SymTempVar ret_id) pret (Type () Ref [ty])
+                    return $ Nothing
                 _ -> do
                     s<-defineSym (SymTempVar ret_id) pret (Type () Ref [ty])
                     return $ Just (Type () Ref [ty], s)

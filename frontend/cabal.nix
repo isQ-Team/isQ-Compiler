@@ -1,16 +1,17 @@
-{ mkDerivation, alex, array, base, containers, extra, happy, hpack
-, lens, lib, math-functions, mtl, parsec, pretty-simple, text
+{ mkDerivation, aeson, alex, array, base, bytestring, containers
+, deepseq, extra, happy, hpack, lens, lib, math-functions, mtl
+, parsec, pretty-simple, text
 }:
 mkDerivation {
-  pname = "isqc";
+  pname = "isqc-frontend";
   version = "0.1.0.0";
   src = ./.;
   isLibrary = false;
   isExecutable = true;
   libraryToolDepends = [ hpack ];
   executableHaskellDepends = [
-    array base containers extra lens math-functions mtl parsec
-    pretty-simple text
+    aeson array base bytestring containers deepseq extra lens
+    math-functions mtl parsec pretty-simple text
   ];
   executableToolDepends = [ alex happy ];
   prePatch = "hpack";

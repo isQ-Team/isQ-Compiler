@@ -19,7 +19,6 @@ pkgs.buildEnv rec {
       llvmPackages_13.lldb
       cmake
       rust
-      llvmPackages_13.lld
       binutils
       eigen
       mlir
