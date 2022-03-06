@@ -4,6 +4,7 @@ module ISQ.Lang.ISQv2Parser where
 import ISQ.Lang.ISQv2Tokenizer
 import ISQ.Lang.ISQv2Grammar
 import Data.Maybe (catMaybes)
+import Control.Exception (throw, Exception)
 
 }
 %name isqv2
@@ -284,6 +285,6 @@ TopLevelMember : Procedure {$1} | ISQCore_GatedefStatement ';' {$1} | TopLevelVa
 
 {
 parseError :: [ISQv2Token] -> a
-parseError xs = error $ "Parse error at token "++ show (head xs)
+parseError xs = throw (head xs)
      
 }

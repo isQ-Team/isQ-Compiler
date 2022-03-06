@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module ISQ.Driver.Passes where
 import ISQ.Lang.ISQv2Parser
 import ISQ.Lang.ISQv2Tokenizer
@@ -10,22 +11,36 @@ import Text.Pretty.Simple
 import ISQ.Lang.MLIRGen (generateMLIRModule)
 import ISQ.Lang.MLIRTree (emitOp)
 import System.Environment (getArgs)
-parseToAST :: String->Either String [LAST]
+import Control.Exception (catch, Exception, evaluate)
+import Data.Bifunctor (first)
+import Control.DeepSeq
+import ISQ.Driver.Jsonify
+import Data.Char (isDigit)
+
+syntaxError :: String->CompileError 
+syntaxError x = 
+    let t1 = dropWhile (not . isDigit) x
+        (l, t2) = span isDigit t1
+        t3 = dropWhile (not . isDigit) t2
+        c = takeWhile isDigit t3
+    in SyntaxError (Pos {line = read l, column = read c} )
+
+parseToAST :: String->ExceptT CompileError IO [LAST]
 parseToAST s = do
-    tokens <- tokenize s
-    return $ isqv2 tokens
-    
-parseFile :: String->IO (Either String [LAST])
+    tokens <- liftEither $ first syntaxError $ tokenize s
+    x <-lift $ catch (Right <$> (evaluate $ force $ isqv2 tokens)) (\e-> (return $ Left $ GrammarError $ UnexpectedToken e))
+    liftEither x
+parseFile :: String->IO (Either CompileError [LAST])
 parseFile path = do
     f<-readFile path
-    return $ parseToAST f
+    runExceptT $ parseToAST f
 
-parseStdin :: IO (Either String [LAST])
+parseStdin :: IO (Either CompileError [LAST])
 parseStdin = do
     f<-getContents
-    return $ parseToAST f
+    runExceptT $ parseToAST f
 
-parseFileOrStdin :: Maybe String -> IO (Either String [LAST])
+parseFileOrStdin :: Maybe String -> IO (Either CompileError [LAST])
 parseFileOrStdin (Just x) = parseFile x
 parseFileOrStdin Nothing = parseStdin
 

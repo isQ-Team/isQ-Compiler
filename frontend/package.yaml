@@ -1,4 +1,4 @@
-name:                isqc
+name:                isqc-frontend
 version:             0.1.0.0
 github:              "gjz010/isqv2-frontend"
 license:             BSD3
@@ -27,13 +27,16 @@ dependencies:
 - array
 - pretty-simple
 - text
+- aeson
+- bytestring
+- deepseq
 
 build-tools:
 - happy
 - alex
 
 executables:
-  isqc:
+  isqc1:
     main:                Main.hs
     source-dirs:         src
     ghc-options:

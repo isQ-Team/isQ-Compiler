@@ -1,5 +1,7 @@
 {
+{-# LANGUAGE FlexibleInstances #-}
 module ISQ.Lang.ISQv2Tokenizer where
+import Control.Exception (Exception)
 }
 
 %wrapper "monad"
@@ -45,7 +47,7 @@ data Token ann =
   | TokenFloat {annotationToken :: ann, tokenFloatV :: Double}  | TokenImagPart {annotationToken :: ann, tokenImagPartV :: Double}  | TokenIdent {annotationToken :: ann, tokenIdentV :: String} | TokenEOF {annotationToken :: ann} deriving Show
 data Pos = Pos {line :: Int, column :: Int} deriving Show
 type ISQv2Token = Token Pos
-
+instance Exception (Token Pos)
 class Annotated x where
   annotation :: x ann->ann
 
