@@ -36,6 +36,7 @@ import Control.Exception (throw, Exception)
     unit { TokenReservedId $$ "unit" }
     continue { TokenReservedId $$ "continue" }
     break { TokenReservedId $$ "break" }
+    double { TokenReservedId $$ "double" }
     '|0>' { TokenReservedOp $$ "|0>" }
     '=' { TokenReservedOp $$ "=" }
     '==' { TokenReservedOp $$ "==" }
@@ -242,6 +243,7 @@ SimpleType : int { intType $1 }
            | qbit { qbitType $1 }
            | bool { boolType $1 }
            | unit { unitType $1 }
+           | double { doubleType $1 }
 CompositeType :: {LType}
 CompositeType : Type ArrayTypeDecorator { Type (annotation $1) $2 [$1] }
 
