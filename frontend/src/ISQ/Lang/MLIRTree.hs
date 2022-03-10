@@ -7,11 +7,12 @@ import Data.Complex (Complex ((:+)))
 import GHC.Stack (HasCallStack)
 
 data MLIRType =
-    Bool | I2 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
+    Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
   | Gate Int | Double deriving Show
 mlirType :: MLIRType->String
 mlirType Bool = "i1"
 mlirType I2 = "i2"
+mlirType I64 = "i64"
 mlirType Index = "index"
 mlirType Double = "f64"
 mlirType QState = "!isq.qstate"
@@ -79,6 +80,8 @@ mlirNegF = mlirUnaryOp ("negf", Double, Double)
 
 mlirI1toI2 = mlirUnaryOp ("extui", Bool, I2)
 mlirI2toIndex = mlirUnaryOp ("index_cast", I2, Index)
+mlirIndextoI64 = mlirUnaryOp ("index_cast", Index, I64)
+mlirI64toDouble = mlirUnaryOp ("sitofp", I64, Double)
 
 type TypedSSA = (MLIRType, SSA)
 
