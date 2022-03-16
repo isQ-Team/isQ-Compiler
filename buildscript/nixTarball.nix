@@ -21,7 +21,7 @@ maketar = { targets }:
           --hard-dereference \
           $storePaths > /build/temp.tar
         tar -C /build -rf /build/temp.tar isqc
-        cat /build/temp.tar | bzip2 -z > $out
+        cat /build/temp.tar | lzma -e > $out
       '';
     };
 in 

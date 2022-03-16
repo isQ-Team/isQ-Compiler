@@ -1,20 +1,24 @@
-{pkgs? import ../buildscript/pkgs.nix }:
+{pkgs? import ../buildscript/pkgs.nix, build_cuda_plugin? true }:
 let
 rustChannel = (pkgs.rustChannelOf { rustToolchain = ./rust-toolchain; });
 rustPlatform = pkgs.makeRustPlatform {
   cargo = rustChannel.rust;
   rustc = rustChannel.rust;
 };
+cudaPlugin = import ./cuda-plugin {inherit pkgs;};
 in
 with pkgs;
 rustPlatform.buildRustPackage rec {
   pname = "isq-simulator";
   version = "0.1.0";
-  nativeBuildInputs = [ llvmPackages_13.bintools ];
+  nativeBuildInputs = [ llvmPackages_13.bintools ] ;
+  buildInputs = (if build_cuda_plugin then [(pkgs.lib.getLib cudaPlugin)] else []);
   src = nix-gitignore.gitignoreSource [] ./.;
   cargoLock = {
     lockFile = ./Cargo.lock;
   };
+  buildNoDefaultFeatures = true;
+  buildFeatures = if build_cuda_plugin then [ "cuda" ] else [] ;
   postInstall = ''
 mkdir -p $out/share/isq-simulator
 llvm-link ${src}/src/facades/qir/shim/qir_builtin/shim.ll \
