@@ -51,9 +51,16 @@ pub fn isq_qir_shim_qis_reset(x0: K<QIRQubit>)->() {
     device.controlled_qop(Reset, &[], &[&x0.key], &[]);
 }
 
+
 pub fn isq_qir_shim_qis_isq_print_i64(x0: i64)->() {
+    extern crate std;
+    use std::println;
+    println!("{}", x0);
     info!("{}", x0);
 }
 pub fn isq_qir_shim_qis_isq_print_f64(x0: f64)->() {
+    extern crate std;
+    use std::println;
+    println!("{}", x0);
     info!("{}", x0);
 }

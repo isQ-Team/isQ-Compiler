@@ -8,4 +8,6 @@ fn main() {
         }
     }
     println!("cargo:rustc-link-arg=-rdynamic");
+    #[cfg(feature = "cuda")]
+    println!("cargo:rustc-link-lib=dylib=qsim_kernel");
 }

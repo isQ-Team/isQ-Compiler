@@ -17,6 +17,7 @@ pkgs.buildEnv rec {
   paths = with pkgs; [
       llvmPackages_13.clang
       llvmPackages_13.lldb
+      llvmPackages_13.libclang
       cmake
       rust
       binutils
@@ -34,13 +35,24 @@ pkgs.buildEnv rec {
       crate2nix
       cabal-install
       git
-      clang-tools
+      #clang-tools
       which
       nix-bundle
   ] ++ frontend-deps.nativeBuildInputs;
   passthru = {
     environmentVars = {
       RUST_SRC_PATH = "${rustChannel.rust-src}/lib/rustlib/src/rust/src";
+      LIBCLANG_PATH= pkgs.lib.makeLibraryPath [ pkgs.llvmPackages_13.libclang.lib ];
+      BINDGEN_EXTRA_CLANG_ARGS = 
+      # Includes with normal include path
+      (builtins.map (a: ''-I"${a}/include"'') [
+        pkgs.glibc.dev 
+      ])
+      # Includes with special directory paths
+      ++ [
+        ''-I"${pkgs.llvmPackages_13.libclang.lib}/lib/clang/${pkgs.llvmPackages_13.libclang.version}/include"''
+      ];
+
     };
   };
   extraPrefix = if is_container then [ "/opt/isqdeps" ] else ["/"];
