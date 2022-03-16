@@ -135,6 +135,10 @@ matchType' wanted e = do
             Type () Bool [] -> if Exact (Type () Int []) `notElem` wanted then return Nothing else do
                 id<-nextId
                 matchType' wanted (EImplicitCast (TypeCheckData pos (Type () Int [] ) id) e)
+            -- int-to-double implicit cast
+            Type () Int [] -> if Exact (Type () Double []) `notElem` wanted then return Nothing else do
+                id<-nextId
+                matchType' wanted (EImplicitCast (TypeCheckData pos (Type () Double [] ) id) e)
             -- float-to-complex implicit cast
             Type () Double [] -> if Exact (Type () Complex []) `notElem` wanted then return Nothing else do
                 id<-nextId

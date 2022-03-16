@@ -79,8 +79,19 @@ import Control.Exception (throw, Exception)
 %%
 
 TopLevel :: {[LAST]}
-TopLevel : {- empty -} { [] }
-         | TopLevel TopLevelMember {$1 ++ [$2]}
+TopLevel : ProcedureList {$1}
+     | TopDef ProcedureList {$1 ++ $2}
+
+TopDef :: {[LAST]}
+TopDef : TopDefMember { [$1] }
+     | TopDef TopDefMember {$1 ++ [$2]}
+
+TopDefMember :: {LAST}
+TopDefMember : ISQCore_GatedefStatement ';' {$1} | TopLevelVar {$1}
+
+ProcedureList :: {[LAST]}
+ProcedureList : Procedure { [$1] }
+          | ProcedureList Procedure { $1 ++ [$2] }
 
 StatementListMaybe :: {[Maybe LAST]}
 StatementListMaybe : StatementListMaybe Statement { $1 ++ [$2] }
@@ -278,8 +289,6 @@ Procedure : procedure IDENTIFIER '(' ProcedureArgList ')' '{' StatementList '}' 
 TopLevelVar :: {LAST}
 TopLevelVar : DefvarStatement ';' { $1 }
 
-TopLevelMember :: {LAST}
-TopLevelMember : Procedure {$1} | ISQCore_GatedefStatement ';' {$1} | TopLevelVar {$1}
 
 
 
