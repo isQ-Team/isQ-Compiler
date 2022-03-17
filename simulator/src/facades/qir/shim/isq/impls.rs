@@ -29,7 +29,7 @@ pub fn isq_qir_shim_qis_cnot(x0: K<QIRQubit>, x1: K<QIRQubit>)->() {
     let rctx = context();
     let mut ctx = RefCell::borrow_mut(&rctx);
     let device = ctx.get_device_mut();
-    device.controlled_qop(X, &[&x0.key], &[&x1.key], &[]);
+    device.controlled_qop(CNOT, &[], &[&x0.key, &x1.key], &[]);
 }
 pub fn isq_qir_shim_qis_measure(x0: K<QIRQubit>)->QIRResult {
     trace!("calling isq_qir_shim_qis_measure(x0: {})", P(&x0));
