@@ -41,8 +41,10 @@ pub enum Commands{
         opt_level: Option<usize>,
     },
     Simulate{
-        #[clap(multiple_occurrences(true), required(true))]
-        qir_object: String
+        #[clap(required(true))]
+        qir_object: String,
+        #[clap(long)]
+        cuda: Option<usize>
     },
     Exec{
         #[clap(multiple_occurrences(true), required(true))]
@@ -97,13 +99,21 @@ fn main()->miette::Result<()> {
             let mut fout = File::create(output).map_err(IoError)?;
             fout.write_all(&linked_obj).map_err(IoError)?;
         }
-        Commands::Simulate{qir_object}=>{
+        Commands::Simulate{qir_object, cuda}=>{
             let qir_object = if qir_object.starts_with("/"){
                 qir_object
             }else{
                 format!("./{}", qir_object)
             };
-            exec::raw_exec_command(&root, "simulator", &["-e", "__isq__entry", &qir_object]).map_err(IoError)?;
+            let mut v = vec!["-e".into(), "__isq__entry".into()];
+            if let Some(x)=cuda{
+                v.push("--cuda".into());
+                v.push(format!("{}", x));
+            }else{
+                v.push("--naive".into());
+            }
+            v.push(qir_object);
+            exec::raw_exec_command(&root, "simulator", &v).map_err(IoError)?;
         }
         Commands::Exec{exec_command}=>{
             exec::raw_exec_command(&root, &exec_command[0], &exec_command[1..], ).map_err(IoError)?;

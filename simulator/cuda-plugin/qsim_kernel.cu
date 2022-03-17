@@ -107,7 +107,7 @@ __global__ void single_qubit_gate_warped_qubit(qamp_t* data, qindex_t size, qint
     if(i<size){
         amp = data[i];
     }
-    amp = warpVec2Mul(amp, m.m, qubit, (bool)(i&1));
+    amp = warpVec2Mul(amp, m.m, qubit, (bool)(i&(1<<qubit)));
     if(i<size){
         data[i]=amp;
     }
@@ -165,7 +165,7 @@ __global__ void cnot_nonwarped_qubit(qamp_t* data, qindex_t size, qindex_t threa
 
 // Using warp-local ops for reduce-sum.
 __inline__ __device__
-float warpReduceSum(float val, int warpSize=warpSize) {
+float warpReduceSum(float val) {
     #pragma unroll 10 // is enough.
     for (int offset = warpSize/2; offset > 0; offset /= 2) 
         val += __shfl_down_sync(0xffffffff, val, offset);
@@ -173,26 +173,26 @@ float warpReduceSum(float val, int warpSize=warpSize) {
 }
 
 // One thread is created for half amplitudes of all data.
-// Equation: BLOCK_SIZE*2*GRID_SIZE*GRID_DIM=total size
-template<qindex_t BLOCK_SIZE, qindex_t GRID_SIZE, bool SIZE_NO_GREATER_THAN_TWO_BLOCKSIZE>
-__global__ void sum_measured_amplitudes(qamp_t* data, qindex_t size, qamph_t* out){
+// TODO: optimization
+template<qindex_t BLOCK_SIZE, qindex_t GRID_SIZE>
+__global__ void sum_measured_amplitudes(qamp_t* data, qindex_t size, qindex_t steps, qint_t q_mask, qamph_t* out){
     qindex_t tid = threadIdx.x;
     qindex_t global_id = ((qindex_t)blockIdx.x)*BLOCK_SIZE*2+(qindex_t)tid;
     __shared__ qamph_t prob[BLOCK_SIZE];
     prob[tid]=0;
     qamph_t block_prob = 0;
-    if(SIZE_NO_GREATER_THAN_TWO_BLOCKSIZE){
-        if(global_id<size){
-            block_prob=cuda::std::norm(data[global_id]);
+    qindex_t goffset=0;
+    qindex_t gridElemCount = BLOCK_SIZE*2*GRID_SIZE;
+    for(auto i=0; i<steps; i++){
+        qindex_t ind_lo = goffset+global_id;
+        if((ind_lo & q_mask)==0 && ind_lo<size){
+            block_prob+=cuda::std::norm(data[ind_lo]);
         }
-    }else{
-        qindex_t goffset=0;
-        qindex_t gridElemCount = BLOCK_SIZE*2*GRID_SIZE;
-        for(auto i=0; i<gridDim.x; i++){
-            block_prob+=cuda::std::norm(data[goffset + global_id]);
-            block_prob+=cuda::std::norm(data[goffset + global_id + BLOCK_SIZE]);
-            goffset+=gridElemCount;
+        qindex_t ind_hi = goffset+global_id+BLOCK_SIZE;
+        if((ind_hi & q_mask)==0 && ind_hi<size){
+            block_prob+=cuda::std::norm(data[ind_hi]);
         }
+        goffset+=gridElemCount;
     }
 
     prob[tid]=block_prob;
@@ -208,7 +208,7 @@ __global__ void sum_measured_amplitudes(qamp_t* data, qindex_t size, qamph_t* ou
     }
     qamph_t result = 0.0;
     if(BLOCK_SIZE>=64){
-        result+=warpReduceSum(prob[tid+32]);
+        if(tid<32) result+=warpReduceSum(prob[tid+32]);
     }
     result+=warpReduceSum(prob[tid]);
     if(tid==0){
@@ -226,7 +226,7 @@ __global__ void measure_collapse_warped_qubit(qamp_t* data, qindex_t size, qint_
         amp = data[i];
     }
     // First, zero out unmatched amplitude.
-    bool matched_amplitude = ((bool)(threadIdx.x&(1<<q))) == measurement_result;
+    bool matched_amplitude = ((bool)(i&(1<<q))) == measurement_result;
     if(!matched_amplitude){
         amp = 0;
     }
@@ -319,28 +319,26 @@ qint_t qstate_measure(qstate* state, qint_t q, int is_reset, qamph_t seed, qamph
     // Compute on first half.
     auto size = state->amplitude_size();
     auto half_size = state->amplitude_size()/2;
-    auto half_size_no_greater_than_two_blocksize = half_size<= USED_BLOCK_SIZE*2;
-    if(half_size_no_greater_than_two_blocksize){
-        sum_measured_amplitudes<USED_BLOCK_SIZE, PROB_BUFFER_SIZE, true> <<<PROB_BUFFER_SIZE, USED_BLOCK_SIZE>>>(state->amplitudes, half_size, state->prob_buffer);
-        gpuAssertOk();
-    }else{
-        sum_measured_amplitudes<USED_BLOCK_SIZE, PROB_BUFFER_SIZE, false> <<<PROB_BUFFER_SIZE, USED_BLOCK_SIZE>>>(state->amplitudes, half_size, state->prob_buffer);
-        gpuAssertOk();
-    }
+    auto total_threads = (qindex_t) USED_BLOCK_SIZE * PROB_BUFFER_SIZE;
+    auto steps = std::max((qindex_t)1, size/total_threads/2);
+    sum_measured_amplitudes<USED_BLOCK_SIZE, PROB_BUFFER_SIZE> <<<PROB_BUFFER_SIZE, USED_BLOCK_SIZE>>>(state->amplitudes, size, steps, ((qindex_t)1)<<q, state->prob_buffer);
+    gpuAssertOk();
     gpuErrchk(cudaMemcpy(state->host_prob_buffer, state->prob_buffer, sizeof(qamph_t)*PROB_BUFFER_SIZE, cudaMemcpyDeviceToHost));
     double prob_zero = 0;
     for(auto i=0; i<PROB_BUFFER_SIZE; i++){
         prob_zero += state->host_prob_buffer[i];
     }
-    assert(prob_zero >=0 && prob_zero < 1+1e-4);
+    assert(prob_zero >=0 && prob_zero < 1.0+(1e-4));
     if(prob_zero>1.0) prob_zero=1.0;
     bool measured=seed>prob_zero;
     auto prob = measured?(1-prob_zero):prob_zero;
     auto prob_invsqrt = 1.0/std::sqrt(prob);
+    //fprintf(stderr, "qubit=%d, probability1 = %f\n", q, prob_zero);
+    //fflush(stderr);
     if(out_probs){
         *out_probs=(qamph_t)prob_zero;
     }
-
+    
     if(isWarpLocal(q)){
         auto block_size = std::max((qindex_t)WARP_SIZE, std::min(size, (qindex_t)USED_BLOCK_SIZE));
         auto grid_size = (size+block_size-1)/block_size;
