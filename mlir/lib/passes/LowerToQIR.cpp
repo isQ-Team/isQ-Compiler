@@ -96,7 +96,7 @@ public:
         auto memrefty = op.memref().getType().dyn_cast<mlir::MemRefType>();
         assert(memrefty);
         if(!memrefty) return mlir::failure();
-        if(!memrefty.getElementType().isa<QIRQubitType>()) return mlir::failure();
+        if(!memrefty.getElementType().isa<QStateType>()) return mlir::failure();
 
         auto shape = memrefty.getShape();
         // One-dim known arrays supported only.

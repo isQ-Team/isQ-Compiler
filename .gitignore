@@ -9,3 +9,6 @@ build/
 /frontend/.stack-work
 result
 /frontend/dist-newstyle
+/examples/*.so
+/examples/*.mlir
+/examples/*.ll
