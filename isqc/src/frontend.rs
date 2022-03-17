@@ -15,11 +15,11 @@ pub fn parseType(input: &Value)->String{
         "Bool"=>format!("bool"),
         "Double"=>format!("double"),
         "Complex"=>format!("complex"),
-        "FixedArray"=>format!("[{};{}]", parseType(&subtypes[0]), input["ty"]["content"].as_i64().unwrap()),
+        "FixedArray"=>format!("[{};{}]", parseType(&subtypes[0]), input["ty"]["contents"].as_i64().unwrap()),
         "UnknownArray"=>format!("[{}]", parseType(&subtypes[0])),
-        "UserType"=>format!("{}<{}>", input["ty"]["content"].as_str().unwrap(), subtypes.iter().map(parseType).collect::<Vec<_>>().join(", ")),
+        "UserType"=>format!("{}<{}>", input["ty"]["contents"].as_str().unwrap(), subtypes.iter().map(parseType).collect::<Vec<_>>().join(", ")),
         "IntRange"=>format!("range"),
-        "Gate"=>format!("gate<{}>", input["ty"]["content"].as_i64().unwrap()),
+        "Gate"=>format!("gate<{}>", input["ty"]["contents"].as_i64().unwrap()),
         "FuncTy"=>format!("({})->{}", subtypes.iter().skip(1).map(parseType).collect::<Vec<_>>().join(", "), parseType(&subtypes[0])),
         _ => unreachable!()
     }
