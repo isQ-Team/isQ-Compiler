@@ -1,0 +1,7 @@
+build:
+  stage: build
+  script:
+    - nix-portable nix-build buildscript/nixTarball.nix -o isqv2.tar.lzma
+  artifacts:
+    paths:
+      - isqv2.tar.lzma
