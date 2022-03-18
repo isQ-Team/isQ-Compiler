@@ -137,7 +137,6 @@ emitExpr' f x@(EBinary ann binop lhs rhs) = do
     rhs'<-f rhs
     pos<-mpos ann
     let lhsTy = astMType lhs
-    let rhsTy = astMType rhs
     let i = ssa ann
     pushOp $ MBinary pos i lhs' rhs' (binopTranslate binop lhsTy)
     return i
@@ -264,7 +263,7 @@ emitStatement' f (NAssign ann lhs rhs) = do
     pushOp $ MStore pos (astMType lhs, lhs') rhs'
 emitStatement' f NGatedef{} = error "unreachable"
 emitStatement' f NReturn{} = error "unreachable"
-emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
+emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods rotation) = do
     let go Inv (l, f) = (l, not f)
         go (Ctrl x i) (l, f) = (replicate i x ++ l, f)
         folded_mods = foldr go ([], False) mods
@@ -282,9 +281,25 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
                 pushOp $ MQDecorate pos decorated_gate used_gate folded_mods gate_size
                 return $ decorated_gate
     zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins ops'
-    pushOp $ MQApplyGate pos outs ins decorated_gate
+    r <- case rotation of
+        Just x -> do
+            r'<- emitExpr x
+            pushOp $ MQApplyRotateGate pos outs ins decorated_gate r'
+        Nothing -> pushOp $ MQApplyGate pos outs ins decorated_gate
     zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs ops'
 emitStatement' f NCoreUnitary{} = error "first-class gate unsupported"
+emitStatement' f (NCoreU3 ann (EGlobalName ann2 name) ops angles) = do
+    ops'<-mapM emitExpr ops
+    angles' <- mapM emitExpr angles
+    pos<-mpos ann
+    let i = ssa ann2
+    let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..(length ops)]
+    let used_gate = i;
+    let gate_type@(M.Gate gate_size) = mType ann2;
+    pushOp $ MQUseU3Gate pos used_gate (fromFuncName "__isq__builtin__u3") gate_type angles'
+    zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins ops'
+    pushOp $ MQApplyGate pos outs ins used_gate
+    zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs ops'
 emitStatement' f (NCoreReset ann operand) = do
     operand'<-emitExpr operand
     pos<-mpos ann

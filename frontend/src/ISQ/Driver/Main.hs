@@ -69,13 +69,13 @@ writeOut (Just p) x = BS.writeFile p (encode x)
 writeOut Nothing x = BS.hPut stdout (encode x)
 
 
-
 {-
 writeOut :: (Show a)=>Maybe String->Either a String->IO ()
 writeOut _ (Left err) = raiseError False (show err)
 writeOut (Just p) (Right f) = writeFile p f
 writeOut Nothing (Right f) = putStrLn f
 -}
+
 main = do
     args<-getArgs
     flags<-compilerOpts args
@@ -101,7 +101,6 @@ main = do
     ast<- parseFileOrStdin input'
     let inputFileName = fromMaybe "<stdin>" input'
     
-
     case mode' of
         "mlir"-> do
             writeOut output' (ast >>= compile inputFileName)

@@ -401,6 +401,44 @@ def ISQ_ApplyGateOp : ISQ_Op<"apply", [NoSideEffect,
         ::mlir::LogicalResult verifyIR();
     }];
 }
+
+def ISQ_ApplyRotateGateOp : ISQ_Op<"applyrotate", [NoSideEffect,
+    TypesMatchWith<
+        "args equivalence", "gate", "args", "::isq::ir::getGateParameterType($_self.cast<::isq::ir::GateType>())"
+    >,TypesMatchWith<
+        "output equivalence", "gate", "r", "::isq::ir::getGateParameterType($_self.cast<::isq::ir::GateType>())"
+    >]>{
+    let summary = "Applies a quantum gate onto qstates";
+    let description = [{
+        Performing a gate onto qstates. Qstate outputs are in the same order as inputs.
+
+        ```mlir
+        isq.defgate @Rx : !isq.gate<1, hermitian>
+        func @test(%q1: !isq.qstate)->(!isq.qstate){
+            %rx = isq.use @Rx : !isq.gate<1, hermitian>
+            %angle = arith.constant 0.5 : f64
+            %q3 = isq.apply %Rx(%q1) {rotate = %angle}: !isq.gate<1>
+            return %q3 : !isq.qstate
+        }
+        ```
+    }];
+    let arguments = (ins
+        ISQ_Gate: $gate,
+        F64: $rotation,
+        Variadic<ISQ_QState>: $args
+    );
+    let results = (outs Variadic<ISQ_QState>: $r);
+    let assemblyFormat = [{
+        $gate `(` $args `)` `{` `rotate` `=` $rotation`}` attr-dict `:` type($gate)
+    }];
+    let verifier = [{
+        return this->verifyIR();
+    }];
+    let extraClassDeclaration = [{
+        ::mlir::LogicalResult verifyIR();
+    }];
+}
+
 def ISQ_CallQOpOp: ISQ_Op<"call_qop", [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
     let summary = "Applies a quantum operation onto qstates";
     let description = [{

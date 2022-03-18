@@ -89,8 +89,10 @@ data MLIROp =
       MFunc {location :: MLIRPos, funcName :: FuncName, funcReturnType :: Maybe MLIRType, funcRegion :: [MLIRBlock]}
     | MQDefGate { location :: MLIRPos, gateName :: FuncName, matrixRep :: [[Complex Double]], gateSize :: Int}
     | MQUseGate { location :: MLIRPos, value :: SSA, usedGate :: FuncName, usedGateType :: MLIRType}
+    | MQUseU3Gate { location :: MLIRPos, value :: SSA, usedGate :: FuncName, usedGateType :: MLIRType, angle :: [SSA]}
     | MQDecorate { location :: MLIRPos, value :: SSA, decoratedGate :: SSA, trait :: ([Bool], Bool), gateSize :: Int }
     | MQApplyGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA}
+    | MQApplyRotateGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA, rotation :: SSA}
     | MQMeasure { location :: MLIRPos, measResult :: SSA, measQOut :: SSA, measQIn :: SSA}
     | MQReset { location :: MLIRPos, resetQOut :: SSA, resetQIn :: SSA}
     | MQPrint { location :: MLIRPos, printIn :: (MLIRType, SSA)}
@@ -187,15 +189,27 @@ emitOpStep f env (MModule _ ops) =
       indented env $ "isq.declare_qop @__isq__builtin__print_double : [0](f64)->()",
       indented env $ "isq.defgate @__isq__builtin__u3(f64, f64, f64) {definition = [{type = \"qir\", value = \"__quantum__qis__u3\"}]} : !isq.gate<1>",
       indented env $ "isq.defgate @__isq__builtin__cnot {definition = [{type = \"qir\", value = \"__quantum__qis__cnot\"}]} : !isq.gate<2>",
+      indented env $ "isq.defgate @H : !isq.gate<1>",
+      indented env $ "isq.defgate @X : !isq.gate<1>",
+      indented env $ "isq.defgate @Y : !isq.gate<1>",
+      indented env $ "isq.defgate @Z : !isq.gate<1>",
+      indented env $ "isq.defgate @S : !isq.gate<1>",
+      indented env $ "isq.defgate @T : !isq.gate<1>",
+      indented env $ "isq.defgate @Rx : !isq.gate<1>",
+      indented env $ "isq.defgate @Ry : !isq.gate<1>",
+      indented env $ "isq.defgate @Rz : !isq.gate<1>",
+      indented env $ "isq.defgate @CNOT : !isq.gate<2>",
       indented env $ "func private @__quantum__qis__u3(f64, f64, f64, !isq.qir.qubit)",
       indented env $ "func private @__quantum__qis__cnot(!isq.qir.qubit, !isq.qir.qubit)"
   ]++s ++ [indented env "}"])
 emitOpStep f env (MFunc loc name ret blocks) = let s = fmap (emitBlock f env) blocks in intercalate "\n" ([indented env $ funcHeader name ret (fmap fst $ blockArgs $ head blocks), indented env "{"] ++ s ++ [indented env $ printf "} %s" (mlirPos loc)])
 emitOpStep f env (MQDefGate loc name mat size) = indented env $ printf "isq.defgate %s {definition = [{type=\"unitary\", value = %s}]}: !isq.gate<%d> %s" (unFuncName name) (printRow (printRow printComplex) mat) size (mlirPos loc)
 emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz)) = indented env $ printf "%s = isq.use %s : !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) sz (mlirPos loc)
+emitOpStep f env (MQUseU3Gate loc val usedgate usedtype@(Gate sz) [a, b, c]) = indented env $ printf "%s = isq.use %s(%s, %s, %s) : (f64, f64, f64) -> !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) (unSsa a) (unSsa b) (unSsa c) sz (mlirPos loc)
 emitOpStep f env (MQUseGate loc val usedgate usedtype) = error "wtf?"
 emitOpStep f env (MQDecorate loc value source trait size) = let (d, sz) = decorToDict trait in indented env $ printf "%s = isq.decorate(%s: !isq.gate<%d>) %s : !isq.gate<%d> %s" (unSsa value) (unSsa source) size d (size+sz) (mlirPos loc)
 emitOpStep f env (MQApplyGate loc values args gate) = indented env $ printf "%s = isq.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
+emitOpStep f env (MQApplyRotateGate loc values args gate rotation) = indented env $ printf "%s = isq.applyrotate %s(%s){rotate = %s} : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (unSsa rotation) (length args) (mlirPos loc)
 emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @__isq__builtin__measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qop @__isq__builtin__reset(%s): [1]()->() %s" (unSsa out)  (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Index, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_int(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)

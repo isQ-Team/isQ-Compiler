@@ -6,7 +6,7 @@ import Data.List.Extra (firstJust)
 import Control.Monad (join)
 import Control.Monad.Except
 import Control.Monad.State.Lazy
-
+import Debug.Trace
 
 type EType = Type ()
 type TCAST = AST TypeCheckData
@@ -26,6 +26,7 @@ data TypeCheckError =
     | UndefinedSymbol { pos :: Pos, symbolName :: Symbol}
     | TypeMismatch { pos :: Pos, expectedType :: [MatchRule], actualType :: Type ()}
     | ViolateNonCloningTheorem { pos :: Pos }
+    | GateNameError { pos :: Pos }
     | ArgNumberMismatch { pos :: Pos, expectedArgs :: Int, actualArgs :: Int }
     | BadProcedureArgType { pos :: Pos, arg :: (Type (), Ident)}
     | BadProcedureReturnType { pos :: Pos, ret :: (Type (), Ident)}
@@ -90,7 +91,6 @@ defineGlobalSym a b c= do
     addSym a (DefinedSymbol b c ssa True)
     return ssa
 
-
 scope :: TypeCheck ()
 scope = modify (\x->x{symbolTable = Map.empty:symbolTable x})
 unscope :: TypeCheck SymbolTableLayer
@@ -118,6 +118,10 @@ checkRule AnyFunc (Type () FuncTy _) = True
 checkRule AnyGate (Type () (Gate _) _) = True
 checkRule AnyRef (Type () Ref [_]) = True
 checkRule _ _ = False
+
+singleBaseGate = ["H", "X", "Y", "Z", "S", "T", "Rx", "Ry", "Rz", "u3"]
+doubleBaseGate = ["CNOT"]
+rotateGate = ["Rx", "Ry", "Rz"]
 
 -- try to match two types, using auto dereference and int-to-bool implicit conversion.
 matchType' :: [MatchRule]->TCExpr->TypeCheck (Maybe TCExpr)
@@ -154,6 +158,8 @@ matchType wanted e = do
     case new_e of
         Just x->return x
         Nothing -> throwError $ TypeMismatch (sourcePos $ annotation e) wanted (astType e)
+
+
 -- By now we only support bottom-up type checking.
 -- All leaf nodes have their own type, and intermediate types are calculated.
 typeCheckExpr' :: (Expr Pos->TypeCheck (Expr TypeCheckData))->Expr Pos->TypeCheck (Expr TypeCheckData)
@@ -169,9 +175,19 @@ typeCheckExpr' f (EIdent pos ident) = do
 typeCheckExpr' f (EBinary pos op lhs rhs) = do
     lhs'<-f lhs
     rhs'<-f rhs
-    matched_lhs <- matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
-    matched_rhs <- matchType (map Exact [astType matched_lhs]) rhs'
+    --matched_lhs <- matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
+    --matched_rhs <- matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
     ssa<-nextId
+    let lty = astType lhs'
+    let rty = astType rhs'
+    --traceM $ show rty
+    matched_lhs <- case ty rty of
+            Double -> matchType [Exact (doubleType ())] lhs'
+            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
+    matched_rhs <- case ty lty of
+            Double -> matchType [Exact (doubleType ())] rhs'
+            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
+    --traceM $ show matched_lhs
     let return_type = case op of
             Cmp _ -> boolType ()
             _ -> astType matched_lhs
@@ -296,7 +312,7 @@ typeCheckAST' f (NCall pos c@(ECall _ callee args)) = do
         FuncTy -> do
             c'<-typeCheckExpr c
             return $ NCall (okStmt pos) c'
-        Gate _ -> f (NCoreUnitary pos callee args [])
+        Gate _ -> f (NCoreUnitary pos callee args [] Nothing)
         _ -> undefined
 typeCheckAST' f (NCall pos c) = error "unreachable"
 typeCheckAST' f (NDefvar pos defs) = do
@@ -321,7 +337,7 @@ typeCheckAST' f (NAssign pos lhs rhs) = do
     return $ NAssign (okStmt pos) lhs'' rhs''
 typeCheckAST' f (NGatedef pos lhs rhs) = error "unreachable"
 typeCheckAST' f (NReturn _ _) = error "unreachable"
-typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
+typeCheckAST' f (NCoreUnitary pos gate operands modifiers rotation) = do
     gate'<-typeCheckExpr gate
     gate''<-matchType [AnyGate] gate'
     let Gate x = ty $ astType gate''
@@ -329,7 +345,30 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
     when (total_qubits /= length operands) $ throwError $ ArgNumberMismatch pos total_qubits (length operands)
     operands'<-mapM typeCheckExpr operands
     operands''<-mapM (matchType [Exact (refType () $ qbitType ())]) operands'
-    return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers
+    rotation'<- case rotation of
+        Just r -> do
+            r' <- typeCheckExpr r
+            r'' <- matchType [Exact (doubleType ())] r'
+            if (globalName gate'' `elem` rotateGate) then 
+                return $ Just r''
+            else do
+                error ((globalName gate'') ++ " is not rotate gate")
+                return Nothing
+        Nothing -> do
+            if (globalName gate'' `elem` rotateGate) then 
+                error ((globalName gate'') ++ " is ratate gate, need rotate angle")
+            else
+                return Nothing
+    return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers rotation'
+typeCheckAST' f (NCoreU3 pos gate operands angles) = do
+    gate'<-typeCheckExpr gate
+    gate''<-matchType [AnyGate] gate'
+    when (1 /= length operands) $ throwError $ ArgNumberMismatch pos 1 (length operands)
+    operands'<-mapM typeCheckExpr operands
+    operands''<-mapM (matchType [Exact (refType () $ qbitType ())]) operands'
+    angles' <- mapM typeCheckExpr angles
+    angles'' <- mapM (matchType [Exact (doubleType ())]) angles'
+    return $ NCoreU3 (okStmt pos) gate'' operands'' angles''
 typeCheckAST' f (NCoreReset pos qubit) = do
     qubit'<-typeCheckExpr qubit
     qubit''<-matchType [Exact (refType () $ qbitType ())] qubit'
@@ -383,8 +422,10 @@ typeCheckAST :: AST Pos -> TypeCheck (AST TypeCheckData)
 typeCheckAST = fix typeCheckAST'
 
 
+
 typeCheckToplevel :: [AST Pos]->TypeCheck [AST TypeCheckData]
 typeCheckToplevel ast = do
+    
     (resolved_defvar, varlist)<-flip runStateT [] $ do
         mapM (\node->case node of
                 NDefvar pos def -> do
@@ -401,6 +442,12 @@ typeCheckToplevel ast = do
     -- Add all vars into table.
     let vars=concatMap Map.toList varlist
     mapM_ (uncurry addSym) vars
+    
+    
+    -- Add all base gate into table.
+    mapM_ (\x -> defineGlobalSym (SymVar x) Pos{line=0,column=0} (Type () (Gate 1) [])) singleBaseGate
+    mapM_ (\x -> defineGlobalSym (SymVar x) Pos{line=0,column=0} (Type () (Gate 2) [])) doubleBaseGate
+
     -- Resolve all gates and procedures.
     resolved_headers<-mapM (\node->case node of
             Right x->return (Right x)
