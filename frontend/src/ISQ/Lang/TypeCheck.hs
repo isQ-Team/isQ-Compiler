@@ -343,11 +343,33 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
     let total_operands = length extra + total_qubits
     when (total_operands /= length operands) $ throwError $ ArgNumberMismatch pos total_qubits (length operands)
     operands'<-mapM typeCheckExpr operands
-    let (op_extra, op_qubits) = splitAt (total_operands - total_qubits) operands'
-    op_extra'<-zipWithM (\x y->matchType [Exact x] y) extra op_extra
-    op_qubits'<-mapM (matchType [Exact (refType () $ qbitType ())]) op_qubits
-    let operands'' = op_extra' ++ op_qubits'
-    return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers
+    operands''<-mapM (matchType [Exact (refType () $ qbitType ())]) operands'
+    rotation'<- case rotation of
+        Just r -> do
+            if length r /= 1 then error "rotate gate only has one rotate angle"
+            else do
+                r' <- mapM typeCheckExpr r
+                r'' <- mapM (matchType [Exact (doubleType ())]) r'
+                if (globalName gate'' `elem` rotateGate) then 
+                    return $ Just r''
+                else do
+                    error ((globalName gate'') ++ " is not rotate gate")
+                    return Nothing
+        Nothing -> do
+            if (globalName gate'' `elem` rotateGate) then 
+                error ((globalName gate'') ++ " is ratate gate, need rotate angle")
+            else
+                return Nothing
+    return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers rotation'
+typeCheckAST' f (NCoreU3 pos gate operands angles) = do
+    gate'<-typeCheckExpr gate
+    gate''<-matchType [AnyGate] gate'
+    when (1 /= length operands) $ throwError $ ArgNumberMismatch pos 1 (length operands)
+    operands'<-mapM typeCheckExpr operands
+    operands''<-mapM (matchType [Exact (refType () $ qbitType ())]) operands'
+    angles' <- mapM typeCheckExpr angles
+    angles'' <- mapM (matchType [Exact (doubleType ())]) angles'
+    return $ NCoreU3 (okStmt pos) gate'' operands'' angles''
 typeCheckAST' f (NCoreReset pos qubit) = do
     qubit'<-typeCheckExpr qubit
     qubit''<-matchType [Exact (refType () $ qbitType ())] qubit'

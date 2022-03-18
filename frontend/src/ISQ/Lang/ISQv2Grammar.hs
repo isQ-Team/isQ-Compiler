@@ -65,11 +65,8 @@ data AST ann =
      | NAssign { annotationAST :: ann, assignLhs :: Expr ann, assignRhs :: Expr ann}
      | NGatedef { annotationAST :: ann, gateName :: String, gateRhs :: [[Expr ann]], externQirName :: Maybe String}
      | NReturn { annotationAST :: ann, returnedVal :: Expr ann}
-     | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier]}
-     -- extern defgate Rz(double): gate(1) = "__quantum__qis__rz__body";
-     -- extern defgate H(): gate(1) = "__quantum__qis__h__body";
-     | NExternGate { annotationAST :: ann, gateName :: String, extraArgs :: [Type (ann)], gateSize :: Int, qirName :: String}
---     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], angle :: [Expr ann]}
+     | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier], rotation :: Maybe ([Expr ann])}
+     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], angle :: [Expr ann]}
      | NCoreReset { annotationAST :: ann, resetOperands :: Expr ann}
      | NCorePrint { annotationAST :: ann, printOperands :: Expr ann}
      | NCoreMeasure {annotationAST :: ann, measExpr :: Expr ann}

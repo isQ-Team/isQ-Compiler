@@ -289,7 +289,7 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
     {-
     r <- case rotation of
         Just x -> do
-            r'<- emitExpr x
+            r'<- emitExpr $ head x
             pushOp $ MQApplyRotateGate pos outs ins decorated_gate r'
         Nothing -> pushOp $ MQApplyGate pos outs ins decorated_gate
     -}
