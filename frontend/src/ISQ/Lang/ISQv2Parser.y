@@ -210,8 +210,8 @@ ISQCore_UnitaryStatement :: {LAST}
 ISQCore_UnitaryStatement : ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $1) $1 $3 [] Nothing}
                          | GateModifierListNonEmpty ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $2) $2 $4 $1 Nothing}
                          {-| GateModifierListNonEmpty ExprCallable '(' Expr1LeftListNonEmpty ')' { NCoreUnitary (annotation $2) $2 $4 $1 Nothing}-}
-                         | ExprCallable '(' Expr1 ')' '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $1) $1 $6 [] (Just $3) }
-                         | GateModifierListNonEmpty ExprCallable '(' Expr1 ')' '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $2) $2 $7 $1 (Just $4)}
+                         | ExprCallable '(' Expr1List ')' '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $1) $1 $6 [] (Just $3) }
+                         | GateModifierListNonEmpty ExprCallable '(' Expr1List ')' '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $2) $2 $7 $1 (Just $4)}
                          | u3 '(' Expr1 ',' Expr1 ',' Expr1 ')' '<' Expr1LeftListNonEmpty '>' { NCoreU3 (annotation $3) (EIdent (annotation $3) "u3") $10 [$3, $5, $7] }
 
 ISQCore_MeasureExpr :: {LExpr}

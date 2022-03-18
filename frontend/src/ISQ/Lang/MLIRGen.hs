@@ -283,7 +283,7 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods rotation) = 
     zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins ops'
     r <- case rotation of
         Just x -> do
-            r'<- emitExpr x
+            r'<- emitExpr $ head x
             pushOp $ MQApplyRotateGate pos outs ins decorated_gate r'
         Nothing -> pushOp $ MQApplyGate pos outs ins decorated_gate
     zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs ops'

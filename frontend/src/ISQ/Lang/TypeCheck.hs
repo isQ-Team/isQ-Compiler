@@ -347,13 +347,15 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers rotation) = do
     operands''<-mapM (matchType [Exact (refType () $ qbitType ())]) operands'
     rotation'<- case rotation of
         Just r -> do
-            r' <- typeCheckExpr r
-            r'' <- matchType [Exact (doubleType ())] r'
-            if (globalName gate'' `elem` rotateGate) then 
-                return $ Just r''
+            if length r /= 1 then error "rotate gate only has one rotate angle"
             else do
-                error ((globalName gate'') ++ " is not rotate gate")
-                return Nothing
+                r' <- mapM typeCheckExpr r
+                r'' <- mapM (matchType [Exact (doubleType ())]) r'
+                if (globalName gate'' `elem` rotateGate) then 
+                    return $ Just r''
+                else do
+                    error ((globalName gate'') ++ " is not rotate gate")
+                    return Nothing
         Nothing -> do
             if (globalName gate'' `elem` rotateGate) then 
                 error ((globalName gate'') ++ " is ratate gate, need rotate angle")
