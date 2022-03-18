@@ -1,7 +1,8 @@
 build:
   stage: build
   script:
-    - nix-portable nix-build buildscript/nixTarball.nix -o isqv2.tar.lzma
+    - nix-portable nix-build buildscript/nixTarball.nix -o isqv2.tar.lzma.link
+    - cp -Lr isqv2.tar.lzma.link isqv2.tar.lzma
   artifacts:
     paths:
       - isqv2.tar.lzma
