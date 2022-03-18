@@ -37,6 +37,7 @@ import Control.Exception (throw, Exception)
     continue { TokenReservedId $$ "continue" }
     break { TokenReservedId $$ "break" }
     double { TokenReservedId $$ "double" }
+    u3 { TokenReservedId $$ "u3" }
     '|0>' { TokenReservedOp $$ "|0>" }
     '=' { TokenReservedOp $$ "=" }
     '==' { TokenReservedOp $$ "==" }
@@ -203,10 +204,16 @@ GateModifier : inv { Inv }
 GateModifierListNonEmpty :: {[GateModifier]}
 GateModifierListNonEmpty : GateModifierListNonEmpty GateModifier { $1 ++ [$2] }
                          | GateModifier {[$1]}
+                         
+
 ISQCore_UnitaryStatement :: {LAST}
-ISQCore_UnitaryStatement : ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $1) $1 $3 []}
-                         | GateModifierListNonEmpty ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $2) $2 $4 $1}
-                         | GateModifierListNonEmpty ExprCallable '(' Expr1LeftListNonEmpty ')' { NCoreUnitary (annotation $2) $2 $4 $1}
+ISQCore_UnitaryStatement : ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $1) $1 $3 [] Nothing}
+                         | GateModifierListNonEmpty ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $2) $2 $4 $1 Nothing}
+                         {-| GateModifierListNonEmpty ExprCallable '(' Expr1LeftListNonEmpty ')' { NCoreUnitary (annotation $2) $2 $4 $1 Nothing}-}
+                         | ExprCallable '(' Expr1 ')' '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $1) $1 $6 [] (Just $3) }
+                         | GateModifierListNonEmpty ExprCallable '(' Expr1 ')' '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $2) $2 $7 $1 (Just $4)}
+                         | u3 '(' Expr1 ',' Expr1 ',' Expr1 ')' '<' Expr1LeftListNonEmpty '>' { NCoreU3 (annotation $3) (EIdent (annotation $3) "u3") $10 [$3, $5, $7] }
+
 ISQCore_MeasureExpr :: {LExpr}
 ISQCore_MeasureExpr : M '<' Expr1Left '>' { ECoreMeasure $1 $3 }
                 | M '(' Expr1Left ')' { ECoreMeasure $1 $3 }

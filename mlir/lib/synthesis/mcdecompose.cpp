@@ -427,11 +427,11 @@ DecomposedGates isq::ir::synthesis::mcdecompose_u(UnitaryVector uvector, string 
         GateLocation loc(q.begin(), q.end()-1);
         auto zlist = mcdecompose_z(get<0>(angle), loc, shape-1);
         gatelist.insert(gatelist.end(), zlist.begin(), zlist.end());
-
-        for (int i = 0; i < ctrl.size(); i++){
-            if (ctrl[i] == 'f'){
-                gatelist.push_back(ElementGate(X, {i}, 0., 0., 0.));
-            }
+    }
+    
+    for (int i = 0; i < ctrl.size(); i++){
+        if (ctrl[i] == 'f'){
+            gatelist.push_back(ElementGate(X, {i}, 0., 0., 0.));
         }
     }
     return gatelist;

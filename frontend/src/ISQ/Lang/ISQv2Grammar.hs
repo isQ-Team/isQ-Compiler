@@ -63,7 +63,8 @@ data AST ann =
      | NAssign { annotationAST :: ann, assignLhs :: Expr ann, assignRhs :: Expr ann}
      | NGatedef { annotationAST :: ann, gateName :: String, gateRhs :: [[Expr ann]]}
      | NReturn { annotationAST :: ann, returnedVal :: Expr ann}
-     | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier]}
+     | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier], rotation :: Maybe (Expr ann)}
+     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], angle :: [Expr ann]}
      | NCoreReset { annotationAST :: ann, resetOperands :: Expr ann}
      | NCorePrint { annotationAST :: ann, printOperands :: Expr ann}
      | NCoreMeasure {annotationAST :: ann, measExpr :: Expr ann}
@@ -107,6 +108,7 @@ newtype InternalCompilerError = InternalCompilerError String deriving Show
 data GrammarError = 
     BadMatrixElement {badExpr :: LExpr}
   | BadMatrixShape {badMatrix :: LAST}
+  | BadMatrixName {badDefPos :: Pos, badDefName :: String}
   | MissingGlobalVarSize {badDefPos :: Pos, badDefName :: String} 
   | UnexpectedToken {token :: Token Pos} deriving Show
 
@@ -135,12 +137,15 @@ foldConstantComplex' = go . foldConstantComplex where
   go (Right z) = Right z
 checkGateSize :: [[a]]-> Maybe Int
 checkGateSize arr = let logsize = log2 $ length arr in if all ((==length arr) . length) arr  && 2 ^ logsize == length arr then Just logsize else Nothing
+
+baseGate = ["H", "X", "Y", "Z", "S", "T", "CNOT", "CZ", "Rx", "Ry", "Rz", "u3"]
+
 passVerifyDefgate :: [LAST] -> Either GrammarError [LAST]
 passVerifyDefgate = mapM go where
     go g@(NGatedef ann name mat) = do
         new_mat<-mapM (mapM foldConstantComplex') mat
         case checkGateSize new_mat of
-          Just sz -> return $ NResolvedGatedef ann name new_mat sz
+          Just sz -> if name `elem` baseGate then Left $ BadMatrixName ann name else return $ NResolvedGatedef ann name new_mat sz
           Nothing -> Left $ BadMatrixShape g
 
     go x = Right x
