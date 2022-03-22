@@ -1,0 +1,229 @@
+#include <llvm/ADT/SmallPtrSet.h>
+#include <mlir/Dialect/Affine/IR/AffineOps.h>
+#include <mlir/Dialect/MemRef/IR/MemRef.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/IR/Attributes.h>
+#include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/BuiltinTypes.h>
+#include <mlir/Pass/PassRegistry.h>
+#include <mlir/Support/LLVM.h>
+#include "isq/Operations.h"
+#include "isq/QStructs.h"
+#include "isq/QTypes.h"
+#include "mlir/IR/OperationSupport.h"
+#include "mlir/IR/PatternMatch.h"
+#include <unordered_set>
+#include "isq/GateDefTypes.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+#include "mlir/Pass/Pass.h"
+#include "mlir/Rewrite/FrozenRewritePatternSet.h"
+namespace isq{
+namespace ir{
+namespace passes{
+
+const char* ISQ_PURE_GATE = "isq_pure_gate";
+using StringSmallPtrSet = llvm::SmallPtrSet<::mlir::StringAttr, 16>;
+class DetectPureGates : public mlir::OpRewritePattern<DefgateOp>{
+    mlir::ModuleOp rootModule;
+    StringSmallPtrSet& pureSymbols;
+public:
+    DetectPureGates (mlir::MLIRContext* ctx, mlir::ModuleOp module, StringSmallPtrSet& pureSymbols): mlir::OpRewritePattern<DefgateOp>(ctx, 1), rootModule(module), pureSymbols(pureSymbols){
+        
+    }
+    mlir::LogicalResult matchAndRewrite(DefgateOp op, mlir::PatternRewriter& rewriter){
+        auto ctx = op->getContext();
+        if(op->hasAttr(ISQ_PURE_GATE)){
+            return mlir::failure();
+        }
+        rewriter.startRootUpdate(op);
+        op->setAttr(mlir::StringAttr::get(ctx, ISQ_PURE_GATE), mlir::UnitAttr::get(ctx));
+        rewriter.finalizeRootUpdate(op);
+        int id = 0;
+        for(auto def: op.definition()->getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(op, id, op.type(), def);
+            if(d==std::nullopt) return mlir::failure();
+            if(auto def = llvm::dyn_cast_or_null<DecompositionRawDefinition>(&**d)){
+                pureSymbols.insert(def->getDecomposedFunc().sym_nameAttr());
+            }
+            id++;
+        }
+        
+        return mlir::success();
+    }
+};
+
+class TagPureGates : public mlir::OpRewritePattern<mlir::FuncOp>{
+    mlir::ModuleOp rootModule;
+    StringSmallPtrSet& pureSymbols;
+public:
+    TagPureGates (mlir::MLIRContext* ctx, mlir::ModuleOp module, StringSmallPtrSet& pureSymbols): mlir::OpRewritePattern<mlir::FuncOp>(ctx, 1), rootModule(module), pureSymbols(pureSymbols){
+
+    }
+    mlir::LogicalResult matchAndRewrite(DefgateOp op, mlir::PatternRewriter& rewriter){
+        auto ctx = op->getContext();
+        if(op->hasAttr(ISQ_PURE_GATE)){
+            return mlir::failure();
+        }
+        if(pureSymbols.find(op.sym_nameAttr())!=pureSymbols.end()){
+            rewriter.startRootUpdate(op);
+            op->setAttr(mlir::StringAttr::get(ctx, ISQ_PURE_GATE), mlir::UnitAttr::get(ctx));
+            rewriter.finalizeRootUpdate(op);
+        }
+
+        return mlir::success();
+    }
+};
+
+class PureGatedefCleanup : public mlir::OpRewritePattern<DefgateOp>{
+    mlir::ModuleOp rootModule;
+public:
+    PureGatedefCleanup(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<DefgateOp>(ctx, 1), rootModule(module){
+
+    }
+    mlir::LogicalResult matchAndRewrite(DefgateOp op, mlir::PatternRewriter& rewriter){
+        auto ctx = op->getContext();
+        // Check for pure-gate notation.
+        if(!op->hasAttr(ISQ_PURE_GATE)){
+            return mlir::failure();
+        }
+        rewriter.startRootUpdate(op);
+        if(op.definition()){
+            mlir::SmallVector<mlir::Attribute> attrs; 
+            for(auto def: *op.definition()){
+                
+                auto gatedef = def.cast<GateDefinition>();
+                if(gatedef.type()=="decomposition_raw"){
+                    attrs.push_back(GateDefinition::get(mlir::StringAttr::get(ctx, "decomposition"), gatedef.value(), ctx));
+                }else{
+                    attrs.push_back(gatedef);
+                }
+            }
+            op.definitionAttr(mlir::ArrayAttr::get(ctx, attrs));
+        }
+        op->removeAttr(ISQ_PURE_GATE);
+        rewriter.finalizeRootUpdate(op);
+        return mlir::success();
+    }
+};
+
+class PureGateRewrite : public mlir::OpRewritePattern<mlir::FuncOp>{
+    mlir::ModuleOp rootModule;
+public:
+    PureGateRewrite(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<mlir::FuncOp>(ctx, 1), rootModule(module){
+
+    }
+    mlir::LogicalResult matchAndRewrite(mlir::FuncOp op, mlir::PatternRewriter& rewriter){
+        auto ctx = op->getContext();
+        // Check for pure-gate notation.
+        if(!op->hasAttr(ISQ_PURE_GATE)){
+            return mlir::failure();
+        }
+        
+        
+        rewriter.startRootUpdate(op);
+        op->removeAttr(ISQ_PURE_GATE);
+        // Transform all parameters.
+        auto func_type = op.getType();
+        ::mlir::SmallVector<::mlir::Type> args;
+        ::mlir::SmallVector<::mlir::Type> results;
+        assert(func_type.getResults().size()==0);
+        ::mlir::SmallVector<int> arg_rewrite;
+        for(auto argi=0; argi<func_type.getNumInputs(); argi++){
+            auto arg = func_type.getInput(argi);
+            auto memref = arg.dyn_cast<mlir::MemRefType>();
+            if(memref && memref.getElementType().isa<QStateType>()){
+                // assert they are single qubits.
+                // Thus load/store/casting/subviewing can be seen as nop.
+                assert(memref.getShape().size()==1);
+                assert(memref.getDimSize(0)==1);
+                args.push_back(QStateType::get(ctx));
+                results.push_back(QStateType::get(ctx));
+                arg_rewrite.push_back(argi);
+            }else{
+                args.push_back(arg);
+            }
+        }
+        ::mlir::SmallVector<::mlir::Value> arg_rewrite_args;
+        for(auto index: arg_rewrite){
+            auto arg = op.getArgument(index);
+            arg.setType(QStateType::get(ctx));
+            arg_rewrite_args.push_back(arg);
+        }
+        bool dirty = true;
+        while(dirty){
+            dirty=false;
+            for(auto index: arg_rewrite){
+                auto arg = op.getArgument(index);
+                ::mlir::SmallVector<mlir::Operation*> ops;
+                for(auto op: arg.getUsers()){
+                    ops.push_back(op);
+                }
+                if(ops.size()>0){
+                    dirty=true;
+                }
+                for(auto op: ops){
+                    if(llvm::isa<mlir::memref::StoreOp>(op) || llvm::isa<mlir::AffineStoreOp>(op)){
+                        rewriter.eraseOp(op);
+                    }else if(llvm::isa<mlir::memref::LoadOp>(op) || llvm::isa<mlir::AffineLoadOp>(op) || llvm::isa<mlir::memref::CastOp>(op) || llvm::isa<mlir::memref::SubViewOp>(op)){
+                        rewriter.replaceOp(op, mlir::ValueRange{arg});
+                    }
+                }
+            }
+        }
+        // deal with return statements.
+        op.body().walk([&](mlir::Operation* op){
+            if(llvm::isa<mlir::ReturnOp>(op)){
+                rewriter.replaceOpWithNewOp<mlir::ReturnOp>(op, arg_rewrite_args);
+            }
+        });
+        rewriter.finalizeRootUpdate(op);
+        return mlir::success();
+    }
+};
+
+struct PureGateDetectPass : public mlir::PassWrapper<PureGateDetectPass, mlir::OperationPass<mlir::ModuleOp>>{
+    void runOnOperation() override{
+        StringSmallPtrSet pureFuncs;
+        mlir::ModuleOp m = this->getOperation();
+        auto ctx = m->getContext();
+        // Find all pure gate functions.
+        do{
+            mlir::RewritePatternSet rps(ctx);
+            rps.add<DetectPureGates>(ctx, m, pureFuncs);
+            mlir::FrozenRewritePatternSet frps(std::move(rps));
+            (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+        }while(0);
+        // Tag the pure gate functions.
+        do{
+            mlir::RewritePatternSet rps(ctx);
+            rps.add<TagPureGates>(ctx, m, pureFuncs);
+            mlir::FrozenRewritePatternSet frps(std::move(rps));
+            (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+        }while(0);
+        // Perform rewrite on functions and rewrite gatedefs.
+        do{
+            mlir::RewritePatternSet rps(ctx);
+            rps.add<PureGateRewrite>(ctx, m);
+            rps.add<PureGatedefCleanup>(ctx, m);
+            mlir::FrozenRewritePatternSet frps(std::move(rps));
+            (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+        }while(0);
+
+    }
+    mlir::StringRef getArgument() const final{
+        return "isq-pure-gate-detection";
+    }
+    mlir::StringRef getDescription() const final{
+        return "Transform qubits in pure gates into SSA form.";
+    }
+};
+
+void registerPureGateDetect(){
+    mlir::PassRegistration<PureGateDetectPass>();
+}
+
+
+}
+}
+}

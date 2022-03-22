@@ -17,6 +17,7 @@ defgate Rt2 = [1,0,0,0;
 	     0,0,1,0;
          0,0,0,0.5-0.8660254j];
 
+extern defgate CNOT : gate<2> = "__quantum__isq__cnot";
 /*
 Defgate Rt2 = [1,0,0,0;
 		0,1,0,0;

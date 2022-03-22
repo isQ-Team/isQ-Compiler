@@ -158,11 +158,16 @@ mlir::FuncOp DecompositionDefinition::getDecomposedFunc(){
         return mlir::failure();
     }
     // construct func signature.
-    ::mlir::SmallVector<::mlir::Type> types;
-    for(auto i=0; i<ty.getSize(); i++){
-        types.push_back(::isq::ir::QStateType::get(op.getContext()));
+    ::mlir::SmallVector<::mlir::Type> argtypes;
+    ::mlir::SmallVector<::mlir::Type> returntypes;
+    for(auto extra_arg: op.parameters()){
+        argtypes.push_back(extra_arg.cast<mlir::TypeAttr>().getType());
     }
-    auto required_functype = ::mlir::FunctionType::get(op->getContext(), types, types);
+    for(auto i=0; i<ty.getSize(); i++){
+        argtypes.push_back(::isq::ir::QStateType::get(op.getContext()));
+        returntypes.push_back(::isq::ir::QStateType::get(op.getContext()));
+    }
+    auto required_functype = ::mlir::FunctionType::get(op->getContext(), argtypes, returntypes);
     if(required_functype!=funcop.getType()){
             op->emitError() << "Definition #" << id
                             << " does not have signature "<<required_functype<<".";
@@ -170,6 +175,61 @@ mlir::FuncOp DecompositionDefinition::getDecomposedFunc(){
     }
     return ::mlir::success();
 }
+// Define by composition-reference version.
+
+// Define by decomposition.
+DecompositionRawDefinition::DecompositionRawDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_DECOMPOSITION){
+    auto callee = value.cast<::mlir::SymbolRefAttr>();
+    this->decomposition = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(op, callee);
+    assert(this->decomposition);
+}
+mlir::FuncOp DecompositionRawDefinition::getDecomposedFunc(){
+    return this->decomposition;
+}
+::mlir::LogicalResult DecompositionRawDefinition::verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute){
+    return ::mlir::success();
+}
+::mlir::LogicalResult DecompositionRawDefinition::verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute value, ::mlir::SymbolTableCollection &symbolTable) {
+    if(!value.isa<::mlir::SymbolRefAttr>()){
+        value.dump();
+        op->emitError() << "Definition #" << id
+                            << " should refer to a decomposed function name.";
+        return mlir::failure();
+    }
+    auto callee = value.cast<::mlir::SymbolRefAttr>();
+    auto sym = mlir::SymbolTable::lookupNearestSymbolFrom(op, callee);
+    if(!sym){
+        op->emitError() << "Definition #" << id
+                            << " does not refer to an existing symbol.";
+        return mlir::failure();
+    }
+    auto funcop = ::llvm::dyn_cast_or_null<::mlir::FuncOp>(sym);
+    if(!funcop){
+        op->emitError() << "Definition #" << id
+                            << " does not refer to a valid symbol by `builtin.func`.";
+        return mlir::failure();
+    }
+    // construct func signature.
+    ::mlir::SmallVector<::mlir::Type> argtypes;
+    ::mlir::SmallVector<::mlir::Type> returntypes;
+    for(auto extra_arg: op.parameters()){
+        argtypes.push_back(extra_arg.cast<mlir::TypeAttr>().getType());
+    }
+    auto memref_1_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{1},::isq::ir::QStateType::get(op.getContext()));
+    for(auto i=0; i<ty.getSize(); i++){
+        argtypes.push_back(memref_1_qstate);
+    }
+    auto required_functype = ::mlir::FunctionType::get(op->getContext(), argtypes, returntypes);
+    if(required_functype!=funcop.getType()){
+            op->emitError() << "Definition #" << id
+                            << " does not have signature "<<required_functype<<".";
+        return mlir::failure();
+    }
+    return ::mlir::success();
+}
+
+
+
 
 QIRDefinition::QIRDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_QIR){
     auto qir_name = value.cast<::mlir::StringAttr>();

@@ -39,6 +39,16 @@ public:
         for(auto def: defgate.definition()->getAsRange<GateDefinition>()){
             auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
             if(d==std::nullopt) return mlir::failure();
+            if(llvm::dyn_cast_or_null<QIRDefinition>(&**d)){
+                // A QIR implementation is good enough.
+                return mlir::failure();
+            }
+            id++;
+        }
+        id=0;
+        for(auto def: defgate.definition()->getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
+            if(d==std::nullopt) return mlir::failure();
             auto decomp = llvm::dyn_cast_or_null<DecompositionDefinition>(&**d);
             if(!decomp){
                 id++;

@@ -11,6 +11,7 @@ import ISQ.Lang.TypeCheck
 import Data.Complex
 import ISQ.Lang.TypeCheck (TypeCheckData(TypeCheckData))
 import Control.DeepSeq
+import ISQ.Lang.DeriveGate 
 
 deriving instance Generic CompileError
 instance ToJSON CompileError
@@ -18,6 +19,8 @@ deriving instance Generic InternalCompilerError
 instance ToJSON InternalCompilerError
 deriving instance Generic RAIIError
 instance ToJSON RAIIError
+deriving instance Generic DeriveError
+instance ToJSON DeriveError
 deriving instance Generic RegionType
 instance ToJSON RegionType
 deriving instance Generic Pos
@@ -63,3 +66,6 @@ instance NFData CmpType
 instance NFData (Type Pos)
 instance NFData (Type ())
 instance NFData GateModifier 
+instance NFData DerivingType 
+deriving instance Generic DerivingType 
+instance ToJSON DerivingType 

@@ -119,9 +119,6 @@ checkRule AnyGate (Type () (Gate _) _) = True
 checkRule AnyRef (Type () Ref [_]) = True
 checkRule _ _ = False
 
-singleBaseGate = ["H", "X", "Y", "Z", "S", "T", "Rx", "Ry", "Rz", "u3"]
-doubleBaseGate = ["CNOT"]
-rotateGate = ["Rx", "Ry", "Rz"]
 
 -- try to match two types, using auto dereference and int-to-bool implicit conversion.
 matchType' :: [MatchRule]->TCExpr->TypeCheck (Maybe TCExpr)
@@ -312,7 +309,7 @@ typeCheckAST' f (NCall pos c@(ECall _ callee args)) = do
         FuncTy -> do
             c'<-typeCheckExpr c
             return $ NCall (okStmt pos) c'
-        Gate _ -> f (NCoreUnitary pos callee args [] Nothing)
+        Gate _ -> f (NCoreUnitary pos callee args [])
         _ -> undefined
 typeCheckAST' f (NCall pos c) = error "unreachable"
 typeCheckAST' f (NDefvar pos defs) = do
@@ -335,40 +332,21 @@ typeCheckAST' f (NAssign pos lhs rhs) = do
     when (ty lhs_ty==Qbit) $ throwError $ ViolateNonCloningTheorem pos
     rhs''<-matchType [Exact lhs_ty] rhs'
     return $ NAssign (okStmt pos) lhs'' rhs''
-typeCheckAST' f (NGatedef pos lhs rhs) = error "unreachable"
+typeCheckAST' f (NGatedef pos lhs rhs _) = error "unreachable"
 typeCheckAST' f (NReturn _ _) = error "unreachable"
-typeCheckAST' f (NCoreUnitary pos gate operands modifiers rotation) = do
+typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
     gate'<-typeCheckExpr gate
     gate''<-matchType [AnyGate] gate'
-    let Gate x = ty $ astType gate''
+    let Type _ (Gate x) extra = astType gate''
     let total_qubits = sum (map addedQubits modifiers) + x
-    when (total_qubits /= length operands) $ throwError $ ArgNumberMismatch pos total_qubits (length operands)
+    let total_operands = length extra + total_qubits
+    when (total_operands /= length operands) $ throwError $ ArgNumberMismatch pos total_qubits (length operands)
     operands'<-mapM typeCheckExpr operands
-    operands''<-mapM (matchType [Exact (refType () $ qbitType ())]) operands'
-    rotation'<- case rotation of
-        Just r -> do
-            r' <- typeCheckExpr r
-            r'' <- matchType [Exact (doubleType ())] r'
-            if (globalName gate'' `elem` rotateGate) then 
-                return $ Just r''
-            else do
-                error ((globalName gate'') ++ " is not rotate gate")
-                return Nothing
-        Nothing -> do
-            if (globalName gate'' `elem` rotateGate) then 
-                error ((globalName gate'') ++ " is ratate gate, need rotate angle")
-            else
-                return Nothing
-    return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers rotation'
-typeCheckAST' f (NCoreU3 pos gate operands angles) = do
-    gate'<-typeCheckExpr gate
-    gate''<-matchType [AnyGate] gate'
-    when (1 /= length operands) $ throwError $ ArgNumberMismatch pos 1 (length operands)
-    operands'<-mapM typeCheckExpr operands
-    operands''<-mapM (matchType [Exact (refType () $ qbitType ())]) operands'
-    angles' <- mapM typeCheckExpr angles
-    angles'' <- mapM (matchType [Exact (doubleType ())]) angles'
-    return $ NCoreU3 (okStmt pos) gate'' operands'' angles''
+    let (op_extra, op_qubits) = splitAt (total_operands - total_qubits) operands'
+    op_extra'<-zipWithM (\x y->matchType [Exact x] y) extra op_extra
+    op_qubits'<-mapM (matchType [Exact (refType () $ qbitType ())]) op_qubits
+    let operands'' = op_extra' ++ op_qubits'
+    return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers
 typeCheckAST' f (NCoreReset pos qubit) = do
     qubit'<-typeCheckExpr qubit
     qubit''<-matchType [Exact (refType () $ qbitType ())] qubit'
@@ -389,7 +367,7 @@ typeCheckAST' f (NProcedure _ _ _ _ _) = error "unreachable"
 typeCheckAST' f (NContinue _) = error "unreachable"
 typeCheckAST' f (NBreak _) = error "unreachable"
 typeCheckAST' f (NResolvedFor _ _ _ _) = error "unreachable"
-typeCheckAST' f (NResolvedGatedef pos name matrix size) = error "unreachable"
+typeCheckAST' f (NResolvedGatedef pos name matrix size _) = error "unreachable"
 typeCheckAST' f (NWhileWithGuard pos cond body break) = do
     cond'<-typeCheckExpr cond
     cond''<-matchType [Exact (boolType ())] cond'
@@ -416,13 +394,28 @@ typeCheckAST' f (NTempvar pos def) = do
             return (definedRefType $ void ty, s, i')
     def'<-def_one def
     return $ NResolvedDefvar (okStmt pos) [def']
+typeCheckAST' f x@NResolvedExternGate{} = return $ fmap okStmt x
+typeCheckAST' f x@NDerivedGatedef{} = return $ fmap okStmt x
+typeCheckAST' f x@NDerivedOracle{} = return $ fmap okStmt x
+typeCheckAST' f NExternGate{} = error "unreachable"
+typeCheckAST' f NProcedureWithDerive{} = error "unreachable"
 typeCheckAST' f NResolvedDefvar{} = error "unreachable"
 typeCheckAST' f NGlobalDefvar {} = error "unreachable"
 typeCheckAST :: AST Pos -> TypeCheck (AST TypeCheckData)
 typeCheckAST = fix typeCheckAST'
 
 
-
+argType :: Type Pos->Ident->TypeCheck EType
+argType ty = argType' (annotation ty) ty 
+argType' :: Pos->Type ann->Ident->TypeCheck EType
+argType' pos ty i = case ty of
+    Type _ Int [] -> return $ void ty
+    Type _ Double [] -> return $ void ty
+    Type _ Bool [] -> return $ void ty
+    Type _ Qbit [] -> return $ Type () Ref [void ty]
+    Type _ UnknownArray [a] -> return $ void ty
+    Type _ (FixedArray _) [a] -> return $ void ty
+    _ -> throwError $ BadProcedureArgType pos (void ty, i)
 typeCheckToplevel :: [AST Pos]->TypeCheck [AST TypeCheckData]
 typeCheckToplevel ast = do
     
@@ -443,17 +436,24 @@ typeCheckToplevel ast = do
     let vars=concatMap Map.toList varlist
     mapM_ (uncurry addSym) vars
     
-    
-    -- Add all base gate into table.
-    mapM_ (\x -> defineGlobalSym (SymVar x) Pos{line=0,column=0} (Type () (Gate 1) [])) singleBaseGate
-    mapM_ (\x -> defineGlobalSym (SymVar x) Pos{line=0,column=0} (Type () (Gate 2) [])) doubleBaseGate
-
     -- Resolve all gates and procedures.
     resolved_headers<-mapM (\node->case node of
             Right x->return (Right x)
-            Left (NResolvedGatedef pos name matrix size) -> do
+            Left (NResolvedGatedef pos name matrix size qir) -> do
                 defineGlobalSym (SymVar name) pos (Type () (Gate size) [])
-                return $ Right (NResolvedGatedef (okStmt pos) name matrix size)
+                return $ Right (NResolvedGatedef (okStmt pos) name matrix size qir)
+            Left (NExternGate pos name extra size qirname) -> do
+                extra'<-mapM (\x->argType' pos x "<anonymous>") extra
+                defineGlobalSym (SymVar name) pos (Type () (Gate size) extra')
+                return $ Right $ NResolvedExternGate (okStmt pos) name (fmap void extra) size qirname
+            Left x@(NDerivedGatedef pos name source extra size) -> do
+                extra'<-mapM (\x->argType' pos x "<anonymous>") extra
+                defineGlobalSym (SymVar name) pos (Type () (Gate size) extra')
+                return $ Right (fmap okStmt x)
+            Left x@(NDerivedOracle pos name source extra size)->do
+                extra'<-mapM (\x->argType' pos x "<anonymous>") extra
+                defineGlobalSym (SymVar name) pos (Type () (Gate size) extra')
+                return $ Right (fmap okStmt x)
             Left (NProcedureWithRet pos ty name args body ret) -> do
                 -- check arg types and return types
                 ty'<-case ty of
@@ -462,19 +462,11 @@ typeCheckToplevel ast = do
                     Type _ Double [] -> return $ void ty
                     Type _ Bool [] -> return $ void ty
                     _ -> throwError $ BadProcedureReturnType pos (void ty, name)
-                args'<-mapM (\(ty, i)->case ty of
-                    Type _ Int [] -> return $ void ty
-                    Type _ Double [] -> return $ void ty
-                    Type _ Bool [] -> return $ void ty
-                    Type _ Qbit [] -> return $ Type () Ref [void ty]
-                    Type _ UnknownArray [a] -> return $ void ty
-                    Type _ (FixedArray _) [a] -> return $ void ty
-                    _ -> throwError $ BadProcedureArgType (annotation ty) (void ty, i)
-                    ) args
+                args'<-mapM (uncurry argType) args
                 defineGlobalSym (SymVar name) (annotation ty) (Type () FuncTy (ty':args'))
                 -- NTempvar a (void b, procRet, Nothing)
                 return $ Left (pos, ty', name, zip args' (fmap snd args), body, ret)
-            _ -> error "unreachable"
+            Left x -> error $ "unreachable" ++ show x
         ) resolved_defvar
     -- Finally, resolve procedure bodies.
     -- Note that we need to store byval-passed values (e.g. int) into new variables.

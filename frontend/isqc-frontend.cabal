@@ -26,6 +26,7 @@ executable isqc1
       ISQ.Driver.Main
       ISQ.Driver.Passes
       ISQ.Lang.CompileError
+      ISQ.Lang.DeriveGate
       ISQ.Lang.ISQv2Grammar
       ISQ.Lang.ISQv2Parser
       ISQ.Lang.ISQv2Tokenizer

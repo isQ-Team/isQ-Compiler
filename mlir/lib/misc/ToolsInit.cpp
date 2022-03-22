@@ -6,12 +6,12 @@ namespace isq {
 namespace ir {
 void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     mlir::registerAllPasses();
-    passes::registerQuantumGatePass();
     passes::registerDecorateFolding();
     passes::registerQSD();
     passes::registerExpandDecomposition();
     passes::registerLowerToQIRRep();
     passes::registerQIR2LLVM();
+    passes::registerPureGateDetect();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
 }
