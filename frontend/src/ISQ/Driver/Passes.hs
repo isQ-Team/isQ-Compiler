@@ -16,6 +16,7 @@ import Data.Bifunctor (first)
 import Control.DeepSeq
 import ISQ.Driver.Jsonify
 import Data.Char (isDigit)
+import ISQ.Lang.DeriveGate (passDeriveGate)
 
 syntaxError :: String->CompileError 
 syntaxError x = 
@@ -52,7 +53,8 @@ pass (Right y) = return y
 
 compileRAII :: [LAST] -> Either CompileError [LAST]
 compileRAII ast = runExcept $ do
-    ast_verify_defgate <- pass $ passVerifyDefgate ast
+    ast_derive <- pass $ passDeriveGate ast
+    ast_verify_defgate <- pass $ passVerifyDefgate ast_derive
     ast_verify_top_vardef<-pass $ checkTopLevelVardef ast_verify_defgate
     ast_raii <- pass $ raiiCheck ast_verify_top_vardef
     return ast_raii

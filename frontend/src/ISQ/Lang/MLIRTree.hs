@@ -8,7 +8,7 @@ import GHC.Stack (HasCallStack)
 
 data MLIRType =
     Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
-  | Gate Int | Double deriving Show
+  | Gate Int | Double | QIRQubit deriving Show
 mlirType :: MLIRType->String
 mlirType Bool = "i1"
 mlirType I2 = "i2"
@@ -16,6 +16,7 @@ mlirType I64 = "i64"
 mlirType Index = "index"
 mlirType Double = "f64"
 mlirType QState = "!isq.qstate"
+mlirType QIRQubit = "!isq.qir.qubit"
 mlirType (Memref Nothing ty) = "memref<?x" ++ mlirType ty ++ ">"
 mlirType (Memref (Just x) ty) = "memref<"++show x++"x" ++ mlirType ty ++ ">"
 mlirType (BorrowedRef ty) = "memref<1x"++ mlirType ty ++", affine_map<(d0)[s0]->(d0+s0)>>"
@@ -27,7 +28,7 @@ newtype FuncName = FuncName {unFuncName :: String} deriving Show
 fromBlockName :: Int->BlockName
 fromBlockName = BlockName . printf "^block%d"
 fromFuncName :: String->FuncName
-fromFuncName = FuncName . printf "@%s"
+fromFuncName = FuncName . printf "@%s" . show
 fromSSA :: Int->SSA
 fromSSA = SSA . printf "%%ssa_%d"
 data MLIRBlock = MLIRBlock {
@@ -85,11 +86,20 @@ mlirI64toDouble = mlirUnaryOp ("sitofp", I64, Double)
 
 type TypedSSA = (MLIRType, SSA)
 
+data GateRep = MatrixRep [[Complex Double]] | QIRRep FuncName | DecompositionRep FuncName | OracleRep FuncName deriving Show
+
+gateRep :: GateRep->String
+gateRep (MatrixRep mat) = printf "{type=\"unitary\", value = %s}" (printRow (printRow printComplex) mat)
+gateRep (QIRRep fn) = printf "{type = \"qir\", value = %s}" (unFuncName fn)
+gateRep (DecompositionRep fn) = printf "{type = \"decomposition_raw\", value = %s}" (unFuncName fn)
+gateRep (OracleRep fn) = printf "{type = \"oracle\", value = %s}" (unFuncName fn)
+
+
 data MLIROp =
       MFunc {location :: MLIRPos, funcName :: FuncName, funcReturnType :: Maybe MLIRType, funcRegion :: [MLIRBlock]}
-    | MQDefGate { location :: MLIRPos, gateName :: FuncName, matrixRep :: [[Complex Double]], gateSize :: Int}
-    | MQUseGate { location :: MLIRPos, value :: SSA, usedGate :: FuncName, usedGateType :: MLIRType}
-    | MQUseU3Gate { location :: MLIRPos, value :: SSA, usedGate :: FuncName, usedGateType :: MLIRType, angle :: [SSA]}
+    | MQDefGate { location :: MLIRPos, gateName :: FuncName, gateSize :: Int, extraArgTypes :: [MLIRType], representations :: [GateRep]}
+    | MQUseGate { location :: MLIRPos, value :: SSA, usedGate :: FuncName, usedGateType :: MLIRType, useGateParams :: [(MLIRType, SSA)]}
+    | MExternFunc { location :: MLIRPos, funcName :: FuncName, funcReturnType :: Maybe MLIRType, funcArgTypes :: [MLIRType]}
     | MQDecorate { location :: MLIRPos, value :: SSA, decoratedGate :: SSA, trait :: ([Bool], Bool), gateSize :: Int }
     | MQApplyGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA}
     | MQApplyRotateGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA, rotation :: SSA}
@@ -143,8 +153,8 @@ blockHeader :: MLIREmitEnv->MLIRBlock->String
 blockHeader env blk@(MLIRBlock id [] _) = indented env $ (unBlockName id) ++ ":"
 blockHeader env blk@(MLIRBlock id args _) = indented env $ (unBlockName id) ++ "(" ++ (intercalate ", " $ fmap blockArg args)++ "):"
 emitBlock :: (MLIREmitEnv->MLIROp->String)->MLIREmitEnv->MLIRBlock->String
-emitBlock f env blk@(MLIRBlock id args body) = 
-  let s = fmap (f (incrIndent env)) body in intercalate "\n" 
+emitBlock f env blk@(MLIRBlock id args body) =
+  let s = fmap (f (incrIndent env)) body in intercalate "\n"
   ([blockHeader env blk]++s)
 
 funcHeader :: FuncName->Maybe MLIRType->[MLIRType]->String
@@ -175,7 +185,7 @@ affineSet AffineSge = "()[s0, s1]: (s0-s1 >= 0)"
 
 emitOpStep :: (MLIREmitEnv->MLIROp->String)->(MLIREmitEnv->MLIROp->String)
 emitOpStep f env (MModule _ ops) =
-  let s = fmap (f (incrIndent env)) ops in intercalate "\n" $ 
+  let s = fmap (f (incrIndent env)) ops in intercalate "\n" $
   ([indented env "module{"] ++ [
       -- indented env $ "    module @isq_builtin {",
       -- indented env $ "        isq.declare_qop @measure : [1]()->i1",
@@ -183,30 +193,22 @@ emitOpStep f env (MModule _ ops) =
       -- indented env $ "        isq.declare_qop @print_int : [0](index)->()",
       -- indented env $ "        isq.declare_qop @print_double : [0](f64)->()",
       -- indented env $ "    }"
-      indented env $ "isq.declare_qop @__isq__builtin__measure : [1]()->i1",
-      indented env $ "isq.declare_qop @__isq__builtin__reset : [1]()->()",
-      indented env $ "isq.declare_qop @__isq__builtin__print_int : [0](index)->()",
-      indented env $ "isq.declare_qop @__isq__builtin__print_double : [0](f64)->()",
-      indented env $ "isq.defgate @__isq__builtin__u3(f64, f64, f64) {definition = [{type = \"qir\", value = \"__quantum__qis__u3\"}]} : !isq.gate<1>",
-      indented env $ "isq.defgate @__isq__builtin__cnot {definition = [{type = \"qir\", value = \"__quantum__qis__cnot\"}]} : !isq.gate<2>",
-      indented env $ "isq.defgate @H : !isq.gate<1>",
-      indented env $ "isq.defgate @X : !isq.gate<1>",
-      indented env $ "isq.defgate @Y : !isq.gate<1>",
-      indented env $ "isq.defgate @Z : !isq.gate<1>",
-      indented env $ "isq.defgate @S : !isq.gate<1>",
-      indented env $ "isq.defgate @T : !isq.gate<1>",
-      indented env $ "isq.defgate @Rx : !isq.gate<1>",
-      indented env $ "isq.defgate @Ry : !isq.gate<1>",
-      indented env $ "isq.defgate @Rz : !isq.gate<1>",
-      indented env $ "isq.defgate @CNOT : !isq.gate<2>",
+      indented env $ "    isq.declare_qop @__isq__builtin__measure : [1]()->i1",
+      indented env $ "    isq.declare_qop @__isq__builtin__reset : [1]()->()",
+      indented env $ "    isq.declare_qop @__isq__builtin__print_int : [0](index)->()",
+      indented env $ "    isq.declare_qop @__isq__builtin__print_double : [0](f64)->()",
+      indented env $ "    isq.defgate @__isq__builtin__u3(f64, f64, f64) {definition = [{type = \"qir\", value = \"__quantum__qis__u3\"}]} : !isq.gate<1>",
+      indented env $ "    isq.defgate @__isq__builtin__cnot {definition = [{type = \"qir\", value = \"__quantum__qis__cnot\"}]} : !isq.gate<2>",
       indented env $ "func private @__quantum__qis__u3(f64, f64, f64, !isq.qir.qubit)",
       indented env $ "func private @__quantum__qis__cnot(!isq.qir.qubit, !isq.qir.qubit)"
   ]++s ++ [indented env "}"])
 emitOpStep f env (MFunc loc name ret blocks) = let s = fmap (emitBlock f env) blocks in intercalate "\n" ([indented env $ funcHeader name ret (fmap fst $ blockArgs $ head blocks), indented env "{"] ++ s ++ [indented env $ printf "} %s" (mlirPos loc)])
-emitOpStep f env (MQDefGate loc name mat size) = indented env $ printf "isq.defgate %s {definition = [{type=\"unitary\", value = %s}]}: !isq.gate<%d> %s" (unFuncName name) (printRow (printRow printComplex) mat) size (mlirPos loc)
-emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz)) = indented env $ printf "%s = isq.use %s : !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) sz (mlirPos loc)
-emitOpStep f env (MQUseU3Gate loc val usedgate usedtype@(Gate sz) [a, b, c]) = indented env $ printf "%s = isq.use %s(%s, %s, %s) : (f64, f64, f64) -> !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) (unSsa a) (unSsa b) (unSsa c) sz (mlirPos loc)
-emitOpStep f env (MQUseGate loc val usedgate usedtype) = error "wtf?"
+emitOpStep f env (MQDefGate loc name size extra reps) = indented env $ printf "isq.defgate %s%s {definition = [%s]}: !isq.gate<%d> %s" (unFuncName name) (case extra of {[]->""; xs-> "("++intercalate ", " (map mlirType extra)++")"}) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
+emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)
+emitOpStep f env (MExternFunc loc name (Just returns) args) = indented env $ printf "func private %s(%s)->%s %s"(unFuncName name) (intercalate ", " $ map mlirType args) (mlirType returns) (mlirPos loc)
+emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) []) = indented env $ printf "%s = isq.use %s : !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) sz (mlirPos loc)
+emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) xs) = indented env $ printf "%s = isq.use %s(%s) : (%s) -> !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) (intercalate ", " $ fmap (unSsa.snd) xs) (intercalate ", " $ fmap (mlirType.fst) xs) sz (mlirPos loc)
+emitOpStep f env (MQUseGate loc val usedgate usedtype _) = error "wtf?"
 emitOpStep f env (MQDecorate loc value source trait size) = let (d, sz) = decorToDict trait in indented env $ printf "%s = isq.decorate(%s: !isq.gate<%d>) %s : !isq.gate<%d> %s" (unSsa value) (unSsa source) size d (size+sz) (mlirPos loc)
 emitOpStep f env (MQApplyGate loc values args gate) = indented env $ printf "%s = isq.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
 emitOpStep f env (MQApplyRotateGate loc values args gate rotation) = indented env $ printf "%s = isq.applyrotate %s(%s){rotate = %s} : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (unSsa rotation) (length args) (mlirPos loc)
@@ -222,7 +224,7 @@ emitOpStep f env (MLoad loc value (arr_type, arr_val)) = intercalate "\n" $
   [indented env $ printf "%s_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
   indented env $ printf "%s = memref.load %s[%s_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)]
 
-emitOpStep f env (MStore loc (arr_type, arr_val) value) = intercalate "\n" $ 
+emitOpStep f env (MStore loc (arr_type, arr_val) value) = intercalate "\n" $
   [
     indented env $ printf "%s_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
     indented env $ printf "memref.store %s, %s[%s_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)
@@ -259,7 +261,7 @@ emitOpStep f env (MSCFIf loc cond then' else') = intercalate "\n" $ [
   ++[indented env $ "} else {"]
   ++fmap (f (incrIndent env)) else'
   ++[indented env $ "}"]
-emitOpStep f env (MSCFWhile loc breakb condb cond break body) = intercalate "\n" $ 
+emitOpStep f env (MSCFWhile loc breakb condb cond break body) = intercalate "\n" $
   [indented env $ "scf.while : ()->() {"]
   ++ [indented env $ "    %cond = scf.execute_region->i1 {"]
   ++ [indented env $ "        ^break_check:"]
@@ -277,12 +279,12 @@ emitOpStep f env (MSCFWhile loc breakb condb cond break body) = intercalate "\n"
   ++ fmap (f (incrIndent env)) body
   ++ [indented env $ "scf.yield"]
   ++ [indented env $ printf "} %s" (mlirPos loc)]
-emitOpStep f env (MSCFExecRegion loc blocks) = intercalate "\n"  
-  ([indented env $ "scf.execute_region {"] 
-  ++ fmap (emitBlock f env) blocks ++ 
+emitOpStep f env (MSCFExecRegion loc blocks) = intercalate "\n"
+  ([indented env $ "scf.execute_region {"]
+  ++ fmap (emitBlock f env) blocks ++
   [indented env $ printf "} %s" (mlirPos loc)])
 emitOpStep f env (MSCFYield loc) = indented env $ printf "scf.yield %s" (mlirPos loc)
-emitOpStep f env (MAffineFor loc lo hi step var body) = intercalate "\n" $ 
+emitOpStep f env (MAffineFor loc lo hi step var body) = intercalate "\n" $
   [indented env $ printf "affine.for %s = %s to %s step %d {" (unSsa var) (unSsa lo) (unSsa hi) step]
   ++ fmap (f (incrIndent env)) body
   ++ [indented env $ printf "} %s" (mlirPos loc)]
@@ -290,12 +292,12 @@ emitOpStep f env (MReturn loc (ty, v)) = indented env $ printf "return %s : %s %
 emitOpStep f env (MReturnUnit loc) = indented env $ printf "return %s" (mlirPos loc)
 emitOpStep f env (MGlobalMemref loc name ty@(BorrowedRef subty)) = indented env $ printf "memref.global %s : memref<1x%s> = uninitialized %s"  (unFuncName name) (mlirType subty) (mlirPos loc)
 emitOpStep f env (MGlobalMemref loc name ty) = indented env $ printf "memref.global %s : %s = uninitialized %s"  (unFuncName name) (mlirType ty) (mlirPos loc)
-emitOpStep f env (MUseGlobalMemref loc val name ty@(BorrowedRef subty)) = intercalate "\n" $ fmap (indented env) [ 
+emitOpStep f env (MUseGlobalMemref loc val name ty@(BorrowedRef subty)) = intercalate "\n" $ fmap (indented env) [
   printf "%s_uncast = memref.get_global %s : memref<1x%s> %s" (unSsa val) (unFuncName name) (mlirType subty) (mlirPos loc),
   printf "%s_zero = arith.constant 0 : index" (unSsa val),
   printf "%s = memref.subview %s_uncast[%s_zero][1][1] : memref<1x%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) (mlirType subty) (mlirType ty) (mlirPos loc)
   ]
-emitOpStep f env (MUseGlobalMemref loc val name ty) = indented env $ printf "%s = memref.get_global %s : %s %s" (unSsa val) (unFuncName name) (mlirType ty) (mlirPos loc) 
+emitOpStep f env (MUseGlobalMemref loc val name ty) = indented env $ printf "%s = memref.get_global %s : %s %s" (unSsa val) (unFuncName name) (mlirType ty) (mlirPos loc)
 emitOp' :: MLIREmitEnv -> MLIROp -> String
 emitOp' = fix emitOpStep
 

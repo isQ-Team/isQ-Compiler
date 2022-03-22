@@ -3,9 +3,11 @@ module ISQ.Lang.CompileError where
 import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.TypeCheck (TypeCheckError)
 import ISQ.Lang.RAIICheck (RAIIError)
+import ISQ.Lang.DeriveGate (DeriveError)
 
 data CompileError = 
     GrammarError GrammarError
+  | DeriveError DeriveError
   | TypeCheckError TypeCheckError 
   | RAIIError RAIIError
   | InternalCompilerError InternalCompilerError
@@ -20,4 +22,5 @@ instance CompileErr RAIIError where
   fromError = RAIIError 
 instance CompileErr InternalCompilerError where
   fromError = ISQ.Lang.CompileError.InternalCompilerError 
-
+instance CompileErr DeriveError where
+  fromError = DeriveError

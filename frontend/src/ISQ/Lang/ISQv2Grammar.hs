@@ -51,7 +51,9 @@ instance Annotated Expr where
 instance Annotated Type where
   annotation = annotationType
 
-
+-- A procedure marked with derive-gate will be seen as a parametric gate on its last n qubits.
+-- A procedure marked with derive-oracle will be seen as an oracle on its last n boolean parameters.
+data DerivingType = DeriveGate | DeriveOracle Int deriving Show
 
 data AST ann = 
        NIf { annotationAST :: ann, condition :: Expr ann, thenBlock :: [AST ann], elseBlock :: [AST ann]}
@@ -61,19 +63,30 @@ data AST ann =
      | NCall { annotationAST :: ann, callExpr :: Expr ann}
      | NDefvar { annotationAST :: ann, definitions :: [(Type ann, Ident, Maybe (Expr ann))]}
      | NAssign { annotationAST :: ann, assignLhs :: Expr ann, assignRhs :: Expr ann}
-     | NGatedef { annotationAST :: ann, gateName :: String, gateRhs :: [[Expr ann]]}
+     | NGatedef { annotationAST :: ann, gateName :: String, gateRhs :: [[Expr ann]], externQirName :: Maybe String}
      | NReturn { annotationAST :: ann, returnedVal :: Expr ann}
-     | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier], rotation :: Maybe (Expr ann)}
-     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], angle :: [Expr ann]}
+     | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier]}
+     -- extern defgate Rz(double): gate(1) = "__quantum__qis__rz__body";
+     -- extern defgate H(): gate(1) = "__quantum__qis__h__body";
+     | NExternGate { annotationAST :: ann, gateName :: String, extraArgs :: [Type (ann)], gateSize :: Int, qirName :: String}
+--     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], angle :: [Expr ann]}
      | NCoreReset { annotationAST :: ann, resetOperands :: Expr ann}
      | NCorePrint { annotationAST :: ann, printOperands :: Expr ann}
      | NCoreMeasure {annotationAST :: ann, measExpr :: Expr ann}
-     | NProcedure { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann]}
+     -- procedure my_rx(double theta, qbit a, qbit b) deriving gate { }
+     -- bool database(bool flags[4], bool a, bool b) deriving oracle(2) { } 
+     | NProcedureWithDerive { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann], deriveGate :: Maybe DerivingType}
      | NContinue { annotationAST :: ann }
      | NBreak { annotationAST :: ann }
     -- Analysis/transformation intermediate nodes.
+    -- Derived gates can be called as if they were procedures.
+    -- Since deriving gates do not change their signature.
+     | NResolvedExternGate { annotationAST :: ann, gateName :: String, extraArgs' :: [Type ()], gateSize :: Int, qirName :: String}
+     | NDerivedGatedef { annotationAST :: ann, gateName :: String, sourceProcName :: String, extraArgs' :: [Type ()], gateSize :: Int}
+     | NDerivedOracle { annotationAST :: ann, gateName :: String, sourceProcName :: String, extraArgs' :: [Type ()], gateSize :: Int}
+     | NProcedure { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann]}
      | NResolvedFor { annotationAST :: ann, forVarId :: Int, forRange :: Expr ann, body :: ASTBlock ann}
-     | NResolvedGatedef { annotationAST :: ann, gateName :: String, resolvedGateRhs :: [[Complex Double]], gateSize :: Int}
+     | NResolvedGatedef { annotationAST :: ann, gateName :: String, resolvedGateRhs :: [[Complex Double]], gateSize :: Int, externQirName :: Maybe String}
      | NWhileWithGuard { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann, breakFlag :: Expr ann}
      | NProcedureWithRet { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann], retVal :: Expr ann}
      | NResolvedProcedureWithRet { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, resolvedProcArgs :: [(Type (), Int)], procBody :: [AST ann], retValR :: Maybe (Expr ann), retVarSSA :: Maybe (Type (), Int)}
@@ -108,7 +121,6 @@ newtype InternalCompilerError = InternalCompilerError String deriving Show
 data GrammarError = 
     BadMatrixElement {badExpr :: LExpr}
   | BadMatrixShape {badMatrix :: LAST}
-  | BadMatrixName {badDefPos :: Pos, badDefName :: String}
   | MissingGlobalVarSize {badDefPos :: Pos, badDefName :: String} 
   | UnexpectedToken {token :: Token Pos} deriving Show
 
@@ -138,14 +150,12 @@ foldConstantComplex' = go . foldConstantComplex where
 checkGateSize :: [[a]]-> Maybe Int
 checkGateSize arr = let logsize = log2 $ length arr in if all ((==length arr) . length) arr  && 2 ^ logsize == length arr then Just logsize else Nothing
 
-baseGate = ["H", "X", "Y", "Z", "S", "T", "CNOT", "CZ", "Rx", "Ry", "Rz", "u3"]
-
 passVerifyDefgate :: [LAST] -> Either GrammarError [LAST]
 passVerifyDefgate = mapM go where
-    go g@(NGatedef ann name mat) = do
+    go g@(NGatedef ann name mat qir) = do
         new_mat<-mapM (mapM foldConstantComplex') mat
         case checkGateSize new_mat of
-          Just sz -> if name `elem` baseGate then Left $ BadMatrixName ann name else return $ NResolvedGatedef ann name new_mat sz
+          Just sz -> return $ NResolvedGatedef ann name new_mat sz qir
           Nothing -> Left $ BadMatrixShape g
 
     go x = Right x

@@ -73,6 +73,22 @@ public:
     static ::mlir::LogicalResult verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute value);
     static ::mlir::LogicalResult verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute, ::mlir::SymbolTableCollection &symbolTable);
 };
+// Define by decomposition.
+class DecompositionRawDefinition: public GateDefinitionAttribute{
+private:
+    mlir::FuncOp decomposition;
+public:
+    ::mlir::FuncOp getDecomposedFunc();
+    DecompositionRawDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value);
+    static bool classof(const GateDefinitionAttribute *attr) {
+        return attr->getKind() == GateDefinitionAttribute::GD_DECOMPOSITION;
+    }
+    static ::mlir::StringRef defKindName() {
+        return "decomposition_raw";
+    }
+    static ::mlir::LogicalResult verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute value);
+    static ::mlir::LogicalResult verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute, ::mlir::SymbolTableCollection &symbolTable);
+};
 
 // Define by QIR primitive. This allows lowering to QIR.
 class QIRDefinition: public GateDefinitionAttribute{
@@ -142,6 +158,7 @@ public:
 using AllGateDefs = GateDefParser<
     MatrixDefinition, 
     DecompositionDefinition,
+    DecompositionRawDefinition,
     QIRDefinition
 >;
 

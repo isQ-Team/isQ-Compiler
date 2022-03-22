@@ -30,7 +30,7 @@ mapType (Type () Int []) = Index
 mapType (Type () Qbit []) = QState
 mapType (Type () UnknownArray [x]) = Memref Nothing (mapType x)
 mapType (Type () (FixedArray n) [x]) = Memref (Just n) (mapType x)
-mapType (Type () (Gate n) []) = M.Gate n
+mapType (Type () (Gate n) _) = M.Gate n
 mapType (Type () Double []) = M.Double
 mapType _ = error "unsupported type"
 
@@ -263,31 +263,40 @@ emitStatement' f (NAssign ann lhs rhs) = do
     pushOp $ MStore pos (astMType lhs, lhs') rhs'
 emitStatement' f NGatedef{} = error "unreachable"
 emitStatement' f NReturn{} = error "unreachable"
-emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods rotation) = do
+emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
     let go Inv (l, f) = (l, not f)
         go (Ctrl x i) (l, f) = (replicate i x ++ l, f)
         folded_mods = foldr go ([], False) mods
     ops'<-mapM emitExpr ops
     pos<-mpos ann
     let i = ssa ann2
-    let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..(length ops)]
+    
     let used_gate = i;
+    let Type _ (Gate _) extra_params_type = termType ann2;
     let gate_type@(M.Gate gate_size) = mType ann2;
-    pushOp $ MQUseGate pos used_gate (fromFuncName name) gate_type
+    
+    let (extra_args, qubit_args) = splitAt (length extra_params_type) ops
+    let (extra_ssa, qubit_ssa) = splitAt (length extra_params_type) ops'
+    let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..length qubit_ssa]
+    pushOp $ MQUseGate pos used_gate (fromFuncName name) gate_type (zipWith (\arg ssa->(astMType arg, ssa)) extra_args extra_ssa)
     decorated_gate<-case folded_mods of
             ([], False)->return i
             (ctrls, adj)->do
                 let decorated_gate = SSA $ unSsa i ++ "_decorated"
                 pushOp $ MQDecorate pos decorated_gate used_gate folded_mods gate_size
                 return $ decorated_gate
-    zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins ops'
+    zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins qubit_ssa
+    {-
     r <- case rotation of
         Just x -> do
             r'<- emitExpr x
             pushOp $ MQApplyRotateGate pos outs ins decorated_gate r'
         Nothing -> pushOp $ MQApplyGate pos outs ins decorated_gate
-    zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs ops'
+    -}
+    pushOp $ MQApplyGate pos outs ins decorated_gate
+    zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs qubit_ssa
 emitStatement' f NCoreUnitary{} = error "first-class gate unsupported"
+{-
 emitStatement' f (NCoreU3 ann (EGlobalName ann2 name) ops angles) = do
     ops'<-mapM emitExpr ops
     angles' <- mapM emitExpr angles
@@ -300,6 +309,7 @@ emitStatement' f (NCoreU3 ann (EGlobalName ann2 name) ops angles) = do
     zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins ops'
     pushOp $ MQApplyGate pos outs ins used_gate
     zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs ops'
+-}
 emitStatement' f (NCoreReset ann operand) = do
     operand'<-emitExpr operand
     pos<-mpos ann
@@ -323,9 +333,9 @@ emitStatement' f (NResolvedFor ann fori (ERange _ (Just lo) (Just hi) (Just (EIn
     r<-scopedStatement [] [MSCFYield pos] (mapM f body)
     pushOp $ MAffineFor pos lo' hi' step (fromSSA fori) [MSCFExecRegion pos r]
 emitStatement' f NResolvedFor{} = error "unreachable"
-emitStatement' f (NResolvedGatedef ann name mat sz) = do
+emitStatement' f (NResolvedGatedef ann name mat sz qir) = do
     pos<-mpos ann
-    pushOp $ MQDefGate pos (fromFuncName name) mat sz
+    pushOp $ MQDefGate pos (fromFuncName name) sz [] (MatrixRep mat: case qir of {Just x->[QIRRep (fromFuncName x)]; Nothing->[]})
 emitStatement' f (NWhileWithGuard ann cond body breakflag) = do
     pos<-mpos ann
     break_block<-unscopedStatement (emitExpr breakflag)
@@ -371,6 +381,22 @@ emitStatement' f (NResolvedDefvar ann defs) = do
         one_def (ty, ssa, Nothing) = do
             pushAllocFree pos (mapType ty, fromSSA ssa)
     mapM_ one_def defs
+emitStatement' f NExternGate{} = error "unreachable"
+emitStatement' f NProcedureWithDerive{} = error "unreachable"
+emitStatement' f (NResolvedExternGate ann name extraparams sz qirname) = do
+    pos<-mpos ann
+    let extern_name = fromFuncName qirname
+    let extra_param_types = map mapType extraparams
+    pushOp $ MExternFunc pos extern_name Nothing (extra_param_types++(replicate sz QIRQubit))
+    pushOp $ MQDefGate pos (fromFuncName name) sz extra_param_types [QIRRep extern_name]
+emitStatement' f (NDerivedGatedef ann name source extraparams sz ) = do
+    pos<-mpos ann
+    let extra_param_types = map mapType extraparams
+    pushOp $ MQDefGate pos (fromFuncName name) sz extra_param_types [DecompositionRep $ fromFuncName source]
+emitStatement' f (NDerivedOracle ann name source extraparams sz ) = do
+    pos<-mpos ann
+    let extra_param_types = map mapType extraparams
+    pushOp $ MQDefGate pos (fromFuncName name) sz extra_param_types [OracleRep $ fromFuncName source]
 emitStatement' f NGlobalDefvar{} = error "not top"
 --emitStatement' f (NJumpToEndOnFlag)=
 emitStatement :: AST TypeCheckData -> State RegionBuilder ()
@@ -427,6 +453,15 @@ emitTop file (NGlobalDefvar ann defs) = do
                 Nothing->return ()
     mapM_ def_one defs
 emitTop file x@NResolvedGatedef{} = do
+    let [fn] = unscopedStatement' file (emitStatement x)
+    mainModule %= (fn:)
+emitTop file x@NResolvedExternGate{} = do
+    let [g,efn] = unscopedStatement' file (emitStatement x)
+    mainModule %= ([efn,g]++)
+emitTop file x@NDerivedGatedef{} = do
+    let [fn] = unscopedStatement' file (emitStatement x)
+    mainModule %= (fn:)
+emitTop file x@NDerivedOracle{} = do
     let [fn] = unscopedStatement' file (emitStatement x)
     mainModule %= (fn:)
 emitTop _ x = error $ "unreachable" ++ show x

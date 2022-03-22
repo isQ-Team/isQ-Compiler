@@ -37,7 +37,11 @@ import Control.Exception (throw, Exception)
     continue { TokenReservedId $$ "continue" }
     break { TokenReservedId $$ "break" }
     double { TokenReservedId $$ "double" }
-    u3 { TokenReservedId $$ "u3" }
+    as { TokenReservedId $$ "as" }
+    extern { TokenReservedId $$ "extern"}
+    gate { TokenReservedId $$ "gate"}
+    deriving { TokenReservedId $$ "deriving"}
+    oracle { TokenReservedId $$ "oracle"}
     '|0>' { TokenReservedOp $$ "|0>" }
     '=' { TokenReservedOp $$ "=" }
     '==' { TokenReservedOp $$ "==" }
@@ -66,7 +70,9 @@ import Control.Exception (throw, Exception)
     NATURAL { TokenNatural _ _ }
     FLOAT { TokenFloat _ _ }
     IMAGPART { TokenImagPart _ _ }
+    IDENTIFIERORACLE { TokenIdent _ ('@':_) }
     IDENTIFIER { TokenIdent _ _ }
+    STRING { TokenStringLit _ _}
 
 %left ':' -- Level 13
 %left '==' '!=' -- Level 7
@@ -88,7 +94,9 @@ TopDef : TopDefMember { [$1] }
      | TopDef TopDefMember {$1 ++ [$2]}
 
 TopDefMember :: {LAST}
-TopDefMember : ISQCore_GatedefStatement ';' {$1} | TopLevelVar {$1}
+TopDefMember : ISQCore_GatedefStatement ';' {$1} 
+             | TopLevelVar {$1}
+             | ExternDefgate ';' { $1 }
 
 ProcedureList :: {[LAST]}
 ProcedureList : Procedure { [$1] }
@@ -106,7 +114,7 @@ Expr : Expr1 {$1} | Expr2 {$1}
 ExprCallable :: {LExpr}
 ExprCallable : '(' Expr ')' { $2 }
              | IDENTIFIER { EIdent (annotation $1) (tokenIdentV $1) }
-
+             | IDENTIFIERORACLE { EIdent (annotation $1) (tokenIdentV $1)}
 Expr1Left :: {LExpr}
 Expr1Left : ExprCallable {$1}
           | Expr1Left '[' Expr ']' { ESubscript $2 $1 $3 }
@@ -194,7 +202,12 @@ ISQCore_GatedefMatrixRow :: {[LExpr]}
 ISQCore_GatedefMatrixRow : Expr1 { [$1] }
                          | ISQCore_GatedefMatrixRow ',' Expr1 { $1 ++ [$3] }
 ISQCore_GatedefStatement :: {LAST}
-ISQCore_GatedefStatement : defgate IDENTIFIER '=' ISQCore_GatedefMatrix { NGatedef $1 (tokenIdentV $2) $4}
+ISQCore_GatedefStatement : defgate IDENTIFIER '=' ISQCore_GatedefMatrix GatedefMaybeExtern { NGatedef $1 (tokenIdentV $2) $4 $5}
+
+GatedefMaybeExtern :: {Maybe String}
+GatedefMaybeExtern : extern STRING { Just (tokenStringLitV $2) }
+                   | {- empty -} { Nothing }
+
 GateModifier :: {GateModifier}
 GateModifier : inv { Inv }
              | ctrl '<' NATURAL '>' {Ctrl True (tokenNaturalV $3)}
@@ -205,14 +218,13 @@ GateModifierListNonEmpty :: {[GateModifier]}
 GateModifierListNonEmpty : GateModifierListNonEmpty GateModifier { $1 ++ [$2] }
                          | GateModifier {[$1]}
                          
+ExternDefgate :: {LAST}
+ExternDefgate : extern defgate IDENTIFIER '(' TypeList ')' ':' gate '(' NATURAL ')' '=' STRING { NExternGate $1 (tokenIdentV $3) $5 (tokenNaturalV $10) (tokenStringLitV $13) }
 
 ISQCore_UnitaryStatement :: {LAST}
-ISQCore_UnitaryStatement : ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $1) $1 $3 [] Nothing}
-                         | GateModifierListNonEmpty ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $2) $2 $4 $1 Nothing}
-                         {-| GateModifierListNonEmpty ExprCallable '(' Expr1LeftListNonEmpty ')' { NCoreUnitary (annotation $2) $2 $4 $1 Nothing}-}
-                         | ExprCallable '(' Expr1 ')' '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $1) $1 $6 [] (Just $3) }
-                         | GateModifierListNonEmpty ExprCallable '(' Expr1 ')' '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $2) $2 $7 $1 (Just $4)}
-                         | u3 '(' Expr1 ',' Expr1 ',' Expr1 ')' '<' Expr1LeftListNonEmpty '>' { NCoreU3 (annotation $3) (EIdent (annotation $3) "u3") $10 [$3, $5, $7] }
+ISQCore_UnitaryStatement : ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $1) $1 $3 []}
+                         | GateModifierListNonEmpty ExprCallable '<' Expr1LeftListNonEmpty '>' { NCoreUnitary (annotation $2) $2 $4 $1}
+                         | GateModifierListNonEmpty ExprCallable '(' Expr1List ')' { NCoreUnitary (annotation $2) $2 $4 $1}
 
 ISQCore_MeasureExpr :: {LExpr}
 ISQCore_MeasureExpr : M '<' Expr1Left '>' { ECoreMeasure $1 $3 }
@@ -265,6 +277,11 @@ SimpleType : int { intType $1 }
 CompositeType :: {LType}
 CompositeType : Type ArrayTypeDecorator { Type (annotation $1) $2 [$1] }
 
+TypeList :: {[LType]}
+TypeList : TypeList ',' Type { $1 ++ [$3] }
+         | Type { [$1] }
+         | {- empty -} {[]}
+
 ISQCore_CStyleVarDefTerm :: {LType->(LType, ISQv2Token, Maybe LExpr)}
 ISQCore_CStyleVarDefTerm : IDENTIFIER { \t->(t, $1, Nothing) }
                          | IDENTIFIER ArrayTypeDecorator { \t->(Type (annotation $1) $2 [t], $1, Nothing)}
@@ -288,10 +305,15 @@ ProcedureArg : SimpleType IDENTIFIER { ($1, tokenIdentV $2) }
              | IDENTIFIER ':' Type { ($3, tokenIdentV $1) }
 ISQCore_CStyleArrayArg :: {(LType, Ident)}
 ISQCore_CStyleArrayArg : SimpleType IDENTIFIER ArrayTypeDecorator { (Type (annotation $1) $3 [$1], tokenIdentV $2) }
+
+ProcedureDeriving :: {Maybe DerivingType}
+ProcedureDeriving : {- empty -} {Nothing}
+                  | deriving gate {Just DeriveGate}
+                  | deriving oracle '(' NATURAL ')' {Just (DeriveOracle (tokenNaturalV $4))}
 Procedure :: {LAST}
-Procedure : procedure IDENTIFIER '(' ProcedureArgList ')' '{' StatementList '}' { NProcedure $1 (unitType $1) (tokenIdentV $2) $4 $7}
-          | procedure IDENTIFIER '(' ProcedureArgList ')' '->' Type '{' StatementList '}' {NProcedure $1 $7 (tokenIdentV $2) $4 $9}
-          | SimpleType IDENTIFIER '(' ProcedureArgList ')' '{' StatementList '}' { NProcedure (annotation $1) $1 (tokenIdentV $2) $4 $7 }
+Procedure : procedure IDENTIFIER '(' ProcedureArgList ')'  '{' StatementList '}' ProcedureDeriving { NProcedureWithDerive $1 (unitType $1) (tokenIdentV $2) $4 $7 $9}
+          | procedure IDENTIFIER '(' ProcedureArgList ')' '->' Type '{' StatementList '}' ProcedureDeriving {NProcedureWithDerive $1 $7 (tokenIdentV $2) $4 $9 $11}
+          | SimpleType IDENTIFIER '(' ProcedureArgList ')' '{' StatementList '}' ProcedureDeriving { NProcedureWithDerive (annotation $1) $1 (tokenIdentV $2) $4 $7 $9} 
 
 TopLevelVar :: {LAST}
 TopLevelVar : DefvarStatement ';' { $1 }
