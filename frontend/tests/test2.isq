@@ -35,9 +35,10 @@ int test(qbit p, qbit t, int x){
 	return 2;
 }
 
-procedure test2(qbit x[], double c){
+procedure test2(qbit x[]){
 	H<x[1]>;
 }
+
 
 procedure main(){
 
@@ -54,8 +55,7 @@ procedure main(){
 	}
 	int d[5];
 	a = d[c]+2;
-    b = test(p, p, x);
-	test2(q, a);
+	test2(q);
     a = M<q[0]>;
 	CNOT<p, q[0]>;
 	
@@ -65,6 +65,7 @@ procedure main(){
 	Rx(a+0.3)<p>;
 	ctrl<2> Rz(dd)<p, q[0], q[1]>;
 	u3(0.1, 0.3, dd)<p>;
+	ctrl nctrl u3(0.2, dd, 0.3)<p, q[0], q[1]>;
 	while (a < 2){
 		a = a + 1;
 	}

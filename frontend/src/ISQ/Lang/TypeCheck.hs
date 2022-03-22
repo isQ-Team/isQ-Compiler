@@ -362,15 +362,16 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers rotation) = do
             else
                 return Nothing
     return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers rotation'
-typeCheckAST' f (NCoreU3 pos gate operands angles) = do
+typeCheckAST' f (NCoreU3 pos gate operands modifiers angles) = do
     gate'<-typeCheckExpr gate
     gate''<-matchType [AnyGate] gate'
-    when (1 /= length operands) $ throwError $ ArgNumberMismatch pos 1 (length operands)
+    let total_qubits = sum (map addedQubits modifiers) + 1
+    when (total_qubits /= length operands) $ throwError $ ArgNumberMismatch pos total_qubits (length operands)
     operands'<-mapM typeCheckExpr operands
     operands''<-mapM (matchType [Exact (refType () $ qbitType ())]) operands'
     angles' <- mapM typeCheckExpr angles
     angles'' <- mapM (matchType [Exact (doubleType ())]) angles'
-    return $ NCoreU3 (okStmt pos) gate'' operands'' angles''
+    return $ NCoreU3 (okStmt pos) gate'' operands'' modifiers angles''
 typeCheckAST' f (NCoreReset pos qubit) = do
     qubit'<-typeCheckExpr qubit
     qubit''<-matchType [Exact (refType () $ qbitType ())] qubit'

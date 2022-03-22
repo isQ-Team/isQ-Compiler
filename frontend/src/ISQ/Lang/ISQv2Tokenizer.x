@@ -34,8 +34,8 @@ tokens :-
     <0> @decimal { tokenNatural }
     <0> @decimal \. @decimal @exponent?
       | @decimal @exponent  { tokenFloat }
-    <0> @decimal j
-      | @decimal \. @decimal @exponent? j
+    <0> @decimal [ij]
+      | @decimal \. @decimal @exponent? [ij]
       | @decimal @exponent j  { tokenImagPart }
     <0> @ident {tokenIdent}
 

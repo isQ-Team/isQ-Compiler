@@ -152,7 +152,7 @@ mlir::LogicalResult insertGate(mlir::PatternRewriter& rewriter, mlir::ModuleOp r
     return mlir::success();
 }
 
-mlir::LogicalResult insertRotateFunc(mlir::PatternRewriter& rewriter, mlir::ModuleOp rootModule, mlir::Operation* op, std::string gate_name, std::string func_name, int size){
+mlir::LogicalResult insertRotateFunc(mlir::PatternRewriter& rewriter, mlir::ModuleOp rootModule, mlir::Operation* op, std::string gate_name, std::string func_name, int quantum_size, int double_size){
     auto ctx = rewriter.getContext();
     auto new_func_sym = mlir::FlatSymbolRefAttr::get(mlir::StringAttr::get(ctx, func_name));
     auto funcop = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(op, new_func_sym);
@@ -161,16 +161,18 @@ mlir::LogicalResult insertRotateFunc(mlir::PatternRewriter& rewriter, mlir::Modu
         rewriter.setInsertionPointToStart(rootModule.getBody());
         llvm::SmallVector<mlir::Type> argsType;
         llvm::SmallVector<mlir::Type> resType;
-        for (int i = 0; i < size; i++){
+        for (int i = 0; i < quantum_size; i++){
             argsType.push_back(QStateType::get(ctx));
             resType.push_back(QStateType::get(ctx));
         }
-        argsType.push_back(rewriter.getF64Type());
+        for (int i = 0; i < double_size; i++){
+            argsType.push_back(rewriter.getF64Type());
+        }
 
         auto func_type = rewriter.getFunctionType(argsType, resType);
         auto funcop = rewriter.create<mlir::FuncOp>(::mlir::UnknownLoc::get(ctx), func_name, func_type);
 
-        if (size == 1){
+        if (quantum_size == 1){
             auto entry_block = funcop.addEntryBlock();
             rewriter.setInsertionPointToStart(entry_block);
 
@@ -314,6 +316,29 @@ mlir::LogicalResult decomposeMatrix(mlir::PatternRewriter& rewriter, mlir::Modul
     }
 
     rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+    return mlir::success();
+}
+
+mlir::LogicalResult addU3Gate(mlir::PatternRewriter& rewriter, mlir::ModuleOp rootModule, mlir::Operation* op, mlir::SmallVector<mlir::Value>& qubits, synthesis::GateLocation pos, mlir::SmallVector<mlir::Value>& theta_v){
+
+    auto ctx = rewriter.getContext();
+    
+    auto u3_builtin = "__isq__builtin__u3";
+
+    auto use_u3_gate = rewriter.create<UseGateOp>(
+        ::mlir::UnknownLoc::get(ctx),
+        ir::GateType::get(ctx, 1, GateTrait::General),
+        mlir::FlatSymbolRefAttr::get(ctx, u3_builtin),
+        theta_v
+    );
+    auto apply_u3_gate = rewriter.create<ApplyGateOp>(
+        ::mlir::UnknownLoc::get(ctx),
+        ::mlir::ArrayRef<::mlir::Type>{QStateType::get(rewriter.getContext())},
+        use_u3_gate.result(),
+        ::mlir::ArrayRef{qubits[pos[0]]}
+    );
+    qubits[pos[0]]=apply_u3_gate.getResult(0);
+    
     return mlir::success();
 }
 
@@ -541,7 +566,7 @@ mlir::LogicalResult mcdecomposeRotate(mlir::PatternRewriter& rewriter, mlir::Mod
     auto funcop = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(op, new_func_sym);
     if (funcop) return mlir::success();
 
-    if (mlir::failed(insertRotateFunc(rewriter, rootModule, op, gate_name, decomposed_name, n))){
+    if (mlir::failed(insertRotateFunc(rewriter, rootModule, op, gate_name, decomposed_name, n, 1))){
         return mlir::failure();
     }
 
@@ -554,8 +579,16 @@ mlir::LogicalResult mcdecomposeRotate(mlir::PatternRewriter& rewriter, mlir::Mod
     qubits.pop_back(); // pop last double arg 
     
     std::string ctrl_s = "";
-    for (auto c: ctrl){
-        ctrl_s += c?"t":"f";
+    for (int i = 0; i < ctrl.size(); i++){
+        ctrl_s += "t";
+        if (!ctrl[i]){
+            std::string gate_name = "__quantum__qis__x__body_gate";
+            std::string func_name = "__quantum__qis__x__body";
+            if (mlir::failed(addBaseGate(rewriter, rootModule, op, gate_name, func_name, qubits, {i}))){
+                rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+                return mlir::failure();
+            }
+        }
     }
 
     auto mat = getBaseMat("x");
@@ -607,7 +640,7 @@ mlir::LogicalResult mcdecomposeRotate(mlir::PatternRewriter& rewriter, mlir::Mod
     }
     
 
-    if (mlir::failed(insertRotateFunc(rewriter, rootModule, op, matrix_name_low, new_matrix_name, 1))){
+    if (mlir::failed(insertRotateFunc(rewriter, rootModule, op, matrix_name_low, new_matrix_name, 1, 1))){
         rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
         return mlir::failure();
     }
@@ -647,7 +680,188 @@ mlir::LogicalResult mcdecomposeRotate(mlir::PatternRewriter& rewriter, mlir::Mod
             return mlir::failure();
         }
     }
+
+    for (int i = 0; i < ctrl.size(); i++){
+        if (!ctrl[i]){
+            std::string gate_name = "__quantum__qis__x__body_gate";
+            std::string func_name = "__quantum__qis__x__body";
+            if (mlir::failed(addBaseGate(rewriter, rootModule, op, gate_name, func_name, qubits, {i}))){
+                rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+                return mlir::failure();
+            }
+        }
+    }
     
+    rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+    return mlir::success();
+}
+
+// u3 = ei(φ+λ)/2 Rz(φ)Ry(θ)Rz(λ)
+mlir::LogicalResult mcdecomposeU3(mlir::PatternRewriter& rewriter, mlir::ModuleOp rootModule, mlir::Operation* op,  std::string decomposed_name, ::mlir::ArrayRef<bool> ctrl, bool adj){
+
+    int n = ctrl.size() + 1;
+    
+    mlir::PatternRewriter::InsertionGuard guard(rewriter);
+    auto ctx = rewriter.getContext();
+    auto new_func_sym = mlir::FlatSymbolRefAttr::get(mlir::StringAttr::get(ctx, decomposed_name));
+    auto funcop = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(op, new_func_sym);
+    if (funcop) return mlir::success();
+
+    if (mlir::failed(insertRotateFunc(rewriter, rootModule, op, "u3", decomposed_name, n, 3))){
+        return mlir::failure();
+    }
+
+    funcop = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(op, new_func_sym);
+    auto entry_block = funcop.addEntryBlock();
+    rewriter.setInsertionPointToStart(entry_block);
+    mlir::SmallVector<mlir::Value> qubits;
+    qubits.append(entry_block->args_begin(), entry_block->args_end());
+    
+    std::string ctrl_s = "";
+    for (int i = 0; i < ctrl.size(); i++){
+        ctrl_s += "t";
+        if (!ctrl[i]){
+            std::string gate_name = "__quantum__qis__x__body_gate";
+            std::string func_name = "__quantum__qis__x__body";
+            if (mlir::failed(addBaseGate(rewriter, rootModule, op, gate_name, func_name, qubits, {i}))){
+                rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+                return mlir::failure();
+            }
+        }
+    }
+
+    auto mat = getBaseMat("x");
+
+    synthesis::UnitaryVector v;
+    for(int i = 0; i < 2; i++){
+        for(int j = 0; j < 2; j++){
+            v.push_back(std::make_pair(mat[i][j].real(), mat[i][j].imag()));
+        }
+    }
+
+    auto sim_gates = synthesis::mcdecompose_u(v, ctrl_s);
+
+    auto u3_builtin = "__isq__builtin__u3";
+    auto zero = rewriter.create<mlir::arith::ConstantFloatOp>(
+        ::mlir::UnknownLoc::get(ctx),
+        ::llvm::APFloat(0.0),
+        ::mlir::Float64Type::get(ctx)
+    );
+    auto half = rewriter.create<mlir::arith::ConstantFloatOp>(
+        ::mlir::UnknownLoc::get(ctx),
+        ::llvm::APFloat(0.5),
+        ::mlir::Float64Type::get(ctx)
+    );
+    auto neghalf = rewriter.create<mlir::arith::ConstantFloatOp>(
+        ::mlir::UnknownLoc::get(ctx),
+        ::llvm::APFloat(-0.5),
+        ::mlir::Float64Type::get(ctx)
+    );
+    auto negone = rewriter.create<mlir::arith::ConstantFloatOp>(
+        ::mlir::UnknownLoc::get(ctx),
+        ::llvm::APFloat(-1.0),
+        ::mlir::Float64Type::get(ctx)
+    );
+    
+    auto lam = qubits[qubits.size()-1];
+    auto phi = qubits[qubits.size()-2];
+    auto theta = qubits[qubits.size()-3];
+    if (adj){
+        lam = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), qubits[qubits.size()-2], negone);
+        phi = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), qubits[qubits.size()-1], negone);
+        theta = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), qubits[qubits.size()-3], negone);
+    }
+    qubits.pop_back();
+    qubits.pop_back();
+    qubits.pop_back();
+
+    // decompose U = eiθ*AXBXC
+    // C = Rz((λ-φ) / 2) = u3(0, (λ-φ) / 2, 0)
+    auto c_sub = rewriter.create<mlir::arith::SubFOp>(::mlir::UnknownLoc::get(ctx), lam, phi);
+    auto c_angle = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), c_sub, half);
+    auto c_theta_v = mlir::SmallVector<mlir::Value>{zero, c_angle, zero};
+    if (mlir::failed(addU3Gate(rewriter, rootModule, op, qubits, {n-1}, c_theta_v))){
+        rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+        return mlir::failure();
+    }
+    
+    // ctrl(n-1) x
+    if (mlir::failed(addGates(rewriter, rootModule, op, sim_gates, qubits))){
+        rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+        return mlir::failure();
+    }
+
+    // B = Ry(-θ/2)Rz(-(λ+φ) / 2) = u3(-θ/2, 0, -(λ+φ) / 2)
+    auto b_theta = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), theta, neghalf);
+    auto b_add = rewriter.create<mlir::arith::AddFOp>(::mlir::UnknownLoc::get(ctx), lam, phi);
+    auto b_angle = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), b_add, neghalf);
+    auto b_theta_v = mlir::SmallVector<mlir::Value>{b_theta, zero, b_angle};
+    if (mlir::failed(addU3Gate(rewriter, rootModule, op, qubits, {n-1}, b_theta_v))){
+        rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+        return mlir::failure();
+    }
+
+    // ctrl(n-1) x
+    if (mlir::failed(addGates(rewriter, rootModule, op, sim_gates, qubits))){
+        rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+        return mlir::failure();
+    }
+
+    // A = Rz(φ)Ry(θ/2) = u3(θ/2, φ, 0)
+    auto a_theta = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), theta, half);
+    auto a_theta_v = mlir::SmallVector<mlir::Value>{a_theta, phi, zero};
+    if (mlir::failed(addU3Gate(rewriter, rootModule, op, qubits, {n-1}, a_theta_v))){
+        rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+        return mlir::failure();
+    }
+
+    // ctrl(n-2) Z((λ+φ) / 2)
+    
+    auto addone_gates = synthesis::mcdecompose_addone(n);
+    if (mlir::failed(addGates(rewriter, rootModule, op, addone_gates, qubits))){
+        rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+        return mlir::failure();
+    }
+    auto neg_z_angle = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), b_add, neghalf);
+    for (int i = n-2; i > 0; i--){
+        neg_z_angle = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), neg_z_angle, half);
+        auto z_theta_v = mlir::SmallVector<mlir::Value>{zero, neg_z_angle, zero};
+        if (mlir::failed(addU3Gate(rewriter, rootModule, op, qubits, {i}, z_theta_v))){
+            rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+            return mlir::failure();
+        }
+    }
+    reverse(addone_gates.begin(), addone_gates.end());
+    if (mlir::failed(addGates(rewriter, rootModule, op, addone_gates, qubits))){
+        rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+        return mlir::failure();
+    }
+    auto z_angle = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), b_add, half);
+    for (int i = n-2; i > 0; i--){
+        z_angle = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), z_angle, half);
+        auto z_theta_v = mlir::SmallVector<mlir::Value>{zero, z_angle, zero};
+        if (mlir::failed(addU3Gate(rewriter, rootModule, op, qubits, {i}, z_theta_v))){
+            rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+            return mlir::failure();
+        }
+    }
+    auto z_theta_v = mlir::SmallVector<mlir::Value>{zero, z_angle, zero};
+    if (mlir::failed(addU3Gate(rewriter, rootModule, op, qubits, {0}, z_theta_v))){
+        rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+        return mlir::failure();
+    }
+
+    for (int i = 0; i < ctrl.size(); i++){
+        if (!ctrl[i]){
+            std::string gate_name = "__quantum__qis__x__body_gate";
+            std::string func_name = "__quantum__qis__x__body";
+            if (mlir::failed(addBaseGate(rewriter, rootModule, op, gate_name, func_name, qubits, {i}))){
+                rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
+                return mlir::failure();
+            }
+        }
+    }
+
     rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
     return mlir::success();
 }
@@ -916,7 +1130,7 @@ struct QuantumRotateGateRewriteRule : public mlir::OpRewritePattern<isq::ir::App
             }
             rewriter.restoreInsertionPoint(ip);
             
-            if (mlir::failed(insertRotateFunc(rewriter, rootModule, op, matrix_name_low, new_matrix_name, 1))) return mlir::failure();
+            if (mlir::failed(insertRotateFunc(rewriter, rootModule, op, matrix_name_low, new_matrix_name, 1, 1))) return mlir::failure();
 
         }else{
             new_matrix_name += "_ctrl_";
@@ -947,6 +1161,52 @@ struct QuantumRotateGateRewriteRule : public mlir::OpRewritePattern<isq::ir::App
     }
 };
 
+struct QuantumU3GateRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGateOp>{
+    mlir::ModuleOp rootModule;
+    QuantumU3GateRewriteRule(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1), rootModule(module){
+
+    }
+    mlir::LogicalResult matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const override{
+        // Check if it is a use-decorate-apply pattern.
+        //std::cout << "start apply op -> call\n";
+        auto decorate_op = mlir::dyn_cast_or_null<DecorateOp>(op.gate().getDefiningOp());
+        if(!decorate_op) return mlir::failure();
+        auto use_op = mlir::dyn_cast_or_null<UseGateOp>(decorate_op.args().getDefiningOp());
+        if(!use_op) return mlir::failure();
+        
+        if(use_op.parameters().size() != 3){
+            return mlir::failure(); // Only u3-gates are supported.
+        }
+        
+        auto defgate = mlir::SymbolTable::lookupNearestSymbolFrom<DefgateOp>(use_op.getOperation(), use_op.name());
+        assert(defgate);
+
+        
+        std::string new_func_name = "__isq__buildtin__u3_ctrl_";
+        ::mlir::SmallVector<bool> ctrl;
+        for (auto c: decorate_op.ctrl().getAsValueRange<mlir::BoolAttr>()){
+            new_func_name += c?"1":"0";
+            ctrl.push_back(c);
+        }
+        if (decorate_op.adjoint()) new_func_name += "_adj";
+
+
+        if (mlir::failed(mcdecomposeU3(rewriter, rootModule, op, new_func_name, ctrl, decorate_op.adjoint()))) return mlir::failure();
+
+        auto ctx = rewriter.getContext();
+        auto new_func_sym = mlir::FlatSymbolRefAttr::get(mlir::StringAttr::get(ctx, new_func_name));
+        auto funcop = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(op, new_func_sym);
+
+        mlir::SmallVector<mlir::Value> args;
+        args.append(op.args().begin(), op.args().end());
+        args.append(use_op.parameters().begin(), use_op.parameters().end());
+        rewriter.replaceOpWithNewOp<mlir::CallOp>(op.getOperation(), funcop, args);
+        
+        return mlir::success();
+
+    }
+};
+
 
 }
 
@@ -957,6 +1217,7 @@ struct QuantumGatePass : public mlir::PassWrapper<QuantumGatePass, mlir::Operati
         mlir::RewritePatternSet rps(ctx);
         rps.add<QuantumGateRewriteRule>(ctx, m);
         rps.add<QuantumRotateGateRewriteRule>(ctx, m);
+        rps.add<QuantumU3GateRewriteRule>(ctx, m);
         mlir::FrozenRewritePatternSet frps(std::move(rps));
         (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
     }
