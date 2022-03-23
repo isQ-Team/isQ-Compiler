@@ -38,8 +38,8 @@ bool GateParsePrint::isa(::mlir::Type me) const { return me.isa<GateType>(); }
     if (parser.parseGreater()) {
         return nullptr;
     }
-    if (gate_size <= 0) {
-        parser.emitError(typeLoc, "gate size should be positive.");
+    if (gate_size < 0) {
+        parser.emitError(typeLoc, "gate size should be non-negative.");
         return nullptr;
     }
     return GateType::get(ctx, gate_size, tr);

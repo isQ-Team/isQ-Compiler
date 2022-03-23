@@ -122,6 +122,7 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
                 }
                 for(auto i=0; i<ctrl.size(); i++){
                     args.push_back(QStateType::get(ctx));
+                    results.push_back(QStateType::get(ctx));
                 }
                 new_fn.setType(mlir::FunctionType::get(ctx, args, results));
                 mlir::SmallVector<mlir::Value> controlQubits;
@@ -136,7 +137,7 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
                 });
                 rewriter.finalizeRootUpdate(new_fn);
                 rewriter.restoreInsertionPoint(ip);
-                
+                usefulGatedefs.push_back(GateDefinition::get(mlir::StringAttr::get(ctx, "decomposition"), mlir::FlatSymbolRefAttr::get(mlir::StringAttr::get(ctx, new_fn_name)), ctx));
             }
             id++;
         }
