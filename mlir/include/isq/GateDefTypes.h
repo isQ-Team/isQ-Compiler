@@ -93,9 +93,9 @@ public:
 // Define by QIR primitive. This allows lowering to QIR.
 class QIRDefinition: public GateDefinitionAttribute{
 private:
-    std::string qir_name;
+    ::mlir::FlatSymbolRefAttr qir_name;
 public:
-    ::mlir::StringRef getQIRName();
+    ::mlir::FlatSymbolRefAttr getQIRName();
     QIRDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value);
     static bool classof(const GateDefinitionAttribute *attr) {
         return attr->getKind() == GateDefinitionAttribute::GD_QIR;

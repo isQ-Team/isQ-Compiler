@@ -17,7 +17,7 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
         auto op = this->getOperation();
         if(!op.definition()) return;
         for(auto attr: *op.definition()){
-            auto def = llvm::cast<GateDefinition>(attr);
+            auto def = attr.cast<GateDefinition>();
             if(def.type().strref()=="qir"){
                 auto flat_symbol = def.value().cast<mlir::FlatSymbolRefAttr>();
 #define FAMOUS(a,b) if(flat_symbol.getAttr().strref()==#a){ return markAs(op, #b); }
