@@ -238,7 +238,7 @@ public:
                 auto qref = qubit_ref(op->getLoc(), rewriter, qarg);
                 new_args.push_back(qref);
             }
-            rewriter.create<mlir::CallOp>(op.getLoc(), ::mlir::FlatSymbolRefAttr::get(ctx, qir_name), ::mlir::TypeRange{}, new_args);
+            rewriter.create<mlir::CallOp>(op.getLoc(), qir_name, ::mlir::TypeRange{}, new_args);
             rewriter.eraseOp(op);
             return mlir::success();
 

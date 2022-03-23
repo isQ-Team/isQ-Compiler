@@ -14,6 +14,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/ADT/StringRef.h"
 #include <memory>
+#include <mlir/IR/AffineExpr.h>
 #include <optional>
 #include "isq/Math.h"
 #include "isq/GateDefTypes.h"
@@ -215,7 +216,11 @@ mlir::FuncOp DecompositionRawDefinition::getDecomposedFunc(){
     for(auto extra_arg: op.parameters()){
         argtypes.push_back(extra_arg.cast<mlir::TypeAttr>().getType());
     }
-    auto memref_1_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{1},::isq::ir::QStateType::get(op.getContext()));
+    mlir::AffineExpr d0, s0;
+    mlir::bindDims(op.getContext(), d0);
+    mlir::bindSymbols(op.getContext(), s0);
+    auto affine_map = mlir::AffineMap::get(1, 1, d0+s0);
+    auto memref_1_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{1},::isq::ir::QStateType::get(op.getContext()), affine_map);
     for(auto i=0; i<ty.getSize(); i++){
         argtypes.push_back(memref_1_qstate);
     }
@@ -232,14 +237,14 @@ mlir::FuncOp DecompositionRawDefinition::getDecomposedFunc(){
 
 
 QIRDefinition::QIRDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_QIR){
-    auto qir_name = value.cast<::mlir::StringAttr>();
-    this->qir_name = qir_name.getValue();
+    auto qir_name = value.cast<::mlir::FlatSymbolRefAttr>();
+    this->qir_name = qir_name;
 }
-::mlir::StringRef QIRDefinition::getQIRName(){
+::mlir::FlatSymbolRefAttr QIRDefinition::getQIRName(){
     return this->qir_name;
 }
 ::mlir::LogicalResult QIRDefinition::verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute){
-    auto qir_name = attribute.dyn_cast_or_null<::mlir::StringAttr>();
+    auto qir_name = attribute.dyn_cast_or_null<::mlir::FlatSymbolRefAttr>();
     if(!qir_name){
         op->emitError() << "Definition #" << id
                             << " should specify a valid QIR gate name.";
