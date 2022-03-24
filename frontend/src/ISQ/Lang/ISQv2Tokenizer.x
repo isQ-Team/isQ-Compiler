@@ -51,7 +51,7 @@ data Token ann =
   | TokenFloat {annotationToken :: ann, tokenFloatV :: Double}  | TokenImagPart {annotationToken :: ann, tokenImagPartV :: Double}  | TokenIdent {annotationToken :: ann, tokenIdentV :: String} | TokenEOF {annotationToken :: ann} | TokenStringLit {annotationToken :: ann, tokenStringLitV :: String} deriving Show
 data Pos = Pos {line :: Int, column :: Int} deriving Show
 type ISQv2Token = Token Pos
-instance Exception (Token Pos)
+instance Exception [Token Pos]
 class Annotated x where
   annotation :: x ann->ann
 

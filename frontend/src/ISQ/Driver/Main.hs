@@ -17,7 +17,9 @@ import Control.Monad.Cont
 import Control.Monad.Except 
 import Data.Aeson
 import ISQ.Driver.Jsonify
+import qualified Data.List
 import qualified Data.ByteString.Lazy as BS
+import ISQ.Lang.ISQv2Tokenizer
 data Flag = Input String | Output String | Version | Mode String | Help  deriving Eq
 
 
@@ -76,6 +78,18 @@ writeOut (Just p) (Right f) = writeFile p f
 writeOut Nothing (Right f) = putStrLn f
 -}
 
+headers :: String
+headers = Data.List.intercalate "\n" $ ["extern defgate Rz(double) : gate(1) = \"__quantum__qis__rz__body\";",
+    "extern defgate Rx(double) : gate(1) = \"__quantum__qis__rx__body\";",
+    "extern defgate Ry(double) : gate(1) = \"__quantum__qis__ry__body\";",
+    "extern defgate H() : gate(1) = \"__quantum__qis__h__body\";",
+    "extern defgate S() : gate(1) = \"__quantum__qis__s__body\";",
+    "extern defgate T() : gate(1) = \"__quantum__qis__t__body\";",
+    "extern defgate X() : gate(1) = \"__quantum__qis__x__body\";",
+    "extern defgate Y() : gate(1) = \"__quantum__qis__y__body\";",
+    "extern defgate Z() : gate(1) = \"__quantum__qis__z__body\";",
+    "extern defgate CNOT() : gate(2) = \"__quantum__qis__cnot\";\n"]
+
 main = do
     args<-getArgs
     flags<-compilerOpts args
@@ -98,9 +112,12 @@ main = do
     input'<-readIORef input
     output'<-readIORef output
     mode'<-fromMaybe "mlir" <$> readIORef mode
-    ast<- parseFileOrStdin input'
+    ast_body<- parseFileOrStdin input'
     let inputFileName = fromMaybe "<stdin>" input'
     
+    header_ast<-fmap (\x->case x of {Right y->y; Left e->error (show e)})(runExceptT $ parseToAST headers)
+    let zeroed_ast = fmap (fmap (const $ Pos 0 0)) header_ast
+    let ast = fmap (zeroed_ast ++) ast_body;
     case mode' of
         "mlir"-> do
             writeOut output' (ast >>= compile inputFileName)

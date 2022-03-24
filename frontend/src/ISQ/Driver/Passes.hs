@@ -7,7 +7,7 @@ import ISQ.Lang.CompileError
 import Control.Monad.Except 
 import ISQ.Lang.TypeCheck (typeCheckTop, TCAST)
 import ISQ.Lang.RAIICheck (raiiCheck)
-import Text.Pretty.Simple
+import Text.Pretty.Simple ( pPrint, pPrintNoColor )
 import ISQ.Lang.MLIRGen (generateMLIRModule)
 import ISQ.Lang.MLIRTree (emitOp)
 import System.Environment (getArgs)
@@ -29,7 +29,10 @@ syntaxError x =
 parseToAST :: String->ExceptT CompileError IO [LAST]
 parseToAST s = do
     tokens <- liftEither $ first syntaxError $ tokenize s
-    x <-lift $ catch (Right <$> (evaluate $ force $ isqv2 tokens)) (\e-> (return $ Left $ GrammarError $ UnexpectedToken e))
+    x <-lift $ catch (Right <$> (evaluate $ force $ isqv2 tokens)) 
+        (\e-> case e of
+                x:_->(return $ Left $ GrammarError $ UnexpectedToken x)
+                [] -> return $ Left $ GrammarError $ UnexpectedEOF)
     liftEither x
 parseFile :: String->IO (Either CompileError [LAST])
 parseFile path = do

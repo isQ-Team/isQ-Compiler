@@ -86,21 +86,14 @@ import Control.Exception (throw, Exception)
 %%
 
 TopLevel :: {[LAST]}
-TopLevel : ProcedureList {$1}
-     | TopDef ProcedureList {$1 ++ $2}
-
-TopDef :: {[LAST]}
-TopDef : TopDefMember { [$1] }
-     | TopDef TopDefMember {$1 ++ [$2]}
+TopLevel : {- empty -} { [] }
+     | TopLevel TopDefMember {$1 ++ [$2]}
 
 TopDefMember :: {LAST}
 TopDefMember : ISQCore_GatedefStatement ';' {$1} 
              | TopLevelVar {$1}
              | ExternDefgate ';' { $1 }
-
-ProcedureList :: {[LAST]}
-ProcedureList : Procedure { [$1] }
-          | ProcedureList Procedure { $1 ++ [$2] }
+             | Procedure { $1 }
 
 StatementListMaybe :: {[Maybe LAST]}
 StatementListMaybe : StatementListMaybe Statement { $1 ++ [$2] }
@@ -325,6 +318,6 @@ TopLevelVar : DefvarStatement ';' { $1 }
 
 {
 parseError :: [ISQv2Token] -> a
-parseError xs = throw (head xs)
+parseError xs = throw xs
      
 }
