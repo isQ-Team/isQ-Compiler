@@ -122,7 +122,8 @@ data GrammarError =
     BadMatrixElement {badExpr :: LExpr}
   | BadMatrixShape {badMatrix :: LAST}
   | MissingGlobalVarSize {badDefPos :: Pos, badDefName :: String} 
-  | UnexpectedToken {token :: Token Pos} deriving Show
+  | UnexpectedToken {token :: Token Pos}
+  | UnexpectedEOF   deriving Show
 
 foldConstantComplex :: LExpr->Either LExpr (Complex Double)
 foldConstantComplex x@(EBinary _ op lhs rhs) = do
