@@ -20,6 +20,20 @@
 #include "isq/GateDefTypes.h"
 namespace isq{
 namespace ir{
+
+GateDefinition createMatrixDef(mlir::MLIRContext* ctx, const std::vector<std::vector<std::complex<double>>> & mat){
+    mlir::SmallVector<mlir::Attribute> matrix_attr;
+    for(auto& row: mat){
+        mlir::SmallVector<mlir::Attribute> row_attr;
+        for(auto column: row){
+            auto c = ComplexF64Attr::get(ctx, ::llvm::APFloat(column.real()), ::llvm::APFloat(column.imag()));
+            row_attr.push_back(c);
+        }
+        matrix_attr.push_back(::mlir::ArrayAttr::get(ctx, row_attr));
+    }
+    return (GateDefinition::get(mlir::StringAttr::get(ctx, "unitary"), mlir::ArrayAttr::get(ctx, matrix_attr), ctx));
+}
+
 // Define by matrix.
 MatrixDefinition::MatrixDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_MATRIX){
     auto arr = value.dyn_cast_or_null<::mlir::ArrayAttr>();
@@ -179,7 +193,7 @@ mlir::FuncOp DecompositionDefinition::getDecomposedFunc(){
 // Define by composition-reference version.
 
 // Define by decomposition.
-DecompositionRawDefinition::DecompositionRawDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_DECOMPOSITION){
+DecompositionRawDefinition::DecompositionRawDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_DECOMPOSITION_RAW){
     auto callee = value.cast<::mlir::SymbolRefAttr>();
     this->decomposition = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(op, callee);
     assert(this->decomposition);

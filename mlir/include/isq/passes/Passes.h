@@ -4,7 +4,7 @@
 namespace isq{
 namespace ir{
 namespace passes{
-extern const char* ISQ_FAMOUS_GATE;
+
 //void registerQuantumGatePass();
 void registerDecorateFolding();
 void registerQSD();
@@ -13,8 +13,11 @@ void registerLowerToQIRRep();
 void registerQIR2LLVM();
 void registerPureGateDetect();
 void registerRecognizeFamousGates();
+void registerSQRot2U3();
 
+llvm::SmallString<32> getFamousName(const char* famous_gate);
 bool isFamousGate(DefgateOp op, const char* famous_gate);
+void emitBuiltinGate(mlir::OpBuilder& builder, const char* famous_gate, mlir::ArrayRef<mlir::Value*> qubits, mlir::ArrayRef<mlir::Value> params = {}, mlir::ArrayAttr ctrl = nullptr, bool adjoint = false);
 }
 }
 }

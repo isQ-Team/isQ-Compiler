@@ -20,11 +20,15 @@
 #include "isq/Math.h"
 namespace isq{
 namespace ir{
+
+GateDefinition createMatrixDef(mlir::MLIRContext* ctx, const std::vector<std::vector<std::complex<double>>>&);
+
 class GateDefinitionAttribute{
 public:
     enum GateDefinitionKind{
         GD_MATRIX,
         GD_DECOMPOSITION,
+        GD_DECOMPOSITION_RAW,
         GD_QIR,
         GD_CLASSICAL_ORACLE,
     };
@@ -81,7 +85,7 @@ public:
     ::mlir::FuncOp getDecomposedFunc();
     DecompositionRawDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value);
     static bool classof(const GateDefinitionAttribute *attr) {
-        return attr->getKind() == GateDefinitionAttribute::GD_DECOMPOSITION;
+        return attr->getKind() == GateDefinitionAttribute::GD_DECOMPOSITION_RAW;
     }
     static ::mlir::StringRef defKindName() {
         return "decomposition_raw";
