@@ -3,6 +3,7 @@
 #include "isq/QAttrs.h"
 #include "isq/QStructs.h"
 #include "isq/QTypes.h"
+#include "isq/passes/Passes.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Location.h"
@@ -41,7 +42,8 @@ public:
             if(d==std::nullopt) return mlir::failure();
             if(llvm::dyn_cast_or_null<QIRDefinition>(&**d)){
                 // A QIR implementation is good enough.
-                return mlir::failure();
+                if(!isFamousGate(defgate, "Toffoli")) // However we decompose toffoli.
+                    return mlir::failure();
             }
             id++;
         }

@@ -82,13 +82,15 @@ headers :: String
 headers = Data.List.intercalate "\n" $ ["extern defgate Rz(double) : gate(1) = \"__quantum__qis__rz__body\";",
     "extern defgate Rx(double) : gate(1) = \"__quantum__qis__rx__body\";",
     "extern defgate Ry(double) : gate(1) = \"__quantum__qis__ry__body\";",
+    "extern defgate U3(double, double, double) : gate(1) = \"__quantum__qis__u3\";",
     "extern defgate H() : gate(1) = \"__quantum__qis__h__body\";",
     "extern defgate S() : gate(1) = \"__quantum__qis__s__body\";",
     "extern defgate T() : gate(1) = \"__quantum__qis__t__body\";",
     "extern defgate X() : gate(1) = \"__quantum__qis__x__body\";",
     "extern defgate Y() : gate(1) = \"__quantum__qis__y__body\";",
     "extern defgate Z() : gate(1) = \"__quantum__qis__z__body\";",
-    "extern defgate CNOT() : gate(2) = \"__quantum__qis__cnot\";\n"]
+    "extern defgate CNOT() : gate(2) = \"__quantum__qis__cnot\";",
+    "extern defgate Toffoli() : gate(3) = \"__quantum__qis__toffoli\";"]
 
 main = do
     args<-getArgs
