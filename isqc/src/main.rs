@@ -93,7 +93,7 @@ fn main()->miette::Result<()> {
                 break 'command;
             }
             let llvm_mlir = exec::exec_command_text(&root, "isq-opt", &[
-                "-pass-pipeline=canonicalize,cse,isq-fold-constant-decorated-gates,isq-decompose-known-gates-qsd,isq-expand-decomposition,isq-lower-to-qir-rep,cse,canonicalize,isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
+                "-pass-pipeline=isq-recognize-famous-gates,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,isq-fold-decorated-gates,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,symbol-dce,cse,isq-lower-to-qir-rep,cse,canonicalize,isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
                 "--mlir-print-debuginfo"
             ], &resolved_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
             if let EmitMode::MLIRQIR = emit{

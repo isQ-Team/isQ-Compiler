@@ -47,12 +47,13 @@ public:
             qs.push_back(QStateType::get(rewriter.getContext()));
         }
         auto funcop = mlir::FuncOp::create(::mlir::UnknownLoc::get(rewriter.getContext()), decomposed_name, mlir::FunctionType::get(rewriter.getContext(), qs, qs));
+        auto ctx = rewriter.getContext();
+        funcop.sym_visibilityAttr(mlir::StringAttr::get(ctx, "private"));
         rewriter.insert(funcop.getOperation());
         auto entry_block = funcop.addEntryBlock();
         rewriter.setInsertionPointToStart(entry_block);
         mlir::SmallVector<mlir::Value> qubits;
         qubits.append(entry_block->args_begin(), entry_block->args_end());
-        auto ctx = rewriter.getContext();
         for (int j=0; j< sim_gates.size(); j++) {
             auto type = std::get<0>(sim_gates[j]);
             auto pos = std::get<1>(sim_gates[j]);
@@ -108,6 +109,7 @@ public:
     mlir::LogicalResult matchAndRewrite(isq::ir::DefgateOp defgate,  mlir::PatternRewriter &rewriter) const override{
         if(!defgate.definition()) return mlir::failure();
         int id = 0;
+        bool added_new_definition = false;
         for(auto def: defgate.definition()->getAsRange<GateDefinition>()){
             auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
             if(d==std::nullopt) return mlir::failure();
@@ -127,22 +129,22 @@ public:
                 if(mlir::failed(decomposeMatrix(rewriter, qsd_decomp_name, mat_data))){
                     return mlir::failure();
                 }
+                rewriter.updateRootInPlace(defgate, [&]{
+                    auto defs = *defgate.definition();
+                    ::mlir::SmallVector<::mlir::Attribute> new_defs;
+                    auto r = defs.getAsRange<::mlir::Attribute>();
+                    new_defs.append(r.begin(), r.end());
+                    new_defs.push_back(GateDefinition::get(
+                        ::mlir::StringAttr::get(ctx, "decomposition"),
+                        qsd_decomp_sym,
+                        ctx
+                    ));
+                    defgate->setAttr("definition", ::mlir::ArrayAttr::get(ctx, new_defs));
+                });
+                added_new_definition=true;
             }
-            rewriter.updateRootInPlace(defgate, [&]{
-                auto defs = *defgate.definition();
-                ::mlir::SmallVector<::mlir::Attribute> new_defs;
-                auto r = defs.getAsRange<::mlir::Attribute>();
-                new_defs.append(r.begin(), r.end());
-                new_defs.push_back(GateDefinition::get(
-                    ::mlir::StringAttr::get(ctx, "decomposition"),
-                    qsd_decomp_sym,
-                    ctx
-                ));
-                defgate->setAttr("definition", ::mlir::ArrayAttr::get(ctx, new_defs));
-            });
-            return mlir::success();
         }
-        return mlir::failure();
+        return mlir::success(added_new_definition);
     }
 };
 

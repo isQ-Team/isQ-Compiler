@@ -196,16 +196,7 @@ emitOpStep f env (MModule _ ops) =
       indented env $ "    isq.declare_qop @__isq__builtin__measure : [1]()->i1",
       indented env $ "    isq.declare_qop @__isq__builtin__reset : [1]()->()",
       indented env $ "    isq.declare_qop @__isq__builtin__print_int : [0](index)->()",
-      indented env $ "    isq.declare_qop @__isq__builtin__print_double : [0](f64)->()",
-      indented env $ "    isq.defgate @__isq__builtin__u3(f64, f64, f64) {definition = [{type = \"qir\", value = @__quantum__qis__u3}]} : !isq.gate<1>",
-      indented env $ "    isq.defgate @__isq__builtin__cnot {definition = [{type = \"qir\", value = @__quantum__qis__cnot},{type=\"unitary\", value = [",
-      indented env $ "        [#isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>],",
-      indented env $ "        [#isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>],",
-      indented env $ "        [#isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>],",
-      indented env $ "        [#isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<0.0, 0.0>, #isq.complex<1.0, 0.0>]]}]} : !isq.gate<2>",
-      indented env $ "    func private @__quantum__qis__u3(f64, f64, f64, !isq.qir.qubit)",
-      indented env $ "    func private @__quantum__qis__cnot(!isq.qir.qubit, !isq.qir.qubit)",
-      indented env $ "    func private @__quantum__qis__x(!isq.qir.qubit)"
+      indented env $ "    isq.declare_qop @__isq__builtin__print_double : [0](f64)->()"
   ]++s ++ [indented env "}"])
 emitOpStep f env (MFunc loc name ret blocks) = let s = fmap (emitBlock f env) blocks in intercalate "\n" ([indented env $ funcHeader name ret (fmap fst $ blockArgs $ head blocks), indented env "{"] ++ s ++ [indented env $ printf "} %s" (mlirPos loc)])
 emitOpStep f env (MQDefGate loc name size extra reps) = indented env $ printf "isq.defgate %s%s {definition = [%s]}: !isq.gate<%d> %s" (unFuncName name) (case extra of {[]->""; xs-> "("++intercalate ", " (map mlirType extra)++")"}) (intercalate ", " $ map gateRep reps) size (mlirPos loc)

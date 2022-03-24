@@ -46,7 +46,9 @@ struct RewritePreferFamousGate : public mlir::OpRewritePattern<UseGateOp>{
     mlir::LogicalResult matchAndRewrite(UseGateOp use, mlir::PatternRewriter& rewriter) const override{
         auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(use, use.name()));
         if(!defgate) return mlir::failure();
-        for(auto attr: *defgate.definition()){
+        auto defs = *defgate.definition();
+        if(!defs) return mlir::failure();
+        for(auto attr: defs.getValue()){
             auto def = attr.cast<GateDefinition>();
             if(def.type().strref()=="qir"){
                 auto flat_symbol = def.value().cast<mlir::FlatSymbolRefAttr>();
@@ -229,22 +231,30 @@ llvm::SmallString<32> getFamousName(const char* famous_gate){
     return name;
 }
 
-void emitBuiltinGate(mlir::OpBuilder& builder, const char* famous_gate, mlir::ArrayRef<mlir::Value*> qubits, mlir::ArrayRef<mlir::Value> params, mlir::ArrayAttr ctrl, bool adjoint){
+mlir::Value emitUseBuiltinGate(mlir::OpBuilder& builder, int original_size, const char* famous_gate, mlir::ArrayRef<mlir::Value> params, mlir::ArrayAttr ctrl, bool adjoint){
     auto ctx = builder.getContext();
-    // use the gate.
-    auto gate_size = qubits.size();
     if(!ctrl){
         ctrl = mlir::ArrayAttr::get(ctx, mlir::ArrayRef<mlir::Attribute>{});
     }
-    gate_size-= ctrl.size();
-    auto gate_type = GateType::get(ctx, gate_size, GateTrait::General);
+    auto gate_type = GateType::get(ctx, original_size, GateTrait::General);
     auto use_gate = builder.create<UseGateOp>(mlir::UnknownLoc::get(ctx), gate_type, mlir::FlatSymbolRefAttr::get(ctx, getFamousName(famous_gate)), params);
     auto used_gate = use_gate.result();
     if((ctrl && ctrl.size()>0) || adjoint){
-        auto decorate_op = builder.create<DecorateOp>(mlir::UnknownLoc::get(ctx), GateType::get(ctx, qubits.size(), GateTrait::General), used_gate, adjoint, ctrl);
+        auto decorate_op = builder.create<DecorateOp>(mlir::UnknownLoc::get(ctx), GateType::get(ctx, original_size + ctrl.size(), GateTrait::General), used_gate, adjoint, ctrl);
         used_gate = decorate_op.getResult();
+        return decorate_op;
     }
-    gate_size = qubits.size();
+    return used_gate;
+}
+
+void emitBuiltinGate(mlir::OpBuilder& builder, const char* famous_gate, mlir::ArrayRef<mlir::Value*> qubits, mlir::ArrayRef<mlir::Value> params, mlir::ArrayAttr ctrl, bool adjoint){
+    auto ctx = builder.getContext();
+    if(!ctrl){
+        ctrl = mlir::ArrayAttr::get(ctx, mlir::ArrayRef<mlir::Attribute>{});
+    }
+    // use the gate.
+    auto used_gate = emitUseBuiltinGate(builder, qubits.size() - ctrl.size(), famous_gate, params, ctrl, adjoint);
+    auto gate_size = qubits.size();
     mlir::SmallVector<mlir::Type> qubitTypes;
     for(auto i=0; i<gate_size; i++) qubitTypes.push_back(QStateType::get(ctx));
     mlir::SmallVector<mlir::Value> qubitValues;

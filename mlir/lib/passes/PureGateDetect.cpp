@@ -119,7 +119,8 @@ public:
         rewriter.startRootUpdate(op);
         if(op.definition()){
             mlir::SmallVector<mlir::Attribute> attrs; 
-            for(auto def: *op.definition()){
+            auto defs = *op.definition();
+            for(auto def: defs){
                 
                 auto gatedef = def.cast<GateDefinition>();
                 if(gatedef.type()=="decomposition_raw"){

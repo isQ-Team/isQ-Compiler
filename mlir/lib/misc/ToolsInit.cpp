@@ -13,6 +13,9 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerQIR2LLVM();
     passes::registerPureGateDetect();
     passes::registerRecognizeFamousGates();
+    passes::registerSQRot2U3();
+    passes::registerDecomposeCtrlU3();
+    passes::registerRemoveTrivialSQGates();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
 }
