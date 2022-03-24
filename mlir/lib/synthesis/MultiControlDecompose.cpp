@@ -436,3 +436,15 @@ DecomposedGates isq::ir::synthesis::mcdecompose_u(UnitaryVector uvector, string 
     }
     return gatelist;
 }
+
+// external addone function, use one ancilla (the last one)
+DecomposedGates isq::ir::synthesis::mcdecompose_addone(int n){
+
+    if (n <= 2){
+        return {};
+    }
+    
+    GateLocation q(n-1);
+    iota(q.begin(), q.end(), 0);
+    return mcdecompose_add_one(q, n-1);
+}

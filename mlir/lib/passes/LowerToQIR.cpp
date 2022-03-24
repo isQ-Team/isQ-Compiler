@@ -20,6 +20,7 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Dialect/StandardOps/Transforms/FuncConversions.h"
 #include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/ErrorHandling.h>
 namespace isq{
 namespace ir{
 namespace passes{
@@ -206,7 +207,7 @@ public:
 class RuleExpandApplyQIR : public mlir::OpRewritePattern<ApplyGateOp>{
     mlir::ModuleOp rootModule;
 public:
-    RuleExpandApplyQIR(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1), rootModule(module){
+    RuleExpandApplyQIR(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 2), rootModule(module){
 
     }
     mlir::LogicalResult matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const override{
@@ -219,7 +220,7 @@ public:
         int id = 0;
         for(auto def: defgate.definition()->getAsRange<GateDefinition>()){
             auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
-            if(d==std::nullopt) return mlir::failure();
+            if(d==std::nullopt) llvm_unreachable("bad");
             auto qirf= llvm::dyn_cast_or_null<QIRDefinition>(&**d);
             if(!qirf){
                 id++;
@@ -238,7 +239,7 @@ public:
                 auto qref = qubit_ref(op->getLoc(), rewriter, qarg);
                 new_args.push_back(qref);
             }
-            rewriter.create<mlir::CallOp>(op.getLoc(), qir_name, ::mlir::TypeRange{}, new_args);
+            auto call = rewriter.create<mlir::CallOp>(op.getLoc(), qir_name, ::mlir::TypeRange{}, new_args);
             rewriter.eraseOp(op);
             return mlir::success();
 
@@ -483,11 +484,15 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
         rps.add<RuleInitDeinitGlobalQubit>(ctx, m);
         rps.add<RuleExpandApplyQIR>(ctx, m);
         rps.add<RuleReplaceQIRQOps>(ctx, m);
+        mlir::FrozenRewritePatternSet frps(std::move(rps));
+        (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+        }while(0);
+        do{
+        mlir::RewritePatternSet rps(ctx);
         rps.add<RuleEliminateRefStore>(ctx);
         mlir::FrozenRewritePatternSet frps(std::move(rps));
         (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
         }while(0);
-
         // erase temporary attr.
         mlir::RewritePatternSet rps2(ctx);
         rps2.add<RuleRemoveDeinitAttr<mlir::memref::DeallocOp>>(ctx);

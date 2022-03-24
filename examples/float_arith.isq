@@ -1,0 +1,10 @@
+double PI;
+procedure main(){
+    PI = 3.1415926535;
+    double a = 2*PI;
+    double c = PI*2;
+    double b = 2.4+12-PI*(3.5-1212)/127+12.4/3.2;
+    print a;
+    print b;
+
+}

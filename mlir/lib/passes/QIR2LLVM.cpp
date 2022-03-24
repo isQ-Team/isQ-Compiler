@@ -27,6 +27,7 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Dialect/StandardOps/Transforms/FuncConversions.h"
 #include "llvm/Support/raw_ostream.h"
+#include <mlir/Dialect/Arithmetic/Transforms/Passes.h>
 namespace isq{
 namespace ir{
 namespace passes{
@@ -55,6 +56,7 @@ struct QIRRepToLLVMPass : public mlir::PassWrapper<QIRRepToLLVMPass, mlir::Opera
         populateAffineToStdConversionPatterns(patterns);
         populateLoopToStdConversionPatterns(patterns);
         populateMemRefToLLVMConversionPatterns(typeConverter, patterns);
+        arith::populateArithmeticExpandOpsPatterns(patterns);
         arith::populateArithmeticToLLVMConversionPatterns(typeConverter, patterns);
         populateStdToLLVMConversionPatterns(typeConverter, patterns);
 

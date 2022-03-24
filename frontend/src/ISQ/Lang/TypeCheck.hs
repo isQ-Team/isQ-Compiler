@@ -170,10 +170,11 @@ typeCheckExpr' f (EIdent pos ident) = do
 
 
 typeCheckExpr' f (EBinary pos op lhs rhs) = do
-    lhs'<-f lhs
-    rhs'<-f rhs
-    --matched_lhs <- matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
-    --matched_rhs <- matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
+    ref_lhs<-f lhs
+    ref_rhs<-f rhs
+    lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
+    rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
+    
     ssa<-nextId
     let lty = astType lhs'
     let rty = astType rhs'

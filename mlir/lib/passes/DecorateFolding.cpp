@@ -62,7 +62,8 @@ const char* ISQ_FAKESTORE = "isq.intermediate.fakestore";
 const char* ISQ_FAKELOADSTORE_ID = "ISQ_FAKELOADSTORE_ID";
 struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGateOp>{
     mlir::ModuleOp rootModule;
-    DecorateFoldRewriteRule(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1), rootModule(module){
+    bool* dirty;
+    DecorateFoldRewriteRule(mlir::MLIRContext* ctx, mlir::ModuleOp module, bool* dirty): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1), rootModule(module), dirty(dirty){
 
     }
 
@@ -74,12 +75,11 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
         for(auto def: defgate.definition()->getAsRange<GateDefinition>()){
             auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
             if(d==std::nullopt) return mlir::failure();
-            
             if(auto mat = llvm::dyn_cast_or_null<MatrixDefinition>(&**d)){
+            // Don't fold SQ matrices, since they can be decomposed more easily using subsequent passes.
+            if(defgate.type().getSize()==1 && ctrl.size()>0) continue;
                 auto& old_matrix = mat->getMatrix();
-
                 // construct new matrix.
-                
                 auto new_matrix = appendMatrix(old_matrix, ctrl, adj);
                 mlir::SmallVector<mlir::Attribute> matrix_attr;
                 for(auto& row: new_matrix){
@@ -104,7 +104,7 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
                 rewriter.startRootUpdate(new_fn);
                 auto new_fn_name = "$__isq__decomposition__"+sym.getValue();
                 new_fn.sym_nameAttr(mlir::StringAttr::get(ctx, new_fn_name));
-                
+                new_fn.sym_visibilityAttr(mlir::StringAttr::get(ctx, "private"));
                 mlir::SmallVector<mlir::Attribute> ctrl_attr;
                 for(auto b: ctrl){
                     ctrl_attr.push_back(mlir::BoolAttr::get(ctx, b));
@@ -149,6 +149,7 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
         rewriter.setInsertionPointToStart(rootModule.getBody());
         rewriter.create<DefgateOp>(::mlir::UnknownLoc::get(ctx), mlir::TypeAttr::get(GateType::get(ctx, new_qubit_num, GateTrait::General)), sym.getAttr(), mlir::StringAttr::get(ctx, "nested"), ::mlir::ArrayAttr{}, ::mlir::ArrayAttr::get(ctx, usefulGatedefs), ::mlir::ArrayAttr::get(ctx, ::llvm::ArrayRef<::mlir::Attribute>{}));
         rewriter.restoreInsertionPoint(ip);
+        
         return mlir::success();
     }
     mlir::LogicalResult matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const override{
@@ -164,13 +165,30 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
         assert(defgate);
         if(!defgate.definition()) return mlir::failure();
 
-        // cx is cnot.
-        if(isFamousGate(defgate, "X") && decorate_op.ctrl().size()==1){
+        // cnot is cx
+        if(isFamousGate(defgate, "CNOT") || isFamousGate(defgate, "Toffoli")){
             auto ctx = getContext();
-            rewriter.replaceOpWithNewOp<UseGateOp>(decorate_op, mlir::TypeRange{GateType::get(ctx, 2, GateTrait::General)}, mlir::FlatSymbolRefAttr::get(ctx, getFamousName("CNOT")), mlir::ValueRange{});
+            mlir::SmallVector<mlir::Value> operands;
+            mlir::SmallVector<mlir::Attribute> newCtrl;
+            for(auto operand: op.args()){
+                operands.push_back(operand);
+            }
+            mlir::SmallVector<mlir::Value*> newOperands;
+            for(auto operand: operands){
+                newOperands.push_back(&operand);
+            }
+            for(auto attr: decorate_op.ctrl().getValue()){
+                newCtrl.push_back(attr);
+            }
+            newCtrl.push_back(rewriter.getBoolAttr(true));
+            if(isFamousGate(defgate, "Toffoli")){
+                newCtrl.push_back(rewriter.getBoolAttr(true));
+            }
+            emitBuiltinGate(rewriter, "X", newOperands, {}, mlir::ArrayAttr::get(ctx, newCtrl), false);
+            rewriter.replaceOp(op, operands);
+            *dirty=true;
             return mlir::success();
         }
-
         // construct new matrix name.
         // TODO: resolve decorate-and-decorate problem.
         auto new_defgate_name = std::string(defgate.sym_name());
@@ -203,6 +221,7 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
         auto new_use_gate = rewriter.create<UseGateOp>(op->getLoc(), GateType::get(ctx, new_qubit_num, GateTrait::General), new_defgate_sym, ::mlir::ValueRange{});
         rewriter.restoreInsertionPoint(ip);
         rewriter.replaceOpWithNewOp<ApplyGateOp>(op.getOperation(), op->getResultTypes(), new_use_gate.result(), op.args());
+        *dirty=true;
         return mlir::success();
     }
 };
@@ -331,38 +350,43 @@ struct DecorateFoldingPass : public mlir::PassWrapper<DecorateFoldingPass, mlir:
     void runOnOperation() override {
         mlir::ModuleOp m = this->getOperation();
         auto ctx = m->getContext();
-        do{
-            mlir::RewritePatternSet rps(ctx);
-            rps.add<DecorateFoldRewriteRule>(ctx, m);
-            mlir::FrozenRewritePatternSet frps(std::move(rps));
-            (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
-        }while(0);
-        do{
-            m->walk([=](mlir::FuncOp fn){
-                if(!fn->hasAttr(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS)){
-                    return;
-                }
-                auto controls=fn->getAttrOfType<mlir::ArrayAttr>(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS);
-                int controlStartIndex=fn->getAttrOfType<mlir::IntegerAttr>(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_START_INDEX).getInt();
+        bool dirty = true;
+        while(dirty){
+            dirty = false;
+            do{
                 mlir::RewritePatternSet rps(ctx);
-                rps.add<InsertControllerBits>(ctx, controls, controlStartIndex, fn);
+                rps.add<DecorateFoldRewriteRule>(ctx, m, &dirty);
                 mlir::FrozenRewritePatternSet frps(std::move(rps));
-                (void)mlir::applyPatternsAndFoldGreedily(fn, frps);
-            });
-        }while(0);
-        do{
-            mlir::RewritePatternSet rps(ctx);
-            rps.add<FakeMem2Reg>(ctx);
-            mlir::FrozenRewritePatternSet frps(std::move(rps));
-            (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
-        }while(0);
+                (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+            }while(0);
+            do{
+                m->walk([=](mlir::FuncOp fn){
+                    if(!fn->hasAttr(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS)){
+                        return;
+                    }
+                    auto controls=fn->getAttrOfType<mlir::ArrayAttr>(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS);
+                    int controlStartIndex=fn->getAttrOfType<mlir::IntegerAttr>(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_START_INDEX).getInt();
+                    mlir::RewritePatternSet rps(ctx);
+                    rps.add<InsertControllerBits>(ctx, controls, controlStartIndex, fn);
+                    mlir::FrozenRewritePatternSet frps(std::move(rps));
+                    (void)mlir::applyPatternsAndFoldGreedily(fn, frps);
+                });
+            }while(0);
+            do{
+                mlir::RewritePatternSet rps(ctx);
+                rps.add<FakeMem2Reg>(ctx);
+                mlir::FrozenRewritePatternSet frps(std::move(rps));
+                (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+            }while(0);
+        }
+        
     }
-  mlir::StringRef getArgument() const final {
-    return "isq-fold-decorated-gates";
-  }
-  mlir::StringRef getDescription() const final {
-    return  "Folding for known/decomposed decorated gates.";
-  }
+    mlir::StringRef getArgument() const final {
+        return "isq-fold-decorated-gates";
+    }
+    mlir::StringRef getDescription() const final {
+        return  "Folding for known/decomposed decorated gates.";
+    }
 };
 
 void registerDecorateFolding(){

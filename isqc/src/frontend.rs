@@ -86,7 +86,7 @@ pub fn resolve_isqc1_output(name: &str, source: &str, input: &str)->miette::Resu
                             let pos = parsePos(source, &content["token"]["annotationToken"]);
                             return Err(SyntaxError{reason: "unexpected token.".into(), src, pos: pos})?;
                         }
-                        _=>unreachable!()
+                        _=>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
                     }
                 }else if tag=="TypeCheckError"{
                     match content["tag"].as_str().unwrap(){
@@ -139,7 +139,7 @@ pub fn resolve_isqc1_output(name: &str, source: &str, input: &str)->miette::Resu
                             let sig = parseType(&content["actualMainSignature"]);
                             return Err(BadMainSigError(sig))?;
                         }
-                        _=>unreachable!()
+                        _=>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
                     }
                 }else if tag=="RAIIError"{
                     match content["tag"].as_str().unwrap(){
@@ -153,7 +153,7 @@ pub fn resolve_isqc1_output(name: &str, source: &str, input: &str)->miette::Resu
                             };
                             return Err(UnmatchedScopeError{pos, scopeType: r.into()})?;
                         }
-                        _=>unreachable!()
+                        _=>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
                     }
                 }else if tag=="InternalCompilerError"{
                     let ice = content.as_str().unwrap().to_owned();
