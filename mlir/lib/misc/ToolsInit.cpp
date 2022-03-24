@@ -12,6 +12,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerLowerToQIRRep();
     passes::registerQIR2LLVM();
     passes::registerPureGateDetect();
+    passes::registerRecognizeFamousGates();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
 }

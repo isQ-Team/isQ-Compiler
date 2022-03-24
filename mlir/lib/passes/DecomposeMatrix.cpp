@@ -57,7 +57,7 @@ public:
             auto type = std::get<0>(sim_gates[j]);
             auto pos = std::get<1>(sim_gates[j]);
             if (type == synthesis::GateType::CNOT){
-                auto cnot_builtin = "__isq__builtin__cnot";
+                auto cnot_builtin = "$__isq__builtin__cnot";
                 auto use_cnot_gate = rewriter.create<UseGateOp>(
                     ::mlir::UnknownLoc::get(ctx),
                     ir::GateType::get(ctx, 2, GateTrait::General),
@@ -75,7 +75,7 @@ public:
                 qubits[pos[1]]=apply_cnot_gate.getResult(1);
             }else{
                 double theta[3] = {std::get<2>(sim_gates[j]), std::get<3>(sim_gates[j]), std::get<4>(sim_gates[j])};
-                auto u3_builtin = "__isq__builtin__u3";
+                auto u3_builtin = "$__isq__builtin__u3";
                 ::mlir::SmallVector<mlir::Value> theta_v;
                 for(auto i=0; i<3; i++){
                     auto v = rewriter.create<mlir::arith::ConstantFloatOp>(

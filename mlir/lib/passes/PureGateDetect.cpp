@@ -256,9 +256,6 @@ struct PureGateDetectPass : public mlir::PassWrapper<PureGateDetectPass, mlir::O
 void registerPureGateDetect(){
     mlir::PassRegistration<PureGateDetectPass>();
 }
-bool isFamousGate(DefgateOp op, const char* famous_gate){
-    return op->hasAttr(ISQ_FAMOUS_GATE) && op->getAttrOfType<mlir::StringAttr>(ISQ_FAMOUS_GATE).strref()==famous_gate;
-}
 
 }
 }

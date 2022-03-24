@@ -165,9 +165,9 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
         if(!defgate.definition()) return mlir::failure();
 
         // cx is cnot.
-        if(isFamousGate(defgate, "CNOT") && decorate_op.ctrl().size()==1){
+        if(isFamousGate(defgate, "X") && decorate_op.ctrl().size()==1){
             auto ctx = getContext();
-            rewriter.replaceOpWithNewOp<UseGateOp>(decorate_op, mlir::TypeRange{GateType::get(ctx, 1, GateTrait::General)}, mlir::FlatSymbolRefAttr::get(ctx, "__isq__builtin__cnot"), mlir::ValueRange{});
+            rewriter.replaceOpWithNewOp<UseGateOp>(decorate_op, mlir::TypeRange{GateType::get(ctx, 2, GateTrait::General)}, mlir::FlatSymbolRefAttr::get(ctx, getFamousName("CNOT")), mlir::ValueRange{});
             return mlir::success();
         }
 
@@ -358,10 +358,10 @@ struct DecorateFoldingPass : public mlir::PassWrapper<DecorateFoldingPass, mlir:
         }while(0);
     }
   mlir::StringRef getArgument() const final {
-    return "isq-fold-constant-decorated-gates";
+    return "isq-fold-decorated-gates";
   }
   mlir::StringRef getDescription() const final {
-    return  "Constant folding for known and decorated gates.";
+    return  "Folding for known/decomposed decorated gates.";
   }
 };
 
