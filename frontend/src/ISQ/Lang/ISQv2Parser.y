@@ -94,6 +94,7 @@ TopDefMember : ISQCore_GatedefStatement ';' {$1}
              | TopLevelVar {$1}
              | ExternDefgate ';' { $1 }
              | Procedure { $1 }
+             | OracleTruthTable { $1 }
 
 StatementListMaybe :: {[Maybe LAST]}
 StatementListMaybe : StatementListMaybe Statement { $1 ++ [$2] }
@@ -311,8 +312,8 @@ Procedure : procedure IDENTIFIER '(' ProcedureArgList ')'  '{' StatementList '}'
 TopLevelVar :: {LAST}
 TopLevelVar : DefvarStatement ';' { $1 }
 
-
-
+OracleTruthTable :: {LAST}
+OracleTruthTable : oracle IDENTIFIER '(' NATURAL ',' NATURAL ')' '=' '[' ISQCore_GatedefMatrixRow ']' ';' { NOracle $1 (tokenIdentV $2) (tokenNaturalV $4) (tokenNaturalV $6) $10}
 
            
 
