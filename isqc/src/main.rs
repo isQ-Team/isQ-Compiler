@@ -35,6 +35,7 @@ pub enum EmitMode {
     MLIR,
     MLIRQIR,
     LLVM,
+    MLIROptimized,
     Binary
 }
 
@@ -78,7 +79,8 @@ fn main()->miette::Result<()> {
                     EmitMode::Binary=>"so",
                     EmitMode::LLVM=>"ll",
                     EmitMode::MLIR=>"mlir",
-                    EmitMode::MLIRQIR=>"ll.mlir"
+                    EmitMode::MLIRQIR=>"ll.mlir",
+                    EmitMode::MLIROptimized=>"opt.mlir"
                 })
             }, |x| {PathBuf::from(x)});
             // Finally, write obj into output.
@@ -92,10 +94,18 @@ fn main()->miette::Result<()> {
                 writeln!(&mut fout, "{}", resolved_mlir).map_err(IoError)?;
                 break 'command;
             }
-            let llvm_mlir = exec::exec_command_text(&root, "isq-opt", &[
-                "-pass-pipeline=isq-recognize-famous-gates,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,isq-fold-decorated-gates,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,symbol-dce,cse,isq-lower-to-qir-rep,cse,canonicalize,isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
+            let optimized_mlir = exec::exec_command_text(&root, "isq-opt", &[
+                "-pass-pipeline=isq-recognize-famous-gates,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,isq-fold-decorated-gates,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,symbol-dce,cse",
                 "--mlir-print-debuginfo"
             ], &resolved_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
+            if let EmitMode::MLIROptimized = emit{
+                writeln!(&mut fout, "{}", optimized_mlir).map_err(IoError)?;
+                break 'command;
+            }
+            let llvm_mlir = exec::exec_command_text(&root, "isq-opt", &[
+                "-pass-pipeline=isq-lower-to-qir-rep,cse,canonicalize,isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
+                "--mlir-print-debuginfo"
+            ], &optimized_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
             if let EmitMode::MLIRQIR = emit{
                 writeln!(&mut fout, "{}", llvm_mlir).map_err(IoError)?;
                 break 'command;

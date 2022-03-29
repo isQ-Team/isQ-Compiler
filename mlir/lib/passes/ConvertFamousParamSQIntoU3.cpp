@@ -32,7 +32,7 @@ public:
         auto ctx = rewriter.getContext();
         
         
-        if(isFamousGate(defgate, "Ry")){
+        if(isFamousGate(defgate, "Rx")){
             auto theta = use.parameters()[0];
             auto pi_2 = rewriter.create<mlir::arith::ConstantFloatOp>(
                     ::mlir::UnknownLoc::get(ctx),
@@ -53,7 +53,7 @@ public:
             );
             return mlir::success();
         }
-        if(isFamousGate(defgate, "Rx")){
+        if(isFamousGate(defgate, "Ry")){
             auto theta = use.parameters()[0];
             auto zero = rewriter.create<mlir::arith::ConstantFloatOp>(
                 ::mlir::UnknownLoc::get(ctx),

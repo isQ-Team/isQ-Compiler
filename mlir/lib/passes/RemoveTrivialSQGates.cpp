@@ -22,8 +22,12 @@ struct RemoveTrivialConstantU3 : public mlir::OpRewritePattern<ApplyGateOp>{
     mlir::LogicalResult matchAndRewrite(ApplyGateOp op, mlir::PatternRewriter& rewriter) const override{
         auto ctx = op->getContext();
         auto decorate_op = llvm::dyn_cast<DecorateOp>(op.gate().getDefiningOp());
-        if(!decorate_op) return mlir::failure();
-        auto usegate_op = llvm::dyn_cast<UseGateOp>(decorate_op.args().getDefiningOp());
+        UseGateOp usegate_op;
+        if(decorate_op){
+            usegate_op = llvm::dyn_cast<UseGateOp>(decorate_op.args().getDefiningOp());
+        }else{
+            usegate_op = llvm::dyn_cast<UseGateOp>(op.gate().getDefiningOp());
+        } 
         if(!usegate_op) return mlir::failure();
         auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate_op, usegate_op.name()));
         if(!gatedef) return mlir::failure();

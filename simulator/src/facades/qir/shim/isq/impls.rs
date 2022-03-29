@@ -25,7 +25,7 @@ pub fn isq_qir_shim_qis_gphase(x0: f64)->() {
     device.controlled_qop(GPhase, &[], &[], &[x0]);
 }
 pub fn isq_qir_shim_qis_cnot(x0: K<QIRQubit>, x1: K<QIRQubit>)->() {
-    trace!("calling isq_qir_shim_qis_cnot(x0: {})", P(&x0));
+    trace!("calling isq_qir_shim_qis_cnot(x0: {}, x1: {})", P(&x0), P(&x1));
     let rctx = context();
     let mut ctx = RefCell::borrow_mut(&rctx);
     let device = ctx.get_device_mut();
