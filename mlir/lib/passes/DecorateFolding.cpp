@@ -328,17 +328,17 @@ struct FakeMem2Reg : public mlir::OpRewritePattern<mlir::FuncOp>{
                 mem2reg.mem2regKeepBlockParam(&block, rewriter, args);
             }else{
                 mem2reg.mem2regAlterBlockParam(argTypes, &block, rewriter);
-                if(auto last = llvm::dyn_cast<mlir::ReturnOp>(block.getTerminator())){
-                    // twist back.
-                    mlir::SmallVector<mlir::Value> twistedReturnOrder;
-                    for(auto i=0; i<controlSize; i++){
-                        twistedReturnOrder.push_back(last.getOperand(originalGateSize+i));
-                    }
-                    for(auto i=0; i<originalGateSize; i++){
-                        twistedReturnOrder.push_back(last.getOperand(i));
-                    }
-                    last.operandsMutable().assign(twistedReturnOrder);
+            }
+            if(auto last = llvm::dyn_cast<mlir::ReturnOp>(block.getTerminator())){
+                // twist back.
+                mlir::SmallVector<mlir::Value> twistedReturnOrder;
+                for(auto i=0; i<controlSize; i++){
+                    twistedReturnOrder.push_back(last.getOperand(originalGateSize+i));
                 }
+                for(auto i=0; i<originalGateSize; i++){
+                    twistedReturnOrder.push_back(last.getOperand(i));
+                }
+                last.operandsMutable().assign(twistedReturnOrder);
             }
         }
         rewriter.finalizeRootUpdate(op);
