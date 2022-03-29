@@ -4,10 +4,12 @@ import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.TypeCheck (TypeCheckError)
 import ISQ.Lang.RAIICheck (RAIIError)
 import ISQ.Lang.DeriveGate (DeriveError)
+import ISQ.Lang.OraclePass (OracleError)
 
 data CompileError = 
     GrammarError GrammarError
   | DeriveError DeriveError
+  | OracleError OracleError
   | TypeCheckError TypeCheckError 
   | RAIIError RAIIError
   | InternalCompilerError InternalCompilerError
@@ -24,3 +26,5 @@ instance CompileErr InternalCompilerError where
   fromError = ISQ.Lang.CompileError.InternalCompilerError 
 instance CompileErr DeriveError where
   fromError = DeriveError
+instance CompileErr OracleError where
+  fromError = OracleError

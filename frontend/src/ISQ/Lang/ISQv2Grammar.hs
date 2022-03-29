@@ -101,6 +101,7 @@ data AST ann =
      | NTempvar { annotationAST :: ann, tempVar :: (Type (), Int, Maybe (Expr ann))}
      | NResolvedDefvar { annotationAST :: ann, resolvedDefinitions :: [(Type (), Int, Maybe (Expr ann))]}
      | NGlobalDefvar {annotationAST :: ann, globalDefinitions :: [(Type (), Int, String, Maybe (Expr ann))]}
+     | NOracle { annotationAST :: ann, oracleName :: String, oracleN :: Int, oracleM :: Int, oracleMap :: [Expr ann] }
      deriving (Show,Functor)
 
 data GateModifier = Inv | Ctrl Bool Int deriving (Show, Eq)
