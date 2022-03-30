@@ -1,0 +1,18 @@
+qbit q1, q2;
+double angle;
+
+procedure main()
+{
+    angle = 3.1416 * 0.5;
+    H<q1>;
+    Z<q2>;
+    Y<q1>;
+    CNOT<q1, q2>;
+    X<q2>;
+    S<q1>;
+    T<q2>;
+    Rx(angle, q1);
+    Ry(angle, q2);
+    Rz(angle, q1);
+    u3(angle, angle, 1.0, q2);
+}

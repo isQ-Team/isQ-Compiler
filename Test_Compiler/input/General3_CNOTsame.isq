@@ -1,0 +1,5 @@
+qbit q;
+procedure main()
+{
+    CNOT<q,q>;
+}

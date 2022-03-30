@@ -1,0 +1,15 @@
+int m;
+qbit globalQ;
+
+procedure Foo(qbit q)
+{
+    qbit qanc;
+    H<qanc>;
+    CNOT<qanc, q>;
+    m = M<q>;
+}
+
+procedure main()
+{
+    Foo(globalQ);
+}

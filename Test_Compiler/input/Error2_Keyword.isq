@@ -1,0 +1,8 @@
+
+qbit main;
+int procedure;
+
+procedure main()
+{
+
+}
