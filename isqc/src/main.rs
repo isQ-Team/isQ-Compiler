@@ -62,6 +62,32 @@ pub enum Commands{
     }
 }
 
+struct MayDropFile<'a>(&'a Path, Option<File>);
+
+impl<'a> MayDropFile<'a>{
+    pub fn new(p: &'a Path)->miette::Result<Self>{
+        Ok(Self(p, Some(File::create(p).map_err(IoError)?)))
+    }
+    pub fn finalize(mut self){
+        let f = self.1.take();
+        drop(f);
+    }
+    pub fn get_file_mut(&mut self)->&mut File{
+        self.1.as_mut().unwrap()
+    }
+}
+
+impl<'a> Drop for MayDropFile<'a>{
+    fn drop(&mut self) {
+        let f = self.1.take();
+        if let Some(x) = f{
+            drop(x);
+            std::fs::remove_file(self.0).unwrap();
+        }
+        
+    }
+}
+
 fn main()->miette::Result<()> {
     let cli = Arguments::parse();
     let root = std::env::var("ISQV2_ROOT").map_err(|_| NoISQv2RootError)?;
@@ -84,14 +110,16 @@ fn main()->miette::Result<()> {
                 })
             }, |x| {PathBuf::from(x)});
             // Finally, write obj into output.
-            let mut fout = File::create(output).map_err(IoError)?;
+            let mut fout = MayDropFile::new(&output)?;
+            //let mut fout = File::create(output).map_err(IoError)?;
             let mut f = File::open(input_path).map_err(IoError)?;
             let mut buf = String::new();
             f.read_to_string(&mut buf).unwrap();
             let mlir = exec::exec_command_text::<&str>(&root, "isqc1", &[], &buf).map_err(ioErrorWhen("Calling isqc1"))?;
             let resolved_mlir = resolve_isqc1_output(input_path.file_name().unwrap().to_str().unwrap(), &buf, &mlir)?;
             if let EmitMode::MLIR = emit{
-                writeln!(&mut fout, "{}", resolved_mlir).map_err(IoError)?;
+                writeln!(fout.get_file_mut(), "{}", resolved_mlir).map_err(IoError)?;
+                fout.finalize();
                 break 'command;
             }
             let optimized_mlir = exec::exec_command_text(&root, "isq-opt", &[
@@ -99,7 +127,8 @@ fn main()->miette::Result<()> {
                 "--mlir-print-debuginfo"
             ], &resolved_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
             if let EmitMode::MLIROptimized = emit{
-                writeln!(&mut fout, "{}", optimized_mlir).map_err(IoError)?;
+                writeln!(fout.get_file_mut(), "{}", optimized_mlir).map_err(IoError)?;
+                fout.finalize();
                 break 'command;
             }
             let llvm_mlir = exec::exec_command_text(&root, "isq-opt", &[
@@ -107,12 +136,14 @@ fn main()->miette::Result<()> {
                 "--mlir-print-debuginfo"
             ], &optimized_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
             if let EmitMode::MLIRQIR = emit{
-                writeln!(&mut fout, "{}", llvm_mlir).map_err(IoError)?;
+                writeln!(fout.get_file_mut(), "{}", llvm_mlir).map_err(IoError)?;
+                fout.finalize();
                 break 'command;
             }
             let llvm = exec::exec_command_text(&root, "mlir-translate", &["--mlir-to-llvmir"], &llvm_mlir).map_err(ioErrorWhen("Calling mlir-translate"))?;
             if let EmitMode::LLVM = emit{
-                writeln!(&mut fout, "{}", llvm).map_err(IoError)?;
+                writeln!(fout.get_file_mut(), "{}", llvm).map_err(IoError)?;
+                fout.finalize();
                 break 'command;
             }
             // linking with stub. This step we use byte output.
@@ -134,7 +165,8 @@ fn main()->miette::Result<()> {
             let linked_obj = exec::exec_command(&root, "lld", &["-flavor", "gnu", "-shared", tmpfile.path().as_os_str().to_str().unwrap(), "-o", "-"], &[]).map_err(ioErrorWhen("Calling ld.lld"))?;
             drop(tmpfile);
             
-            fout.write_all(&linked_obj).map_err(IoError)?;
+            fout.get_file_mut().write_all(&linked_obj).map_err(IoError)?;
+            fout.finalize();
         }
         Commands::Simulate{qir_object, cuda}=>{
             let qir_object = if qir_object.starts_with("/"){

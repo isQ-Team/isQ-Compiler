@@ -45,6 +45,16 @@ mlir::MemRefType qubit_ref_type(mlir::MLIRContext* ctx, mlir::Location loc, mlir
     return new_memrefty;
 }
 
+
+// Remove gphase.
+class RuleRemoveGPhaseAux : public mlir::OpRewritePattern<AccumulateGPhase>{
+public:
+    RuleRemoveGPhaseAux(mlir::MLIRContext* ctx): mlir::OpRewritePattern<AccumulateGPhase>(ctx, 1){}
+    mlir::LogicalResult matchAndRewrite(AccumulateGPhase op,  mlir::PatternRewriter &rewriter) const override{
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
 // Insert QIR-qubit-alloc.
 class RuleInitializeAllocQubit : public mlir::OpRewritePattern<mlir::memref::AllocOp>{
     mlir::ModuleOp rootModule;
@@ -479,6 +489,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
         
         do{
         mlir::RewritePatternSet rps(ctx);
+        rps.add<RuleRemoveGPhaseAux>(ctx);
         rps.add<RuleInitializeAllocQubit>(ctx, m);
         rps.add<RuleDeinitializeFreeQubit>(ctx, m);
         rps.add<RuleInitDeinitGlobalQubit>(ctx, m);

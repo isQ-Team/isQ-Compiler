@@ -55,7 +55,7 @@ struct RemoveTrivialConstantU3 : public mlir::OpRewritePattern<ApplyGateOp>{
         }else{
             return mlir::failure();
         }
-        if(t>EPS || p>EPS || l>EPS){
+        if(std::abs(t)>EPS || std::abs(p)>EPS || std::abs(l)>EPS){
             return mlir::failure();
         }
         // otherwise
