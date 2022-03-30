@@ -364,6 +364,22 @@ def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<Symbo
     }];
     
 }
+
+def ISQ_AccumulateGPhase : ISQ_Op<"accumulate_gphase", []>{
+    let summary = "Auxiliary operation that accumulates global phase on a sub-system onto total global phase";
+    let description = [{
+        Auxiliary operation that prevents a procedure-local quantum subsystem from being optimized out.
+        A sufficient condition that can prevent a procedure-local quantum subsystem from getting optimized out is creating entanglement between an external system. However, an isolated local system may introduce global phase onto the system as well, thus local phase for controlled-gates.
+        This operation is inserted before every dealloc op. If the subsystem is linked to another subsystem, the semantics of the operation is "no-op"; otherwise, the semantics of the operation will be two `global-phase` gates: one global-phase zeroing out current subsystem and another global-phase on the other part of the system.
+    }];
+    let arguments = (ins
+        AnyType: $subsystem
+    );
+    let assemblyFormat = [{
+        $subsystem attr-dict `:` qualified(type($subsystem))
+    }];
+}
+
 def ISQ_ApplyGateOp : ISQ_Op<"apply", [
     NoSideEffect,
     TypesMatchWith<
