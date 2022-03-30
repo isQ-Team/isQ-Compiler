@@ -123,6 +123,7 @@ struct DecomposeMultiRzRule : public mlir::RewritePattern{
                     z_angle = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), z_angle, half);
                     emitBuiltinGate(rewriter, "Rz", {&operands[i]}, {z_angle});
                 }
+                emitBuiltinGate(rewriter, "Rz", {&operands[0]}, {z_angle});
             }while(0);
         }
         rewriter.replaceOp(op, operands);
