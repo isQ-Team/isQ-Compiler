@@ -365,6 +365,7 @@ def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<Symbo
     
 }
 def ISQ_ApplyGateOp : ISQ_Op<"apply", [
+    NoSideEffect,
     TypesMatchWith<
         "args equivalence", "gate", "args", "::isq::ir::getGateParameterType($_self.cast<::isq::ir::GateType>())"
     >,TypesMatchWith<
