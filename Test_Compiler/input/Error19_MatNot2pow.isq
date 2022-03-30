@@ -1,0 +1,13 @@
+defgate CCNOT =
+[
+    1,0,0;
+    0,1,0;
+    0,0,1;
+];
+
+qbit q[3];
+
+procedure main()
+{
+    CCNOT<q[0]>;
+}

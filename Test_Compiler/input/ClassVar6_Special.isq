@@ -1,0 +1,11 @@
+int i;
+double d;
+
+procedure main()
+{
+    i = 01234;
+    i = i / 0;
+    d = 0.1 + 12.3 / 0.0;
+    print i;
+    print d;
+}
