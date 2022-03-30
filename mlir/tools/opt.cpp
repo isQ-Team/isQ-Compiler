@@ -22,7 +22,7 @@ int isq_mlir_opt_main(int argc, char **argv) {
     isq::ir::ISQToolsInitialize(registry);
     return mlir::asMainReturnCode(mlir::MlirOptMain(
         argc, argv, "MLIR modular optimizer driver for ISQ dialect\n", registry,
-        /*preloadDialectsInContext=*/false));
+        /*preloadDialectsInContext=*/true));
 }
 
 int main(int argc, char **argv) { return isq_mlir_opt_main(argc, argv); }
