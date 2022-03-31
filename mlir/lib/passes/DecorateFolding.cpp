@@ -184,8 +184,10 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
             if(isFamousGate(defgate, "Toffoli")){
                 newCtrl.push_back(rewriter.getBoolAttr(true));
             }
-            emitBuiltinGate(rewriter, "X", newOperands, {}, mlir::ArrayAttr::get(ctx, newCtrl), false);
-            rewriter.replaceOp(op, operands);
+            //emitBuiltinGate(rewriter, "X", newOperands, {}, mlir::ArrayAttr::get(ctx, newCtrl), false);
+            //rewriter.replaceOp(op, operands);
+            auto new_use_gate = emitUseBuiltinGate(rewriter, 1, "X", {}, mlir::ArrayAttr::get(ctx, newCtrl), false);
+            rewriter.replaceOpWithNewOp<ApplyGateOp>(op.getOperation(), op->getResultTypes(), new_use_gate, op.args());
             *dirty=true;
             return mlir::success();
         }
