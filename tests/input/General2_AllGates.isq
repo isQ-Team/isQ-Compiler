@@ -14,5 +14,5 @@ procedure main()
     Rx(angle, q1);
     Ry(angle, q2);
     Rz(angle, q1);
-    u3(angle, angle, 1.0, q2);
+    U3(angle, angle, 1.0, q2);
 }

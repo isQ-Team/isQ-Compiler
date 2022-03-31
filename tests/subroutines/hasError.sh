@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #第一个参数是输出报错信息路径，第二个参数是输出文件路径
 if [[ -n $1 ]]; then
 
@@ -5,7 +6,7 @@ if [[ -n $1 ]]; then
     ResultFiles=`ls $1`
     for rawfile in $ResultFiles
     do
-        catpath="${PWD}/../catpath.exe"
+        catpath="${PWD}/../catpath"
         infofile=`$catpath $1 $rawfile`
         outfile=`$catpath $2 ${rawfile%.*}.so`
         mainline=`cat $infofile`
