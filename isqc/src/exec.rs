@@ -20,11 +20,25 @@ pub fn exec_command_text<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S], sin
     let output = exec_command(root, cmd, args, sin.as_bytes())?;
     Ok(String::from_utf8_lossy(&output).into())
 }
+pub fn system_exec_command<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S])->std::io::Result<()>{
+    let path = format!("{}/bin/{}", root, cmd);
+    let mut child = Command::new(path)
+    .args(args)
+    .stdin(Stdio::inherit())
+    .stdout(Stdio::inherit())
+    .stderr(Stdio::inherit())
+    .spawn()?;
+    let exit = child.wait()?;
+    Ok(())
+}
 
 pub fn raw_exec_command<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S])->std::io::Result<()>{
     let path = format!("{}/bin/{}", root, cmd);
     let mut child = Command::new(path)
     .args(args)
+    .stdin(Stdio::inherit())
+    .stdout(Stdio::inherit())
+    .stderr(Stdio::inherit())
     .spawn()?;
     let exit = child.wait()?;
     std::process::exit(exit.code().unwrap_or(1));
