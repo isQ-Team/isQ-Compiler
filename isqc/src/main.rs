@@ -59,6 +59,9 @@ pub enum Commands{
     Exec{
         #[clap(multiple_occurrences(true), required(true))]
         exec_command: Vec<String>
+    },
+    Run{
+        input: String
     }
 }
 
@@ -88,26 +91,42 @@ impl<'a> Drop for MayDropFile<'a>{
     }
 }
 
+fn resolve_input_path<'a>(input: &'a str, extension: &str)->miette::Result<(&'a Path, PathBuf)>{
+    let input_path = Path::new(input);
+            
+    if input_path.extension()!=Some(OsStr::new("isq")){
+        return Err(BadExtensionError)?;
+    }
+    
+    let output = input_path.with_extension(extension);
+    return Ok((input_path, output));
+}
+
 fn main()->miette::Result<()> {
     let cli = Arguments::parse();
     let root = std::env::var("ISQV2_ROOT").map_err(|_| NoISQv2RootError)?;
     
     match cli.command{
+        Commands::Run{input}=>{
+            let (input_path, default_output_path) = resolve_input_path(&input, "so")?;
+            exec::system_exec_command(&root, "isqc", 
+            &[OsStr::new("compile"), input_path.as_os_str(), OsStr::new("-o"), default_output_path.as_os_str()]
+            ).map_err(ioErrorWhen("Calling isqc compile"))?;
+            exec::system_exec_command(&root, "isqc", 
+            &[OsStr::new("simulate"), default_output_path.as_os_str()]
+            ).map_err(ioErrorWhen("Calling isqc simulate"))?;
+        }
         Commands::Compile{input, output, opt_level, emit}=>'command:{
-            let input_path = Path::new(&input);
-            
-            if input_path.extension()!=Some(OsStr::new("isq")){
-                return Err(BadExtensionError)?;
-            }
+            let (input_path, default_output_path) = resolve_input_path(&input, match emit{
+                EmitMode::Binary=>"so",
+                EmitMode::LLVM=>"ll",
+                EmitMode::MLIR=>"mlir",
+                EmitMode::MLIRQIR=>"ll.mlir",
+                EmitMode::MLIROptimized=>"opt.mlir"
+            })?;
             
             let output = output.map_or_else(||{
-                input_path.with_extension(match emit{
-                    EmitMode::Binary=>"so",
-                    EmitMode::LLVM=>"ll",
-                    EmitMode::MLIR=>"mlir",
-                    EmitMode::MLIRQIR=>"ll.mlir",
-                    EmitMode::MLIROptimized=>"opt.mlir"
-                })
+                default_output_path
             }, |x| {PathBuf::from(x)});
             // Finally, write obj into output.
             let mut fout = MayDropFile::new(&output)?;
