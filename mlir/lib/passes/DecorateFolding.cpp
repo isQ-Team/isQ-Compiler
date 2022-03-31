@@ -165,7 +165,7 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
         assert(defgate);
         if(!defgate.definition()) return mlir::failure();
 
-        // cnot is cx
+        // controlled-cnot is controlled-cx
         if(isFamousGate(defgate, "CNOT") || isFamousGate(defgate, "Toffoli")){
             auto ctx = getContext();
             mlir::SmallVector<mlir::Value> operands;
@@ -174,21 +174,20 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
                 operands.push_back(operand);
             }
             mlir::SmallVector<mlir::Value*> newOperands;
-            for(auto operand: operands){
+            for(auto& operand: operands){
                 newOperands.push_back(&operand);
-            }
-            for(auto attr: decorate_op.ctrl().getValue()){
-                newCtrl.push_back(attr);
             }
             newCtrl.push_back(rewriter.getBoolAttr(true));
             if(isFamousGate(defgate, "Toffoli")){
                 newCtrl.push_back(rewriter.getBoolAttr(true));
             }
-            //emitBuiltinGate(rewriter, "X", newOperands, {}, mlir::ArrayAttr::get(ctx, newCtrl), false);
-            //rewriter.replaceOp(op, operands);
-            auto new_use_gate = emitUseBuiltinGate(rewriter, 1, "X", {}, mlir::ArrayAttr::get(ctx, newCtrl), false);
-            rewriter.replaceOpWithNewOp<ApplyGateOp>(op.getOperation(), op->getResultTypes(), new_use_gate, op.args());
+            for(auto attr: decorate_op.ctrl().getValue()){
+                newCtrl.push_back(attr);
+            }
+            emitBuiltinGate(rewriter, "X", newOperands, {}, mlir::ArrayAttr::get(ctx, newCtrl), false);
+            rewriter.replaceOp(op, operands);
             *dirty=true;
+            rootModule->dump();
             return mlir::success();
         }
         // construct new matrix name.
