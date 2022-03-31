@@ -196,3 +196,13 @@ pub struct UnmatchedScopeError{
     #[label("Statement here.")]
     pub pos: SourceSpan,
 }
+
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Internal compiler error: `{0}`.")]
+#[diagnostic(
+    code(isqv2::ice),
+    help("Unhandled internal compiler error.")
+)]
+pub struct InternalCompilerError(pub String);
+

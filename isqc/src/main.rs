@@ -145,6 +145,9 @@ fn main()->miette::Result<()> {
                 "-pass-pipeline=isq-recognize-famous-gates,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,isq-fold-decorated-gates,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,symbol-dce,cse",
                 "--mlir-print-debuginfo"
             ], &resolved_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
+            if optimized_mlir.trim().is_empty(){
+                return Err(InternalCompilerError("Optimization failed".to_owned()))?;
+            }
             if let EmitMode::MLIROptimized = emit{
                 writeln!(fout.get_file_mut(), "{}", optimized_mlir).map_err(IoError)?;
                 fout.finalize();
@@ -154,6 +157,9 @@ fn main()->miette::Result<()> {
                 "-pass-pipeline=isq-lower-to-qir-rep,cse,canonicalize,isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
                 "--mlir-print-debuginfo"
             ], &optimized_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
+            if llvm_mlir.trim().is_empty(){
+                return Err(InternalCompilerError("Generate LLVM IR failed".to_owned()))?;
+            }
             if let EmitMode::MLIRQIR = emit{
                 writeln!(fout.get_file_mut(), "{}", llvm_mlir).map_err(IoError)?;
                 fout.finalize();

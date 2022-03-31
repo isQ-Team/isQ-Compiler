@@ -1,3 +1,6 @@
+stages:
+  - build
+  - test
 build:
   stage: build
   script:
@@ -6,3 +9,11 @@ build:
   artifacts:
     paths:
       - isqv2.tar.gz
+test:
+  stage: test
+  script:
+    - nix-portable nix-build tests/ -o tests_result.txt.link
+    - cat tests_result.txt.link | tee tests_result.txt
+  artifacts:
+    paths:
+      - tests_result.txt
