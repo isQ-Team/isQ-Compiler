@@ -42,6 +42,7 @@ import Control.Exception (throw, Exception)
     gate { TokenReservedId $$ "gate"}
     deriving { TokenReservedId $$ "deriving"}
     oracle { TokenReservedId $$ "oracle"}
+    pi { TokenReservedId $$ "pi"}
     '|0>' { TokenReservedOp $$ "|0>" }
     '=' { TokenReservedOp $$ "=" }
     '==' { TokenReservedOp $$ "==" }
@@ -132,6 +133,7 @@ Expr1 : Expr1Left { $1 }
      | '+' Expr1 %prec POS { EUnary $1 Positive $2 }
      | NATURAL{ EIntLit (annotation $1) (tokenNaturalV $1) }
      | FLOAT { EFloatingLit (annotation $1) (tokenFloatV $1) }
+     | pi { EFloatingLit $1 3.14159265358979323846264338327950288 }
      | IMAGPART { EImagLit (annotation $1) (tokenImagPartV $1) }
      | CallExpr { $1 }
      | '[' Expr1List ']' { EList $1 $2 }
