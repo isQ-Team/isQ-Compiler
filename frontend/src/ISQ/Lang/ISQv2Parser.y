@@ -49,6 +49,7 @@ import Control.Exception (throw, Exception)
     '-' { TokenReservedOp $$ "-" }
     '*' { TokenReservedOp $$ "*" }
     '/' { TokenReservedOp $$ "/" }
+    '%' { TokenReservedOp $$ "%" }
     '<' { TokenReservedOp $$ "<" }
     '>' { TokenReservedOp $$ ">" }
     '<=' { TokenReservedOp $$ "<=" }
@@ -77,6 +78,7 @@ import Control.Exception (throw, Exception)
 %left ':' -- Level 13
 %left '==' '!=' -- Level 7
 %nonassoc '>' '<' '>=' '<=' -- Level 6
+%left '%' -- Level 5
 %left '+' '-' -- Level 4
 %left '*' '/' -- Level 3
 %right NEG POS -- Level 2
@@ -119,6 +121,7 @@ Expr1 : Expr1Left { $1 }
      |  Expr1 '-' Expr1 { EBinary $2 Sub $1 $3 }
      |  Expr1 '*' Expr1 { EBinary $2 Mul $1 $3 }
      |  Expr1 '/' Expr1 { EBinary $2 Div $1 $3 }
+     |  Expr1 '%' Expr1 { EBinary $2 Mod $1 $3 }
      |  Expr1 '==' Expr1 { EBinary $2 (Cmp Equal) $1 $3 }
      |  Expr1 '!=' Expr1 { EBinary $2 (Cmp NEqual) $1 $3 }
      |  Expr1 '>' Expr1 { EBinary $2 (Cmp Greater) $1 $3 }

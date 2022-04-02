@@ -21,7 +21,7 @@ refType ann s = Type ann Ref [s]
 
 
 data CmpType = Equal | NEqual | Greater | Less | GreaterEq | LessEq deriving Show
-data BinaryOperator = Add | Sub | Mul | Div | Cmp CmpType deriving Show
+data BinaryOperator = Add | Sub | Mul | Div | Mod | Cmp CmpType deriving Show
 data UnaryOperator = Neg | Positive deriving Show
 data Expr ann = 
        EIdent { annotationExpr :: ann, identName :: String}

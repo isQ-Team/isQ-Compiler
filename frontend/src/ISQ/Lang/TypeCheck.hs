@@ -189,7 +189,10 @@ typeCheckExpr' f (EBinary pos op lhs rhs) = do
     let return_type = case op of
             Cmp _ -> boolType ()
             _ -> astType matched_lhs
-    return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+    case op of
+        Mod -> if (return_type /= intType ()) then throwError $ TypeMismatch pos [Exact (intType ())] return_type else return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+        _ -> return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+
 typeCheckExpr' f (EUnary pos op lhs) = do
     lhs'<-f lhs
     matched_lhs <- matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
