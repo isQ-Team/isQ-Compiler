@@ -7,6 +7,7 @@
 namespace isq{
 namespace ir{
 mlir::LogicalResult generateOpenQASM3Logic(mlir::MLIRContext &context, mlir::ModuleOp &module, llvm::raw_fd_ostream &os);
+mlir::LogicalResult generateQCIS(mlir::MLIRContext &context, mlir::ModuleOp &module, llvm::raw_fd_ostream &os, bool printast);
 }
 }
 #endif

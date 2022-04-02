@@ -28,15 +28,18 @@
 namespace cl = llvm::cl;
 static cl::opt<std::string> inputFilename(cl::Positional, cl::desc("<input qir file>"),cl::init("-"),cl::value_desc("filename"));
 namespace{
-    enum BackendType {None, OpenQASM3Logic};
+    enum BackendType {None, OpenQASM3Logic, QCIS};
 }
 
 static cl::opt<enum BackendType> emitBackend(
     "target", cl::desc("Choose the backend for code generation"),
     cl::values(clEnumValN(None, "none", "output the MLIR as-is")),
-    cl::values(clEnumValN(OpenQASM3Logic, "openqasm3-logic", "generate (logic) OpenQASM3 program"))
+    cl::values(clEnumValN(OpenQASM3Logic, "openqasm3-logic", "generate (logic) OpenQASM3 program")),
+    cl::values(clEnumValN(QCIS, "qcis", "generate qcis"))
 );
 
+static cl::opt<bool> printAst(
+    "printast", cl::desc("print mlir ast."));
 
 
 
@@ -65,6 +68,12 @@ int isq_mlir_codegen_main(int argc, char **argv) {
         auto module_op = module.get();
         if(failed(isq::ir::generateOpenQASM3Logic(context, module_op, llvm::outs()))){
             llvm::errs() << "Generate OpenQASM3 failed.\n";
+            return -2;
+        }
+    }else if (emitBackend==QCIS){
+        auto module_op = module.get();
+        if(failed(isq::ir::generateQCIS(context, module_op, llvm::outs(), printAst))){
+            llvm::errs() << "Generate QCIS failed.\n";
             return -2;
         }
     }else{
