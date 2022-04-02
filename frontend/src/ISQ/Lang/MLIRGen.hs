@@ -105,6 +105,7 @@ binopTranslate :: BinaryOperator->MLIRType->MLIRBinaryOp
 binopTranslate Add Index = mlirAddi
 binopTranslate Sub Index = mlirSubi
 binopTranslate Mul Index = mlirMuli
+binopTranslate Mod Index = mlirRemsi
 binopTranslate Div Index = mlirFloorDivsi 
 binopTranslate Add M.Double = mlirAddf
 binopTranslate Sub M.Double = mlirSubf
