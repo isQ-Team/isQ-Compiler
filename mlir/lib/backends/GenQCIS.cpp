@@ -78,6 +78,50 @@ using CodegenOpVisitor = OpVisitor<
     >;
 }
 
+struct varValue{
+    
+    int ival;
+    double dval;
+
+    varValue() : ival(0), dval(0.0) {}
+    varValue(int x) : ival(x), dval(0.0) {}
+    varValue(double x): ival(), dval(x) {}
+
+    varValue operator+(const varValue &r){
+        varValue res;
+        res.ival = this->ival + r.ival;
+        res.dval = this->dval + r.dval;
+        return res;
+    }
+
+    varValue operator-(const varValue &r){
+        varValue res;
+        res.ival = this->ival - r.ival;
+        res.dval = this->dval - r.dval;
+        return res;
+    }
+
+    varValue operator*(const varValue &r){
+        varValue res;
+        res.ival = this->ival * r.ival;
+        res.dval = this->dval * r.dval;
+        return res;
+    }
+
+    varValue operator/(const varValue &r){
+        varValue res;
+        if (r.ival != 0) res.ival = this->ival / r.ival;
+        if (r.dval != 0) res.dval = this->dval / r.dval;
+        return res;
+    }
+
+    varValue operator%(const varValue &r){
+        varValue res;
+        res.ival = this->ival % r.ival;
+        res.dval = 0.0;
+        return res;
+    }
+};
 
 /// Code generator from isQ MLIR Dialect to QCIS.
 class MLIRPassImpl: public details::CodegenOpVisitor{
@@ -129,14 +173,13 @@ private:
 
     set<string> baseGate;
     map<string, string> gateMap; //decomposition_raw gate
-    map<string, map<int, int>> symbolTable;
+    map<string, map<int, varValue>> symbolTable;
     set<int> measured;
     map<string, mlir::FuncOp> funcMap;
     set<string> visitFunc;
     map<string, int> funcArgs;
 
-    map<size_t, int> intValueTable;
-    map<size_t, double> doubleValueTable;
+    map<size_t, varValue> valueTable;
     map<size_t, pair<string, int>> indexTable;
     map<size_t, pair<string, vector<double>>> gateTable;
     int qbitSize;
@@ -273,9 +316,9 @@ private:
     mlir::LogicalResult visitOp(mlir::CondBranchOp op) override{
         
         auto code = size_t(mlir::hash_value(op.getCondition()));
-        auto b_i = getIntValue(code);
+        auto b_i = getValue(code);
         if (b_i.first == false) return error(op.getLoc(), "jump condition must be a determined boolean");
-        if (b_i.second == 0){
+        if (b_i.second.ival == 0){
             return visitBlock(op.getFalseDest());
         }else{
             return visitBlock(op.getTrueDest());
@@ -292,19 +335,17 @@ private:
         auto id = op.sym_name();
         auto type = op.type();
         int size = type.getShape()[0];
+        map<int, varValue> vmap;
         if (type.getElementType().isa<QStateType>()){
-            map<int, int> qmap;
-            for (int i = 0; i < size; i++) qmap[i] = qbitSize+1+i;
-            symbolTable.insert(make_pair(id.str(), qmap));
+            for (int i = 0; i < size; i++) vmap[i] = varValue(qbitSize+1+i);
             qbitSize += size;
-        }else if (type.getElementType().isa<mlir::IndexType>()){
-            map<int, int> imap;
-            for (int i = 0; i < size; i++) imap[i] = 0;
-            symbolTable.insert(make_pair(id.str(), imap));
+        }else if (type.getElementType().isa<mlir::IndexType>() || type.getElementType().isa<mlir::FloatType>()){
+            for (int i = 0; i < size; i++) vmap[i] = varValue();
         }else{
-            return error(op.getLoc(), "qcis can only use 'qbit' or 'int' type.");
+            return error(op.getLoc(), "qcis can only define 'qbit', 'int' or 'double' var.");
         }
-        
+
+        symbolTable.insert(make_pair(id.str(), vmap));
         return mlir::success();
     }
     
@@ -345,11 +386,11 @@ private:
         auto code = size_t(mlir::hash_value(op->getOpResult(0)));
         auto attr = op.getValueAttr().dyn_cast_or_null<mlir::IntegerAttr>();
         if (attr != nullptr){
-            intValueTable[code] = attr.getInt();
+            valueTable[code] = varValue(int(attr.getInt()));
         }else{
             auto attr = op.getValueAttr().dyn_cast_or_null<mlir::FloatAttr>();
             if (attr != nullptr){
-                doubleValueTable[code] = attr.getValue().convertToDouble();
+                valueTable[code] = varValue(attr.getValue().convertToDouble());
             }else{
                 return error(op.getLoc(), "error type");
             }
@@ -361,28 +402,28 @@ private:
     mlir::LogicalResult visitOp(mlir::arith::ExtUIOp op) override{
         auto icode = size_t(mlir::hash_value(op.getIn()));
         auto ocode = size_t(mlir::hash_value(op.getOut()));
-        intValueTable[ocode] = intValueTable[icode];
+        valueTable[ocode] = valueTable[icode];
         return mlir::success();
     }
 
     mlir::LogicalResult visitOp(mlir::arith::IndexCastOp op) override{
         auto icode = size_t(mlir::hash_value(op.getIn()));
         auto ocode = size_t(mlir::hash_value(op.getOut()));
-        intValueTable[ocode] = intValueTable[icode];
+        valueTable[ocode] = valueTable[icode];
         return mlir::success();
     }
 
     mlir::LogicalResult visitOp(mlir::arith::SIToFPOp op) override{
         auto icode = size_t(mlir::hash_value(op.getIn()));
         auto ocode = size_t(mlir::hash_value(op.getOut()));
-        doubleValueTable[ocode] = intValueTable[icode];
+        valueTable[ocode] = varValue(double(valueTable[icode].ival));
         return mlir::success();
     }
 
     mlir::LogicalResult visitOp(mlir::arith::NegFOp op) override{
         auto icode = size_t(mlir::hash_value(op.getOperand()));
         auto ocode = size_t(mlir::hash_value(op.getResult()));
-        doubleValueTable[ocode] = -1.0 * doubleValueTable[icode];
+        valueTable[ocode] = varValue(-1.0 * valueTable[icode].dval);
         return mlir::success();
     }
 
@@ -396,14 +437,13 @@ private:
 
         auto type = op.getResult().getType().dyn_cast<mlir::MemRefType>();
         if (type.getElementType().isa<QStateType>()) return error(op.getLoc(), "sorry, qbit var must define at global area");
-        if (type.getElementType().isa<mlir::FloatType>()) return error(op.getLoc(), "sorry, qcis don't support float/double var");
         
         string var_name = getTmpName();
         int size = type.getShape()[0];
-        map<int, int> imap;
-        for (int i = 0; i < size; i++) imap[i] = 0;
-        symbolTable.insert(make_pair(var_name, imap));
-        
+        map<int, varValue> vmap;
+        for (int i = 0; i < size; i++) vmap[i] = varValue();
+        symbolTable.insert(make_pair(var_name, vmap));
+    
         auto code = size_t(mlir::hash_value(op->getOpResult(0)));
         indexTable[code] = make_pair(var_name, 0);
 
@@ -422,9 +462,9 @@ private:
         auto rcode = mlir::hash_value(op.result());
         auto s_i = getIndex(scode);
         if (s_i.second == -1) return error(op.getLoc(), "get var error");
-        auto f_v = getIntValue(fcode);
+        auto f_v = getValue(fcode);
         if (f_v.first == false) return error(op.getLoc(), "index must a determined number");
-        int index = s_i.second + f_v.second;
+        int index = s_i.second + f_v.second.ival;
         if (outOfBorder(s_i.first, index)) return error(op.getLoc(), "index out of border");
         indexTable[rcode] = make_pair(s_i.first, index);
         return mlir::success();
@@ -443,46 +483,49 @@ private:
                 var_name = s_i.first;
                 index = s_i.second;
             }else{
-                auto b_i = getIntValue(code);
+                auto b_i = getValue(code);
                 if (b_i.first == false) return error(op.getLoc(), "index must a determined number");
-                index += b_i.second;
+                index += b_i.second.ival;
             }
         }
         //std::cout << var_name << ": " << index << std::endl;
         if (outOfBorder(var_name, index)) return error(op.getLoc(), "index out of border");
 
+        auto type = op.getMemRefType().getElementType();
         auto code = size_t(mlir::hash_value(op->getOpResult(0)));
-        intValueTable[code] = getVarValue(var_name, index);
+        valueTable[code] = getVarValue(var_name, index);
         return mlir::success();
     }
 
     mlir::LogicalResult visitOp(mlir::memref::StoreOp op) override{
-        int val, index;
+        int index;
+        varValue val;
         string var_name;
+        auto type = op.getMemRefType().getElementType();
         // store index value to symtable, qbit ignore
         for (auto indexOperand : llvm::enumerate(op->getOperands())){
             auto operand = indexOperand.value();
             size_t code = size_t(mlir::hash_value(operand));
             if (indexOperand.index() == 0){
                 if(operand.getType().isa<QStateType>()) return mlir::success();
-                auto b_i = getIntValue(code);
-                if (b_i.first == false) return error(op.getLoc(), "must assign a determined value");
-                val = b_i.second;
+                auto b_v = getValue(code);
+                if (b_v.first == false) return error(op.getLoc(), "must assign a determined int value");
+                val = b_v.second;
             }else if (indexOperand.index() == 1){
                 auto s_i = getIndex(code);
                 if (s_i.second < 0) return error(op.getLoc(), "get left var error");
                 var_name = s_i.first;
                 index = s_i.second;
             }else{
-                auto b_i = getIntValue(code);
+                auto b_i = getValue(code);
                 if (b_i.first == false) return error(op.getLoc(), "index must be a determined value");
-                index += b_i.second;
+                index += b_i.second.ival;
             }
         }
         
         if (outOfBorder(var_name, index)) return error(op.getLoc(), "index out of border");
         setVarValue(var_name, index, val);
-
+        
         return mlir::success();
     }
 
@@ -493,43 +536,32 @@ private:
     mlir::LogicalResult visitBinaryOp(char op, mlir::Value lhs, mlir::Value rhs, mlir::Value ret){
         
         // get lhs's and rhs's value from intValueTable
-        auto lhs_b_i = getIntValue(mlir::hash_value(lhs));
-        auto rhs_b_i = getIntValue(mlir::hash_value(rhs));
-        auto lhs_b_f = getDoubleValue(mlir::hash_value(lhs));
-        auto rhs_b_f = getDoubleValue(mlir::hash_value(rhs));
-        int val_i = 0;
-        double val_f = 0.0;
+        auto lhs_v = getValue(mlir::hash_value(lhs)).second;
+        auto rhs_v = getValue(mlir::hash_value(rhs)).second;
+        varValue val;
         switch (op)
         {
         case '+':
-            val_i = lhs_b_i.second + rhs_b_i.second;
-            val_f = lhs_b_f.second + rhs_b_f.second;
+            val = lhs_v + rhs_v;
             break;
         case '-':
-            val_i = lhs_b_i.second - rhs_b_i.second;
-            val_f = lhs_b_f.second - rhs_b_f.second;
+            val = lhs_v - rhs_v;
             break;
         case '*':
-            val_i = lhs_b_i.second * rhs_b_i.second;
-            val_f = lhs_b_f.second * rhs_b_f.second;
+            val = lhs_v * rhs_v;
             break;
         case '/':
-            val_i = lhs_b_i.second / rhs_b_i.second;
-            val_f = lhs_b_f.second / rhs_b_f.second;
+            val = lhs_v / rhs_v;
             break;
         case '%':
-            val_i = lhs_b_i.second % rhs_b_i.second;
+            val = lhs_v % rhs_v;
             break;
         default:
             return mlir::failure();
             break;
         }
         auto code = mlir::hash_value(ret);
-        if (ret.getType().isa<mlir::FloatType>()){
-            doubleValueTable[code] = val_f;
-        }else{
-            intValueTable[code] = val_i;
-        }
+        valueTable[code] = val;
         return mlir::success();
     }
 
@@ -569,9 +601,9 @@ private:
         vector<double> angle;
         for (auto par : op.parameters()){
             size_t code = size_t(mlir::hash_value(par));
-            auto b_f = getDoubleValue(code);
+            auto b_f = getValue(code);
             if (b_f.first == false) return error(op.getLoc(), "gate need a determined angle");
-            angle.push_back(b_f.second);
+            angle.push_back(b_f.second.dval);
         }
         gateTable[rcode] = make_pair(gate, angle);
         return mlir::success();
@@ -587,13 +619,13 @@ private:
         // get args
         // qbit <memref> : get value from symbolTable
         // if qbit has already measured, error
-        vector<int> args;
+        vector<varValue> args;
         for (auto indexed_operand : ::llvm::enumerate(op.args())){
             auto index = indexed_operand.index();
             auto operand = indexed_operand.value();
-            auto b_i = getIntValue(mlir::hash_value(operand));
+            auto b_i = getValue(mlir::hash_value(operand));
             if (b_i.first == false) return error(op.getLoc(), "gate operate need use determined qbit");
-            if (measured.count(b_i.second) == 1) return error(op.getLoc(), "qbit has already measured, can not use again.");
+            if (measured.count(b_i.second.ival) == 1) return error(op.getLoc(), "qbit has already measured, can not use again.");
             args.push_back(b_i.second);
         }
         if (baseGate.count(gate) == 1){
@@ -628,25 +660,25 @@ private:
         }
     }
 
-    mlir::LogicalResult updateArgs(mlir::FuncOp op, vector<int>& args){
+    mlir::LogicalResult updateArgs(mlir::FuncOp op, vector<varValue>& args){
         // store args
         // index: store in intValueTable
         // qbit: store in symbolTable and indexTable
         auto func_block = op.getBody().getBlocks().begin();
         int idx = 0;
         for (auto &arg: func_block->getArguments()){
-            if (arg.getType().isa<mlir::IndexType>()){
-                if (!arg.use_empty()){
-                    auto code = mlir::hash_value(arg);
-                    intValueTable[code] = args[idx];
-                }
-            }else{
+            if (arg.getType().isa<mlir::MemRefType>()){
                 if (arg.getType().dyn_cast<mlir::MemRefType>().getShape()[0] != 1) return error(op->getLoc(), "qcis func don't support array as arg");
                 if (!arg.use_empty()){
                     auto code = mlir::hash_value(arg);
                     string arg_name = getTmpName();
                     symbolTable[arg_name] = {{0, args[idx]}};
                     indexTable[code] = make_pair(arg_name, 0);
+                }
+            }else{
+                if (!arg.use_empty()){
+                    auto code = mlir::hash_value(arg);
+                    valueTable[code] = args[idx];
                 }
             }
             idx += 1;
@@ -664,14 +696,14 @@ private:
         for (auto indexOperand : llvm::enumerate(op->getOperands())){
             auto operand = indexOperand.value();
             size_t code = size_t(mlir::hash_value(operand));
-            auto b_i  = getIntValue(code);
+            auto b_i  = getValue(code);
             if (b_i.first == false) return error(op.getLoc(), "measure a determined qbit");
-            if (measured.count(b_i.second) == 1) return error(op.getLoc(), "qbit has already measured, can not use again.");
+            if (measured.count(b_i.second.ival) == 1) return error(op.getLoc(), "qbit has already measured, can not use again.");
             QcisPrint("M", {b_i.second});
-            measured.insert(b_i.second);
+            measured.insert(b_i.second.ival);
         }
         auto rcode = mlir::hash_value(op.getResult(1));
-        intValueTable[rcode] = 0;
+        valueTable[rcode] = varValue();
         return mlir::success();
     }
 
@@ -689,11 +721,11 @@ private:
         // get args
         // index : get value from intValueTable
         // qbit <memref> : get value from symbolTable
-        vector<int> args;
+        vector<varValue> args;
         for (auto indexOperand : ::llvm::enumerate(op.getOperands())){
             auto operand = indexOperand.value();
-            if (operand.getType().isa<mlir::IndexType>()){
-                auto b_i = getIntValue(mlir::hash_value(operand));
+            if (operand.getType().isa<mlir::IndexType>() || operand.getType().isa<mlir::FloatType>()){
+                auto b_i = getValue(mlir::hash_value(operand));
                 if (b_i.first == false) return error(op.getLoc(), "call func args need use determined value");
                 args.push_back(b_i.second);
             }else if (operand.getType().isa<QStateType>()){
@@ -701,7 +733,7 @@ private:
                 if (s_i.second < 0) return error(op.getLoc(), "call func args need use determined qbit");
                 args.push_back(getVarValue(s_i.first, s_i.second));
             }else{
-                return error(op.getLoc(), "qcis func args only support int and qbit type");
+                return error(op.getLoc(), "qcis func args only support 'int', 'double' and 'qbit' type");
             }
         }
         
@@ -743,9 +775,9 @@ private:
             lval = lmap.getSingleConstantResult();
         }else{
             size_t opcode = size_t(mlir::hash_value(for_stmt.getLowerBound().getOperand(0)));
-            auto b_i = getIntValue(opcode);
+            auto b_i = getValue(opcode);
             if (b_i.first == false) return error(for_stmt.getLoc(), "for start need a determined value");
-            lval = b_i.second;
+            lval = b_i.second.ival;
         }
 
         auto rmap = for_stmt.getUpperBoundMap();
@@ -753,17 +785,18 @@ private:
             rval = rmap.getSingleConstantResult();
         }else{
             size_t opcode = size_t(mlir::hash_value(for_stmt.getUpperBound().getOperand(0)));
-            auto b_i = getIntValue(opcode);
+            auto b_i = getValue(opcode);
             if (b_i.first == false) return error(for_stmt.getLoc(), "for end need a determined value");
-            rval = b_i.second;
+            rval = b_i.second.ival;
         }
 
         step = for_stmt.getStep();
+        if (step == 0) return error(for_stmt.getLoc(), "for-loop in dead loop, please set step a positive number");
         // use for loop to visit for-loop-body
         auto block = for_stmt.getBody();
         for (int i = lval; i < rval; i += step){
             auto code = mlir::hash_value(block->getArgument(0));
-            intValueTable[code] = i;
+            valueTable[code] = varValue(i);
             if (mlir::failed(visitBlock(block))) return mlir::failure();
         }
         
@@ -777,12 +810,12 @@ private:
         for (auto indexOperand : llvm::enumerate(op->getOperands())){
             auto operand = indexOperand.value();
             size_t code = size_t(mlir::hash_value(operand));
-            auto b_i = getIntValue(code);
+            auto b_i = getValue(code);
             if (b_i.first == false) return error(op.getLoc(), "condition need determined value");
             if (indexOperand.index() == 0){
-                lval = b_i.second;
+                lval = b_i.second.ival;
             }else{
-                rval = b_i.second;
+                rval = b_i.second.ival;
             }
         }
         bool ans;
@@ -813,17 +846,17 @@ private:
         }
         // set condition value
         auto code = mlir::hash_value(op->getOpResult(0));
-        intValueTable[code] = ans;
+        valueTable[code] = varValue(int(ans));
         return mlir::success();
     }
 
     mlir::LogicalResult visitOp(mlir::scf::IfOp if_stmt) override{
         // get condition value
         auto condition_code = mlir::hash_value(if_stmt.getCondition());
-        auto b_i = getIntValue(condition_code);
+        auto b_i = getValue(condition_code);
         if (b_i.first == false) return error(if_stmt.getLoc(), "if need a determined condition");
         
-        if (b_i.second == 1){
+        if (b_i.second.ival == 1){
             return visitBlock(if_stmt.thenBlock());
         }else{
             return visitBlock(if_stmt.elseBlock());
@@ -846,14 +879,14 @@ private:
         return name;
     }
 
-    void QcisPrint(string gate, vector<int> qbit){
+    void QcisPrint(string gate, vector<varValue> qbit){
         if (gate == "CNOT"){
             QcisPrint("H", {qbit[1]});
             QcisPrint("CZ", qbit);
             QcisPrint("H", {qbit[1]});
         }else{
             os << gate;
-            for (auto idx: qbit) os << " Q" << idx;
+            for (auto val: qbit) os << " Q" << val.ival;
             os << "\n";
         }
     }
@@ -873,38 +906,31 @@ private:
         return make_pair("", -1);
     }
 
-    pair<bool, int> getIntValue(size_t code){
+    pair<bool, varValue> getValue(size_t code){
 
-        auto iter = intValueTable.find(code);
-        if (iter != intValueTable.end()){
+        auto iter = valueTable.find(code);
+        if (iter != valueTable.end()){
             return make_pair(true, iter->second);
         }
         return make_pair(false, -1);
     }
 
-    pair<bool, double> getDoubleValue(size_t code){
-
-        auto iter = doubleValueTable.find(code);
-        if (iter != doubleValueTable.end()){
-            return make_pair(true, iter->second);
-        }
-        return make_pair(false, -1.0);
-    }
-
     bool outOfBorder(string name, int index){
         auto iter = symbolTable.find(name);
-        auto iiter = iter->second.find(index);
-        if (iiter == iter->second.end()) return true;
+        if (iter != symbolTable.end()){
+            auto iiter = iter->second.find(index);
+            if (iiter == iter->second.end()) return true;
+        }
         return false;
     }
 
-    int getVarValue(string name, int index){
+    varValue getVarValue(string name, int index){
         auto iter = symbolTable.find(name);
         auto iiter = iter->second.find(index);
         return iiter->second;
     }
 
-    void setVarValue(string name, int index, int val){
+    void setVarValue(string name, int index, varValue val){
         auto iter = symbolTable.find(name);
         iter->second[index] = val;
     }
