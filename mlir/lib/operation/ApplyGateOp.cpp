@@ -1,5 +1,6 @@
 #include <isq/Operations.h>
 #include <mlir/IR/PatternMatch.h>
+#include <isq/passes/canonicalization/CanonicalizeApplyGate.h>
 #include <mlir/Support/LogicalResult.h>
 namespace isq {
 namespace ir {
@@ -20,22 +21,31 @@ bool isFromCallQOp(mlir::Value val) {
 mlir::LogicalResult ApplyGateOp::verifyIR() {
     for (auto i = 0; i < this->getNumResults(); i++) {
         mlir::Value result = this->getResult(i);
-        if (!result.hasOneUse()) {
+        if (!(result.hasOneUse() || result.getUses().begin()==result.getUses().end() )) {
             this->emitError() << "Result #" << i
-                              << " is used more than once or not used at all.";
+                              << " is used more than once.";
             return mlir::failure();
         }
     }
     for (auto i = 0; i < this->args().size(); i++) {
         mlir::Value arg = this->args()[i];
-        if (!arg.hasOneUse()) {
+        if (!(arg.hasOneUse() || arg.getDefiningOp<ContribUndef>())) {
             this->emitError()
-                << "Argument #" << i << " is used more than once.";
+                << "Argument #" << i << " is used more than once and is not undef.";
             return mlir::failure();
         }
     }
     return mlir::success();
 }
+
+void ApplyGateOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
+                                       mlir::MLIRContext *context) {
+    patterns.add<passes::canonicalize::NoDowngradeApply>(context);
+    patterns.add<passes::canonicalize::CorrectSymmetryApplyOrder>(context);
+    patterns.add<passes::canonicalize::CancelHermitianUU>(context);
+    patterns.add<passes::canonicalize::CancelUUAdj>(context);
+}
+
 /*
 void ApplyOp::getCanonicalizationPatterns(mlir::RewritePatternSet &results,
                                       mlir::MLIRContext *context) {
