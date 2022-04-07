@@ -365,6 +365,32 @@ def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<Symbo
     
 }
 
+def ISQ_ContribUndef : ISQ_Op<"contrib.memref.undef", [NoSideEffect]>{
+    let summary = "Undef value for a memref.";
+    let description = [{
+        The value that you will obtain by reading from an uninitialized memory.
+    }];
+    let arguments = (ins
+        Variadic<AnyType>: $args
+    );
+    let results = (outs 
+        AnyType: $result
+    );
+}
+
+def ISQ_ApplyGPhase : ISQ_Op<"apply_gphase", []>{
+    let summary = "Auxiliary operation that applies global-phase";
+    let description = [{
+        Auxiliary operation that side-effectfully applies a global-phase gate.
+    }];
+    let arguments = (ins
+        ISQ_Gate: $gate
+    );
+    let assemblyFormat = [{
+        $gate attr-dict `:` qualified(type($gate))
+    }];
+}
+
 def ISQ_AccumulateGPhase : ISQ_Op<"accumulate_gphase", []>{
     let summary = "Auxiliary operation that accumulates global phase on a sub-system onto total global phase";
     let description = [{
@@ -417,6 +443,7 @@ def ISQ_ApplyGateOp : ISQ_Op<"apply", [
     let extraClassDeclaration = [{
         ::mlir::LogicalResult verifyIR();
     }];
+    let hasCanonicalizer = 1;
 }
 
 def ISQ_CallQOpOp: ISQ_Op<"call_qop", [DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
@@ -502,6 +529,7 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
     let verifier = [{
         return ::isq::ir::verify(*this);
     }];
+    let hasCanonicalizer = 1;
 }
 
 def ISQ_DecorateOp: ISQ_Op<"decorate", [NoSideEffect]>{
@@ -517,6 +545,10 @@ def ISQ_DecorateOp: ISQ_Op<"decorate", [NoSideEffect]>{
     let results = (outs ISQ_Gate);
     let assemblyFormat = [{
         `(` $args `:` qualified(type($args)) `)` attr-dict `:` qualified(type(results))
+    }];
+    let extraClassDeclaration = [{
+    public:
+        static GateTrait computePostDecorateTrait(GateTrait attr, int ctrl, bool adj);
     }];
     let verifier = [{
         return ::isq::ir::verify(*this);

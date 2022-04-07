@@ -1,11 +1,13 @@
 
+#include "isq/Enums.h"
 #include "isq/Operations.h"
-#include "isq/passes/canonicalization/MergeDecorateGates.h"
+#include "isq/passes/canonicalization/CanonicalizeDecorateGates.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Support/LLVM.h"
+#include <mlir/Support/LogicalResult.h>
 namespace isq{
 namespace ir{
 namespace passes{
@@ -32,9 +34,30 @@ mlir::LogicalResult MergeDecorate::matchAndRewrite(isq::ir::DecorateOp op,  mlir
     return mlir::failure();
 }
 
+EliminateUselessDecorate::EliminateUselessDecorate(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::DecorateOp>(ctx, 1){}
+mlir::LogicalResult EliminateUselessDecorate::matchAndRewrite(isq::ir::DecorateOp op,  mlir::PatternRewriter &rewriter) const{
+    if(op.ctrl().size()==0 && op.adjoint()==false){
+        rewriter.replaceOp(op, op.args());
+        return mlir::success();
+    }
+    return mlir::failure();
+    
+}
+
+AdjointHermitian::AdjointHermitian(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::DecorateOp>(ctx, 1){}
+mlir::LogicalResult AdjointHermitian::matchAndRewrite(isq::ir::DecorateOp op,  mlir::PatternRewriter &rewriter) const{
+    if((op.args().getType().cast<GateType>().getHints() & GateTrait::Hermitian)==GateTrait::Hermitian && op.adjoint()){
+        rewriter.startRootUpdate(op);
+        op.adjointAttr(rewriter.getBoolAttr(false));
+        rewriter.finalizeRootUpdate(op);
+        return mlir::success();
+    }
+    return mlir::failure();
+    
 }
 
 
+}
 }
 }
 }
