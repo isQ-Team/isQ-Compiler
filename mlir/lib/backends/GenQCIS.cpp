@@ -191,7 +191,7 @@ private:
 
     // Initialize predefined gates in OpenQASM 3.0.
     void initGate(){
-        baseGate = {"H", "X", "Y", "Z", "S", "T", "CZ", "X2P", "X2M", "Y2P", "Y2M", "CNOT"};
+        baseGate = {"H", "X", "Y", "Z", "S", "SD", "T", "TD", "CZ", "X2P", "X2M", "Y2P", "Y2M", "CNOT"};
     }
     
     // Printing operation info to output stream. For debugging.
@@ -610,7 +610,23 @@ private:
     }
 
     mlir::LogicalResult visitOp(DecorateOp op) override{
-        return error(op.getLoc(), "qcis don't support ctrl or nctrl or inv decorate");
+        if (op.ctrl().size()!=0) return error(op.getLoc(), "qcis don't support 'ctrl' and 'nctrl' decorate");
+        auto usegate_op = llvm::dyn_cast<UseGateOp>(op.args().getDefiningOp());
+        if(!usegate_op) return mlir::failure();
+        auto gate = usegate_op.nameAttr().getLeafReference().str();
+        auto rcode = mlir::hash_value(op.getResult());
+        vector<double> angle;
+        if (op.adjoint() == true){    
+            if (gate == "T"){
+                gateTable[rcode] = make_pair("TD", angle);
+            }else if (gate == "S"){
+                gateTable[rcode] = make_pair("SD", angle);
+            }else{
+                return error(op.getLoc(), "decorate 'inv' can only use at 'T' or 'S' gate");
+            }
+            return mlir::success();
+        }
+        return error(op.getLoc(), "invalid decorate");
     }
 
     mlir::LogicalResult visitOp(ApplyGateOp op) override{
@@ -728,10 +744,14 @@ private:
                 auto b_i = getValue(mlir::hash_value(operand));
                 if (b_i.first == false) return error(op.getLoc(), "call func args need use determined value");
                 args.push_back(b_i.second);
-            }else if (operand.getType().isa<QStateType>()){
-                auto s_i = getIndex(mlir::hash_value(operand));
-                if (s_i.second < 0) return error(op.getLoc(), "call func args need use determined qbit");
-                args.push_back(getVarValue(s_i.first, s_i.second));
+            }else if (operand.getType().isa<mlir::MemRefType>()){
+                if (operand.getType().dyn_cast<mlir::MemRefType>().getElementType().isa<QStateType>()){
+                    auto s_i = getIndex(mlir::hash_value(operand));
+                    if (s_i.second < 0) return error(op.getLoc(), "call func args need use determined qbit");
+                    args.push_back(getVarValue(s_i.first, s_i.second));
+                }else{
+                    return error(op.getLoc(), "qcis func args only support 'int', 'double' and 'qbit' type");
+                }
             }else{
                 return error(op.getLoc(), "qcis func args only support 'int', 'double' and 'qbit' type");
             }
