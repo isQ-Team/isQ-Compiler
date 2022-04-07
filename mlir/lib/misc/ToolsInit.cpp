@@ -1,3 +1,4 @@
+#include "isq/contrib/Affine.h"
 #include <mlir/InitAllPasses.h>
 #include <mlir/InitAllDialects.h>
 #include <isq/IR.h>
@@ -16,6 +17,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerSQRot2U3();
     passes::registerDecomposeCtrlU3();
     passes::registerRemoveTrivialSQGates();
+    isq::contrib::mlir::registerAffineScalarReplacementPass();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
 }

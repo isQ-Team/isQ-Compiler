@@ -331,8 +331,7 @@ private:
     }
     
     mlir::LogicalResult visitOp(mlir::scf::WhileOp while_stmt) override{
-        // TODO: generate while statement by lifting while-condition into subprocedures (using an extra pass).
-        // MLIR supports complicated while condition guard, but OpenQASM only supports single statement in condition.
+        // Generate while-statement using manual guard.
         return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::FuncOp func_op) override{

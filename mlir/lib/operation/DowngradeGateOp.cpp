@@ -1,4 +1,6 @@
 #include <isq/Operations.h>
+#include <mlir/IR/PatternMatch.h>
+#include <isq/passes/canonicalization/CanonicalizeDowngrade.h>
 namespace isq {
 namespace ir {
 mlir::LogicalResult verify(DowngradeGateOp op) {
@@ -16,6 +18,14 @@ mlir::LogicalResult verify(DowngradeGateOp op) {
 
     return mlir::success();
 }
+
+
+void DowngradeGateOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
+                                       mlir::MLIRContext *context) {
+    patterns.add<passes::canonicalize::EliminateUselessDowngrade>(context);
+    patterns.add<passes::canonicalize::MergeDowngrade>(context);
+}
+
 
 } // namespace ir
 } // namespace isq
