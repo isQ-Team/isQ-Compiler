@@ -135,7 +135,6 @@ public:
         qbitSize = 0;
         tmp_cnt = 0;
         tmp_head = "tmp_";
-        res = "";
         if (printast) printOperation(theModule->getOperation());
         initGate();
         initializeIntegerSets();
@@ -185,7 +184,7 @@ private:
     int qbitSize;
     string tmp_head;
     int tmp_cnt;
-    string res;
+    varValue func_res;
     
     //isqTools isqtool;
 
@@ -647,7 +646,6 @@ private:
         if (baseGate.count(gate) == 1){
             // baseGate direct print qcis
             QcisPrint(gate, args);
-            return mlir::success();
         }else if(derivingGate(gate)) {
             // deriving gate visit func body
             auto func_name = gateMap[gate];
@@ -656,7 +654,6 @@ private:
             visitFunc.insert(func_name);
             if (mlir::failed(visitOp(funcMap[func_name]))) return mlir::failure();
             visitFunc.erase(func_name);
-            return mlir::success();
         }else{
             if (gate == "Rx" || gate == "Ry"){
                 auto angle = gateTable[mlir::hash_value(op.gate())].second[0];
@@ -674,6 +671,15 @@ private:
             }
             return error(op.getLoc(), "gate "+gate+" is not support in qcis.");
         }
+
+        for (auto indexed_result : ::llvm::enumerate(op.r())){
+            auto index = indexed_result.index();
+            auto result = indexed_result.value();
+            auto code = mlir::hash_value(result);
+            valueTable[code] = args[index];
+        }
+
+        return mlir::success();
     }
 
     mlir::LogicalResult updateArgs(mlir::FuncOp op, vector<varValue>& args){
@@ -763,11 +769,22 @@ private:
         visitFunc.insert(func_name);
         if (mlir::failed(visitOp(funcMap[func_name]))) return mlir::failure();
         visitFunc.erase(func_name);
+
+        if (op.getNumResults() > 0){
+            auto code = mlir::hash_value(op.getResult(0));
+            valueTable[code] = func_res;
+        }
+
         return mlir::success();
     }
 
     mlir::LogicalResult visitOp(mlir::ReturnOp op) override{
-        if (op.getOperands().size() > 0) return error(op.getLoc(), "qcis don't support function with return value");
+        if (op.getOperands().size() > 0){
+            auto code = mlir::hash_value(op.getOperand(0));
+            auto b_v = getValue(code);
+            if (b_v.first == false) return error(op.getLoc(), "func return need be a deternimed value");
+            func_res = b_v.second;
+        }
         return mlir::success();
     }
     mlir::LogicalResult visitOp(PassOp op) override{
