@@ -17,6 +17,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerSQRot2U3();
     passes::registerDecomposeCtrlU3();
     passes::registerRemoveTrivialSQGates();
+    passes::registerConvertToQCIS();
     isq::contrib::mlir::registerAffineScalarReplacementPass();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();

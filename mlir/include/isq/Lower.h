@@ -23,6 +23,8 @@ std::unique_ptr<mlir::Pass> createLowerToQIRPass();
 // Simply performing type conversion and regular lowering is enough.
 std::unique_ptr<mlir::Pass> createLowerToLLVMPass();
 
+// Lower from isQ IR to QCIS, convert CNOT -> H CZ H, inv T -> TD, inv S -> SD
+std::unique_ptr<mlir::Pass> createLowerToQCISPass();
 
 using mlir::PatternRewriter;
 using mlir::ModuleOp;

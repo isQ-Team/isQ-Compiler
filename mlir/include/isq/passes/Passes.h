@@ -16,6 +16,7 @@ void registerRecognizeFamousGates();
 void registerSQRot2U3();
 void registerDecomposeCtrlU3();
 void registerRemoveTrivialSQGates();
+void registerConvertToQCIS();
 
 llvm::SmallString<32> getFamousName(const char* famous_gate);
 bool isFamousGate(DefgateOp op, const char* famous_gate);
