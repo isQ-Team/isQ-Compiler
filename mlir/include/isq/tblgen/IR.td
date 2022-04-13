@@ -165,8 +165,9 @@ def GateTraitDiagonal: BitEnumAttrCase<"Diagonal", 1, "diagonal">;
 def GateTraitAntidiagonal: BitEnumAttrCase<"Antidiagonal", 2, "antidiagonal">;
 def GateTraitSymmetric: BitEnumAttrCase<"Symmetric", 4, "symmetric">;
 def GateTraitHermitian: BitEnumAttrCase<"Hermitian", 8, "hermitian">;
+def GateTraitPhase: BitEnumAttrCase<"Phase", 16, "phase">;
 
-def GateTrait: BitEnumAttr<"GateTrait", "Gate traits/hints", [GateTraitGeneral, GateTraitDiagonal, GateTraitAntidiagonal, GateTraitSymmetric, GateTraitHermitian]>;
+def GateTrait: BitEnumAttr<"GateTrait", "Gate traits/hints", [GateTraitGeneral, GateTraitDiagonal, GateTraitAntidiagonal, GateTraitSymmetric, GateTraitHermitian, GateTraitPhase]>;
 
 // Gate definition
 def ISQ_GateDefType : StructFieldAttr<"type", StrAttr>;
@@ -548,7 +549,7 @@ def ISQ_DecorateOp: ISQ_Op<"decorate", [NoSideEffect]>{
     }];
     let extraClassDeclaration = [{
     public:
-        static GateTrait computePostDecorateTrait(GateTrait attr, int ctrl, bool adj);
+        static GateTrait computePostDecorateTrait(GateTrait attr, int ctrl, bool adj, bool ctrl_all_one);
     }];
     let verifier = [{
         return ::isq::ir::verify(*this);

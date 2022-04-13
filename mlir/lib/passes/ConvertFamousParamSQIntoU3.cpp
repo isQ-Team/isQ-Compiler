@@ -96,6 +96,7 @@ class ConvertFamousParamSQIntoU3Pass : public mlir::PassWrapper<ConvertFamousPar
         do{
             mlir::RewritePatternSet rps(ctx);
             rps.add<ConvertFamousParamSQIntoU3Rule>(ctx, m);
+            addLegalizeTraitsRules(rps);
             mlir::FrozenRewritePatternSet frps(std::move(rps));
             (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
         }while(0);

@@ -369,6 +369,7 @@ struct DecorateFoldingPass : public mlir::PassWrapper<DecorateFoldingPass, mlir:
                     int controlStartIndex=fn->getAttrOfType<mlir::IntegerAttr>(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_START_INDEX).getInt();
                     mlir::RewritePatternSet rps(ctx);
                     rps.add<InsertControllerBits>(ctx, controls, controlStartIndex, fn);
+                    passes::addLegalizeTraitsRules(rps);
                     mlir::FrozenRewritePatternSet frps(std::move(rps));
                     (void)mlir::applyPatternsAndFoldGreedily(fn, frps);
                 });

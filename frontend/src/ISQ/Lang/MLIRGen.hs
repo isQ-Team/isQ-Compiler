@@ -341,7 +341,7 @@ emitStatement' f (NResolvedFor ann fori (ERange _ (Just lo) (Just hi) (Just (EIn
     hi'<-emitExpr hi
     pos<-mpos ann
     r<-scopedStatement [] [MSCFYield pos] (mapM f body)
-    pushOp $ MAffineFor pos lo' hi' step (fromSSA fori) [MSCFExecRegion pos r]
+    pushOp $ MSCFFor pos lo' hi' step (fromSSA fori) [MSCFExecRegion pos r]
 emitStatement' f NResolvedFor{} = error "unreachable"
 emitStatement' f (NResolvedGatedef ann name mat sz qir) = do
     pos<-mpos ann
@@ -408,6 +408,7 @@ emitStatement' f (NDerivedOracle ann name source extraparams sz ) = do
     let extra_param_types = map mapType extraparams
     pushOp $ MQDefGate pos (fromFuncName name) sz extra_param_types [OracleRep $ fromFuncName source]
 emitStatement' f NGlobalDefvar{} = error "not top"
+emitStatement' f NOracle {} = error "not top"
 --emitStatement' f (NJumpToEndOnFlag)=
 emitStatement :: AST TypeCheckData -> State RegionBuilder ()
 emitStatement = fix emitStatement'

@@ -18,6 +18,8 @@ void registerDecomposeCtrlU3();
 void registerRemoveTrivialSQGates();
 void registerConvertToQCIS();
 
+void addLegalizeTraitsRules(mlir::RewritePatternSet& patterns);
+
 llvm::SmallString<32> getFamousName(const char* famous_gate);
 bool isFamousGate(DefgateOp op, const char* famous_gate);
 mlir::Value emitUseBuiltinGate(mlir::OpBuilder& builder, int original_size, const char* famous_gate, mlir::ArrayRef<mlir::Value> params = {}, mlir::ArrayAttr ctrl = nullptr, bool adjoint = false);

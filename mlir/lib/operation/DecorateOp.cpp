@@ -4,7 +4,7 @@
 #include <isq/Operations.h>
 namespace isq {
 namespace ir {
-GateTrait DecorateOp::computePostDecorateTrait(GateTrait attr, int ctrl, bool adj){
+GateTrait DecorateOp::computePostDecorateTrait(GateTrait attr, int ctrl, bool adj, bool ctrl_all_one){
     auto trait = static_cast<uint32_t>(attr);
     auto new_trait = 0;
     if(trait & static_cast<uint32_t>(GateTrait::Diagonal)){
@@ -19,6 +19,10 @@ GateTrait DecorateOp::computePostDecorateTrait(GateTrait attr, int ctrl, bool ad
     if(trait & static_cast<uint32_t>(GateTrait::Hermitian)){
         new_trait |= static_cast<uint32_t>(GateTrait::Hermitian);
     }
+    if(ctrl_all_one && (trait & static_cast<uint32_t>(GateTrait::Phase))){
+        //assert(trait & static_cast<uint32_t>(GateTrait::Symmetric));
+        new_trait |= (static_cast<uint32_t>(GateTrait::Phase) | static_cast<uint32_t>(GateTrait::Symmetric));
+    }
     return static_cast<GateTrait>(new_trait);
 }
 mlir::LogicalResult verify(DecorateOp op) {
@@ -29,7 +33,9 @@ mlir::LogicalResult verify(DecorateOp op) {
     
     auto ctrl = op.ctrl();
     auto adjoint = op.adjoint();
-    auto expected_vo = DecorateOp::computePostDecorateTrait(result.getHints(), ctrl.size(), adjoint);
+    auto ctrls = ctrl.getAsValueRange<mlir::BoolAttr>();
+    auto all_one = std::all_of(ctrls.begin(), ctrls.end(), [](auto x){return x;});
+    auto expected_vo = DecorateOp::computePostDecorateTrait(result.getHints(), ctrl.size(), adjoint, all_one);
     auto size = result.getSize();
     auto expected_size = operand.getSize() + ctrl.size();
     if (expected_vo != vo) {
