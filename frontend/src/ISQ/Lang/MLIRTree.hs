@@ -129,6 +129,7 @@ data MLIROp =
     | MSCFIf {location :: MLIRPos, ifCondition :: SSA, thenRegion :: [MLIROp], elseRegion :: [MLIROp]}
     | MSCFWhile {location :: MLIRPos, breakBlock :: [MLIROp], condBlock :: [MLIROp], condExpr :: SSA, breakCond :: SSA, whileBody :: [MLIROp]}
     | MAffineFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
+    | MSCFFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
     | MSCFExecRegion {location :: MLIRPos, blocks :: [MLIRBlock]}
     | MSCFYield {location :: MLIRPos}
     | MReturn {location :: MLIRPos, returnVal :: TypedSSA}
@@ -285,6 +286,11 @@ emitOpStep f env (MSCFExecRegion loc blocks) = intercalate "\n"
 emitOpStep f env (MSCFYield loc) = indented env $ printf "scf.yield %s" (mlirPos loc)
 emitOpStep f env (MAffineFor loc lo hi step var body) = intercalate "\n" $
   [indented env $ printf "affine.for %s = %s to %s step %d {" (unSsa var) (unSsa lo) (unSsa hi) step]
+  ++ fmap (f (incrIndent env)) body
+  ++ [indented env $ printf "} %s" (mlirPos loc)]
+emitOpStep f env (MSCFFor loc lo hi step var body) = intercalate "\n" $
+  [ indented env $ printf "%s_one = arith.constant 1 : index" (unSsa var),
+    indented env $ printf "scf.for %s = %s to %s step %s_one {" (unSsa var) (unSsa lo) (unSsa hi) (unSsa var)]
   ++ fmap (f (incrIndent env)) body
   ++ [indented env $ printf "} %s" (mlirPos loc)]
 emitOpStep f env (MReturn loc (ty, v)) = indented env $ printf "return %s : %s %s" (unSsa v) (mlirType ty) (mlirPos loc)

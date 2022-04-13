@@ -15,6 +15,7 @@
 #include "mlir/Rewrite/FrozenRewritePatternSet.h"
 #include "llvm/ADT/APFloat.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+#include "isq/passes/Passes.h"
 namespace isq{
 namespace ir{
 namespace passes{
@@ -154,6 +155,7 @@ struct DecomposeKnownGatePass : public mlir::PassWrapper<DecomposeKnownGatePass,
         auto ctx = m->getContext();
         mlir::RewritePatternSet rps(ctx);
         rps.add<DecomposeKnownGateDef>(ctx, m);
+        isq::ir::passes::addLegalizeTraitsRules(rps);
         mlir::FrozenRewritePatternSet frps(std::move(rps));
         (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
     }

@@ -7,6 +7,7 @@
 #include <cctype>
 #include <llvm/ADT/StringExtras.h>
 #include <llvm/Support/Casting.h>
+#include <llvm/Support/raw_ostream.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -28,12 +29,13 @@ struct FamousGateDef{
     const char* famous_name;
     int gate_size;
     int param_size;
+    GateTrait gate_trait;
     std::optional<std::vector<std::vector<std::complex<double>>>> mat_def;
-    FamousGateDef(const char* qir_name, const char* famous_name, std::vector<std::vector<std::complex<double>>> mat_def): qir_name(qir_name), famous_name(famous_name), mat_def(mat_def){
+    FamousGateDef(const char* qir_name, const char* famous_name, std::vector<std::vector<std::complex<double>>> mat_def, GateTrait gate_trait): qir_name(qir_name), famous_name(famous_name), mat_def(mat_def), gate_trait(gate_trait){
         param_size=0;
         gate_size = (int)std::log2(mat_def.size());
     }
-    FamousGateDef(const char* qir_name, const char* famous_name, int param_size, int gate_size): qir_name(qir_name), famous_name(famous_name), param_size(param_size), gate_size(gate_size){
+    FamousGateDef(const char* qir_name, const char* famous_name, int param_size, int gate_size, GateTrait gate_trait): qir_name(qir_name), famous_name(famous_name), param_size(param_size), gate_size(gate_size), gate_trait(gate_trait){
 
     }
 };
@@ -54,7 +56,7 @@ struct RewritePreferFamousGate : public mlir::OpRewritePattern<UseGateOp>{
                 auto flat_symbol = def.value().cast<mlir::FlatSymbolRefAttr>();
                 for(auto& famousGate: famousGates){
                     if(flat_symbol.getValue() == famousGate.qir_name){
-                        if(famousGate.famous_name != defgate.sym_name()){
+                        if(getFamousName(famousGate.famous_name) != defgate.sym_name()){
                             rewriter.updateRootInPlace(use, [&](){
                                 use.nameAttr(mlir::FlatSymbolRefAttr::get(rewriter.getStringAttr(getFamousName(famousGate.famous_name))));
                             });
@@ -72,15 +74,18 @@ struct RewritePreferFamousGate : public mlir::OpRewritePattern<UseGateOp>{
     }
 };
 
+std::vector<FamousGateDef> FAMOUS_GATES;
+
 struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePass, mlir::OperationPass<mlir::ModuleOp>>{
-    std::vector<FamousGateDef> famousGates;
-    RecognizeFamousGatePass(){
+    std::vector<FamousGateDef>& famousGates;
+    RecognizeFamousGatePass(): famousGates(FAMOUS_GATES){
+        if(famousGates.size()>0) return;
         famousGates.push_back(FamousGateDef("__quantum__qis__cnot", "cnot", {
             {std::complex<double>(1,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.)},
             {std::complex<double>(0.,0.),std::complex<double>(1.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.)},
             {std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(1.,0.)},
             {std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(1.,0.),std::complex<double>(0.,0.)}
-        }));
+        }, GateTrait::Hermitian));
         famousGates.push_back(FamousGateDef("__quantum__qis__toffoli", "toffoli", {
             {std::complex<double>(1 ,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),
             std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.)},
@@ -98,35 +103,35 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
             std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(1.,0.)},
             {std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),            std::complex<double>(0.,0.),std::complex<double>(0.,0.),
             std::complex<double>(1.,0.),std::complex<double>(0.,0.)}
-        }));
+        },GateTrait::Hermitian));
         famousGates.push_back(FamousGateDef("__quantum__qis__h__body", "h", {
             {std::complex<double>(std::sqrt(0.5), 0.),std::complex<double>(std::sqrt(0.5), 0.)},
             {std::complex<double>(std::sqrt(0.5), 0.),std::complex<double>(-std::sqrt(0.5), 0.)}
-        }));
+        },GateTrait::Hermitian|GateTrait::Symmetric));
         famousGates.push_back(FamousGateDef("__quantum__qis__s__body", "s", {
             {std::complex<double>(1., 0.),std::complex<double>(0., 0.)},
             {std::complex<double>(0., 0.),std::complex<double>(0., 1.)}
-        }));
+        },GateTrait::Symmetric|GateTrait::Phase|GateTrait::Diagonal));
         famousGates.push_back(FamousGateDef("__quantum__qis__t__body", "t", {
             {std::complex<double>(1., 0.),std::complex<double>(0., 0.)},
             {std::complex<double>(0., 0.),std::complex<double>(std::sqrt(0.5), std::sqrt(0.5))}
-        }));
+        },GateTrait::Symmetric|GateTrait::Phase|GateTrait::Diagonal));
         famousGates.push_back(FamousGateDef("__quantum__qis__x__body", "x", {
             {std::complex<double>(0., 0.),std::complex<double>(1., 0.)},
             {std::complex<double>(1., 0.),std::complex<double>(0., 0.)}
-        }));
+        },GateTrait::Hermitian|GateTrait::Antidiagonal));
         famousGates.push_back(FamousGateDef("__quantum__qis__y__body", "y", {
             {std::complex<double>(0., 0.),std::complex<double>(0., -1.)},
             {std::complex<double>(0., 1.),std::complex<double>(0., 0.)}
-        }));
+        },GateTrait::Hermitian|GateTrait::Antidiagonal));
         famousGates.push_back(FamousGateDef("__quantum__qis__z__body", "z", {
             {std::complex<double>(1., 0.),std::complex<double>(0., 0.)},
             {std::complex<double>(0., 0.),std::complex<double>(-1., 0.)}
-        }));
-        famousGates.push_back(FamousGateDef("__quantum__qis__rx__body", "rx", 1, 1));
-        famousGates.push_back(FamousGateDef("__quantum__qis__ry__body", "ry", 1, 1));
-        famousGates.push_back(FamousGateDef("__quantum__qis__rz__body", "rz", 1, 1));
-        famousGates.push_back(FamousGateDef("__quantum__qis__u3", "u3", 3, 1));
+        },GateTrait::Hermitian|GateTrait::Phase|GateTrait::Diagonal));
+        famousGates.push_back(FamousGateDef("__quantum__qis__rx__body", "rx", 1, 1, GateTrait::Symmetric));
+        famousGates.push_back(FamousGateDef("__quantum__qis__ry__body", "ry", 1, 1, GateTrait::Symmetric));
+        famousGates.push_back(FamousGateDef("__quantum__qis__rz__body", "rz", 1, 1, GateTrait::Diagonal | GateTrait::Symmetric));
+        famousGates.push_back(FamousGateDef("__quantum__qis__u3", "u3", 3, 1, GateTrait::Symmetric));
     }
 
     void emitToffoliConstruction(mlir::OpBuilder builder){
@@ -164,7 +169,7 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
         auto ctx = moduleOp->getContext();
         mlir::OpBuilder builder(moduleOp->getContext());
         builder.setInsertionPointToEnd(block);
-        auto gateType = GateType::get(ctx, famousGate.gate_size, GateTrait::General);
+        auto gateType = GateType::get(ctx, famousGate.gate_size, famousGate.gate_trait);
         auto name = getFamousName(famousGate.famous_name);
         mlir::SmallVector<mlir::Attribute> definitions;
         definitions.push_back(GateDefinition::get(builder.getStringAttr("qir"), mlir::FlatSymbolRefAttr::get(builder.getStringAttr(famousGate.qir_name)),ctx));
@@ -204,11 +209,17 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
         for(auto& famousOp : this->famousGates){
             emitFamousGate(famousOp);
         }
+        
         // Secondly, replace all references to famous gates.
         mlir::RewritePatternSet rps(moduleOp.getContext());
         rps.add<RewritePreferFamousGate>(moduleOp, famousGates);
+        addLegalizeTraitsRules(rps);
         mlir::FrozenRewritePatternSet frps(std::move(rps));
-        (void)mlir::applyPatternsAndFoldGreedily(moduleOp, frps);
+        mlir::GreedyRewriteConfig  config;
+        //config.maxIterations=mlir::GreedyRewriteConfig::kNoIterationLimit;
+        (void)mlir::applyPatternsAndFoldGreedily(moduleOp, frps, config);
+
+        
     }
     mlir::StringRef getArgument() const final{
         return "isq-recognize-famous-gates";
@@ -231,16 +242,42 @@ llvm::SmallString<32> getFamousName(const char* famous_gate){
     return name;
 }
 
+FamousGateDef* findFamousGate(const char* famous_gate){
+    llvm::SmallString<32> name1;
+    while(char ch = *(famous_gate++)){
+        name1+=llvm::toLower(ch);
+    }
+    for(auto i=0; i<FAMOUS_GATES.size(); i++){
+        auto def = &FAMOUS_GATES[i];
+        llvm::SmallString<32> name2;
+
+        const char* known_gate = def->famous_name;
+        while(char ch = *(known_gate++)){
+            name2+=llvm::toLower(ch);
+        }
+        if(name1==name2){
+            return def;
+        }
+        
+    }
+    llvm_unreachable("famous gate not found");
+    assert(0);
+}
+
+
 mlir::Value emitUseBuiltinGate(mlir::OpBuilder& builder, int original_size, const char* famous_gate, mlir::ArrayRef<mlir::Value> params, mlir::ArrayAttr ctrl, bool adjoint){
     auto ctx = builder.getContext();
     if(!ctrl){
         ctrl = mlir::ArrayAttr::get(ctx, mlir::ArrayRef<mlir::Attribute>{});
     }
-    auto gate_type = GateType::get(ctx, original_size, GateTrait::General);
+    auto famous_gate_def = findFamousGate(famous_gate);
+    auto gate_type = GateType::get(ctx, original_size, famous_gate_def->gate_trait);
     auto use_gate = builder.create<UseGateOp>(mlir::UnknownLoc::get(ctx), gate_type, mlir::FlatSymbolRefAttr::get(ctx, getFamousName(famous_gate)), params);
     auto used_gate = use_gate.result();
     if((ctrl && ctrl.size()>0) || adjoint){
-        auto decorate_op = builder.create<DecorateOp>(mlir::UnknownLoc::get(ctx), GateType::get(ctx, original_size + ctrl.size(), GateTrait::General), used_gate, adjoint, ctrl);
+        auto ctrls = ctrl.getAsValueRange<mlir::BoolAttr>();
+        auto all_one = std::all_of(ctrls.begin(), ctrls.end(), [](auto x){return x;});
+        auto decorate_op = builder.create<DecorateOp>(mlir::UnknownLoc::get(ctx), GateType::get(ctx, original_size + ctrl.size(), DecorateOp::computePostDecorateTrait(gate_type.getHints(), ctrl.size(), adjoint, all_one)), used_gate, adjoint, ctrl);
         used_gate = decorate_op.getResult();
         return decorate_op;
     }

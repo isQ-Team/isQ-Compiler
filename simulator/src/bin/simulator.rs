@@ -1,7 +1,9 @@
 use isq_simulator::{
-    devices::{checked::CheckedDevice, naive::NaiveSimulator, cuda::QSimKernelSimulator},
+    devices::{checked::CheckedDevice, naive::NaiveSimulator},
     facades::qir::context::{get_current_context, make_context_current, QIRContext}, qdevice::QDevice,
 };
+#[cfg(feature = "cuda")]
+use isq_simulator::devices::cuda::QSimKernelSimulator;
 use libloading::*;
 
 use clap::{Parser, ArgEnum, PossibleValue};

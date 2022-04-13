@@ -105,19 +105,28 @@ impl NaiveSimulator {
             lo.iter_mut().for_each(|x| *x /= prob_sqrt);
         }
     }
+    fn validate(&self){
+        trace!("{:?}", self.state);
+        let sum: f64 = self.state.iter().map(|x| x.norm_sqr()).sum();
+        if sum>1.001 || sum<0.999{
+            panic!("failed");
+        }
+    }
     // Remove the most significant qubit. This must be done after assuring that the qubit is in computational state.
     fn trace_out_msb_computational_qubit(&mut self, value: bool) {
         let qubit_id = self.qubit_map_inv.pop().expect("No qubit allocated");
+        self.validate();
         if value {
             let mid = self.state.len() / 2;
             let (lo, hi) = self.state.split_at_mut(mid);
             unsafe {
-                core::ptr::copy_nonoverlapping(lo.as_mut_ptr(), hi.as_mut_ptr(), hi.len());
+                core::ptr::copy_nonoverlapping(hi.as_mut_ptr(), lo.as_mut_ptr(), hi.len());
             }
         }
         unsafe {
             self.state.set_len(self.state.len() / 2);
         }
+        self.validate();
         self.qubit_map.remove(&qubit_id).unwrap();
     }
 
@@ -182,6 +191,7 @@ impl NaiveSimulator {
     fn zeroing_msb(&mut self) {
         let mid = self.state.len() / 2;
         let (lo, hi) = self.state.split_at_mut(mid);
+        assert_eq!(lo.len(), hi.len());
         unsafe {
             core::ptr::copy_nonoverlapping(hi.as_mut_ptr(), lo.as_mut_ptr(), mid);
             hi.iter_mut().for_each(|x| *x = core::mem::zeroed());
@@ -251,9 +261,11 @@ impl QDevice for NaiveSimulator {
                     panic!("Reset is not allowed to have control qubits");
                 }
                 let ret = self.measure(qubits[0]);
+                self.validate();
                 if ret {
                     self.zeroing_msb();
                 }
+                self.validate();
             }
             X => {
                 self.single_qubit_gate(

@@ -1,4 +1,0 @@
-namespace isq::ir::passes{
-
-
-}
