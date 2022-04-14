@@ -1,0 +1,6 @@
+{
+    "qbit_num": 12,
+    "topo": [[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,12]],
+    "init_map": "simulated_annealing",
+    "qcis": "H Q1\nX2P Q2\nCZ Q1 Q3\nY2M Q1\nCZ Q3 Q2"
+}
