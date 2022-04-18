@@ -1,5 +1,6 @@
 // Useful quantum ops that can be supported.
 use alloc::vec::Vec;
+use num_complex::Complex64;
 #[derive(Copy, Clone, Eq, PartialEq, Debug, PartialOrd, Ord)]
 pub enum QuantumOp {
     Reset,
@@ -20,6 +21,7 @@ pub enum QuantumOp {
     Rz,
     U3,
     GPhase,
+    AnySQ,
 }
 
 impl QuantumOp {
@@ -43,6 +45,7 @@ impl QuantumOp {
             QuantumOp::Rz => 1,
             QuantumOp::U3 => 1,
             QuantumOp::GPhase => 0,
+            QuantumOp::AnySQ => 1
         }
     }
     pub fn get_parameter_count(&self) -> usize {
@@ -64,7 +67,8 @@ impl QuantumOp {
             QuantumOp::Ry => 1,
             QuantumOp::Rz => 1,
             QuantumOp::U3 => 3,
-            QuantumOp::GPhase => 0,
+            QuantumOp::GPhase => 1,
+            QuantumOp::AnySQ => 8
         }
     }
 }
@@ -90,3 +94,4 @@ pub trait QDevice {
     }
     fn measure(&mut self, qubit: &Self::Qubit) -> bool;
 }
+

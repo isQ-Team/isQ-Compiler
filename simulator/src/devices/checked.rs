@@ -47,7 +47,9 @@ impl<Q, T: QDevice<Qubit = Q>> QDevice for CheckedDevice<Q, T> {
         }
     }
     fn supported_quantum_ops(&self) -> Vec<QuantumOp> {
-        self.device.supported_quantum_ops()
+        let mut ops = self.device.supported_quantum_ops();
+        ops.sort();
+        ops
     }
     fn controlled_qop(
         &mut self,
