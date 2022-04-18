@@ -157,27 +157,22 @@ impl QDevice for QSimKernelSimulator{
         use crate::qdevice::QuantumOp::*;
         vec![Reset, CNOT, CZ, U3]
     }
-    fn controlled_qop(
+    fn qop(
         &mut self,
         op_type: crate::qdevice::QuantumOp,
-        controllers: &[&Self::Qubit],
         qubits: &[&Self::Qubit],
         parameters: &[f64],
     ) {
         //self.0.dump();
         trace!(
-            "Perform {:?}{:?} on {:?}-{:?}",
+            "Perform {:?}{:?} on {:?}",
             op_type,
             parameters,
-            controllers,
             qubits
         );
         use crate::qdevice::QuantumOp::*;
         match op_type {
             Reset => {
-                if controllers.len() != 0 {
-                    panic!("Reset is not allowed to have control qubits");
-                }
                 let (result, prob_zero) = self.0.measure_reset(*qubits[0], true, rand::random::<f32>());
                 trace!(
                     "Measuring(reset!) qubit {} (prob = ({}, {})), yielding {}",
@@ -189,6 +184,14 @@ impl QDevice for QSimKernelSimulator{
             }
             CNOT => {
                 self.0.cnot(*qubits[0], *qubits[1]);
+            }
+            AnySQ => {
+                let p = parameters;
+                let mat: [Complex32; 4] = [
+                    Complex32::new(p[0] as f32, p[1] as f32), Complex32::new(p[2] as f32, p[3] as f32),
+                    Complex32::new(p[4] as f32, p[5] as f32), Complex32::new(p[6] as f32, p[7] as f32)
+                ];
+                self.0.u3(*qubits[0], &mat);
             }
             U3 => {
                 let theta = parameters[0] as f32;

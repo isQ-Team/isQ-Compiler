@@ -1,5 +1,5 @@
 use isq_simulator::{
-    devices::{checked::CheckedDevice, naive::NaiveSimulator},
+    devices::{checked::CheckedDevice, naive::NaiveSimulator, sq2u3::SQ2U3Device},
     facades::qir::context::{get_current_context, make_context_current, QIRContext}, qdevice::QDevice,
 };
 #[cfg(feature = "cuda")]
@@ -55,12 +55,12 @@ fn main() -> std::io::Result<()> {
     let args: SimulatorArgs = SimulatorArgs::parse();
     let device: Box<dyn QDevice<Qubit=usize>> = {
         if args.naive{
-            Box::new(CheckedDevice::new(NaiveSimulator::new()))
+            Box::new(CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new())))
         }else if let Some(cap) = args.cuda{
             #[cfg(not(feature = "cuda"))]
             panic!("Simulator is built with `cuda` feature disabled.");
             #[cfg(feature = "cuda")]
-            Box::new(CheckedDevice::new(QSimKernelSimulator::new(cap)))
+            Box::new(CheckedDevice::new(SQ2U3Device::new(QSimKernelSimulator::new(cap))))
         }else{
             unreachable!();
         }

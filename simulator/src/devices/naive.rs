@@ -236,7 +236,7 @@ impl QDevice for NaiveSimulator {
 
     fn supported_quantum_ops(&self) -> Vec<crate::qdevice::QuantumOp> {
         use crate::qdevice::QuantumOp::*;
-        vec![Reset, X, Y, Z, H, S, T, CNOT, CZ, Swap, U3, Rx, Ry, Rz, GPhase]
+        vec![Reset, CNOT, CZ, Swap, AnySQ, GPhase]
     }
 
     fn controlled_qop(
@@ -254,7 +254,6 @@ impl QDevice for NaiveSimulator {
             qubits
         );
         use crate::qdevice::QuantumOp::*;
-        let invsqrt2 = (0.5f64).sqrt();
         match op_type {
             Reset => {
                 if controllers.len() != 0 {
@@ -267,77 +266,16 @@ impl QDevice for NaiveSimulator {
                 }
                 self.validate();
             }
-            X => {
-                self.single_qubit_gate(
+            Swap => {
+                self.two_qubit_gate(
                     controllers,
                     *qubits[0],
-                    [[0.0.into(), 1.0.into()], [1.0.into(), 0.0.into()]],
-                );
-            }
-            Y => {
-                self.single_qubit_gate(
-                    controllers,
-                    *qubits[0],
+                    *qubits[1],
                     [
-                        [0.0.into(), Complex64::new(0.0, 1.0)],
-                        [Complex64::new(0.0, -1.0), 0.0.into()],
-                    ],
-                );
-            }
-            Z => {
-                self.single_qubit_gate(
-                    controllers,
-                    *qubits[0],
-                    [[1.0.into(), 0.0.into()], [0.0.into(), (-1.0).into()]],
-                );
-            }
-            H => {
-                self.single_qubit_gate(
-                    controllers,
-                    *qubits[0],
-                    [
-                        [invsqrt2.into(), invsqrt2.into()],
-                        [invsqrt2.into(), (-invsqrt2).into()],
-                    ],
-                );
-            }
-            S => {
-                self.single_qubit_gate(
-                    controllers,
-                    *qubits[0],
-                    [
-                        [1.0.into(), 0.0.into()],
-                        [0.0.into(), Complex64::new(0.0, -1.0)],
-                    ],
-                );
-            }
-            SInv => {
-                self.single_qubit_gate(
-                    controllers,
-                    *qubits[0],
-                    [
-                        [1.0.into(), 0.0.into()],
-                        [0.0.into(), Complex64::new(0.0, 1.0)],
-                    ],
-                );
-            }
-            T => {
-                self.single_qubit_gate(
-                    controllers,
-                    *qubits[0],
-                    [
-                        [1.0.into(), 0.0.into()],
-                        [0.0.into(), Complex64::new(invsqrt2, invsqrt2)],
-                    ],
-                );
-            }
-            TInv => {
-                self.single_qubit_gate(
-                    controllers,
-                    *qubits[0],
-                    [
-                        [1.0.into(), 0.0.into()],
-                        [0.0.into(), Complex64::new(invsqrt2, -invsqrt2)],
+                        [1.0.into(), 0.0.into(), 0.0.into(), 0.0.into()],
+                        [0.0.into(), 0.0.into(), 1.0.into(), 0.0.into()],
+                        [0.0.into(), 1.0.into(), 0.0.into(), 0.0.into()],
+                        [0.0.into(), 0.0.into(), 0.0.into(), 1.0.into()],
                     ],
                 );
             }
@@ -367,65 +305,13 @@ impl QDevice for NaiveSimulator {
                     ],
                 );
             }
-            Swap => {
-                self.two_qubit_gate(
-                    controllers,
-                    *qubits[0],
-                    *qubits[1],
-                    [
-                        [1.0.into(), 0.0.into(), 0.0.into(), 0.0.into()],
-                        [0.0.into(), 0.0.into(), 1.0.into(), 0.0.into()],
-                        [0.0.into(), 1.0.into(), 0.0.into(), 0.0.into()],
-                        [0.0.into(), 0.0.into(), 0.0.into(), 1.0.into()],
-                    ],
-                );
-            }
-            U3 => {
-                let theta = parameters[0];
-                let phi = parameters[1];
-                let lambda = parameters[2];
-                let i = Complex64::i();
-                let mat = [
-                    [
-                        (theta / 2.0).cos().into(),
-                        -((i * lambda).exp()) * (theta / 2.0).sin(),
-                    ],
-                    [
-                        (i * phi).exp() * (theta / 2.0).sin(),
-                        (i * (phi + lambda)).exp() * (theta / 2.0).cos(),
-                    ],
+            AnySQ => {
+                let p = parameters;
+                let mat: [[Complex64; 2]; 2] = [
+                    [Complex64::new(p[0], p[1]), Complex64::new(p[2], p[3])],
+                    [Complex64::new(p[4], p[5]), Complex64::new(p[6], p[7])]
                 ];
-                self.single_qubit_gate(controllers, *qubits[0], mat);
-            }
-            Rx => {
-                let theta = parameters[0];
-                let mat = [
-                    [
-                        (theta / 2.0).cos().into(),
-                        (-Complex64::i() * ((theta / 2.0).sin())).into(),
-                    ],
-                    [
-                        (-Complex64::i() * (theta / 2.0).sin()).into(),
-                        (theta / 2.0).cos().into(),
-                    ],
-                ];
-                self.single_qubit_gate(controllers, *qubits[0], mat);
-            }
-            Ry => {
-                let theta = parameters[0];
-                let mat = [
-                    [(theta / 2.0).cos().into(), (-((theta / 2.0).sin())).into()],
-                    [(theta / 2.0).sin().into(), (theta / 2.0).cos().into()],
-                ];
-                self.single_qubit_gate(controllers, *qubits[0], mat);
-            }
-            Rz => {
-                let theta = parameters[0];
-                let mat = [
-                    [(-Complex64::i() * theta / 2.0).exp(), 0.0.into()],
-                    [0.0.into(), (Complex64::i() * theta / 2.0).exp()],
-                ];
-                self.single_qubit_gate(controllers, *qubits[0], mat);
+                self.single_qubit_gate(controllers, *qubits[0], mat)
             }
             _ => {
                 panic!("Unsupported quantum operation: {:?}", op_type);
@@ -451,13 +337,16 @@ impl QDevice for NaiveSimulator {
 
 #[cfg(test)]
 mod test {
+    
     #[test]
     pub fn naive_bell() {
         use super::*;
         use crate::devices::checked::*;
         use crate::qdevice::QuantumOp::*;
+        use crate::devices::sq2u3::SQ2U3Device;
+
         env_logger::init();
-        let mut device = CheckedDevice::new(NaiveSimulator::new());
+        let mut device = CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new()));
 
         let (mut r_00, mut r_01, mut r_10, mut r_11) = (0, 0, 0, 0);
         for _i in 0..1000 {
