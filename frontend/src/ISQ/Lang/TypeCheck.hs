@@ -377,7 +377,9 @@ typeCheckAST' f (NCoreU3 pos gate operands modifiers angles) = do
 typeCheckAST' f (NCoreReset pos qubit) = do
     qubit'<-typeCheckExpr qubit
     qubit''<-matchType [Exact (refType () $ qbitType ())] qubit'
-    return $ NCoreReset (okStmt pos) qubit''
+    temp_ssa<-nextId
+    let annotation = TypeCheckData pos (unitType ()) temp_ssa
+    return $ NCoreReset annotation qubit''
 typeCheckAST' f (NCorePrint pos val) = do
     val'<-typeCheckExpr val
     val''<-matchType [
@@ -388,7 +390,7 @@ typeCheckAST' f (NCorePrint pos val) = do
     return $ NCorePrint (okStmt pos) val''
 typeCheckAST' f (NCoreMeasure pos qubit) = do
     qubit'<-typeCheckExpr qubit
-    qubit''<-matchType [Exact (refType () $ qbitType ())] qubit'
+    qubit''<-matchType [Exact (boolType ())] qubit'
     return $ NCoreMeasure (okStmt pos) qubit''
 typeCheckAST' f (NProcedure _ _ _ _ _) = error "unreachable"
 typeCheckAST' f (NContinue _) = error "unreachable"
@@ -428,6 +430,7 @@ typeCheckAST' f NExternGate{} = error "unreachable"
 typeCheckAST' f NProcedureWithDerive{} = error "unreachable"
 typeCheckAST' f NResolvedDefvar{} = error "unreachable"
 typeCheckAST' f NGlobalDefvar {} = error "unreachable"
+typeCheckAST' f NOracle{} = error "unreachable"
 typeCheckAST :: AST Pos -> TypeCheck (AST TypeCheckData)
 typeCheckAST = fix typeCheckAST'
 
