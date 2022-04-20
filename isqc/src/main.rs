@@ -36,8 +36,16 @@ pub enum EmitMode {
     MLIRQIR,
     LLVM,
     MLIROptimized,
-    Binary
+    Binary,
+    Out
 }
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
+pub enum CompileTarget{
+    QIR,
+    OpenQASM3,
+    QCIS
+}
+
 
 #[derive(Subcommand)]
 pub enum Commands{
@@ -47,8 +55,12 @@ pub enum Commands{
         output: Option<String>,
         #[clap(long, short='O', validator = opt_level)]
         opt_level: Option<usize>,
-        #[clap(long, arg_enum, default_value = "binary")]
-        emit: EmitMode
+        #[clap(long, arg_enum, default_value = "out")]
+        emit: EmitMode,
+        #[clap(long, arg_enum, default_value = "qir")]
+        target: CompileTarget,
+        #[clap(long)]
+        qcis_config: Option<String>
     },
     Simulate{
         #[clap(required(true))]
@@ -116,9 +128,10 @@ fn main()->miette::Result<()> {
             &[OsStr::new("simulate"), default_output_path.as_os_str()]
             ).map_err(ioErrorWhen("Calling isqc simulate"))?;
         }
-        Commands::Compile{input, output, opt_level, emit}=>'command:{
+        Commands::Compile{input, output, opt_level, emit, target, qcis_config}=>'command:{
             let (input_path, default_output_path) = resolve_input_path(&input, match emit{
                 EmitMode::Binary=>"so",
+                EmitMode::Out=> "so",
                 EmitMode::LLVM=>"ll",
                 EmitMode::MLIR=>"mlir",
                 EmitMode::MLIRQIR=>"ll.mlir",
@@ -141,8 +154,11 @@ fn main()->miette::Result<()> {
                 fout.finalize();
                 break 'command;
             }
+            let qcis_flags = "-pass-pipeline=isq-recognize-famous-gates,isq-target-qcis,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,isq-fold-decorated-gates,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,symbol-dce,cse";
+            let normal_flags = "-pass-pipeline=isq-recognize-famous-gates,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,isq-fold-decorated-gates,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,symbol-dce,cse";
+            let flags = if let CompileTarget::QCIS = target {qcis_flags} else {normal_flags};
             let optimized_mlir = exec::exec_command_text(&root, "isq-opt", &[
-                "-pass-pipeline=isq-recognize-famous-gates,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,isq-fold-decorated-gates,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,symbol-dce,cse",
+                flags,
                 "--mlir-print-debuginfo"
             ], &resolved_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
             if optimized_mlir.trim().is_empty(){
@@ -192,6 +208,34 @@ fn main()->miette::Result<()> {
             
             fout.get_file_mut().write_all(&linked_obj).map_err(IoError)?;
             fout.finalize();
+            // post-processing.
+            if let EmitMode::Out = emit{
+                if let CompileTarget::QCIS = target{
+                    // run simulator 
+                    let (_, qcis_output_path) = resolve_input_path(&input, "qcis")?;
+                    let mut qcis_out = MayDropFile::new(&qcis_output_path)?;
+                    let qir_object = output.to_str().unwrap();
+                    let qir_object = if qir_object.starts_with("/"){
+                        qir_object.to_owned()
+                    }else{
+                        format!("./{}", qir_object)
+                    };
+                    
+                    let mut v = vec!["-e".into(), "__isq__entry".into()];
+                    v.push("--qcis".into());
+                    v.push(qir_object);
+                    let config_file = qcis_config.ok_or(QCISConfigNotSpecified)?;
+                    let output = exec::exec_command_with_decorator(&root, "simulator", &v, &[], |child|{
+                        child.env("QCIS_ROUTE_CONFIG", &config_file);
+                    }).map_err(ioErrorWhen("running qcis classical part"))?;
+                    
+                    qcis_out.get_file_mut().write_all(&output).map_err(IoError)?;
+                    qcis_out.finalize();
+                }else if let CompileTarget::OpenQASM3 = target{
+                    todo!("openqasm post-generation");
+                }
+            }
+
         }
         Commands::Simulate{qir_object, cuda}=>{
             let qir_object = if qir_object.starts_with("/"){

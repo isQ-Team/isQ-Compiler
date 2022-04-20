@@ -1,0 +1,12 @@
+procedure main(){
+    qbit q[3];
+    H(q[0]);
+    X2P(q[1]);
+    CZ(q[0], q[2]);
+    Y2M(q[0]);
+    CZ(q[2], q[1]);
+    M(q[0]);
+    M(q[1]);
+    M(q[2]);
+    //H Q1\nX2P Q2\nCZ Q1 Q3\nY2M Q1\nCZ Q3 Q2"
+}

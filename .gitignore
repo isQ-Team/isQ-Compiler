@@ -12,3 +12,4 @@ result
 /examples/*.so
 /examples/*.mlir
 /examples/*.ll
+/examples/*.qcis
