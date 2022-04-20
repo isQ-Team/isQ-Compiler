@@ -16,7 +16,7 @@ void registerRecognizeFamousGates();
 void registerSQRot2U3();
 void registerDecomposeCtrlU3();
 void registerRemoveTrivialSQGates();
-void registerConvertToQCIS();
+void registerTargetQCISSet();
 
 void addLegalizeTraitsRules(mlir::RewritePatternSet& patterns);
 

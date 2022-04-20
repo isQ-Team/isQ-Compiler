@@ -1,5 +1,0 @@
-namespace isq{
-    namespace ir{
-        
-    }
-}

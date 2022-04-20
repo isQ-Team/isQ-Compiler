@@ -22,8 +22,9 @@ namespace passes{
 
 class DecomposeKnownGateDef : public mlir::OpRewritePattern<DefgateOp>{
     mlir::ModuleOp rootModule;
+    bool ignore_sq;
 public:
-    DecomposeKnownGateDef(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<DefgateOp>(ctx, 1), rootModule(module){
+    DecomposeKnownGateDef(mlir::MLIRContext* ctx, mlir::ModuleOp module, bool ignore_sq): mlir::OpRewritePattern<DefgateOp>(ctx, 1), rootModule(module), ignore_sq(ignore_sq){
 
     }
     mlir::LogicalResult decomposeMatrix(mlir::PatternRewriter& rewriter, ::mlir::StringRef decomposed_name, const std::vector<std::vector<std::complex<double>>>& mat) const{
@@ -108,6 +109,9 @@ public:
         return mlir::success();
     }
     mlir::LogicalResult matchAndRewrite(isq::ir::DefgateOp defgate,  mlir::PatternRewriter &rewriter) const override{
+        if(this->ignore_sq && defgate.type().getSize()==1){
+            return mlir::failure();
+        }
         if(!defgate.definition()) return mlir::failure();
         int id = 0;
         bool added_new_definition = false;
@@ -150,21 +154,25 @@ public:
 };
 
 struct DecomposeKnownGatePass : public mlir::PassWrapper<DecomposeKnownGatePass, mlir::OperationPass<mlir::ModuleOp>>{
+    DecomposeKnownGatePass() = default;
+    DecomposeKnownGatePass(const DecomposeKnownGatePass& pass) {}
     void runOnOperation() override{
         mlir::ModuleOp m = this->getOperation();
         auto ctx = m->getContext();
+        auto ignore_sq = ignore_sq_matrices.getValue();
         mlir::RewritePatternSet rps(ctx);
-        rps.add<DecomposeKnownGateDef>(ctx, m);
+        rps.add<DecomposeKnownGateDef>(ctx, m, ignore_sq);
         isq::ir::passes::addLegalizeTraitsRules(rps);
         mlir::FrozenRewritePatternSet frps(std::move(rps));
         (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
     }
-  mlir::StringRef getArgument() const final {
-    return "isq-decompose-known-gates-qsd";
-  }
-  mlir::StringRef getDescription() const final {
-    return  "Using QSD decomposition on matrix-known gates.";
-  }
+    Option<bool> ignore_sq_matrices{*this, "ignore-sq-matrices", llvm::cl::desc("Ignore single-qubit known matrices. Maybe useful for preserving optimization opportunities."), llvm::cl::init(false)};
+    mlir::StringRef getArgument() const final {
+        return "isq-decompose-known-gates-qsd";
+    }
+    mlir::StringRef getDescription() const final {
+        return  "Using QSD decomposition on matrix-known gates.";
+    }
 };
 
 void registerQSD(){

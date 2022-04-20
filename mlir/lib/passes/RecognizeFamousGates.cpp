@@ -86,6 +86,12 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
             {std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(1.,0.)},
             {std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(1.,0.),std::complex<double>(0.,0.)}
         }, GateTrait::Hermitian));
+        famousGates.push_back(FamousGateDef("__quantum__qis__cz", "cz", {
+            {std::complex<double>(1,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.)},
+            {std::complex<double>(0.,0.),std::complex<double>(1.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.)},
+            {std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(1.,0.),std::complex<double>(0.,0.)},
+            {std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(-1.,0.)}
+        }, GateTrait::Hermitian|GateTrait::Symmetric|GateTrait::Diagonal|GateTrait::Phase));
         famousGates.push_back(FamousGateDef("__quantum__qis__toffoli", "toffoli", {
             {std::complex<double>(1 ,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),
             std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.),std::complex<double>(0.,0.)},
@@ -116,18 +122,42 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
             {std::complex<double>(1., 0.),std::complex<double>(0., 0.)},
             {std::complex<double>(0., 0.),std::complex<double>(std::sqrt(0.5), std::sqrt(0.5))}
         },GateTrait::Symmetric|GateTrait::Phase|GateTrait::Diagonal));
+        famousGates.push_back(FamousGateDef("__quantum__qis__s__adj", "sinv", {
+            {std::complex<double>(1., 0.),std::complex<double>(0., 0.)},
+            {std::complex<double>(0., 0.),std::complex<double>(0., -1.)}
+        },GateTrait::Symmetric|GateTrait::Phase|GateTrait::Diagonal));
+        famousGates.push_back(FamousGateDef("__quantum__qis__t__adj", "tinv", {
+            {std::complex<double>(1., 0.),std::complex<double>(0., 0.)},
+            {std::complex<double>(0., 0.),std::complex<double>(std::sqrt(0.5), -std::sqrt(0.5))}
+        },GateTrait::Symmetric|GateTrait::Phase|GateTrait::Diagonal));
         famousGates.push_back(FamousGateDef("__quantum__qis__x__body", "x", {
             {std::complex<double>(0., 0.),std::complex<double>(1., 0.)},
             {std::complex<double>(1., 0.),std::complex<double>(0., 0.)}
-        },GateTrait::Hermitian|GateTrait::Antidiagonal));
+        },GateTrait::Hermitian|GateTrait::Antidiagonal|GateTrait::Symmetric));
         famousGates.push_back(FamousGateDef("__quantum__qis__y__body", "y", {
             {std::complex<double>(0., 0.),std::complex<double>(0., -1.)},
             {std::complex<double>(0., 1.),std::complex<double>(0., 0.)}
-        },GateTrait::Hermitian|GateTrait::Antidiagonal));
+        },GateTrait::Hermitian|GateTrait::Antidiagonal|GateTrait::Symmetric));
         famousGates.push_back(FamousGateDef("__quantum__qis__z__body", "z", {
             {std::complex<double>(1., 0.),std::complex<double>(0., 0.)},
             {std::complex<double>(0., 0.),std::complex<double>(-1., 0.)}
-        },GateTrait::Hermitian|GateTrait::Phase|GateTrait::Diagonal));
+        },GateTrait::Hermitian|GateTrait::Phase|GateTrait::Diagonal|GateTrait::Symmetric));
+        famousGates.push_back(FamousGateDef("__quantum__qis__x2p", "x2p", {
+            {std::complex<double>(std::sqrt(0.5), 0.),std::complex<double>(0., -std::sqrt(0.5))},
+            {std::complex<double>(0., -std::sqrt(0.5)),std::complex<double>(std::sqrt(0.5), 0.)}
+        },GateTrait::Symmetric));
+        famousGates.push_back(FamousGateDef("__quantum__qis__x2m", "x2m", {
+            {std::complex<double>(std::sqrt(0.5), 0.),std::complex<double>(0., std::sqrt(0.5))},
+            {std::complex<double>(0., std::sqrt(0.5)),std::complex<double>(std::sqrt(0.5), 0.)}
+        },GateTrait::Symmetric));
+        famousGates.push_back(FamousGateDef("__quantum__qis__y2p", "y2p", {
+            {std::complex<double>(std::sqrt(0.5), 0.),std::complex<double>(-std::sqrt(0.5), 0.)},
+            {std::complex<double>(std::sqrt(0.5), 0.),std::complex<double>(std::sqrt(0.5), 0.)}
+        },GateTrait::Symmetric));
+        famousGates.push_back(FamousGateDef("__quantum__qis__y2m", "y2m", {
+            {std::complex<double>(std::sqrt(0.5), 0.),std::complex<double>(std::sqrt(0.5), 0.)},
+            {std::complex<double>(-std::sqrt(0.5), 0.),std::complex<double>(std::sqrt(0.5), 0.)}
+        },GateTrait::Symmetric));
         famousGates.push_back(FamousGateDef("__quantum__qis__rx__body", "rx", 1, 1, GateTrait::Symmetric));
         famousGates.push_back(FamousGateDef("__quantum__qis__ry__body", "ry", 1, 1, GateTrait::Symmetric));
         famousGates.push_back(FamousGateDef("__quantum__qis__rz__body", "rz", 1, 1, GateTrait::Diagonal | GateTrait::Symmetric));

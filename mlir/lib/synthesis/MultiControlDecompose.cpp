@@ -10,7 +10,7 @@ using namespace std;
 
 using namespace isq::ir::synthesis;
 
-double esp = 1e-6;
+double eps = 1e-6;
 
 Matrix2cd Rz(double theta) {
     Matrix2cd U {
@@ -38,10 +38,10 @@ Matrix2cd getX(){
 
 bool very_close(Matrix2cd A, Matrix2cd B){
     auto C = A - B;
-    auto s = C.sum();
-    if (abs(s.real()) < esp && abs(s.imag()) < esp)
-        return true;
-    return false;
+    auto s = C.cwiseAbs().sum();
+    if (s > eps)
+        return false;
+    return true;
 }
 
 /*
@@ -53,7 +53,7 @@ UAngle ZYDecompose(UnitaryVector uvector){
         return UAngle(0., 0., 0., 0.);
     }
     
-    double alpha, beta, gamma, delta = 0.;
+    double alpha=0. , beta=0., gamma =0. , delta = 0.;
     complex<double> a(uvector[0].first, uvector[0].second);
     complex<double> b(uvector[1].first, uvector[1].second);
     complex<double> c(uvector[2].first, uvector[2].second);
@@ -63,10 +63,10 @@ UAngle ZYDecompose(UnitaryVector uvector){
         {a, b},{c, d}
     };
 
-    if (abs(b) + abs(c) < esp){
+    if (abs(b) + abs(c) < eps){
         beta = arg(d / a);
         alpha = arg(sqrt(d * a));
-    }else if (abs(a) + abs(d) < esp){
+    }else if (abs(a) + abs(d) < eps){
         gamma = M_PI;
         beta = arg(c / (dcomplex(-1., 0.)*b));
         alpha = arg(sqrt(dcomplex(-1., 0.)*b*c));
@@ -90,18 +90,18 @@ UAngle ZYDecompose(UnitaryVector uvector){
         if (very_close(U, -1.*Up)){
             alpha += M_PI;
         }else{
-            if (norm(U(0,0)-Up(0,0)) < esp){
+            if (norm(U(0,0)-Up(0,0)) < eps){
                 gamma = -gamma;
-            }else if (norm(U(0,1)-Up(0,1)) < esp){
+            }else if (norm(U(0,1)-Up(0,1)) < eps){
                 gamma = 2.*M_PI - gamma;
-            }else if (norm(U(0,1)-dcomplex(0.,1.)*Up(0,1)) < esp){
+            }else if (norm(U(0,1)-dcomplex(0.,1.)*Up(0,1)) < eps){
                 delta += M_PI;
-                if (!(norm(U(0,0)-dcomplex(0.,-1.)*Up(0,0)) < esp)){
+                if (!(norm(U(0,0)-dcomplex(0.,-1.)*Up(0,0)) < eps)){
                     gamma = 2.*M_PI - gamma;
                 }
             }else{
                 beta += M_PI;
-                if (!(norm(U(0,0)-dcomplex(0.,-1.)*Up(0,0)) < esp)){
+                if (!(norm(U(0,0)-dcomplex(0.,-1.)*Up(0,0)) < eps)){
                     gamma = 2.*M_PI - gamma;
                 }
             }
@@ -115,9 +115,14 @@ UAngle ZYDecompose(UnitaryVector uvector){
         for (int j = 0; j < 2; j++){
             cout << U(i, j) << ' ' << Up(i, j) << endl;
         }
-    }*/
-
+    }
+    */
+    //cout<<"alpha:"<< alpha<<"\n";
+    //cout<<"beta:"<< beta<<"\n";
+    //cout<<"gamma:"<< gamma<<"\n";
+    //cout<<"delta:"<< delta<<"\n";
     if (!very_close(Up, U)){
+        assert(0 && "z-y decompose failed");
         cout << "z-y decompose error\n";
         return UAngle(0.,0.,0.,0.);
     }
@@ -416,13 +421,18 @@ DecomposedGates isq::ir::synthesis::mcdecompose_u(UnitaryVector uvector, string 
     }else{
     
         auto xlist = mcdecompose_x(q);
-
+        
         auto angle = ZYDecompose(uvector);
-        gatelist.push_back(ElementGate(NONE, {shape-1}, 0., (get<3>(angle) - get<1>(angle)) / 2., 0.));
+        auto alpha = get<0>(angle);
+        auto beta = get<1>(angle);
+        auto gamma = get<2>(angle);
+        auto delta = get<3>(angle);
+        //cout << get<0>(uvector[0])<<alpha << ' ' << beta << ' ' << gamma << ' ' << delta << endl;
+        gatelist.push_back(ElementGate(NONE, {shape-1}, 0., (delta - beta) / 2., 0.));
         gatelist.insert(gatelist.end(), xlist.begin(), xlist.end());
-        gatelist.push_back(ElementGate(NONE, {shape-1}, -1.*get<2>(angle) / 2., 0., -1.*(get<3>(angle) + get<1>(angle)) / 2.));
+        gatelist.push_back(ElementGate(NONE, {shape-1}, -1.*gamma / 2., 0., -1.*(delta+beta) / 2.));
         gatelist.insert(gatelist.end(), xlist.begin(), xlist.end());
-        gatelist.push_back(ElementGate(NONE, {shape-1}, get<2>(angle) / 2., get<1>(angle), 0.));
+        gatelist.push_back(ElementGate(NONE, {shape-1}, gamma / 2., beta, 0.));
         
         GateLocation loc(q.begin(), q.end()-1);
         auto zlist = mcdecompose_z(get<0>(angle), loc, shape-1);

@@ -22,6 +22,7 @@ pub enum QuantumOp {
     U3,
     GPhase,
     AnySQ,
+    X2P, X2M, Y2P, Y2M
 }
 
 impl QuantumOp {
@@ -45,7 +46,11 @@ impl QuantumOp {
             QuantumOp::Rz => 1,
             QuantumOp::U3 => 1,
             QuantumOp::GPhase => 0,
-            QuantumOp::AnySQ => 1
+            QuantumOp::AnySQ => 1,
+            QuantumOp::X2P => 1,
+            QuantumOp::X2M => 1,
+            QuantumOp::Y2P => 1,
+            QuantumOp::Y2M => 1,
         }
     }
     pub fn get_parameter_count(&self) -> usize {
@@ -68,7 +73,11 @@ impl QuantumOp {
             QuantumOp::Rz => 1,
             QuantumOp::U3 => 3,
             QuantumOp::GPhase => 1,
-            QuantumOp::AnySQ => 8
+            QuantumOp::AnySQ => 8,
+            QuantumOp::X2P => 0,
+            QuantumOp::X2M => 0,
+            QuantumOp::Y2P => 0,
+            QuantumOp::Y2M => 0,
         }
     }
 }

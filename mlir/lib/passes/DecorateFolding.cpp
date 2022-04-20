@@ -63,7 +63,8 @@ const char* ISQ_FAKELOADSTORE_ID = "ISQ_FAKELOADSTORE_ID";
 struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGateOp>{
     mlir::ModuleOp rootModule;
     bool* dirty;
-    DecorateFoldRewriteRule(mlir::MLIRContext* ctx, mlir::ModuleOp module, bool* dirty): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1), rootModule(module), dirty(dirty){
+    bool ignore_sq_adj;
+    DecorateFoldRewriteRule(mlir::MLIRContext* ctx, mlir::ModuleOp module, bool* dirty, bool ignore_sq_adj): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1), rootModule(module), dirty(dirty), ignore_sq_adj(ignore_sq_adj){
 
     }
 
@@ -164,7 +165,10 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
         auto defgate = mlir::SymbolTable::lookupNearestSymbolFrom<DefgateOp>(use_op.getOperation(), use_op.name());
         assert(defgate);
         if(!defgate.definition()) return mlir::failure();
-
+        // Ignore sq adj.
+        if(defgate.type().getSize()==1 && decorate_op.adjoint() && decorate_op.ctrl().size()==0 && this->ignore_sq_adj){
+            return mlir::failure();
+        }
         // controlled-cnot is controlled-cx
         if(isFamousGate(defgate, "CNOT") || isFamousGate(defgate, "Toffoli")){
             auto ctx = getContext();
@@ -348,15 +352,18 @@ struct FakeMem2Reg : public mlir::OpRewritePattern<mlir::FuncOp>{
 };
 
 struct DecorateFoldingPass : public mlir::PassWrapper<DecorateFoldingPass, mlir::OperationPass<mlir::ModuleOp>>{
+    DecorateFoldingPass() = default;
+    DecorateFoldingPass(const DecorateFoldingPass& pass) {}
     void runOnOperation() override {
         mlir::ModuleOp m = this->getOperation();
         auto ctx = m->getContext();
         bool dirty = true;
+        auto sq_adj = this->ignore_sq_adj.getValue();
         while(dirty){
             dirty = false;
             do{
                 mlir::RewritePatternSet rps(ctx);
-                rps.add<DecorateFoldRewriteRule>(ctx, m, &dirty);
+                rps.add<DecorateFoldRewriteRule>(ctx, m, &dirty, sq_adj);
                 mlir::FrozenRewritePatternSet frps(std::move(rps));
                 (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
             }while(0);
@@ -383,6 +390,7 @@ struct DecorateFoldingPass : public mlir::PassWrapper<DecorateFoldingPass, mlir:
         }
         
     }
+    Option<bool> ignore_sq_adj{*this, "preserve-sq-adj", llvm::cl::desc("Preserve single-qubit adjoint gates. Useful for preserving optimization chances."), llvm::cl::init(false)};
     mlir::StringRef getArgument() const final {
         return "isq-fold-decorated-gates";
     }

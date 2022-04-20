@@ -1,0 +1,34 @@
+defgate U1 = [-1, 0; 0, 1];
+
+procedure test1(){
+    qbit anc;
+    anc = |0>;
+    qbit q;
+    q = |0>;
+    H(anc);
+    ctrl U1(anc, q);
+    H(anc);
+    
+    int r = M(anc);
+    print r; 
+}
+
+defgate U2 = [1, 0; 0, -1];
+
+procedure test2(){
+    qbit anc;
+    anc = |0>;
+    qbit q;
+    q = |0>;
+    H(anc);
+    ctrl U2(anc, q);
+    H(anc);
+    
+    int r = M(anc);
+    print r; 
+}
+
+procedure main(){
+    test1();
+    test2();
+}

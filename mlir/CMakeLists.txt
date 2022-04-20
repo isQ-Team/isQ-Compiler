@@ -11,6 +11,41 @@ if(POLICY CMP0116)
   cmake_policy(SET CMP0116 NEW)
 endif()
 
+
+string(TOUPPER "${CMAKE_BUILD_TYPE}" uppercase_CMAKE_BUILD_TYPE)
+
+if(uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG" )
+    option(ISQ_OPT_ENABLE_ASSERTIONS "Enable assertions" ON)
+else()
+    option(ISQ_OPT_ENABLE_ASSERTIONS "Enable assertions" OFF)
+endif()
+
+
+if(ISQ_OPT_ENABLE_ASSERTIONS)
+    if(NOT MSVC)
+        add_definitions(-D_DEBUG)
+    endif()
+    # On non-Debug builds cmake automatically defines NDEBUG, so we explicitly undefine it:
+    if(NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+        # NOTE: use `add_compile_options` rather than `add_definitions` since
+        # `add_definitions` does not support generator expressions.
+        add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-UNDEBUG>)
+
+        # Also remove /D NDEBUG to avoid MSVC warnings about conflicting defines.
+        foreach (flags_var_to_scrub
+                CMAKE_CXX_FLAGS_RELEASE
+                CMAKE_CXX_FLAGS_RELWITHDEBINFO
+                CMAKE_CXX_FLAGS_MINSIZEREL
+                CMAKE_C_FLAGS_RELEASE
+                CMAKE_C_FLAGS_RELWITHDEBINFO
+                CMAKE_C_FLAGS_MINSIZEREL)
+            string (REGEX REPLACE "(^| )[/-]D *NDEBUG($| )" " "
+                    "${flags_var_to_scrub}" "${${flags_var_to_scrub}}")
+        endforeach()
+    endif()
+endif()
+
+
 # SET(CMAKE_BUILD_TYPE "Release")
 set (CMAKE_CXX_STANDARD 17)
 add_compile_options(-fno-rtti)
