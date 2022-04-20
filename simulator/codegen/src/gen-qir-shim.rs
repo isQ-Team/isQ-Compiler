@@ -962,10 +962,16 @@ fn qir_microsoft_extension_foundation() -> Vec<QIRInterface> {
 fn qir_isq() -> Vec<QIRInterface> {
     let mut interfaces: Vec<QIRInterface> = Vec::new();
     interfaces.push(QIRInterface::new("qis", "u3", QVoid, &[Double, Double, Double, Qubit]));
+    interfaces.push(QIRInterface::new("qis", "x2p", QVoid, &[Qubit]));
+    interfaces.push(QIRInterface::new("qis", "x2m", QVoid, &[Qubit]));
+    interfaces.push(QIRInterface::new("qis", "y2p", QVoid, &[Qubit]));
+    interfaces.push(QIRInterface::new("qis", "y2m", QVoid, &[Qubit]));
     interfaces.push(QIRInterface::new("qis", "gphase", QVoid, &[Double]));
     interfaces.push(QIRInterface::new("qis", "cnot", QVoid, &[Qubit, Qubit]));
+    interfaces.push(QIRInterface::new("qis", "cz", QVoid, &[Qubit, Qubit]));
     interfaces.push(QIRInterface::new("qis", "measure", Result, &[Qubit]));
     interfaces.push(QIRInterface::new("qis", "reset", QVoid, &[Qubit]));
+    interfaces.push(QIRInterface::new("qis", "qcis__finalize", QVoid, &[]));
     interfaces.push(QIRInterface::new("qis", "isq_print_i64", QVoid, &[QI64]));
     interfaces.push(QIRInterface::new("qis", "isq_print_f64", QVoid, &[QF64]));
     return interfaces;

@@ -172,6 +172,9 @@ if __name__ == '__main__':
     from json import loads
     # generate example connectivity
     data = loads(sys.stdin.read())
+    if 'QCIS_DONT_ROUTE' in os.environ:
+        print(data["qcis"])
+        sys.exit(0)
     ag_matrix = get_grid_from_edges(data["qbit_num"], data["topo"])
     #ag_matrix = gen_grid_connectivity(4, 4)
     #qasm_path = './qasm_circuits/'

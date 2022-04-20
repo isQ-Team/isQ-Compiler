@@ -26,6 +26,14 @@ pub struct IoError (#[from] pub std::io::Error);
 pub struct NoISQv2RootError;
 
 #[derive(Error, Debug, Diagnostic)]
+#[error("QCIS mapping config undefined.")]
+#[diagnostic(
+    code(isqv2::no_qcis_config),
+    help("Specify QCIS routing config by --qcis-config.")
+)]
+pub struct QCISConfigNotSpecified;
+
+#[derive(Error, Debug, Diagnostic)]
 #[error("Invalid output from frontend compiler.")]
 #[diagnostic(
     code(isqv2::isqc1_invalid_output),

@@ -1,8 +1,13 @@
 #include "isq/Operations.h"
 #include "isq/passes/Passes.h"
 #include <llvm/Support/Casting.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/IR/Builders.h>
+#include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/PatternMatch.h>
+#include <mlir/IR/SymbolTable.h>
 #include <mlir/Support/LogicalResult.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassRegistry.h>
@@ -89,6 +94,23 @@ class TargetQCISSetPass : public mlir::PassWrapper<TargetQCISSetPass, mlir::Oper
     void runOnOperation() override{
         mlir::ModuleOp m = this->getOperation();
         auto ctx = m->getContext();
+        // first check measurements.
+        bool failed = false;
+        m->walk([&](CallQOpOp op){
+            if(op.callee().getLeafReference().getValue()=="__isq__builtin__measure"){
+                auto uses = op->getResult(1).getUses();
+                if(!uses.empty()){
+                    op->emitOpError("result should not be used for feedback control.");
+                    failed=true;
+                }
+            }else if(op.callee().getLeafReference().getValue()=="__isq__builtin__reset"){
+                op->emitOpError("is not supported for QCIS.");
+                failed = true;
+            }
+        });
+        if(failed){
+            return signalPassFailure();
+        }
         do{
             mlir::RewritePatternSet rps(ctx);
             rps.add<CX2HCZH>(ctx);
@@ -97,6 +119,22 @@ class TargetQCISSetPass : public mlir::PassWrapper<TargetQCISSetPass, mlir::Oper
             mlir::FrozenRewritePatternSet frps(std::move(rps));
             (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
         }while(0);
+        // append finalize
+        const char* finalize_qir_name = "__quantum__qis__qcis__finalize";
+        const char* isq_entry_name = "__isq__entry";
+        mlir::OpBuilder builder(ctx);
+        builder.setInsertionPointToStart(&*m.body().begin());
+        auto builtin_loc = mlir::NameLoc::get(builder.getStringAttr("<builtin>"));
+        if(!mlir::SymbolTable::lookupSymbolIn(m, finalize_qir_name)){
+            auto funcType = mlir::FunctionType::get(ctx, (mlir::TypeRange){}, (mlir::TypeRange){});
+            builder.create<mlir::FuncOp>(builtin_loc, finalize_qir_name, funcType, builder.getStringAttr("private"));
+        }
+        auto isq_entry = llvm::dyn_cast_or_null<mlir::FuncOp>(mlir::SymbolTable::lookupSymbolIn(m, isq_entry_name));
+        if(isq_entry){
+            auto first_block= &*isq_entry.body().begin();
+            builder.setInsertionPoint(first_block->getTerminator());
+            builder.create<mlir::CallOp>(builtin_loc, ::mlir::FlatSymbolRefAttr::get(ctx, finalize_qir_name), ::mlir::TypeRange{}, ::mlir::ValueRange{});
+        }
     }
     mlir::StringRef getArgument() const final {
         return "isq-target-qcis";

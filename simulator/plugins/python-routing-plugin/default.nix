@@ -5,12 +5,13 @@ let
   # use pypy for performance.
   python = pypy3.withPackages python-deps;
 in
-pkgs.stdenv.mkDerivation{
+pkgs.stdenv.mkDerivation rec {
     name = "isqv2-simulator-python-routing-plugin";
     buildInputs = [ python bash ];
     PYTHONPATH = "${python}/${python.sitePackages}";
     src = ./.;
     inherit python;
+    pythonpath = PYTHONPATH;
     installPhase = ''
     runHook preInstall
     mkdir -p $out/bin

@@ -11,5 +11,4 @@ llvmPackages_13.stdenv.mkDerivation {
   buildInputs = [ eigen mlir ];
   src = nix-gitignore.gitignoreSource [] ./.;
   cmakeFlags = [ "-DISQ_OPT_ENABLE_ASSERTIONS=1" ];
-  dontStrip = true;
 }

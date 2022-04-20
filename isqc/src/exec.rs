@@ -1,13 +1,14 @@
 use std::{process::{Command, Stdio}, io::Write, ffi::OsStr};
 
-pub fn exec_command<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S], sin: &[u8])->std::io::Result<Vec<u8>>{
+pub fn exec_command_with_decorator<S: AsRef<OsStr>, F: FnOnce(&mut Command)->()>(root: &str, cmd: &str, args: &[S], sin: &[u8], child_decorator: F)->std::io::Result<Vec<u8>>{
     let path = format!("{}/bin/{}", root, cmd);
-    let mut child = Command::new(path)
-    .args(args)
+    let mut child = Command::new(path);
+    child.args(args)
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())
-    .stderr(Stdio::inherit())
-    .spawn()?;
+    .stderr(Stdio::inherit());
+    child_decorator(&mut child);
+    let mut child = child.spawn()?;
     let mut stdin = child.stdin.take().expect("Failed to open stdin");
     let sin = sin.to_owned();
     std::thread::spawn(move || {
@@ -15,6 +16,9 @@ pub fn exec_command<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S], sin: &[u
     });
     let output = child.wait_with_output().expect("Failed to read stdout");
     Ok(output.stdout)
+}
+pub fn exec_command<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S], sin: &[u8])->std::io::Result<Vec<u8>>{
+    exec_command_with_decorator(root, cmd, args, sin,|x|{})
 }
 pub fn exec_command_text<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S], sin: &str)->std::io::Result<String>{
     let output = exec_command(root, cmd, args, sin.as_bytes())?;

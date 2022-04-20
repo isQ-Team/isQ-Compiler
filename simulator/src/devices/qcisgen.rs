@@ -56,7 +56,7 @@ impl QCISCodegen{
         let args_separated = args.iter().map(|x| format!("Q{}", x)).join(" ");
         self.generated_code.push(format!("{} {}", op, args_separated));
     }
-    pub fn finalize_route(self){
+    pub fn finalize_route(&mut self){
         extern crate std;
         let output = run_qcis_route(self.generated_code.join("\n"));
         std::println!("{}", output);
@@ -81,7 +81,7 @@ impl QDevice for QCISCodegen{
         use crate::qdevice::QuantumOp::*;
         vec![
             X,Y,Z,H,S,T,
-            SInv,TInv,CZ,X2M,X2P,Y2M,Y2P
+            SInv,TInv,CZ,X2M,X2P,Y2M,Y2P, QCIS_Finalize
         ]
     }
 
@@ -92,6 +92,10 @@ impl QDevice for QCISCodegen{
 
     fn qop(&mut self, op_type: crate::qdevice::QuantumOp, qubits: &[&Self::Qubit], parameters: &[f64]) {
         use crate::qdevice::QuantumOp::*;
+        if let QCIS_Finalize = op_type{
+            self.finalize_route();
+            return;
+        }
         let op_name = match op_type{
             X=>"X", Y=>"Y", Z=>"Z",
             H=>"H", S=>"S", T=>"T",

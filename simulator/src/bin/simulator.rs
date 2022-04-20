@@ -2,8 +2,7 @@ use isq_simulator::{
     devices::{checked::CheckedDevice, naive::NaiveSimulator, sq2u3::SQ2U3Device},
     facades::qir::context::{get_current_context, make_context_current, QIRContext}, qdevice::QDevice,
 };
-#[cfg(feature = "cuda")]
-use isq_simulator::devices::cuda::QSimKernelSimulator;
+
 use libloading::*;
 
 use clap::{Parser, ArgEnum, PossibleValue};
@@ -23,7 +22,7 @@ use clap::ArgGroup;
 #[clap(group(
     ArgGroup::new("simulator_type")
         .required(true)
-        .args(&["naive", "cuda"]),
+        .args(&["naive", "cuda", "qcis"]),
 ))]
 struct SimulatorArgs {
     #[clap(index = 1, parse(from_os_str))]
@@ -33,7 +32,9 @@ struct SimulatorArgs {
     #[clap(long)]
     naive: bool,
     #[clap(long)]
-    cuda: Option<usize>
+    cuda: Option<usize>,
+    #[clap(long)]
+    qcis: bool
 }
 
 type SimulatorEntry = extern "C" fn() -> ();
@@ -60,7 +61,20 @@ fn main() -> std::io::Result<()> {
             #[cfg(not(feature = "cuda"))]
             panic!("Simulator is built with `cuda` feature disabled.");
             #[cfg(feature = "cuda")]
-            Box::new(CheckedDevice::new(SQ2U3Device::new(QSimKernelSimulator::new(cap))))
+            {
+                use isq_simulator::devices::cuda::QSimKernelSimulator;
+                Box::new(CheckedDevice::new(SQ2U3Device::new(QSimKernelSimulator::new(cap))))
+            }
+            
+        }else if args.qcis{
+            #[cfg(not(feature = "qcis"))]
+            panic!("Simulator is built with `qcis` feature disabled.");
+            #[cfg(feature = "qcis")]
+            {
+                use isq_simulator::devices::qcisgen::QCISCodegen;
+                Box::new(CheckedDevice::new(QCISCodegen::new()))
+            }
+            
         }else{
             unreachable!();
         }

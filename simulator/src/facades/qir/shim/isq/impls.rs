@@ -14,6 +14,47 @@ pub fn isq_qir_shim_qis_u3(theta: f64, phi: f64, lam: f64, x0: K<QIRQubit>)->() 
     let device = ctx.get_device_mut();
     device.controlled_qop(U3, &[], &[&x0.key], &[theta, phi, lam]);
 }
+pub fn isq_qir_shim_qis_x2p(x0: K<QIRQubit>)->() {
+    trace!(
+        "calling isq_qir_shim_qis_x2p(x0: {})",
+        P(&x0)
+    );
+    let rctx = context();
+    let mut ctx = RefCell::borrow_mut(&rctx);
+    let device = ctx.get_device_mut();
+    device.controlled_qop(X2P, &[], &[&x0.key], &[]);
+}
+pub fn isq_qir_shim_qis_x2m(x0: K<QIRQubit>)->() {
+    trace!(
+        "calling isq_qir_shim_qis_x2m(x0: {})",
+        P(&x0)
+    );
+    let rctx = context();
+    let mut ctx = RefCell::borrow_mut(&rctx);
+    let device = ctx.get_device_mut();
+    device.controlled_qop(X2M, &[], &[&x0.key], &[]);
+}
+pub fn isq_qir_shim_qis_y2p(x0: K<QIRQubit>)->() {
+    trace!(
+        "calling isq_qir_shim_qis_y2y(x0: {})",
+        P(&x0)
+    );
+    let rctx = context();
+    let mut ctx = RefCell::borrow_mut(&rctx);
+    let device = ctx.get_device_mut();
+    device.controlled_qop(Y2P, &[], &[&x0.key], &[]);
+}
+pub fn isq_qir_shim_qis_y2m(x0: K<QIRQubit>)->() {
+    trace!(
+        "calling isq_qir_shim_qis_y2m(x0: {})",
+        P(&x0)
+    );
+    let rctx = context();
+    let mut ctx = RefCell::borrow_mut(&rctx);
+    let device = ctx.get_device_mut();
+    device.controlled_qop(Y2M, &[], &[&x0.key], &[]);
+}
+
 pub fn isq_qir_shim_qis_gphase(x0: f64)->() {
     trace!(
         "calling isq_qir_shim_qis_gphase(x0: {})",
@@ -30,6 +71,13 @@ pub fn isq_qir_shim_qis_cnot(x0: K<QIRQubit>, x1: K<QIRQubit>)->() {
     let mut ctx = RefCell::borrow_mut(&rctx);
     let device = ctx.get_device_mut();
     device.controlled_qop(CNOT, &[], &[&x0.key, &x1.key], &[]);
+}
+pub fn isq_qir_shim_qis_cz(x0: K<QIRQubit>, x1: K<QIRQubit>)->() {
+    trace!("calling isq_qir_shim_qis_cz(x0: {}, x1: {})", P(&x0), P(&x1));
+    let rctx = context();
+    let mut ctx = RefCell::borrow_mut(&rctx);
+    let device = ctx.get_device_mut();
+    device.controlled_qop(CZ, &[], &[&x0.key, &x1.key], &[]);
 }
 pub fn isq_qir_shim_qis_measure(x0: K<QIRQubit>)->QIRResult {
     trace!("calling isq_qir_shim_qis_measure(x0: {})", P(&x0));
@@ -63,4 +111,13 @@ pub fn isq_qir_shim_qis_isq_print_f64(x0: f64)->() {
     use std::println;
     println!("{}", x0);
     info!("{}", x0);
+}
+pub fn isq_qir_shim_qis_qcis_finalize()->() {
+    trace!(
+        "calling isq_qir_shim_qis_qcis_finalize()",
+    );
+    let rctx = context();
+    let mut ctx = RefCell::borrow_mut(&rctx);
+    let device = ctx.get_device_mut();
+    device.controlled_qop(QCIS_Finalize, &[], &[], &[]);
 }
