@@ -10,5 +10,6 @@ llvmPackages_13.stdenv.mkDerivation {
   nativeBuildInputs = [ cmake ninja doxygen graphviz python3 which git lld_13 ];
   buildInputs = [ eigen mlir ];
   src = nix-gitignore.gitignoreSource [] ./.;
+  cmakeFlags = [ "-DISQ_OPT_ENABLE_ASSERTIONS=1" ];
   dontStrip = true;
 }

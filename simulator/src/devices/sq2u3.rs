@@ -18,12 +18,12 @@ pub fn translate_sq_gate_to_matrix(op_type: QuantumOp, parameters: &[f64])->[[Co
             let i = Complex64::i();
             let mat = [
                 [
-                    (theta / 2.0).cos().into(),
-                    -((i * lambda).exp()) * (theta / 2.0).sin(),
+                    (-i*(phi+lambda)/2.0).exp() * (theta / 2.0).cos(),
+                    -((i * (lambda-phi)/2.0).exp()) * (theta / 2.0).sin(),
                 ],
                 [
-                    (i * phi).exp() * (theta / 2.0).sin(),
-                    (i * (phi + lambda)).exp() * (theta / 2.0).cos(),
+                    (i * (phi-lambda)/2.0).exp() * (theta / 2.0).sin(),
+                    (i * (phi + lambda)/2.0).exp() * (theta / 2.0).cos(),
                 ],
             ];
             mat
@@ -101,6 +101,23 @@ pub fn translate_sq_gate_to_matrix(op_type: QuantumOp, parameters: &[f64])->[[Co
             ];
             mat
         }
+        // These are not really used.
+        X2P => [
+            [Complex64::new(invsqrt2, 0.0), Complex64::new(0.0, -invsqrt2)],
+            [Complex64::new(0.0, -invsqrt2), Complex64::new(invsqrt2, 0.0)],
+        ],
+        X2M => [
+            [Complex64::new(invsqrt2, 0.0), Complex64::new(0.0, invsqrt2)],
+            [Complex64::new(0.0, invsqrt2), Complex64::new(invsqrt2, 0.0)],
+        ],
+        Y2P => [
+            [Complex64::new(invsqrt2, 0.0), Complex64::new(-invsqrt2, 0.0)],
+            [Complex64::new( invsqrt2, 0.0), Complex64::new(invsqrt2, 0.0)],
+        ],
+        Y2M => [
+            [Complex64::new(invsqrt2, 0.0), Complex64::new(invsqrt2, 0.0)],
+            [Complex64::new( -invsqrt2, 0.0), Complex64::new(invsqrt2, 0.0)],
+        ],
         _=>panic!("bad sq")
     }
 }
@@ -143,18 +160,9 @@ impl<Q: Eq, T: QDevice<Qubit = Q>> QDevice for SQ2U3Device<Q, T>{
     fn supported_quantum_ops(&self) -> alloc::vec::Vec<crate::qdevice::QuantumOp> {
         let mut ops = self.0.supported_quantum_ops();
         if ops.contains(&QuantumOp::AnySQ){
-            ops.push(QuantumOp::H);
-            ops.push(QuantumOp::S);
-            ops.push(QuantumOp::T);
-            ops.push(QuantumOp::X);
-            ops.push(QuantumOp::Y);
-            ops.push(QuantumOp::Z);
-            ops.push(QuantumOp::U3);
-            ops.push(QuantumOp::SInv);
-            ops.push(QuantumOp::TInv);
-            ops.push(QuantumOp::Rx);
-            ops.push(QuantumOp::Ry);
-            ops.push(QuantumOp::Rz);
+            use QuantumOp::*;
+            let mut sq_ops = vec![H, S, T, X, Y, Z, U3, SInv, TInv, Rx, Ry, Rz, X2M, X2P, Y2M, Y2P];
+            ops.append(&mut sq_ops);
         }
         ops.sort();
         ops.dedup();

@@ -1,4 +1,4 @@
-{pkgs? import ../../buildscript/pkgs.nix}:
+{pkgs? import ../../../buildscript/pkgs.nix}:
 pkgs.stdenv.mkDerivation{
     name = "isqv2-simulator-cuda-plugin";
     buildInputs = with pkgs; [cudaPackages.cudatoolkit_11_5 linuxPackages.nvidia_x11 addOpenGLRunpath makeWrapper];

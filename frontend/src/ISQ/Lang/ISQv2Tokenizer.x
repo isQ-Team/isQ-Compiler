@@ -57,18 +57,33 @@ class Annotated x where
 
 data AlexUserState = AlexUserState{
   stringBuffer :: String,
-  stringPos :: Pos
+  stringPos :: Pos,
+  commentNestLevel :: Int
 } deriving Show
 
-alexInitUserState = AlexUserState "" undefined
+alexInitUserState = AlexUserState "" undefined 0
 
 get = Alex (\s->Right (s, alex_ust s))
 put x = Alex (\s->Right (s{alex_ust = x}, ()))
 
 instance Annotated Token where
   annotation = annotationToken
-beginComment _ _ = alexSetStartCode commentSC >> return Nothing
-endComment _ _ =alexSetStartCode 0 >> return Nothing
+
+updateCommentStatus = do
+  s<-get
+  alexSetStartCode $ if (commentNestLevel s)==0 then 0 else commentSC
+
+beginComment _ _ = do
+  s<-get
+  put s{commentNestLevel = (commentNestLevel s)+1}
+  updateCommentStatus
+  return Nothing
+endComment _ _ = do
+  s<-get
+  put s{commentNestLevel = (commentNestLevel s)-1}
+  updateCommentStatus
+  return Nothing
+
 beginString (pos, _, _, _) _ = do
   s<-get
   put s{stringBuffer = "", stringPos = position pos}
