@@ -5,3 +5,5 @@ pub mod qdevice;
 pub mod sq2u3;
 #[cfg(feature = "cuda")]
 pub mod cuda;
+#[cfg(feature = "qcis")]
+pub mod qcisgen;

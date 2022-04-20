@@ -58,6 +58,32 @@ struct RemoveTrivialConstantU3 : public mlir::OpRewritePattern<ApplyGateOp>{
         if(abs(t)>EPS || abs(p)>EPS || abs(l)>EPS){
             return mlir::failure();
         }
+        do{
+            auto lambda = std::complex<double>(l);
+            auto phi = std::complex<double>(p);
+            auto theta = std::complex<double>(t);
+            auto i = std::complex<double>(0, 1.0);
+            ::mlir::SmallVector<::mlir::SmallVector<std::complex<double>>> m = {
+                {
+                    std::exp((-i*(phi+lambda)/2.0)) * std::cos(theta / 2.0),
+                    -std::exp((i * (lambda-phi)/2.0)) * std::sin(theta / 2.0),
+                },
+                {
+                    std::exp((i * (phi-lambda)/2.0)) * std::sin(theta / 2.0),
+                    std::exp((i * (phi + lambda))) * std::cos(theta / 2.0),
+                }
+            };
+            auto first = m[0][0];
+            // TODO: what about converting nearly-e^{i\theta} SQ gates into gphase?
+            for(auto i=0; i<m.size(); i++){
+                for(auto j=0; j<m.size(); j++){
+                    auto expected = i==j?first:0.0;
+                    if(std::norm(m[i][j]-expected)>EPS){
+                        return mlir::failure();
+                    }
+                }
+            }
+        }while(0);
         // otherwise
         rewriter.replaceOp(op, op.args());
         return mlir::success();
