@@ -1,0 +1,6 @@
+procedure R1(double theta, qbit q){
+	U3(0, 0, theta, q);
+} deriving gate
+
+procedure main(){
+}

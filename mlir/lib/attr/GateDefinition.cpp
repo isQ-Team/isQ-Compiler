@@ -228,7 +228,7 @@ mlir::FuncOp DecompositionRawDefinition::getDecomposedFunc(){
     ::mlir::SmallVector<::mlir::Type> argtypes;
     ::mlir::SmallVector<::mlir::Type> returntypes;
     for(auto extra_arg: op.parameters()){
-        argtypes.push_back(extra_arg.cast<mlir::TypeAttr>().getType());
+        argtypes.push_back(extra_arg.cast<mlir::TypeAttr>().getValue());
     }
     mlir::AffineExpr d0, s0;
     mlir::bindDims(op.getContext(), d0);
