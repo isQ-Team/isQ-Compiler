@@ -35,11 +35,14 @@ mlir::LogicalResult verify(DecorateOp op) {
     auto adjoint = op.adjoint();
     auto ctrls = ctrl.getAsValueRange<mlir::BoolAttr>();
     auto all_one = std::all_of(ctrls.begin(), ctrls.end(), [](auto x){return x;});
-    auto expected_vo = DecorateOp::computePostDecorateTrait(result.getHints(), ctrl.size(), adjoint, all_one);
+    auto expected_vr = DecorateOp::computePostDecorateTrait(result.getHints(), ctrl.size(), adjoint, all_one);
     auto size = result.getSize();
     auto expected_size = operand.getSize() + ctrl.size();
-    if (expected_vo != vo) {
-        op.emitOpError("decorate trait mismatch");
+    if (expected_vr != vr) {
+        std::stringstream ss;
+        ss<<"decorate trait mismatch, expected "<<(uint32_t)expected_vr<<", actual "<<(uint32_t)vr<<"\n";
+	auto err = ss.str();
+        op.emitOpError(err.c_str());
         return mlir::failure();
     }
     if (size != expected_size){
