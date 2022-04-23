@@ -188,20 +188,22 @@ public:
             arg.setType(QStateType::get(ctx));
             arg_rewrite_args.push_back(arg);
         }
+        auto i=0;
         for(auto index: arg_rewrite){
             auto arg = op.getArgument(index);
             for(auto op: arg.getUsers()){
                 if(llvm::isa<mlir::memref::LoadOp>(op) || llvm::isa<mlir::AffineLoadOp>(op)  || llvm::isa<mlir::memref::CastOp>(op) || llvm::isa<mlir::memref::SubViewOp>(op)){
-                    op->setAttr(ISQ_PURE_LOAD, mlir::IntegerAttr::get(rewriter.getI64Type(), index));
+                    op->setAttr(ISQ_PURE_LOAD, mlir::IntegerAttr::get(rewriter.getI64Type(), i));
                 }else if(llvm::isa<mlir::memref::StoreOp>(op)){
-                    op->setAttr(ISQ_PURE_STORE, mlir::IntegerAttr::get(rewriter.getI64Type(), index));
+                    op->setAttr(ISQ_PURE_STORE, mlir::IntegerAttr::get(rewriter.getI64Type(), i));
                     op->setAttr(ISQ_PURE_STORE_OPERAND, mlir::IntegerAttr::get(rewriter.getI64Type(), 0));
                 }else if(llvm::isa<mlir::AffineStoreOp>(op)){
-                    op->setAttr(ISQ_PURE_STORE, mlir::IntegerAttr::get(rewriter.getI64Type(), index));
+                    op->setAttr(ISQ_PURE_STORE, mlir::IntegerAttr::get(rewriter.getI64Type(), i));
                     op->setAttr(ISQ_PURE_STORE_OPERAND, mlir::IntegerAttr::get(rewriter.getI64Type(), 0));
                 }
                 
             }
+            i++;
         }
         PureGateMem2Reg mem2reg;
         for(auto& block: op.getBlocks()){
