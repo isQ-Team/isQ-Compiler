@@ -37,7 +37,7 @@ void Mem2RegRewrite::mem2regBlock(mlir::TypeRange types, mlir::Block* block, mli
 
     // go forward.
     mlir::SmallVector<mlir::Operation*> all_ops;
-    for(auto& op: block->getOperations()){
+    for(auto &op: block->getOperations()){
         all_ops.push_back(&op);
     }
     for(auto pop: all_ops){

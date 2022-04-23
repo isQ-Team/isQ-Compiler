@@ -1,7 +1,7 @@
 procedure main(){
     qbit q[2];
     H(q[0]);
-    CNOT(q[0],q[1]);
+    ctrl X(q[0],q[1]);
     int a = M(q[0]);
     let b: int;
     b = M(q[1]);
