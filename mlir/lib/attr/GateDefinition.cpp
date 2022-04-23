@@ -176,7 +176,7 @@ mlir::FuncOp DecompositionDefinition::getDecomposedFunc(){
     ::mlir::SmallVector<::mlir::Type> argtypes;
     ::mlir::SmallVector<::mlir::Type> returntypes;
     for(auto extra_arg: op.parameters()){
-        argtypes.push_back(extra_arg.cast<mlir::TypeAttr>().getType());
+        argtypes.push_back(extra_arg.cast<mlir::TypeAttr>().getValue());
     }
     for(auto i=0; i<ty.getSize(); i++){
         argtypes.push_back(::isq::ir::QStateType::get(op.getContext()));
