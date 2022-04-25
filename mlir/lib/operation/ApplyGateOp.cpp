@@ -18,6 +18,15 @@ bool isFromCallQOp(mlir::Value val) {
     return !!::mlir::dyn_cast_or_null<CallQOpOp>(val.getDefiningOp());
 }
 
+
+// Keypoint: affine.store/memref.store is considered one single use.
+// This allows affine-scalrep pass to be used as-is.
+/*
+int countQubitUses(mlir::Value value){
+
+}
+*/
+
 mlir::LogicalResult ApplyGateOp::verifyIR() {
     for (auto i = 0; i < this->getNumResults(); i++) {
         mlir::Value result = this->getResult(i);
@@ -29,7 +38,7 @@ mlir::LogicalResult ApplyGateOp::verifyIR() {
     }
     for (auto i = 0; i < this->args().size(); i++) {
         mlir::Value arg = this->args()[i];
-        if (!(arg.hasOneUse() || arg.getDefiningOp<ContribUndef>())) {
+        if (!(arg.hasOneUse())) {
             this->emitError()
                 << "Argument #" << i << " is used more than once and is not undef.";
             return mlir::failure();
