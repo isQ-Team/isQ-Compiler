@@ -291,6 +291,9 @@ DecomposedGates mcdecompose_add_one(GateLocation q, int a){
 }
 
 // decompose multi control z
+// note!!! Here Z is actually controlled-GPhase.
+// Z = |111><111|e^{i\theta} + \sum |k><k|
+// This should not be used to decompose real controlled-Z gate.
 /*
 A(n qbit array) is control qbit, T is target qbit
                                                   __             __

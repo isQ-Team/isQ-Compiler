@@ -15,6 +15,8 @@
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "llvm/Support/Casting.h"
+#include <llvm/Support/ErrorHandling.h>
+#include <llvm/Support/raw_ostream.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -97,48 +99,53 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
                 auto fn = decomp->getDecomposedFunc();
                 // TODO: adjoint op support.
                 // Do we need to "revert" all steps?
-                if(adj) return mlir::failure();
-                auto new_fn = fn.clone();
-                mlir::ModuleOp rootModule = this->rootModule;
-                rewriter.setInsertionPointToStart(rootModule.getBody());
-                rewriter.insert(new_fn);
-                rewriter.startRootUpdate(new_fn);
-                auto new_fn_name = "$__isq__decomposition__"+sym.getValue();
-                new_fn.sym_nameAttr(mlir::StringAttr::get(ctx, new_fn_name));
-                new_fn.sym_visibilityAttr(mlir::StringAttr::get(ctx, "private"));
-                mlir::SmallVector<mlir::Attribute> ctrl_attr;
-                for(auto b: ctrl){
-                    ctrl_attr.push_back(mlir::BoolAttr::get(ctx, b));
-                } 
+                if(!fn->hasAttr(ISQ_GPHASE_REMOVED) && !adj){
+                    auto new_fn = fn.clone();
+                    mlir::ModuleOp rootModule = this->rootModule;
+                    rewriter.setInsertionPointToStart(rootModule.getBody());
+                    rewriter.insert(new_fn);
+                    rewriter.startRootUpdate(new_fn);
+                    auto new_fn_name = "$__isq__decomposition__"+sym.getValue();
+                    new_fn.sym_nameAttr(mlir::StringAttr::get(ctx, new_fn_name));
+                    new_fn.sym_visibilityAttr(mlir::StringAttr::get(ctx, "private"));
+                    mlir::SmallVector<mlir::Attribute> ctrl_attr;
+                    for(auto b: ctrl){
+                        ctrl_attr.push_back(mlir::BoolAttr::get(ctx, b));
+                    } 
 
-                // insert control qubits.
-                auto old_size = new_fn.getType().getNumInputs();
-                mlir::SmallVector<mlir::Type> args;
-                mlir::SmallVector<mlir::Type> results;
-                for(auto input: new_fn.getType().getInputs()){
-                    args.push_back(input);
+                    // insert control qubits.
+                    auto old_size = new_fn.getType().getNumInputs();
+                    mlir::SmallVector<mlir::Type> args;
+                    mlir::SmallVector<mlir::Type> results;
+                    for(auto input: new_fn.getType().getInputs()){
+                        args.push_back(input);
+                    }
+                    for(auto output: new_fn.getType().getResults()){
+                        results.push_back(output);
+                    }
+                    for(auto i=0; i<ctrl.size(); i++){
+                        args.push_back(QStateType::get(ctx));
+                        results.push_back(QStateType::get(ctx));
+                    }
+                    new_fn.setType(mlir::FunctionType::get(ctx, args, results));
+                    mlir::SmallVector<mlir::Value> controlQubits;
+                    auto insert_index = old_size - defgate.type().getSize();
+                    for(auto i=0; i<ctrl.size(); i++){
+                        controlQubits.push_back(new_fn.body().insertArgument(new_fn.getArguments().begin()+insert_index+i, QStateType::get(ctx), mlir::UnknownLoc::get(ctx)));
+                    }
+                    new_fn->setAttr(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_START_INDEX, mlir::IntegerAttr::get(rewriter.getI64Type(), insert_index));
+                    new_fn->setAttr(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS, mlir::ArrayAttr::get(ctx, ctrl_attr));
+                    new_fn.walk([=](ApplyGateOp op){
+                        op->setAttr(ISQ_DECORATE_FOLDING_PROPAGATE_TO_PROCESS, mlir::UnitAttr::get(ctx));
+                    });
+                    new_fn.walk([=](ApplyGPhase op){
+                        op->setAttr(ISQ_DECORATE_FOLDING_PROPAGATE_TO_PROCESS, mlir::UnitAttr::get(ctx));
+                    });
+                    rewriter.finalizeRootUpdate(new_fn);
+                    rewriter.restoreInsertionPoint(ip);
+                    usefulGatedefs.push_back(GateDefinition::get(mlir::StringAttr::get(ctx, "decomposition"), mlir::FlatSymbolRefAttr::get(mlir::StringAttr::get(ctx, new_fn_name)), ctx));
                 }
-                for(auto output: new_fn.getType().getResults()){
-                    results.push_back(output);
-                }
-                for(auto i=0; i<ctrl.size(); i++){
-                    args.push_back(QStateType::get(ctx));
-                    results.push_back(QStateType::get(ctx));
-                }
-                new_fn.setType(mlir::FunctionType::get(ctx, args, results));
-                mlir::SmallVector<mlir::Value> controlQubits;
-                auto insert_index = old_size - defgate.type().getSize();
-                for(auto i=0; i<ctrl.size(); i++){
-                    controlQubits.push_back(new_fn.body().insertArgument(new_fn.getArguments().begin()+insert_index+i, QStateType::get(ctx), mlir::UnknownLoc::get(ctx)));
-                }
-                new_fn->setAttr(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_START_INDEX, mlir::IntegerAttr::get(rewriter.getI64Type(), insert_index));
-                new_fn->setAttr(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS, mlir::ArrayAttr::get(ctx, ctrl_attr));
-                new_fn.walk([=](ApplyGateOp op){
-                    op->setAttr(ISQ_DECORATE_FOLDING_PROPAGATE_TO_PROCESS, mlir::UnitAttr::get(ctx));
-                });
-                rewriter.finalizeRootUpdate(new_fn);
-                rewriter.restoreInsertionPoint(ip);
-                usefulGatedefs.push_back(GateDefinition::get(mlir::StringAttr::get(ctx, "decomposition"), mlir::FlatSymbolRefAttr::get(mlir::StringAttr::get(ctx, new_fn_name)), ctx));
+                
             }
             id++;
         }
@@ -191,7 +198,6 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
             emitBuiltinGate(rewriter, "X", newOperands, {}, mlir::ArrayAttr::get(ctx, newCtrl), false);
             rewriter.replaceOp(op, operands);
             *dirty=true;
-            rootModule->dump();
             return mlir::success();
         }
         // construct new matrix name.
@@ -234,23 +240,24 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
 }
 
 // Insert controller bits and insert fake load/store pairs.
-struct InsertControllerBits : public mlir::OpRewritePattern<ApplyGateOp>{
+struct InsertControllerBits : public mlir::RewritePattern{
     ::mlir::ArrayAttr controls;
     int controlStartIndex;
     mlir::FuncOp currentFunc;
-    InsertControllerBits(mlir::MLIRContext* ctx, ::mlir::ArrayAttr controls, int control_start_index, mlir::FuncOp fn): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1), currentFunc(fn),controls(controls),controlStartIndex(control_start_index){}
+    InsertControllerBits(mlir::MLIRContext* ctx, ::mlir::ArrayAttr controls, int control_start_index, mlir::FuncOp fn) : mlir::RewritePattern(MatchAnyOpTypeTag(), 1, ctx), currentFunc(fn),controls(controls),controlStartIndex(control_start_index){}
     // First, decorate every apply gate with an additional decorate.
     // Second, insert a fake load-store pair and inject the qubits into apply op. These fake ops will be eliminated by mem2reg pass.
-    mlir::LogicalResult matchAndRewrite(ApplyGateOp op, mlir::PatternRewriter& rewriter) const override{
+    mlir::LogicalResult matchAndRewrite(mlir::Operation* op, mlir::PatternRewriter& rewriter) const override{
         auto ctx = rewriter.getContext();
         if(!op->hasAttr(ISQ_DECORATE_FOLDING_PROPAGATE_TO_PROCESS)){
             return mlir::failure();
         }
         op->removeAttr(ISQ_DECORATE_FOLDING_PROPAGATE_TO_PROCESS);
+        if(!llvm::isa<ApplyGateOp>(op) && !llvm::isa<ApplyGPhase>(op)){
+            llvm_unreachable("bad attribute on op.");
+        }
         mlir::PatternRewriter::InsertionGuard guard(rewriter);
-        auto old_gate_type = op.gate().getType().cast<GateType>();
-        rewriter.setInsertionPoint(op);
-        auto new_decorate = rewriter.create<DecorateOp>(mlir::UnknownLoc::get(ctx), GateType::get(ctx, controls.size()+old_gate_type.getSize(), old_gate_type.getHints()), op.gate(), false, controls);
+        
         
         rewriter.setInsertionPoint(op);
         mlir::SmallVector<mlir::Value> ctrl_loaded;
@@ -269,20 +276,48 @@ struct InsertControllerBits : public mlir::OpRewritePattern<ApplyGateOp>{
             args.push_back(ctrl_loaded[i]);
             results.push_back(QStateType::get(ctx));
         }
-        args.append(op.args().begin(), op.args().end());
-        results.append(op->result_type_begin(), op.result_type_end());
-        auto new_op = rewriter.create<ApplyGateOp>(op->getLoc(), results, new_decorate.getResult(), args);
-        new_op->setAttrs(op->getAttrs());
+        mlir::SmallVector<mlir::Value> out_ctrls;
+        if(auto orig_op = llvm::dyn_cast<ApplyGateOp>(op)){
+            auto old_gate_type = orig_op.gate().getType().cast<GateType>();
+            rewriter.setInsertionPoint(orig_op);
+            args.append(orig_op.args().begin(), orig_op.args().end());
+            results.append(orig_op->result_type_begin(), orig_op.result_type_end());
+            auto new_decorate = rewriter.create<DecorateOp>(mlir::UnknownLoc::get(ctx), GateType::get(ctx, controls.size()+old_gate_type.getSize(), old_gate_type.getHints()), orig_op.gate(), false, controls);
+            auto new_op = rewriter.create<ApplyGateOp>(op->getLoc(), results, new_decorate.getResult(), args);
+            new_op->setAttrs(op->getAttrs());
+            for(auto i=0; i<controls.size(); i++){
+                out_ctrls.push_back(new_op.getResult(i));
+            }
+            // For the rest results, replace original op.
+            rewriter.replaceOp(op, new_op->getResults().drop_front(controls.size()));
+            rewriter.setInsertionPointAfter(new_op);
+        }else if(auto orig_op = llvm::dyn_cast<ApplyGPhase>(op)){
+            // Ctrl-GPhase.
+            auto old_gate_type = orig_op.gate().getType().cast<GateType>();
+            assert(old_gate_type.getSize()==0);
+            rewriter.setInsertionPoint(orig_op);
+            auto new_decorate = rewriter.create<DecorateOp>(mlir::UnknownLoc::get(ctx), GateType::get(ctx, controls.size()+old_gate_type.getSize(), old_gate_type.getHints()), orig_op.gate(), false, controls);
+            auto new_op = rewriter.create<ApplyGateOp>(op->getLoc(), results, new_decorate.getResult(), args);
+            new_op->setAttrs(op->getAttrs());
+            for(auto i=0; i<controls.size(); i++){
+                out_ctrls.push_back(new_op.getResult(i));
+            }
+            rewriter.eraseOp(op);
+            rewriter.setInsertionPointAfter(new_op);
+        }else{
+            llvm_unreachable("unreachable");
+        }
+
+        
+        
         // For the first results, fake-store back.
-        rewriter.setInsertionPointAfter(new_op);
         for(auto i=0; i<controls.size(); i++){
             auto ctrl_argument = fn.body().getArgument(i+controlStartIndex);
-            mlir::OperationState state(mlir::UnknownLoc::get(ctx), ISQ_FAKESTORE, mlir::ValueRange{new_op.getResult(i), ctrl_argument}, mlir::TypeRange{},mlir::ArrayRef<mlir::NamedAttribute>{mlir::NamedAttribute(mlir::StringAttr::get(ctx, ISQ_FAKELOADSTORE_ID), mlir::IntegerAttr::get(rewriter.getI64Type(), i))});
+            mlir::OperationState state(mlir::UnknownLoc::get(ctx), ISQ_FAKESTORE, mlir::ValueRange{out_ctrls[i], ctrl_argument}, mlir::TypeRange{},mlir::ArrayRef<mlir::NamedAttribute>{mlir::NamedAttribute(mlir::StringAttr::get(ctx, ISQ_FAKELOADSTORE_ID), mlir::IntegerAttr::get(rewriter.getI64Type(), i))});
             
             auto fake_store = rewriter.createOperation(state);
         }
-        // For the rest results, replace original op.
-        rewriter.replaceOp(op, new_op->getResults().drop_front(controls.size()));
+        
         return mlir::success();
     }
 };

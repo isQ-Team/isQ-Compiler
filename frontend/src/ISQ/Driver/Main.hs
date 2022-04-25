@@ -95,7 +95,8 @@ headers = Data.List.intercalate "\n" $ ["extern defgate Rz(double) : gate(1) = \
     "extern defgate X2P() : gate(1) = \"__quantum__qis__x2p\";",
     "extern defgate Y2M() : gate(1) = \"__quantum__qis__y2m\";",
     "extern defgate Y2P() : gate(1) = \"__quantum__qis__y2p\";",
-    "extern defgate CZ() : gate(2) = \"__quantum__qis__cz\";"]
+    "extern defgate CZ() : gate(2) = \"__quantum__qis__cz\";",
+    "extern defgate GPhase(double) : gate(0) = \"__quantum__qis__gphase\";"]
 
 main = do
     args<-getArgs

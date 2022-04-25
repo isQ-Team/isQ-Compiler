@@ -1,5 +1,9 @@
-defgate U1 = [-1, 0; 0, 1];
+//defgate U1 = [-1, 0; 0, 1];
 
+procedure U1(qbit q){
+    Z(q);
+    GPhase(3.141592653589793);
+} deriving gate
 procedure test1(){
     qbit anc;
     anc = |0>;
@@ -21,7 +25,7 @@ procedure test2(){
     qbit q;
     q = |0>;
     H(anc);
-    ctrl U2(anc, q);
+    ctrl Z(anc, q);
     H(anc);
     
     int r = M(anc);
