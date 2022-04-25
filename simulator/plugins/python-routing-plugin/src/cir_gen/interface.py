@@ -88,6 +88,7 @@ def cir_list_to_dg(cir_list, num_q):
         num_q_gate = gate[0]
         if num_q_gate == 1:
             qubit = qubits
+            if qubit + 1 > num_q_log: num_q_log = qubit + 1
             node = front_nodes[qubit]
             if node == -1:
                 DG.single_gates_before_first_layer.append(gate)

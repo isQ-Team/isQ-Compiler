@@ -132,10 +132,10 @@ def get_cir_in_from_qcis(qcis_str):
         gate = command[0]
         if gate == 'M':
             continue
-        q = int(command[1][1:])
+        q = int(command[1][1:])-1
         qn = 1
         if len(command) > 2:
-            q = (q, int(command[2][1:]))
+            q = (q, int(command[2][1:])-1)
             qn = 2
         cir_in.append((qn, gate, q, []))
     
@@ -146,9 +146,9 @@ def convert_swap(q):
     swap = []
     for i in range(3):
         q1, q2 = q2, q1
-        swap.append("H Q{}".format(q2))
-        swap.append("CZ Q{} Q{}".format(q1, q2))
-        swap.append("H Q{}".format(q2))
+        swap.append("H Q{}".format(q2+1))
+        swap.append("CZ Q{} Q{}".format(q1+1, q2+1))
+        swap.append("H Q{}".format(q2+1))
     return "\n".join(swap)
 
 def get_qcis_from_cir_out(cir_out):
@@ -160,9 +160,9 @@ def get_qcis_from_cir_out(cir_out):
             qcis.append(convert_swap(q))
         else:
             if qn == 1:
-                qcis.append("{} Q{}".format(gate, q))
+                qcis.append("{} Q{}".format(gate, q+1))
             else:
-                qcis.append("{} Q{} Q{}".format(gate, q[0], q[1]))
+                qcis.append("{} Q{} Q{}".format(gate, q[0]+1, q[1]+1))
         
     return "\n".join(qcis)
 
