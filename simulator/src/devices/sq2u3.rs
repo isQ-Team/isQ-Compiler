@@ -40,11 +40,11 @@ pub fn translate_sq_gate_to_matrix(op_type: QuantumOp, parameters: &[f64])->[[Co
         ],
         S=>[
             [1.0.into(), 0.0.into()],
-            [0.0.into(), Complex64::new(0.0, -1.0)],
+            [0.0.into(), Complex64::new(0.0, 1.0)],
         ],
         SInv=>[
             [1.0.into(), 0.0.into()],
-            [0.0.into(), Complex64::new(0.0, 1.0)],
+            [0.0.into(), Complex64::new(0.0, -1.0)],
         ],
         T=>[
             [1.0.into(), 0.0.into()],
@@ -54,23 +54,6 @@ pub fn translate_sq_gate_to_matrix(op_type: QuantumOp, parameters: &[f64])->[[Co
             [1.0.into(), 0.0.into()],
             [0.0.into(), Complex64::new(invsqrt2, -invsqrt2)],
         ],
-        Swap=>{
-            let theta = parameters[0];
-            let phi = parameters[1];
-            let lambda = parameters[2];
-            let i = Complex64::i();
-            let mat = [
-                [
-                    (theta / 2.0).cos().into(),
-                    -((i * lambda).exp()) * (theta / 2.0).sin(),
-                ],
-                [
-                    (i * phi).exp() * (theta / 2.0).sin(),
-                    (i * (phi + lambda)).exp() * (theta / 2.0).cos(),
-                ],
-            ];
-            mat
-        },
         Rx => {
             let theta = parameters[0];
             let mat = [

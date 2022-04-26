@@ -1,6 +1,7 @@
 
 #include "isq/Enums.h"
 #include "isq/Operations.h"
+#include "isq/QTypes.h"
 #include "isq/passes/canonicalization/CanonicalizeApplyGate.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/MLIRContext.h"
@@ -28,6 +29,9 @@ mlir::LogicalResult NoDowngradeApply::matchAndRewrite(isq::ir::ApplyGateOp op,  
 CorrectSymmetryApplyOrder::CorrectSymmetryApplyOrder(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1){}
 mlir::LogicalResult CorrectSymmetryApplyOrder::matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const{
     if(op.args().size()==0) return mlir::failure();
+    if((op.gate().getType().cast<GateType>().getHints() & GateTrait::Symmetric) != GateTrait::Symmetric){
+        return mlir::failure();
+    }
     auto prev_op = op.args()[0].getDefiningOp<ApplyGateOp>();
     if(!prev_op) return mlir::failure();
     for(auto arg: op.args()){

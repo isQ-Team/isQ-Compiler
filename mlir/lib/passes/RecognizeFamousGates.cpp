@@ -185,7 +185,7 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
         emitBuiltinGate(builder, "T", {&qubits[2]}, {}, nullptr, true);
         emitBuiltinGate(builder, "CNOT", {&qubits[0], &qubits[2]});
         emitBuiltinGate(builder, "T", {&qubits[2]});
-        emitBuiltinGate(builder, "T", {&qubits[1]});
+        emitBuiltinGate(builder, "T", {&qubits[1]},{},nullptr, true);
         emitBuiltinGate(builder, "H", {&qubits[2]});
         emitBuiltinGate(builder, "CNOT", {&qubits[0], &qubits[1]});
         emitBuiltinGate(builder, "T", {&qubits[1]}, {}, nullptr, true);
