@@ -27,15 +27,34 @@ public:
     ExpandDecompositionRewrite(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1), rootModule(module){
 
     }
+    bool hasDecomposition(DefgateOp op) const{
+        auto defs = *op.definition();
+        auto id=0;
+        for(auto def: defs.getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(op, id, op.type(), def);
+            if(d==std::nullopt) {
+                llvm_unreachable("bad");
+            }
+            if(auto decomp = llvm::dyn_cast_or_null<DecompositionDefinition>(&**d)){
+                return true;
+            }
+            id++;
+        }
+        return false;
+    }
     mlir::LogicalResult matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const override{
         auto use_op = mlir::dyn_cast_or_null<UseGateOp>(op.gate().getDefiningOp());
         if(!use_op) return mlir::failure();
-        if(use_op.parameters().size()>0){
-            return mlir::failure(); // Only matrix-gates are supported.
-        }
         auto defgate = mlir::SymbolTable::lookupNearestSymbolFrom<DefgateOp>(use_op.getOperation(), use_op.name());
         assert(defgate);
         if(!defgate.definition()) return mlir::failure();
+        /*
+        auto has_decomp = this->hasDecomposition(defgate);
+        if(!has_decomp && use_op.parameters().size()>0){
+            return mlir::failure(); // Only matrix-gates are supported.
+        }
+        */
+        
         int id = 0;
         for(auto def: defgate.definition()->getAsRange<GateDefinition>()){
             auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
@@ -57,7 +76,10 @@ public:
                 continue;
             }
             auto decomp_f = decomp->getDecomposedFunc();
-            rewriter.replaceOpWithNewOp<mlir::CallOp>(op.getOperation(), decomp_f, op.args());
+            mlir::SmallVector<mlir::Value> calling_args;
+            calling_args.append(use_op.parameters().begin(), use_op.parameters().end());
+            calling_args.append(op.args().begin(), op.args().end());
+            rewriter.replaceOpWithNewOp<mlir::CallOp>(op.getOperation(), decomp_f, calling_args);
             return mlir::success();
 
         }

@@ -83,7 +83,7 @@ using CodegenOpVisitor = OpVisitor<
     ApplyGateOp, CallQOpOp,
     CallOp, ReturnOp,DefgateOp, WhileOp, ConditionOp,
     ModuleOp, SubViewOp, PassOp, AffineYieldOp, scf::YieldOp,
-    memref::CastOp
+    memref::CastOp, mlir::scf::IfOp
     >;
 }
 
@@ -266,14 +266,19 @@ private:
     }
     mlir::LogicalResult visitOp(mlir::ModuleOp curr_module) override{
         auto mod_name = curr_module.sym_name();
+        /*
         if(mod_name){
             if(*mod_name == "isq_builtin"){
                 // Just ignore it.
                 return mlir::success();
             }
         }
+        */
         TRY(visitBlock(curr_module.getBody()));
         return mlir::success();
+    }
+    mlir::LogicalResult visitOp(mlir::scf::IfOp if_stmt) override{
+
     }
     mlir::LogicalResult visitOp(mlir::AffineIfOp if_stmt) override{
         // update_symbol_use_operation
