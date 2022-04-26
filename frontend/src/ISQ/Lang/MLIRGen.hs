@@ -5,6 +5,7 @@ import ISQ.Lang.TypeCheck
 import ISQ.Lang.MLIRTree hiding (Bool, Gate, Unit, Double)
 import qualified ISQ.Lang.MLIRTree as M
 import Control.Monad.State
+    ( fix, void, State, zipWithM_, evalState, execState )
 import Control.Lens
 import ISQ.Lang.ISQv2Tokenizer(Pos(Pos), Annotated (annotation))
 
@@ -106,7 +107,8 @@ binopTranslate Add Index = mlirAddi
 binopTranslate Sub Index = mlirSubi
 binopTranslate Mul Index = mlirMuli
 binopTranslate Mod Index = mlirRemsi
-binopTranslate Div Index = mlirFloorDivsi 
+binopTranslate Div Index = mlirFloorDivsi
+binopTranslate Pow M.Double = mlirPowf 
 binopTranslate Add M.Double = mlirAddf
 binopTranslate Sub M.Double = mlirSubf
 binopTranslate Mul M.Double = mlirMulf

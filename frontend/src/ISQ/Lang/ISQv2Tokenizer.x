@@ -21,7 +21,7 @@ $idrestchar   = [$alpha $digit \_]
 	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|return|
     ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue|double|as|extern|gate|deriving|oracle|pi
 @reservedop = "|0>"|"=="|"="|"+"|"-"|"*"|"/"|"<"|">"|"<="|">="|"!="|"&&"|"||"|"!"|"%"|
-              ","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"
+              ","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"|"**"
 
 tokens :-
     <0> $white+ {skip}

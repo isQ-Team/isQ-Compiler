@@ -47,7 +47,8 @@ mlirPos MLIRPosUnknown = ""
 
 data MLIRBinaryOp = MLIRBinaryOp {binaryOpType :: String, lhsType :: MLIRType, rhsType :: MLIRType, resultType :: MLIRType} deriving Show
 
-mlirBinaryOp (a, b, c, d) = MLIRBinaryOp a b c d
+mlirBinaryOp (a, b, c, d) = MLIRBinaryOp ("arith."++a) b c d
+mlirMathBinaryOp (a,b,c,d) = MLIRBinaryOp ("math."++a) b c d
 mlirAddi = mlirBinaryOp ("addi", Index, Index, Index)
 mlirSubi = mlirBinaryOp ("subi", Index, Index, Index)
 mlirMuli = mlirBinaryOp ("muli", Index, Index, Index)
@@ -58,6 +59,7 @@ mlirAddf = mlirBinaryOp ("addf", Double, Double, Double)
 mlirSubf = mlirBinaryOp ("subf", Double, Double, Double)
 mlirMulf = mlirBinaryOp ("mulf", Double, Double, Double)
 mlirDivf = mlirBinaryOp ("divf", Double, Double, Double)
+mlirPowf = mlirMathBinaryOp ("powf", Double, Double, Double)
 mlirSltI = mlirBinaryOp ("cmpi \"slt\",", Index, Index, Bool)
 mlirSgtI = mlirBinaryOp ("cmpi \"sgt\",", Index, Index, Bool)
 mlirSleI = mlirBinaryOp ("cmpi \"sle\",", Index, Index, Bool)
@@ -75,7 +77,7 @@ mlirNeB = mlirBinaryOp ("cmpi \"ne\",", Bool, Bool, Bool)
 
 data MLIRUnaryOp = MLIRUnaryOp {unaryOpType :: String, argType :: MLIRType, unaryResultType :: MLIRType} deriving Show
 
-mlirUnaryOp (a, b, c) = MLIRUnaryOp a b c
+mlirUnaryOp (a, b, c) = MLIRUnaryOp ("arith."++a) b c
 
 mlirNegI = mlirUnaryOp ("negi", Index, Index)
 mlirNegF = mlirUnaryOp ("negf", Double, Double)
@@ -214,9 +216,9 @@ emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qo
 emitOpStep f env (MQPrint loc (Index, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_int(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Double, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_double(%s): [0](f64)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (t, arg)) = error $ "unsupported "++ show t
-emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = arith.%s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
-emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = arith.%s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
-emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = arith.%s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
+emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = %s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
+emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
+emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
 emitOpStep f env (MLoad loc value (arr_type, arr_val)) = intercalate "\n" $
   [indented env $ printf "%s_load_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
   indented env $ printf "%s = memref.load %s[%s_load_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)]

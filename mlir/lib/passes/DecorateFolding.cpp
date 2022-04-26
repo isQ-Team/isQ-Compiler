@@ -70,7 +70,7 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
 
     }
 
-    mlir::LogicalResult createControlledDefgate(isq::ir::DefgateOp defgate, mlir::ArrayRef<bool> ctrl, bool adj, mlir::FlatSymbolRefAttr sym, mlir::PatternRewriter &rewriter) const{
+    mlir::LogicalResult createControlledDefgate(isq::ir::DefgateOp defgate, mlir::ArrayRef<bool> ctrl, bool adj, mlir::FlatSymbolRefAttr sym, mlir::PatternRewriter &rewriter, mlir::ArrayAttr parameters) const{
         auto ctx = rewriter.getContext();
         mlir::SmallVector<mlir::Attribute> usefulGatedefs;
         auto id=0;
@@ -155,10 +155,25 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
         auto ip = rewriter.saveInsertionPoint();
         mlir::ModuleOp rootModule = this->rootModule;
         rewriter.setInsertionPointToStart(rootModule.getBody());
-        rewriter.create<DefgateOp>(::mlir::UnknownLoc::get(ctx), mlir::TypeAttr::get(GateType::get(ctx, new_qubit_num, GateTrait::General)), sym.getAttr(), mlir::StringAttr::get(ctx, "nested"), ::mlir::ArrayAttr{}, ::mlir::ArrayAttr::get(ctx, usefulGatedefs), ::mlir::ArrayAttr::get(ctx, ::llvm::ArrayRef<::mlir::Attribute>{}));
+        rewriter.create<DefgateOp>(::mlir::UnknownLoc::get(ctx), mlir::TypeAttr::get(GateType::get(ctx, new_qubit_num, GateTrait::General)), sym.getAttr(), mlir::StringAttr::get(ctx, "nested"), ::mlir::ArrayAttr{}, ::mlir::ArrayAttr::get(ctx, usefulGatedefs), parameters);
         rewriter.restoreInsertionPoint(ip);
         
         return mlir::success();
+    }
+    bool hasDecomposition(DefgateOp op) const{
+        auto defs = *op.definition();
+        auto id=0;
+        for(auto def: defs.getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(op, id, op.type(), def);
+            if(d==std::nullopt) {
+                llvm_unreachable("bad");
+            }
+            if(auto decomp = llvm::dyn_cast_or_null<DecompositionDefinition>(&**d)){
+                return true;
+            }
+            id++;
+        }
+        return false;
     }
     mlir::LogicalResult matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const override{
         // Check if it is a use-decorate-apply pattern.
@@ -166,14 +181,15 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
         if(!decorate_op) return mlir::failure();
         auto use_op = mlir::dyn_cast_or_null<UseGateOp>(decorate_op.args().getDefiningOp());
         if(!use_op) return mlir::failure();
-        if(use_op.parameters().size()>0){
-            return mlir::failure(); // Only matrix-gates are supported.
-        }
         auto defgate = mlir::SymbolTable::lookupNearestSymbolFrom<DefgateOp>(use_op.getOperation(), use_op.name());
         assert(defgate);
         if(!defgate.definition()) return mlir::failure();
+        auto is_decomposed = hasDecomposition(defgate);
+        if(use_op.parameters().size()>0 && !is_decomposed){
+            return mlir::failure(); // Only matrix-gates are supported.
+        }
         // Ignore sq adj.
-        if(defgate.type().getSize()==1 && decorate_op.adjoint() && decorate_op.ctrl().size()==0 && this->ignore_sq_adj){
+        if(!is_decomposed && defgate.type().getSize()==1 && decorate_op.adjoint() && decorate_op.ctrl().size()==0 && this->ignore_sq_adj){
             return mlir::failure();
         }
         // controlled-cnot is controlled-cx
@@ -220,7 +236,7 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
             ctrl_array.push_back(attr);
         }
         if(!new_defgate){
-            if(mlir::failed(createControlledDefgate(defgate, ctrl_array, decorate_op.adjoint(), new_defgate_sym, rewriter))){
+            if(mlir::failed(createControlledDefgate(defgate, ctrl_array, decorate_op.adjoint(), new_defgate_sym, rewriter, defgate.parameters()))){
                 return mlir::failure();
             }
         }
@@ -229,7 +245,7 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
         auto new_qubit_num = (int)defgate.type().getSize() + ctrl_array.size();
         auto ip = rewriter.saveInsertionPoint();
         rewriter.setInsertionPoint(op);
-        auto new_use_gate = rewriter.create<UseGateOp>(op->getLoc(), GateType::get(ctx, new_qubit_num, GateTrait::General), new_defgate_sym, ::mlir::ValueRange{});
+        auto new_use_gate = rewriter.create<UseGateOp>(op->getLoc(), GateType::get(ctx, new_qubit_num, GateTrait::General), new_defgate_sym, use_op.parameters());
         rewriter.restoreInsertionPoint(ip);
         rewriter.replaceOpWithNewOp<ApplyGateOp>(op.getOperation(), op->getResultTypes(), new_use_gate.result(), op.args());
         *dirty=true;

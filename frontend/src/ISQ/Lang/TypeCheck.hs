@@ -167,14 +167,21 @@ typeCheckExpr' f (EIdent pos ident) = do
         True ->return $ EGlobalName (TypeCheckData pos (definedType sym) ssa) ident
         False -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) (definedSSA sym)
     
-
-
+typeCheckExpr' f (EBinary pos Pow lhs rhs) = do
+    ref_lhs<-f lhs
+    ref_rhs<-f rhs
+    lhs' <- matchType (map Exact [doubleType ()]) ref_lhs
+    rhs' <- matchType (map Exact [doubleType ()]) ref_rhs
+    ssa<-nextId
+    let lty = astType lhs'
+    let rty = astType rhs'
+    let return_type = lty
+    return $ EBinary (TypeCheckData pos return_type ssa) Pow lhs' rhs'
 typeCheckExpr' f (EBinary pos op lhs rhs) = do
     ref_lhs<-f lhs
     ref_rhs<-f rhs
     lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
     rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
-    
     ssa<-nextId
     let lty = astType lhs'
     let rty = astType rhs'
