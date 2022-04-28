@@ -47,7 +47,8 @@ mlirPos MLIRPosUnknown = ""
 
 data MLIRBinaryOp = MLIRBinaryOp {binaryOpType :: String, lhsType :: MLIRType, rhsType :: MLIRType, resultType :: MLIRType} deriving Show
 
-mlirBinaryOp (a, b, c, d) = MLIRBinaryOp a b c d
+mlirBinaryOp (a, b, c, d) = MLIRBinaryOp ("arith."++a) b c d
+mlirMathBinaryOp (a,b,c,d) = MLIRBinaryOp ("math."++a) b c d
 mlirAddi = mlirBinaryOp ("addi", Index, Index, Index)
 mlirSubi = mlirBinaryOp ("subi", Index, Index, Index)
 mlirMuli = mlirBinaryOp ("muli", Index, Index, Index)
@@ -58,6 +59,7 @@ mlirAddf = mlirBinaryOp ("addf", Double, Double, Double)
 mlirSubf = mlirBinaryOp ("subf", Double, Double, Double)
 mlirMulf = mlirBinaryOp ("mulf", Double, Double, Double)
 mlirDivf = mlirBinaryOp ("divf", Double, Double, Double)
+mlirPowf = mlirMathBinaryOp ("powf", Double, Double, Double)
 mlirSltI = mlirBinaryOp ("cmpi \"slt\",", Index, Index, Bool)
 mlirSgtI = mlirBinaryOp ("cmpi \"sgt\",", Index, Index, Bool)
 mlirSleI = mlirBinaryOp ("cmpi \"sle\",", Index, Index, Bool)
@@ -75,7 +77,7 @@ mlirNeB = mlirBinaryOp ("cmpi \"ne\",", Bool, Bool, Bool)
 
 data MLIRUnaryOp = MLIRUnaryOp {unaryOpType :: String, argType :: MLIRType, unaryResultType :: MLIRType} deriving Show
 
-mlirUnaryOp (a, b, c) = MLIRUnaryOp a b c
+mlirUnaryOp (a, b, c) = MLIRUnaryOp ("arith."++a) b c
 
 mlirNegI = mlirUnaryOp ("negi", Index, Index)
 mlirNegF = mlirUnaryOp ("negf", Double, Double)
@@ -103,7 +105,6 @@ data MLIROp =
     | MExternFunc { location :: MLIRPos, funcName :: FuncName, funcReturnType :: Maybe MLIRType, funcArgTypes :: [MLIRType]}
     | MQDecorate { location :: MLIRPos, value :: SSA, decoratedGate :: SSA, trait :: ([Bool], Bool), gateSize :: Int }
     | MQApplyGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA}
-    | MQApplyRotateGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA, rotation :: SSA}
     | MQMeasure { location :: MLIRPos, measResult :: SSA, measQOut :: SSA, measQIn :: SSA}
     | MQReset { location :: MLIRPos, resetQOut :: SSA, resetQIn :: SSA}
     | MQPrint { location :: MLIRPos, printIn :: (MLIRType, SSA)}
@@ -208,16 +209,16 @@ emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) []) = indented e
 emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) xs) = indented env $ printf "%s = isq.use %s(%s) : (%s) -> !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) (intercalate ", " $ fmap (unSsa.snd) xs) (intercalate ", " $ fmap (mlirType.fst) xs) sz (mlirPos loc)
 emitOpStep f env (MQUseGate loc val usedgate usedtype _) = error "wtf?"
 emitOpStep f env (MQDecorate loc value source trait size) = let (d, sz) = decorToDict trait in indented env $ printf "%s = isq.decorate(%s: !isq.gate<%d>) %s : !isq.gate<%d> %s" (unSsa value) (unSsa source) size d (size+sz) (mlirPos loc)
+emitOpStep f env (MQApplyGate loc values [] gate) = indented env $ printf "isq.apply_gphase %s : !isq.gate<0> %s" (unSsa gate) (mlirPos loc)
 emitOpStep f env (MQApplyGate loc values args gate) = indented env $ printf "%s = isq.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
-emitOpStep f env (MQApplyRotateGate loc values args gate rotation) = indented env $ printf "%s = isq.applyrotate %s(%s){rotate = %s} : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (unSsa rotation) (length args) (mlirPos loc)
 emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @__isq__builtin__measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qop @__isq__builtin__reset(%s): [1]()->() %s" (unSsa out)  (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Index, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_int(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Double, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_double(%s): [0](f64)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (t, arg)) = error $ "unsupported "++ show t
-emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = arith.%s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
-emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = arith.%s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
-emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = arith.%s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
+emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = %s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
+emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
+emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
 emitOpStep f env (MLoad loc value (arr_type, arr_val)) = intercalate "\n" $
   [indented env $ printf "%s_load_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
   indented env $ printf "%s = memref.load %s[%s_load_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)]

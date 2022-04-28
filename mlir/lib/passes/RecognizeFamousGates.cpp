@@ -161,6 +161,7 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
         famousGates.push_back(FamousGateDef("__quantum__qis__rx__body", "rx", 1, 1, GateTrait::Symmetric));
         famousGates.push_back(FamousGateDef("__quantum__qis__ry__body", "ry", 1, 1, GateTrait::Symmetric));
         famousGates.push_back(FamousGateDef("__quantum__qis__rz__body", "rz", 1, 1, GateTrait::Diagonal | GateTrait::Symmetric));
+        famousGates.push_back(FamousGateDef("__quantum__qis__gphase", "gphase", 1, 0, GateTrait::Diagonal | GateTrait::Symmetric | GateTrait::Phase ));
         famousGates.push_back(FamousGateDef("__quantum__qis__u3", "u3", 3, 1, GateTrait::Symmetric));
     }
 
@@ -184,7 +185,7 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
         emitBuiltinGate(builder, "T", {&qubits[2]}, {}, nullptr, true);
         emitBuiltinGate(builder, "CNOT", {&qubits[0], &qubits[2]});
         emitBuiltinGate(builder, "T", {&qubits[2]});
-        emitBuiltinGate(builder, "T", {&qubits[1]});
+        emitBuiltinGate(builder, "T", {&qubits[1]},{},nullptr, true);
         emitBuiltinGate(builder, "H", {&qubits[2]});
         emitBuiltinGate(builder, "CNOT", {&qubits[0], &qubits[1]});
         emitBuiltinGate(builder, "T", {&qubits[1]}, {}, nullptr, true);
