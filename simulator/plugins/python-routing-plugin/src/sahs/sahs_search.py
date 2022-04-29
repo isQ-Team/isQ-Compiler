@@ -453,6 +453,7 @@ class SahsSearch(DiGraph):
             
     def qct(self):
         for _ in range(self.depth):
+            if len(self.finish_nodes) != 0: break
             self.expand_leaves()
         while len(self.finish_nodes) == 0:
             self.decision()
