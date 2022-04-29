@@ -53,7 +53,7 @@ impl QCISCodegen{
         Self{qcis_qubit_counter: 0, generated_code: vec![]}
     }
     pub fn append_op(&mut self, op: &str, args: &[&usize]){
-        let args_separated = args.iter().map(|x| format!("Q{}", x)).join(" ");
+        let args_separated = args.iter().map(|x| format!("Q{}", x+1)).join(" ");
         self.generated_code.push(format!("{} {}", op, args_separated));
     }
     pub fn finalize_route(&mut self){
