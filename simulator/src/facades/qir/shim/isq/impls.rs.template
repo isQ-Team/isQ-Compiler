@@ -2,6 +2,9 @@ use super::types::*;
 pub fn isq_qir_shim_qis_u3(x0: f64, x1: f64, x2: f64, x3: K<QIRQubit>)->() {
     todo!()
 }
+pub fn isq_qir_shim_qis_rz_body(x0: f64, x1: K<QIRQubit>)->() {
+    todo!()
+}
 pub fn isq_qir_shim_qis_x2p(x0: K<QIRQubit>)->() {
     todo!()
 }

@@ -21,6 +21,8 @@
 #include "mlir/Dialect/StandardOps/Transforms/FuncConversions.h"
 #include "llvm/Support/raw_ostream.h"
 #include <llvm/Support/ErrorHandling.h>
+#include <mlir/Pass/PassManager.h>
+#include <mlir/Transforms/Passes.h>
 namespace isq{
 namespace ir{
 namespace passes{
@@ -107,7 +109,7 @@ public:
         auto memrefty = op.memref().getType().dyn_cast<mlir::MemRefType>();
         assert(memrefty);
         if(!memrefty) return mlir::failure();
-        if(!memrefty.getElementType().isa<QStateType>()) return mlir::failure();
+        if(!memrefty.getElementType().isa<QStateType>() && !memrefty.getElementType().isa<QIRQubitType>()) return mlir::failure();
 
         auto shape = memrefty.getShape();
         // One-dim known arrays supported only.
@@ -579,6 +581,14 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
             mlir::FrozenRewritePatternSet frps(std::move(rps));
             (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
         }while(0);
+        /*
+        mlir::PassManager pm(ctx);
+        applyPassManagerCLOptions(pm);
+        pm.addNestedPass<mlir::FuncOp>(mlir::createCanonicalizerPass());
+        if (mlir::failed(pm.run(m))){
+            return signalPassFailure();
+        }
+        */
     }
   mlir::StringRef getArgument() const final {
     return "isq-lower-to-qir-rep";

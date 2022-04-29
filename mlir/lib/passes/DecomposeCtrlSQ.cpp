@@ -32,6 +32,11 @@ void emitDecomposedGateSequence(mlir::OpBuilder& builder, synthesis::DecomposedG
         }else if(type==synthesis::GateType::X){
             emitBuiltinGate(builder, "X", mlir::ArrayRef<mlir::Value*>{&qubits[pos[0]]});
         }else if(type==synthesis::GateType::TOFFOLI){
+            if(pos.size()!=3){
+                llvm::errs()<<"real size:"<<pos.size()<<"\n";
+                assert(pos.size()==3);
+            }
+            
             emitBuiltinGate(builder, "Toffoli", mlir::ArrayRef<mlir::Value*>{&qubits[pos[0]], &qubits[pos[1]], &qubits[pos[2]]});
         }else if(type==synthesis::GateType::CNOT){
             emitBuiltinGate(builder, "CNOT", mlir::ArrayRef<mlir::Value*>{&qubits[pos[0]], &qubits[pos[1]]});

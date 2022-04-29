@@ -6,6 +6,11 @@ pub extern "C" fn __isq__qir__shim__qis__u3(x0: f64, x1: f64, x2: f64, x3: *mut 
     unsafe { t(isq_qir_shim_qis_u3(t::<_, f64>(x0), t::<_, f64>(x1), t::<_, f64>(x2), t::<_, K<QIRQubit>>(x3)))}
 }
 #[no_mangle]
+pub extern "C" fn __isq__qir__shim__qis__rz__body(x0: f64, x1: *mut i8)->() {
+    use core::mem::transmute as t;
+    unsafe { t(isq_qir_shim_qis_rz_body(t::<_, f64>(x0), t::<_, K<QIRQubit>>(x1)))}
+}
+#[no_mangle]
 pub extern "C" fn __isq__qir__shim__qis__x2p(x0: *mut i8)->() {
     use core::mem::transmute as t;
     unsafe { t(isq_qir_shim_qis_x2p(t::<_, K<QIRQubit>>(x0)))}

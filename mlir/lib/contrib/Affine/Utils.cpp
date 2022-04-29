@@ -459,9 +459,10 @@ void isq::contrib::mlir::affineScalarReplace(FuncOp f, DominanceInfo &domInfo,
   f.walk([&](AffineReadOpInterface loadOp) {
     if (failed(
             forwardStoreToLoad(loadOp, opsToErase, memrefsToErase, domInfo))) {
-      if(failed(forwardUndef(loadOp, opsToUndef, memrefsToErase, domInfo))){
+      loadCSE(loadOp, opsToErase, domInfo);
+      /*if(failed(forwardUndef(loadOp, opsToUndef, memrefsToErase, domInfo))){
         loadCSE(loadOp, opsToErase, domInfo);
-      }
+      }*/
       
     }
   });

@@ -1,6 +1,7 @@
 #include "isq/Operations.h"
 #include "isq/passes/Passes.h"
 #include <llvm/Support/Casting.h>
+#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinAttributes.h>
@@ -53,8 +54,62 @@ public:
             auto phi = usegate->getOperand(2);
             mlir::Value v1 = apply->getOperand(1);
             emitBuiltinGate(rewriter, "Rz", {&v1}, {lambda});
-            emitBuiltinGate(rewriter, "Ry", {&v1}, {theta});
+            emitBuiltinGate(rewriter, "X2P", {&v1});
+            emitBuiltinGate(rewriter, "Rz", {&v1}, {theta});
+            emitBuiltinGate(rewriter, "X2M", {&v1});
             emitBuiltinGate(rewriter, "Rz", {&v1}, {phi});
+            rewriter.replaceOp(apply, mlir::ArrayRef<mlir::Value>{v1});
+            return mlir::success();
+        }
+        return mlir::failure();
+    }
+};
+
+struct RZRecog : mlir::OpRewritePattern<ApplyGateOp>{
+public:
+    RZRecog(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
+    mlir::LogicalResult matchAndRewrite(ApplyGateOp apply, mlir::PatternRewriter& rewriter) const override{
+        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.gate().getDefiningOp());
+        if(!usegate) return mlir::failure();
+        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+        if(!defgate) return mlir::failure();
+        auto ctx = rewriter.getContext();
+        if(isFamousGate(defgate, "Rz")){
+            auto theta_v = usegate->getOperand(0);
+            auto theta_op = llvm::dyn_cast<mlir::arith::ConstantFloatOp>(theta_v.getDefiningOp());
+            if(!theta_op) return mlir::failure();
+            double theta = theta_op.value().convertToDouble();
+            double eps = 1e-6;
+            double pi = 3.141592653589793;
+            if(std::abs(theta)<eps){
+                // identity
+                rewriter.replaceOp(apply, apply.args());
+                return mlir::success();
+            }
+            mlir::Value v1 = apply->getOperand(1);
+            while(theta<0) theta=theta+pi*2;
+            if(std::abs(theta-pi/4)<eps){
+                emitBuiltinGate(rewriter, "T", {&v1});
+            }else if(std::abs(theta-pi/2)<eps){
+                emitBuiltinGate(rewriter, "S", {&v1});
+            }else if(std::abs(theta-pi*3/4)<eps){
+                emitBuiltinGate(rewriter, "S", {&v1});
+                emitBuiltinGate(rewriter, "T", {&v1});
+            }else if(std::abs(theta-pi)<eps){
+                emitBuiltinGate(rewriter, "Z", {&v1});
+            }else if(std::abs(theta-pi*5/4)<eps){
+                emitBuiltinGate(rewriter, "Z", {&v1});
+                emitBuiltinGate(rewriter, "T", {&v1});
+            }else if(std::abs(theta-pi*3/2)<eps){
+                emitBuiltinGate(rewriter, "S", {&v1}, {}, {}, true);
+            }else if(std::abs(theta-pi*7/4)<eps){
+                emitBuiltinGate(rewriter, "T", {&v1}, {}, {}, true);
+            }else if(std::abs(theta-pi*2)<eps){
+                rewriter.replaceOp(apply, apply.args());
+                return mlir::success();
+            }else{
+                return mlir::failure();
+            }
             rewriter.replaceOp(apply, mlir::ArrayRef<mlir::Value>{v1});
             return mlir::success();
         }
@@ -114,7 +169,8 @@ class TargetQCISSetPass : public mlir::PassWrapper<TargetQCISSetPass, mlir::Oper
         do{
             mlir::RewritePatternSet rps(ctx);
             rps.add<CX2HCZH>(ctx);
-            //rps.add<U3ToZYZ>(ctx);
+            rps.add<RZRecog>(ctx);
+            rps.add<U3ToZYZ>(ctx);
             rps.add<InvTSRecog>(ctx);
             mlir::FrozenRewritePatternSet frps(std::move(rps));
             (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);

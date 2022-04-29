@@ -101,7 +101,7 @@ pub fn translate_sq_gate_to_matrix(op_type: QuantumOp, parameters: &[f64])->[[Co
             [Complex64::new(invsqrt2, 0.0), Complex64::new(invsqrt2, 0.0)],
             [Complex64::new( -invsqrt2, 0.0), Complex64::new(invsqrt2, 0.0)],
         ],
-        _=>panic!("bad sq")
+        _=>panic!("bad sq {:?}", op_type)
     }
 }
 impl<Q: Eq, T: QDevice<Qubit = Q>> SQ2U3Device<Q, T>{

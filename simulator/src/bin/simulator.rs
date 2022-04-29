@@ -1,5 +1,5 @@
 use isq_simulator::{
-    devices::{checked::CheckedDevice, naive::NaiveSimulator, sq2u3::SQ2U3Device},
+    devices::{checked::CheckedDevice, naive::NaiveSimulator, sq2u3::SQ2U3Device, noop::NoopDevice},
     facades::qir::context::{get_current_context, make_context_current, QIRContext}, qdevice::QDevice,
 };
 
@@ -22,7 +22,7 @@ use clap::ArgGroup;
 #[clap(group(
     ArgGroup::new("simulator_type")
         .required(true)
-        .args(&["naive", "cuda", "qcis"]),
+        .args(&["naive", "cuda", "qcis", "noop"]),
 ))]
 struct SimulatorArgs {
     #[clap(index = 1, parse(from_os_str))]
@@ -34,7 +34,9 @@ struct SimulatorArgs {
     #[clap(long)]
     cuda: Option<usize>,
     #[clap(long)]
-    qcis: bool
+    qcis: bool,
+    #[clap(long)]
+    noop: bool 
 }
 
 type SimulatorEntry = extern "C" fn() -> ();
@@ -75,7 +77,9 @@ fn main() -> std::io::Result<()> {
                 Box::new(CheckedDevice::new(QCISCodegen::new()))
             }
             
-        }else{
+        }else if args.noop{
+            Box::new(CheckedDevice::new(SQ2U3Device::new(NoopDevice::new())))
+        }else {
             unreachable!();
         }
     };
