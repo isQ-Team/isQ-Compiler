@@ -157,8 +157,10 @@ DecomposedGates mcdecompose_with_mcancilla(GateLocation q, GateLocation a){
     int size = q.size();
 
     if (size == 2){
+        assert(q.size()==2);
         gatelist.push_back(ElementGate(CNOT, q, 0., 0., 0.));
     }else if (size == 3){
+        assert(q.size()==3);
         gatelist.push_back(ElementGate(TOFFOLI, q, 0., 0., 0.));
     }else{
         int iq = size - 3;
@@ -169,12 +171,22 @@ DecomposedGates mcdecompose_with_mcancilla(GateLocation q, GateLocation a){
             iq -= 1;
             ia += 1;
         }
-        gatelist.push_back(ElementGate(TOFFOLI, {q[size-2], a[0], q[size-1]}, 0., 0., 0.));
-        gatelist.insert(gatelist.end(), midgate.begin(), midgate.end());
-        gatelist.push_back(ElementGate(TOFFOLI, {q[0], q[1], a[ia-1]}, 0., 0., 0.));
+        gatelist.push_back(ElementGate(TOFFOLI, {q.at(size-2), a.at(0), q.at(size-1)}, 0., 0., 0.));
+        for(auto& g: midgate){
+            gatelist.push_back(g);
+        }
+        //gatelist.insert(gatelist.end(), midgate.begin(), midgate.end());
+        gatelist.push_back(ElementGate(TOFFOLI, {q.at(0), q.at(1), a.at(ia-1)}, 0., 0., 0.));
         reverse(midgate.begin(), midgate.end());
-        gatelist.insert(gatelist.end(), midgate.begin(), midgate.end());
-        gatelist.insert(gatelist.end(), gatelist.begin(), gatelist.end());
+        for(auto& g: midgate){
+            gatelist.push_back(std::move(g));
+        }
+        //gatelist.insert(gatelist.end(), midgate.begin(), midgate.end());
+        auto gatelist_new = gatelist;
+        for(auto& g: gatelist_new){
+            gatelist.push_back(std::move(g));
+        }
+        //gatelist.insert(gatelist.end(), gatelist.begin(), gatelist.end());
         
     }
 

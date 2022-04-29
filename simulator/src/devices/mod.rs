@@ -7,3 +7,4 @@ pub mod sq2u3;
 pub mod cuda;
 #[cfg(feature = "qcis")]
 pub mod qcisgen;
+pub mod noop;

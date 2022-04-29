@@ -962,6 +962,7 @@ fn qir_microsoft_extension_foundation() -> Vec<QIRInterface> {
 fn qir_isq() -> Vec<QIRInterface> {
     let mut interfaces: Vec<QIRInterface> = Vec::new();
     interfaces.push(QIRInterface::new("qis", "u3", QVoid, &[Double, Double, Double, Qubit]));
+    interfaces.push(QIRInterface::new("qis", "rz__body", QVoid, &[Double, Qubit]));
     interfaces.push(QIRInterface::new("qis", "x2p", QVoid, &[Qubit]));
     interfaces.push(QIRInterface::new("qis", "x2m", QVoid, &[Qubit]));
     interfaces.push(QIRInterface::new("qis", "y2p", QVoid, &[Qubit]));

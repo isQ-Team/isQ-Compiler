@@ -2,6 +2,7 @@
 #include <isq/IR.h>
 #include <llvm/ADT/StringExtras.h>
 #include <isq/tblgen/ISQDialect.cpp.inc>
+#include <llvm/Support/ErrorHandling.h>
 #include <mlir/IR/Attributes.h>
 #define GET_OP_CLASSES
 #include <isq/tblgen/ISQOPs.cpp.inc>
@@ -14,8 +15,51 @@
 
 #include <isq/tblgen/ISQStructAttrs.cpp.inc>
 #include <isq/passes/Passes.h>
+#include <mlir/Transforms/InliningUtils.h>
 namespace isq {
 namespace ir {
+namespace{
+    using namespace mlir;
+    struct ISQInlinerInterface : public mlir::DialectInlinerInterface {
+        using DialectInlinerInterface::DialectInlinerInterface;
+
+        /// This hook checks to see if the given callable operation is legal to
+        /// inline into the given call. For Toy this hook can simply return
+        /// true, as the Toy Call operation is always inlinable.
+        bool isLegalToInline(Operation *call, Operation *callable,
+                             bool wouldBeCloned) const final {
+            return true;
+        }
+
+        /// This hook checks to see if the given operation is legal to inline
+        /// into the given region. For Toy this hook can simply return true, as
+        /// all Toy operations are inlinable.
+        bool isLegalToInline(Operation *, Region *, bool,
+                             BlockAndValueMapping &) const final {
+            return true;
+        }
+
+        /// This hook cheks if the given 'src' region can be inlined into the
+        /// 'dest' region. The regions here are the bodies of the callable
+        /// functions. For Toy, any function can be inlined, so we simply return
+        /// true.
+        bool isLegalToInline(Region *dest, Region *src, bool wouldBeCloned,
+                             BlockAndValueMapping &valueMapping) const final {
+            return true;
+        }
+
+        /// This hook is called when a terminator operation has been inlined.
+        /// The only terminator that we have in the Toy dialect is the return
+        /// operation(toy.return). We handle the return by replacing the values
+        /// previously returned by the call operation with the operands of the
+        /// return.
+        void handleTerminator(Operation *op,
+                              ArrayRef<Value> valuesToRepl) const final {
+            llvm_unreachable("We don't have terminator ops.");
+        }
+    };
+}
+
 
 void ISQDialect::getCanonicalizationPatterns(mlir::RewritePatternSet &results) const {
 
@@ -81,6 +125,7 @@ void ISQDialect::initialize() {
 #define GET_OP_LIST
 #include <isq/tblgen/ISQOPs.cpp.inc>
         >();
+    addInterfaces<ISQInlinerInterface>();
 
     
 }

@@ -14,6 +14,17 @@ pub fn isq_qir_shim_qis_u3(theta: f64, phi: f64, lam: f64, x0: K<QIRQubit>)->() 
     let device = ctx.get_device_mut();
     device.controlled_qop(U3, &[], &[&x0.key], &[theta, phi, lam]);
 }
+pub fn isq_qir_shim_qis_rz_body(x0: f64, x1: K<QIRQubit>)->() {
+    trace!(
+        "calling isq_qir_shim_qis_rz(x0: {}, theta: {})",
+        P(&x1),
+        x0,
+    );
+    let rctx = context();
+    let mut ctx = RefCell::borrow_mut(&rctx);
+    let device = ctx.get_device_mut();
+    device.controlled_qop(Rz, &[], &[&x1.key], &[x0]);
+}
 pub fn isq_qir_shim_qis_x2p(x0: K<QIRQubit>)->() {
     trace!(
         "calling isq_qir_shim_qis_x2p(x0: {})",

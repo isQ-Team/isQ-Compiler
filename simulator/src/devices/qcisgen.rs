@@ -96,6 +96,12 @@ impl QDevice for QCISCodegen{
             self.finalize_route();
             return;
         }
+        if let Rz = op_type{
+            let op = format!("Rz");
+            let args_separated = qubits.iter().map(|x| format!("Q{}", x)).join(" ");
+            self.generated_code.push(format!("{} {} {}", op, args_separated, parameters[0]));
+            return;
+        }
         let op_name = match op_type{
             X=>"X", Y=>"Y", Z=>"Z",
             H=>"H", S=>"S", T=>"T",
