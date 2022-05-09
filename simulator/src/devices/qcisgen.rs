@@ -16,31 +16,36 @@ pub fn run_qcis_route(code: String)->String{
     use serde_json::Value;
     use std::{process::{Command, Stdio}, io::Write};
     use std::io::Read;
-    let qcis_configuration = std::env::var("QCIS_ROUTE_CONFIG").expect("qcis routing configuration not speficied.");
-    let mut config_file = std::fs::File::open(qcis_configuration).expect("qcis config open failed");
-    let mut config = String::new();
-    config_file.read_to_string(&mut config).expect("qcis read failed");
-    drop(config_file);
-    let mut config_json = serde_json::from_str::<Value>(&config).expect("qcis json failed");
-    if let Value::Object(obj) = &mut config_json{
-        obj.insert(String::from("qcis"), Value::String(code));
+    let qcis_configuration = std::env::var("QCIS_ROUTE_CONFIG");//.expect("qcis routing configuration not speficied.");
+    if let Ok(s) = qcis_configuration {
+        let mut config_file = std::fs::File::open(s).expect("qcis config open failed");
+        let mut config = String::new();
+        config_file.read_to_string(&mut config).expect("qcis read failed");
+        drop(config_file);
+        let mut config_json = serde_json::from_str::<Value>(&config).expect("qcis json failed");
+        if let Value::Object(obj) = &mut config_json{
+            obj.insert(String::from("qcis"), Value::String(code));
+        }else{
+            panic!("qcis config schema invalid");
+        }
+        let input = serde_json::to_string(&config_json).expect("internal qcis error");
+        let mut child = Command::new(qcis_route_bin_path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .expect("qcis router failed to start.");
+        let mut stdin = child.stdin.take().expect("failed to open qcis route stdin");
+        std::thread::spawn(move || {
+            stdin.write_all(input.as_bytes()).expect("failed to write to qcis router");
+        });
+        let output = child.wait_with_output().expect("Failed to read stdout");
+        output.status.exit_ok().expect("qcis router failed to exit. Please check.");
+        return String::from_utf8(output.stdout).expect("qcis router yielded invalid output");
     }else{
-        panic!("qcis config schema invalid");
+        return code;
     }
-    let input = serde_json::to_string(&config_json).expect("internal qcis error");
-    let mut child = Command::new(qcis_route_bin_path())
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .expect("qcis router failed to start.");
-    let mut stdin = child.stdin.take().expect("failed to open qcis route stdin");
-    std::thread::spawn(move || {
-        stdin.write_all(input.as_bytes()).expect("failed to write to qcis router");
-    });
-    let output = child.wait_with_output().expect("Failed to read stdout");
-    output.status.exit_ok().expect("qcis router failed to exit. Please check.");
-    String::from_utf8(output.stdout).expect("qcis router yielded invalid output")
+    
 }
 
 pub struct QCISCodegen{

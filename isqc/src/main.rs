@@ -224,10 +224,14 @@ fn main()->miette::Result<()> {
                     let mut v = vec!["-e".into(), "__isq__entry".into()];
                     v.push("--qcis".into());
                     v.push(qir_object);
-                    let config_file = qcis_config.ok_or(QCISConfigNotSpecified)?;
-                    let output = exec::exec_command_with_decorator(&root, "simulator", &v, &[], |child|{
-                        child.env("QCIS_ROUTE_CONFIG", &config_file);
-                    }).map_err(ioErrorWhen("running qcis classical part"))?;
+                    let config_file = qcis_config;//ok_or(QCISConfigNotSpecified)?;
+                    let output = if let Some(s) = config_file {
+                        exec::exec_command_with_decorator(&root, "simulator", &v, &[], |child|{
+                            child.env("QCIS_ROUTE_CONFIG", &s);
+                        }).map_err(ioErrorWhen("running qcis classical part"))?
+                    }else{
+                        exec::exec_command(&root, "simulator", &v, &[]).map_err(ioErrorWhen("running qcis classical part"))?
+                    };
                     
                     qcis_out.get_file_mut().write_all(&output).map_err(IoError)?;
                     qcis_out.finalize();
