@@ -19,6 +19,7 @@ void registerRemoveTrivialSQGates();
 void registerTargetQCISSet();
 void registerRemoveGPhase();
 void registerEliminateNegCtrl();
+void registerISQCanonicalizer();
 
 void addLegalizeTraitsRules(mlir::RewritePatternSet& patterns);
 

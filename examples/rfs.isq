@@ -3,39 +3,40 @@ oracle g(2,1) = [0,1,1,0];
 
 
 int a;
+//int price;
 qbit q[4], p[3];
 
 procedure recursive_fourier_sampling(int k){
-	if (k == 2){
-		A(q[0], q[1], q[2], q[3], p[2]);
-	}else{
-		H<q[2*k]>;
-		H<q[2*k+1]>;
-		X<p[k+1]>;
-		H<p[k+1]>;
-
-		recursive_fourier_sampling(k+1);
-
-		H<q[2*k]>;
-		H<q[2*k+1]>;
-		g(q[2*k],q[2*k+1], p[k]);
-		H<q[2*k]>;
-		H<q[2*k+1]>;
-
-		recursive_fourier_sampling(k+1);
-
-		H<q[2*k]>;
-		H<q[2*k+1]>;
-		H<p[k+1]>;
-		X<p[k+1]>;
-	}
+    if (k == 2){
+        //price=price+3066;
+        A(q[0], q[1], q[2], q[3], p[2]);
+    } else {
+        price=price+12;
+        H (q[2*k]);
+        H (q[2*k+1]);
+        X (p[k+1]);
+        H (p[k+1]);
+        //price = price + 56;
+        recursive_fourier_sampling(k+1);
+        H (q[2*k]);
+        H (q[2*k+1]);
+        g (q[2*k],q[2*k+1], p[k]);
+        H (q[2*k]);
+        H (q[2*k+1]);
+        recursive_fourier_sampling(k+1);
+        H (q[2*k]);
+        H (q[2*k+1]);
+        H (p[k+1]);
+        X (p[k+1]);
+    }
 }
 
 procedure main(){
-
-	a = 0;
-	recursive_fourier_sampling(a);
-	int g = M<p[0]>;	
-	print g;
+    a = 0;
+    //price=0;
+    recursive_fourier_sampling(a);
+    M(p[0]);
+    //print(price);
+    //print(M(p[0]));
 }
 

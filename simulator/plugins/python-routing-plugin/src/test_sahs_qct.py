@@ -172,7 +172,7 @@ if __name__ == '__main__':
     from json import loads
     # generate example connectivity
     data = loads(sys.stdin.read())
-    if 'QCIS_DONT_ROUTE' in os.environ:
+    if 'QCIS_DONT_ROUTE' in os.environ and os.environ['QCIS_DONT_ROUTE']!='0':
         print(data["qcis"])
         sys.exit(0)
     ag_matrix = get_grid_from_edges(data["qbit_num"], data["topo"])
