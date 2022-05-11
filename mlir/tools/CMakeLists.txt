@@ -8,5 +8,6 @@ endfunction()
 
 isq_tool(opt)
 isq_tool(lsp-server)
+isq_tool(ok)
 isq_tool(codegen)
 # qir_tool(lower)

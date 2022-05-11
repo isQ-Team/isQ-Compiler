@@ -139,8 +139,8 @@ data MLIROp =
     | MUseGlobalMemref {location :: MLIRPos, usedVal :: SSA, usedName :: FuncName, globalMemrefType :: MLIRType}
     deriving Show
 
-newtype MLIREmitEnv = MLIREmitEnv {
-  indent :: Int
+data MLIREmitEnv = MLIREmitEnv {
+  indent :: Int, isTopLevel :: Bool
 } deriving Show
 
 incrIndent :: MLIREmitEnv->MLIREmitEnv
@@ -285,14 +285,15 @@ emitOpStep f env (MSCFExecRegion loc blocks) = intercalate "\n"
   ++ fmap (emitBlock f env) blocks ++
   [indented env $ printf "} %s" (mlirPos loc)])
 emitOpStep f env (MSCFYield loc) = indented env $ printf "scf.yield %s" (mlirPos loc)
-emitOpStep f env (MAffineFor loc lo hi step var body) = intercalate "\n" $
+emitOpStep f env@MLIREmitEnv{isTopLevel=True} (MAffineFor loc lo hi step var body) = intercalate "\n" $
   [indented env $ printf "affine.for %s = %s to %s step %d {" (unSsa var) (unSsa lo) (unSsa hi) step]
   ++ fmap (f (incrIndent env)) body
   ++ [indented env $ printf "} %s" (mlirPos loc)]
+emitOpStep f env (MAffineFor loc lo hi step var body) = emitOpStep f env (MSCFFor loc lo hi step var body)
 emitOpStep f env (MSCFFor loc lo hi step var body) = intercalate "\n" $
-  [ indented env $ printf "%s_one = arith.constant 1 : index" (unSsa var),
+  [ indented env $ printf "%s_one = arith.constant %d : index %s" (unSsa var) step (mlirPos loc),
     indented env $ printf "scf.for %s = %s to %s step %s_one {" (unSsa var) (unSsa lo) (unSsa hi) (unSsa var)]
-  ++ fmap (f (incrIndent env)) body
+  ++ fmap (f (incrIndent (env{isTopLevel=False}))) body
   ++ [indented env $ printf "} %s" (mlirPos loc)]
 emitOpStep f env (MReturn loc (ty, v)) = indented env $ printf "return %s : %s %s" (unSsa v) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MReturnUnit loc) = indented env $ printf "return %s" (mlirPos loc)
@@ -308,4 +309,4 @@ emitOp' :: MLIREmitEnv -> MLIROp -> String
 emitOp' = fix emitOpStep
 
 emitOp :: MLIROp -> String
-emitOp = emitOp' (MLIREmitEnv 0)
+emitOp = emitOp' (MLIREmitEnv 0 True)

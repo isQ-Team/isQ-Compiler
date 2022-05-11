@@ -20,6 +20,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerTargetQCISSet();
     passes::registerRemoveGPhase();
     passes::registerEliminateNegCtrl();
+    passes::registerISQCanonicalizer();
     isq::contrib::mlir::registerAffineScalarReplacementPass();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();

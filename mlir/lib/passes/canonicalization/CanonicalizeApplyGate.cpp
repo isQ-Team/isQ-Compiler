@@ -9,6 +9,7 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Support/LLVM.h"
 #include <llvm/Support/raw_ostream.h>
+#include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Support/LogicalResult.h>
 namespace isq{
 namespace ir{
@@ -126,6 +127,13 @@ CancelHermitianUU::CancelHermitianUU(mlir::MLIRContext* ctx): CancelUV(ctx){}
 mlir::LogicalResult CancelHermitianUU::tryCancel(isq::ir::ApplyGateOp curr, isq::ir::ApplyGateOp prev, mlir::PatternRewriter& rewriter) const{
     if(curr.gate()==prev.gate() && (curr.gate().getType().cast<GateType>().getHints() & GateTrait::Hermitian) == GateTrait::Hermitian){
         rewriter.replaceOp(curr, prev.args());
+        mlir::SmallVector<mlir::Operation*> oo(prev->getUsers().begin(), prev->getUsers().end());
+        for(auto user: oo){
+            if(llvm::isa<mlir::AffineStoreOp>(user)){
+                rewriter.eraseOp(user);
+            }
+        }
+        rewriter.eraseOp(prev);
         return mlir::success();
     }
     return mlir::failure();
