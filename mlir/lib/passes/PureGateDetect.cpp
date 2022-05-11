@@ -1,4 +1,5 @@
 #include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
@@ -218,6 +219,11 @@ public:
         return mlir::success();
     }
 };
+/*
+namespace{
+    const char* ISQ_ATTR_GATE_SIZE = "ISQ_ATTR_GATE_SIZE";
+}
+*/
 
 struct PureGateDetectPass : public mlir::PassWrapper<PureGateDetectPass, mlir::OperationPass<mlir::ModuleOp>>{
     void runOnOperation() override{
