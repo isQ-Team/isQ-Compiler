@@ -22,6 +22,7 @@
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/OperationSupport.h>
 #include <mlir/IR/TypeRange.h>
+#include <mlir/Pass/PassManager.h>
 #include <optional>
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 namespace isq{
@@ -55,13 +56,17 @@ std::vector<std::vector<std::complex<double>>> appendMatrix(const std::vector<st
     }
     return new_matrix;
 }
-
+namespace{
+    const char* ISQ_ATTR_GATE_SIZE = "ISQ_ATTR_GATE_SIZE";
+}
 const char* ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_START_INDEX = "ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_START_INDEX";
 const char* ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS = "ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS";
 const char* ISQ_DECORATE_FOLDING_PROPAGATE_TO_PROCESS = "ISQ_DECORATE_FOLDING_PROPAGATE_TO_PROCESS";
 const char* ISQ_FAKELOAD = "isq.intermediate.fakeload";
 const char* ISQ_FAKESTORE = "isq.intermediate.fakestore";
 const char* ISQ_FAKELOADSTORE_ID = "ISQ_FAKELOADSTORE_ID";
+const char* ISQ_REPLACED_SIG = "ISQ_REPLACED_SIG";
+
 struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGateOp>{
     mlir::ModuleOp rootModule;
     bool* dirty;
@@ -99,12 +104,15 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
                 auto fn = decomp->getDecomposedFunc();
                 // TODO: adjoint op support.
                 // Do we need to "revert" all steps?
-                if(!fn->hasAttr(ISQ_GPHASE_REMOVED) && !adj){
+                if(!fn->hasAttr(ISQ_GPHASE_REMOVED)){
                     auto new_fn = fn.clone();
                     mlir::ModuleOp rootModule = this->rootModule;
                     rewriter.setInsertionPointToStart(rootModule.getBody());
                     rewriter.insert(new_fn);
                     rewriter.startRootUpdate(new_fn);
+                    if(adj){
+                        new_fn->setAttr(ISQ_ATTR_GATE_SIZE, rewriter.getI64IntegerAttr(defgate.type().getSize()));
+                    }
                     auto new_fn_name = "$__isq__decomposition__"+sym.getValue();
                     new_fn.sym_nameAttr(mlir::StringAttr::get(ctx, new_fn_name));
                     new_fn.sym_visibilityAttr(mlir::StringAttr::get(ctx, "private"));
@@ -127,7 +135,10 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
                         args.push_back(QStateType::get(ctx));
                         results.push_back(QStateType::get(ctx));
                     }
-                    new_fn.setType(mlir::FunctionType::get(ctx, args, results));
+                    auto replaced_fn_signature = mlir::FunctionType::get(ctx, args, new_fn.getType().getResults());
+                    auto final_fn_signature = mlir::FunctionType::get(ctx, args, results);
+                    new_fn.setType(replaced_fn_signature);
+                    new_fn->setAttr(ISQ_REPLACED_SIG, mlir::TypeAttr::get(final_fn_signature));
                     mlir::SmallVector<mlir::Value> controlQubits;
                     auto insert_index = old_size - defgate.type().getSize();
                     for(auto i=0; i<ctrl.size(); i++){
@@ -217,17 +228,17 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
             return mlir::success();
         }
         // construct new matrix name.
-        // TODO: resolve decorate-and-decorate problem.
         auto new_defgate_name = std::string(defgate.sym_name());
+        if(decorate_op.adjoint()){
+            new_defgate_name += "_adj";
+        }
         if(decorate_op.ctrl().size()>0){
             new_defgate_name+="_ctrl_";
             for(auto c: decorate_op.ctrl().getAsValueRange<mlir::BoolAttr>()){
                 new_defgate_name+= c?"1":"0";
             }
         }
-        if(decorate_op.adjoint()){
-            new_defgate_name += "_adj";
-        }
+
         auto new_defgate_sym = mlir::FlatSymbolRefAttr::get(mlir::StringAttr::get(rewriter.getContext(), new_defgate_name));
         auto new_defgate = mlir::SymbolTable::lookupNearestSymbolFrom<DefgateOp>(op, new_defgate_sym);
             
@@ -376,6 +387,14 @@ struct FakeMem2Reg : public mlir::OpRewritePattern<mlir::FuncOp>{
             argTypes.push_back(QStateType::get(ctx));
         }
         rewriter.startRootUpdate(op);
+        auto fn_type = op->getAttrOfType<mlir::TypeAttr>(ISQ_REPLACED_SIG);
+        assert(fn_type);
+        auto val = fn_type.getValue();
+        if(!val.isa<mlir::FunctionType>()){
+            assert(0);
+        }
+        op.setType(fn_type.getValue());
+        op->removeAttr(ISQ_REPLACED_SIG);
         op->removeAttr(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS);
         op->removeAttr(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_START_INDEX);
         FakeMem2RegRewrite mem2reg;
@@ -402,6 +421,115 @@ struct FakeMem2Reg : public mlir::OpRewritePattern<mlir::FuncOp>{
     }
 };
 
+
+struct GenerateInvertedGate : public mlir::PassWrapper<GenerateInvertedGate, mlir::OperationPass<mlir::FuncOp>>{
+    void runOnOperation() override{
+        mlir::FuncOp op = this->getOperation();
+        auto ctx = op->getContext();
+        auto size_attr = op->getAttrOfType<mlir::IntegerAttr>(ISQ_ATTR_GATE_SIZE);
+        if(!size_attr) return;
+        op->removeAttr(ISQ_ATTR_GATE_SIZE);
+        auto size = size_attr.getInt();
+        auto offset = op.getNumArguments()-size;
+        // last qubits
+        // backtrace all qubits.
+        llvm::SmallVector<mlir::Value> results;
+        // find terminator.
+        mlir::Block* last_block = nullptr;
+        for(auto& block : op.getBody().getBlocks()){
+            if(llvm::isa<mlir::ReturnOp>(block.getTerminator())){
+                if(last_block){
+                    op->emitOpError("has multiple exit blocks");
+                    return signalPassFailure();
+                }
+                last_block=&block;
+            }
+        }
+        if(!last_block){
+            op.emitOpError("has no exit block");
+            return signalPassFailure();
+        }
+        auto ret = llvm::cast<mlir::ReturnOp>(last_block->getTerminator());
+        mlir::OpBuilder builder(ret);
+        results.append(ret.operands().begin(), ret.operands().end());
+        for(auto i=0; i<results.size(); i++){
+            auto val = results[i];
+            while(val.getDefiningOp()){
+                auto def_op = val.getDefiningOp();
+                auto apply_op = llvm::dyn_cast<ApplyGateOp>(def_op);
+                if(!apply_op) {
+                    def_op->emitOpError("wrongly used in adjointed gate");
+                    return signalPassFailure();
+                }
+                for(auto arg_index =0; arg_index < apply_op.args().size(); arg_index++){
+                    if(apply_op.getResult(arg_index) == val){
+                        val = apply_op.args()[arg_index];
+                        break;
+                    }
+                }
+                
+            }
+            if(val!=op.getArgument(offset+i)){
+                op->emitError(mlir::StringRef("use-def chain of argument ") + std::to_string(i) + " cannot be traced.");
+                return signalPassFailure();
+            }
+        }
+        // start with noop.
+        for(auto i=0; i<results.size(); i++){
+            ret->setOperand(i, op.getArgument(offset+i));
+        }
+        // start reverting.
+        bool flag = true;
+        while(flag){
+            flag=false;
+            for(auto i=0; i<results.size(); i++){
+                auto val = results[i];
+                if(val==op.getArgument(offset+i)) continue;
+                flag=true;
+                auto apply_op = llvm::cast<ApplyGateOp>(val.getDefiningOp());
+                mlir::SmallVector<int> indices;
+                auto found = false;
+                // first check of all apply_op results are in the array.
+                // i.e. check if the gate is a ``last gate''.
+                for(auto k=0; k<apply_op.getNumResults(); k++){
+                    found=false;
+                    for(auto j=0; j<results.size(); j++){
+                        if(apply_op.getResult(k) == results[j]){
+                            indices.push_back(j);
+                            found=true; break;
+                        }
+                    }
+                    if(!found){
+                        break;
+                    }
+                }
+                if(!found) continue;
+                // take apply_op down.
+                auto new_gate = builder.create<DecorateOp>(apply_op->getLoc(), apply_op.gate().getType(), apply_op.gate(), true, mlir::ArrayAttr::get(ctx, llvm::ArrayRef<mlir::Attribute>{}));
+                auto new_op = builder.clone(*apply_op);
+                for(auto i=0; i<indices.size(); i++){
+                    new_op->setOperand(i+1 /* arg 0 is gate */, ret.getOperand(indices[i]));
+                    ret.setOperand(indices[i], new_op->getResult(i));
+                    results[indices[i]] = apply_op.args()[i];
+                }
+                new_op->setOperand(0, new_gate);
+                apply_op.erase();
+            }
+        }
+        // revert gphase.
+        mlir::SmallVector<ApplyGPhase> gphase_ops;
+        op.walk([&](ApplyGPhase apply_op){
+            gphase_ops.push_back(apply_op);
+        });
+        for(auto apply_op : gphase_ops){
+            builder.setInsertionPoint(apply_op);
+            auto new_gate = builder.create<DecorateOp>(apply_op->getLoc(), apply_op.gate().getType(), apply_op.gate(), true, mlir::ArrayAttr::get(ctx, llvm::ArrayRef<mlir::Attribute>{}));
+            apply_op.gateMutable().assign(new_gate);
+        }
+    }
+};
+
+
 struct DecorateFoldingPass : public mlir::PassWrapper<DecorateFoldingPass, mlir::OperationPass<mlir::ModuleOp>>{
     DecorateFoldingPass() = default;
     DecorateFoldingPass(const DecorateFoldingPass& pass) {}
@@ -418,6 +546,14 @@ struct DecorateFoldingPass : public mlir::PassWrapper<DecorateFoldingPass, mlir:
                 mlir::FrozenRewritePatternSet frps(std::move(rps));
                 (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
             }while(0);
+            do{
+                mlir::PassManager pm(ctx);
+                pm.addNestedPass<mlir::FuncOp>(std::make_unique<GenerateInvertedGate>());
+                if(failed(pm.run(m))){
+                    return signalPassFailure();
+                }
+            }while(0);
+
             do{
                 m->walk([=](mlir::FuncOp fn){
                     if(!fn->hasAttr(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS)){
