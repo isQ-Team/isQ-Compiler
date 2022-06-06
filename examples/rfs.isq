@@ -1,11 +1,11 @@
 oracle A(4,1) = [0,1,1,0,0,0,0,0,0,0,1,1,0,1,0,1];
 oracle g(2,1) = [0,1,1,0];
 int a;
-int price;
+//int price;
 qbit q[4], p[3];
 procedure recursive_fourier_sampling(int k){
     if (k == 2){
-        price=price+3066;
+        //price=price+3066;
         A(q[0], q[1], q[2], q[3], p[2]);
     } else {
         price=price+12;
@@ -13,7 +13,7 @@ procedure recursive_fourier_sampling(int k){
         H (q[2*k+1]);
         X (p[k+1]);
         H (p[k+1]);
-        price = price + 56;
+        //price = price + 56;
         recursive_fourier_sampling(k+1);
         H (q[2*k]);
         H (q[2*k+1]);
@@ -29,9 +29,9 @@ procedure recursive_fourier_sampling(int k){
 }
 procedure main(){
     a = 0;
-    price=0;
+    //price=0;
     recursive_fourier_sampling(a);
     M(p[0]);
-    print(price);
+    //print(price);
     //print(M(p[0]));
 }

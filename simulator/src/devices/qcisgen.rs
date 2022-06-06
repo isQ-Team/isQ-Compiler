@@ -50,15 +50,16 @@ pub fn run_qcis_route(code: String)->String{
 
 pub struct QCISCodegen{
     qcis_qubit_counter: usize,
+    finalized: bool,
     generated_code: Vec<String>
 }
 
 impl QCISCodegen{
     pub fn new()->Self{
-        Self{qcis_qubit_counter: 0, generated_code: vec![]}
+        Self{qcis_qubit_counter: 0, finalized: false, generated_code: vec![]}
     }
     pub fn append_op(&mut self, op: &str, args: &[&usize]){
-        let args_separated = args.iter().map(|x| format!("Q{}", *x+1)).join(" ");
+        let args_separated = args.iter().map(|x| format!("Q{}", **x+1)).join(" ");
         self.generated_code.push(format!("{} {}", op, args_separated));
     }
     pub fn finalize_route(&mut self){
@@ -67,7 +68,6 @@ impl QCISCodegen{
         std::println!("{}", output);
     }
 }
-
 
 impl QDevice for QCISCodegen{
     type Qubit = usize;
@@ -98,7 +98,11 @@ impl QDevice for QCISCodegen{
     fn qop(&mut self, op_type: crate::qdevice::QuantumOp, qubits: &[&Self::Qubit], parameters: &[f64]) {
         use crate::qdevice::QuantumOp::*;
         if let QCIS_Finalize = op_type{
-            self.finalize_route();
+            if !self.finalized{
+                self.finalized=true;
+                self.finalize_route();
+            }
+            
             return;
         }
         if let Rz = op_type{

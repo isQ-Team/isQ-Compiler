@@ -16,6 +16,16 @@ func @symmetry_cancel(%A: !isq.gate<3, hermitian, symmetric>, %q1: !isq.qstate, 
     return %p6#2, %p6#1, %p6#0 : !isq.qstate,!isq.qstate,!isq.qstate
 }
 
+func @non_symmetry_dont_cancel(%A: !isq.gate<3, hermitian>, %q1: !isq.qstate, %q2: !isq.qstate, %q3: !isq.qstate)->(!isq.qstate,!isq.qstate,!isq.qstate){
+    %p1:3 = isq.apply %A(%q1, %q2, %q3) : !isq.gate<3, hermitian>
+    %p2:3 = isq.apply %A(%p1#0, %p1#2, %p1#1): !isq.gate<3, hermitian>
+    %p3:3 = isq.apply %A(%p2#1, %p2#2, %p2#0): !isq.gate<3, hermitian>
+    %p4:3 = isq.apply %A(%p3#1, %p3#0, %p3#2): !isq.gate<3, hermitian>
+    %p5:3 = isq.apply %A(%p4#2, %p4#0, %p4#1): !isq.gate<3, hermitian>
+    %p6:3 = isq.apply %A(%p5#2, %p5#1, %p5#0): !isq.gate<3, hermitian>
+    return %p6#2, %p6#1, %p6#0 : !isq.qstate,!isq.qstate,!isq.qstate
+}
+
 func @symmetry_cancel_adj(%A: !isq.gate<3, symmetric>, %q1: !isq.qstate, %q2: !isq.qstate, %q3: !isq.qstate)->(!isq.qstate,!isq.qstate,!isq.qstate){
     %Aadj = isq.decorate(%A: !isq.gate<3, symmetric>) {ctrl=[], adjoint = true} : !isq.gate<3, symmetric>
     %p1:3 = isq.apply %A(%q1, %q2, %q3) : !isq.gate<3, symmetric>
