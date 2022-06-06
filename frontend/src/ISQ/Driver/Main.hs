@@ -20,13 +20,14 @@ import ISQ.Driver.Jsonify
 import qualified Data.List
 import qualified Data.ByteString.Lazy as BS
 import ISQ.Lang.ISQv2Tokenizer
-data Flag = Input String | Output String | Version | Mode String | Help  deriving Eq
+data Flag = Input String | Include String | Output String | Version | Mode String | Help  deriving Eq
 
 
 
 options :: [OptDescr Flag]
 options = [
     Option ['i'] ["input"] (ReqArg Input "FILE") "Input isQ source file.",
+    Option ['I'] ["include"] (ReqArg Include "PATH") "isQ include file directory",
     Option ['o'] ["output"] (ReqArg Output "FILE") "Output file.",
     Option ['v'] ["version"] (NoArg Version) "Show version.",
     Option ['m'] ["mode"] (ReqArg Mode "MODE") "Output mode. Supported modes: ast, raii, typecheck, mlir, mlir-llvm, llvm, so(default)",
@@ -109,22 +110,26 @@ main = do
         exitSuccess
         return ()
     input<-newIORef Nothing
+    inc<-newIORef Nothing
     output<-newIORef Nothing
     mode<-newIORef Nothing
     forM_ flags $ \f->do
             case f of
                 Input s -> setExactlyOnce input s "Input file set multiple times!"
+                Include s -> setExactlyOnce inc s "Include file directory set multiple times!"
                 Output s -> setExactlyOnce output s  "Output file set multiple times!"
                 Mode m -> setExactlyOnce mode m "Mode set multiple times!"
                 Version -> undefined
     input'<-readIORef input
+    inc' <- readIORef inc
     output'<-readIORef output
     mode'<-fromMaybe "mlir" <$> readIORef mode
-    ast_body<- parseFileOrStdin input'
+    let incpath = fromMaybe "" inc'
+    ast_body <- parseFileOrStdin input' incpath
     let inputFileName = fromMaybe "<stdin>" input'
     
     header_ast<-fmap (\x->case x of {Right y->y; Left e->error (show e)})(runExceptT $ parseToAST headers)
-    let zeroed_ast = fmap (fmap (const $ Pos 0 0)) header_ast
+    let zeroed_ast = fmap (fmap (const $ Pos 0 0 "")) header_ast
     let ast = fmap (zeroed_ast ++) ast_body;
     case mode' of
         "mlir"-> do

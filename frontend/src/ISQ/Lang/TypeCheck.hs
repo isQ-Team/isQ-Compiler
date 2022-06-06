@@ -471,7 +471,7 @@ typeCheckToplevel ast = do
             ) ast
     -- Add all vars into table.
     let vars=concatMap Map.toList varlist
-    mapM_ (uncurry addSym) vars
+    mapM_ (uncurry addSym) $ reverse vars
     
     -- Resolve all gates and procedures.
     resolved_headers<-mapM (\node->case node of

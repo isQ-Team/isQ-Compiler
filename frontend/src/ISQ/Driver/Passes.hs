@@ -18,14 +18,15 @@ import ISQ.Driver.Jsonify
 import Data.Char (isDigit)
 import ISQ.Lang.DeriveGate (passDeriveGate)
 import ISQ.Lang.OraclePass (passOracle)
+import ISQ.Lang.FlatInc (parseIncFile, parseIncStdin)
 
 syntaxError :: String->CompileError 
 syntaxError x = 
     let t1 = dropWhile (not . isDigit) x
         (l, t2) = span isDigit t1
         t3 = dropWhile (not . isDigit) t2
-        c = takeWhile isDigit t3
-    in SyntaxError (Pos {line = read l, column = read c} )
+        (c, t4) = span isDigit t3
+    in SyntaxError (Pos {line = read l, column = read c, filename = t4} )
 
 parseToAST :: String->ExceptT CompileError IO [LAST]
 parseToAST s = do
@@ -35,19 +36,25 @@ parseToAST s = do
                 x:_->(return $ Left $ GrammarError $ UnexpectedToken x)
                 [] -> return $ Left $ GrammarError $ UnexpectedEOF)
     liftEither x
-parseFile :: String->IO (Either CompileError [LAST])
-parseFile path = do
-    f<-readFile path
-    runExceptT $ parseToAST f
 
-parseStdin :: IO (Either CompileError [LAST])
-parseStdin = do
-    f<-getContents
-    runExceptT $ parseToAST f
+parseFile :: String->String->IO (Either CompileError [LAST])
+parseFile path incpath= do
+    flat_code <- parseIncFile path incpath
+    case flat_code of
+        Left err -> return $ Left $ fromError err
+        Right f -> runExceptT $ parseToAST f
 
-parseFileOrStdin :: Maybe String -> IO (Either CompileError [LAST])
-parseFileOrStdin (Just x) = parseFile x
-parseFileOrStdin Nothing = parseStdin
+parseStdin :: String->IO (Either CompileError [LAST])
+parseStdin incpath = do
+    flat_code <- parseIncStdin incpath
+    case flat_code of
+        Left err -> return $ Left $ fromError err
+        Right f -> runExceptT $ parseToAST f
+
+parseFileOrStdin :: Maybe String->String-> IO (Either CompileError [LAST])
+parseFileOrStdin (Just x) incpath = parseFile x incpath
+parseFileOrStdin Nothing incpath = parseStdin incpath
+
 
 
 pass :: (CompileErr e, Monad m)=>Either e a->ExceptT CompileError m a
@@ -80,14 +87,14 @@ p :: Show a=>a->IO ()
 p = pPrint
 
 printRAII s = do
-    Right f<-parseFile s
+    Right f<-parseFile s ""
     return $ compileRAII f
 printTC s = do
-    Right f<-parseFile s
+    Right f<-parseFile s ""
     return $ compileTypecheck f
 
 genMLIR s = do
-    Right f<-parseFile s
+    Right f<-parseFile s ""
     case compile s f of
         Left x -> print x
         Right mlir -> putStrLn mlir
