@@ -60,7 +60,9 @@ pub enum Commands{
         #[clap(long, arg_enum, default_value = "qir")]
         target: CompileTarget,
         #[clap(long)]
-        qcis_config: Option<String>
+        qcis_config: Option<String>,
+        #[clap(long, short='I', multiple_occurrences(true))]
+        inc_path: Option<Vec<String>>
     },
     Simulate{
         #[clap(required(true))]
@@ -128,7 +130,7 @@ fn main()->miette::Result<()> {
             &[OsStr::new("simulate"), default_output_path.as_os_str()]
             ).map_err(ioErrorWhen("Calling isqc simulate"))?;
         }
-        Commands::Compile{input, output, opt_level, emit, target, qcis_config}=>'command:{
+        Commands::Compile{input, output, opt_level, emit, target, qcis_config, inc_path}=>'command:{
             let (input_path, default_output_path) = resolve_input_path(&input, match emit{
                 EmitMode::Binary=>"so",
                 EmitMode::Out=> "so",
@@ -145,10 +147,17 @@ fn main()->miette::Result<()> {
             let mut fout = MayDropFile::new(&output)?;
             //let mut fout = File::create(output).map_err(IoError)?;
             let mut f = File::open(input_path).map_err(IoError)?;
-            let mut buf = String::new();
-            f.read_to_string(&mut buf).unwrap();
-            let mlir = exec::exec_command_text::<&str>(&root, "isqc1", &[], &buf).map_err(ioErrorWhen("Calling isqc1"))?;
-            let resolved_mlir = resolve_isqc1_output(input_path.file_name().unwrap().to_str().unwrap(), &buf, &mlir)?;
+            //let mut buf = String::new();
+            //f.read_to_string(&mut buf).unwrap();
+            let fin = input_path.canonicalize().unwrap();
+
+            let incpath = match inc_path {
+                Some(s) => s.join(":"),
+                None => "".to_string(),
+            };
+
+            let mlir = exec::exec_command_text::<&str>(&root, "isqc1", &["-i", fin.as_os_str().to_str().unwrap(), "-I", &incpath], "").map_err(ioErrorWhen("Calling isqc1"))?;
+            let resolved_mlir = resolve_isqc1_output(&mlir)?;
             if let EmitMode::MLIR = emit{
                 writeln!(fout.get_file_mut(), "{}", resolved_mlir).map_err(IoError)?;
                 fout.finalize();

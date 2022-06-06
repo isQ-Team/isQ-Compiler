@@ -91,7 +91,7 @@ pushAllocFree pos (ty, val) = do
     pushRAII [MFreeMemref pos val ty]
 
 mpos :: TypeCheckData->State RegionBuilder MLIRPos
-mpos d = let Pos x y = sourcePos d in fmap (\z->MLIRLoc z x y) (use filename)
+mpos d = let Pos x y f = sourcePos d in fmap (\z->MLIRLoc f x y) (use filename)
 
 ssa :: TypeCheckData->SSA
 ssa x = fromSSA (termId x)
@@ -450,8 +450,8 @@ emitTop file x@NResolvedProcedureWithRet{} = do
     let [fn] = unscopedStatement' file (emitStatement x)
     mainModule %= (fn:)
 emitTop file (NGlobalDefvar ann defs) = do
-    let Pos l c = sourcePos ann
-    let pos = MLIRLoc file l c
+    let Pos l c f = sourcePos ann
+    let pos = MLIRLoc f l c
     let def_one (ty, s, name, initializer) = do
             let stmt = MGlobalMemref pos (fromFuncName name) (mapType ty)
             mainModule %= (stmt:)

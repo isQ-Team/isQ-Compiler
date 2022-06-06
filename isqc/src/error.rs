@@ -84,8 +84,32 @@ pub struct RedefinedSymbolError {
     pub src: NamedSource,
     #[label("Trying to redefine symbol here.")]
     pub pos: SourceSpan,
+    #[related]
+    pub related: Vec<FirstDefineError>
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("")]
+#[diagnostic()]
+pub struct FirstDefineError {
+    #[source_code]
+    pub src: NamedSource,
     #[label("First defined here.")]
     pub posFirst: SourceSpan
+}
+
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Can't find include file `{incFile}`.")]
+#[diagnostic(
+    code(isqv2::frontend::inc_error)
+)]
+pub struct IncFileError {
+    pub incFile: String,
+    #[source_code]
+    pub src: NamedSource,
+    #[label("Trying to include file here.")]
+    pub pos: SourceSpan
 }
 
 #[derive(Error, Debug, Diagnostic)]
