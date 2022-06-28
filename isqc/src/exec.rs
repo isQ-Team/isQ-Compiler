@@ -1,7 +1,10 @@
 use std::{process::{Command, Stdio}, io::Write, ffi::OsStr};
 
 pub fn exec_command_with_decorator<S: AsRef<OsStr>, F: FnOnce(&mut Command)->()>(root: &str, cmd: &str, args: &[S], sin: &[u8], child_decorator: F)->std::io::Result<Vec<u8>>{
-    let path = format!("{}/bin/{}", root, cmd);
+    let path = match root{
+        "" => String::from(cmd),
+        s => format!("{}/bin/{}", s, cmd)
+    };
     let mut child = Command::new(path);
     child.args(args)
     .stdin(Stdio::piped())
@@ -25,7 +28,10 @@ pub fn exec_command_text<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S], sin
     Ok(String::from_utf8_lossy(&output).into())
 }
 pub fn system_exec_command<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S])->std::io::Result<()>{
-    let path = format!("{}/bin/{}", root, cmd);
+    let path = match root{
+        "" => String::from(cmd),
+        s => format!("{}/bin/{}", s, cmd)
+    };
     let mut child = Command::new(path)
     .args(args)
     .stdin(Stdio::inherit())
@@ -37,7 +43,10 @@ pub fn system_exec_command<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S])->
 }
 
 pub fn raw_exec_command<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S])->std::io::Result<()>{
-    let path = format!("{}/bin/{}", root, cmd);
+    let path = match root{
+        "" => String::from(cmd),
+        s => format!("{}/bin/{}", s, cmd)
+    };
     let mut child = Command::new(path)
     .args(args)
     .stdin(Stdio::inherit())

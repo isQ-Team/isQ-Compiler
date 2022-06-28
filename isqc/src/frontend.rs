@@ -216,6 +216,29 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                     let (src, pos) = parsePos(content)?;
                     let incFile = content["incpath"].as_str().unwrap().to_owned();
                     return Err(IncFileError{incFile, src, pos: pos})?;
+                }else if tag=="OracleError"{
+                    let (src, pos) = parsePos(&content["contents"])?;
+                    match content["tag"].as_str().unwrap() {
+                        "BadOracleShape" => {
+                            return Err(OracleShapeError{src, pos})?;
+                        }
+                        "BadOracleValue" => {
+                            return Err(OracleValueError{src, pos})?;
+                        }
+                        _ =>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
+                    };
+                }
+                else if tag=="DeriveError"{
+                    let (src, pos) = parsePos(&content["contents"])?;
+                    match content["tag"].as_str().unwrap() {
+                        "BadGateSignature" => {
+                            return Err(DeriveGateError{src, pos})?;
+                        }
+                        "BadOracleSignature" => {
+                            return Err(DeriveOracleError{src, pos})?;
+                        }
+                        _ =>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
+                    };
                 }
                 return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;
             }else{

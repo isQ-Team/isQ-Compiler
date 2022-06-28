@@ -118,7 +118,7 @@ fn resolve_input_path<'a>(input: &'a str, extension: &str)->miette::Result<(&'a 
 
 fn main()->miette::Result<()> {
     let cli = Arguments::parse();
-    let root = std::env::var("ISQV2_ROOT").map_err(|_| NoISQv2RootError)?;
+    let root = std::env::var("ISQ_ROOT").map_err(|_| NoISQv2RootError)?;
     
     match cli.command{
         Commands::Run{input}=>{
@@ -199,7 +199,7 @@ fn main()->miette::Result<()> {
             // linking with stub. This step we use byte output.
             let linked_llvm = exec::exec_command(&root, "llvm-link", &[
                 format!("-"),
-                format!("{}/share/isq-simulator/isq-simulator.bc", &root)
+                format!("{}/bin/isq-simulator.bc", &root)
             ], llvm.as_bytes()).map_err(ioErrorWhen("Calling llvm-link"))?;
             let mut opt_args: Vec<String> = Vec::new();
             if let Some(o) = opt_level{

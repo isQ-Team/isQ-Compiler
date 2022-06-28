@@ -112,6 +112,49 @@ pub struct IncFileError {
     pub pos: SourceSpan
 }
 
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Bad oracle, shape not match")]
+#[diagnostic(code(isqv2::frontend::oracle_shape_error))]
+pub struct OracleShapeError{
+    #[source_code]
+    pub src: NamedSource,
+    #[label("list size can not match oracle result's shape")]
+    pub pos: SourceSpan   
+}
+
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Bad oracle, result value error")]
+#[diagnostic(code(isqv2::frontend::oracle_value_error))]
+pub struct OracleValueError{
+    #[source_code]
+    pub src: NamedSource,
+    #[label("result value is not satisfied")]
+    pub pos: SourceSpan   
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Bad Gate Signature")]
+#[diagnostic(code(isqv2::frontend::derive_gate_error))]
+pub struct DeriveGateError{
+    #[source_code]
+    pub src: NamedSource,
+    #[label("derive gate here.")]
+    pub pos: SourceSpan   
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Bad Oracle Signature")]
+#[diagnostic(code(isqv2::frontend::derive_oracle_error))]
+pub struct DeriveOracleError{
+    #[source_code]
+    pub src: NamedSource,
+    #[label("derive oracle here.")]
+    pub pos: SourceSpan   
+}
+
+
 #[derive(Error, Debug, Diagnostic)]
 #[error("Undefined symbol `{symName}`.")]
 #[diagnostic(
