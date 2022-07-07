@@ -271,5 +271,35 @@ QIRDefinition::QIRDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateTyp
 }
 
 
+
+
+OracleTableDefinition::OracleTableDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_ORACLE_TABLE){
+    auto arr = value.dyn_cast_or_null<::mlir::ArrayAttr>();
+    assert(arr);
+    for (auto row : arr) {
+        auto row_arr = row.dyn_cast_or_null<::mlir::ArrayAttr>();
+        std::vector<int> row_vec;
+        assert(row_arr);
+        for (auto element : row_arr) {
+            auto element_attr = element.dyn_cast_or_null<mlir::IntegerAttr>();
+            assert(element_attr);
+            row_vec.push_back(element_attr.getInt());
+        }
+        this->value.push_back(std::move(row_vec));
+    }
+}
+
+::mlir::LogicalResult OracleTableDefinition::verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute){
+    return ::mlir::success();
+}
+
+::mlir::LogicalResult OracleTableDefinition::verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute value, ::mlir::SymbolTableCollection &symbolTable) {
+    return ::mlir::success();
+}
+
+const std::vector<std::vector<int>>& OracleTableDefinition::getValue() const{
+    return this->value;
+}
+
 }
 }

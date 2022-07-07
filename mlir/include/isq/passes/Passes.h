@@ -20,6 +20,7 @@ void registerTargetQCISSet();
 void registerRemoveGPhase();
 void registerEliminateNegCtrl();
 void registerISQCanonicalizer();
+void registerOracleDecompose();
 
 void addLegalizeTraitsRules(mlir::RewritePatternSet& patterns);
 

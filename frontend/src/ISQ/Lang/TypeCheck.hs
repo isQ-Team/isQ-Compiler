@@ -415,6 +415,7 @@ typeCheckAST' f NProcedureWithDerive{} = error "unreachable"
 typeCheckAST' f NResolvedDefvar{} = error "unreachable"
 typeCheckAST' f NGlobalDefvar {} = error "unreachable"
 typeCheckAST' f NOracle{} = error "unreachable"
+typeCheckAST' f NOracleTable{} = error "unreachable"
 typeCheckAST :: AST Pos -> TypeCheck (AST TypeCheckData)
 typeCheckAST = fix typeCheckAST'
 
@@ -460,6 +461,9 @@ typeCheckToplevel ast = do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
                 defineGlobalSym (SymVar name) pos (Type () (Gate size) extra')
                 return $ Right $ NResolvedExternGate (okStmt pos) name (fmap void extra) size qirname
+            Left (NOracleTable pos name source value size) -> do
+                defineGlobalSym (SymVar name) pos (Type () (Gate size) [])
+                return $ Right (NOracleTable (okStmt pos) name source value size)
             Left x@(NDerivedGatedef pos name source extra size) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
                 defineGlobalSym (SymVar name) pos (Type () (Gate size) extra')
