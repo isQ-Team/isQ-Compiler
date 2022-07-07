@@ -84,6 +84,7 @@ data AST ann =
      | NProcedure { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann]}
      | NResolvedFor { annotationAST :: ann, forVarId :: Int, forRange :: Expr ann, body :: ASTBlock ann}
      | NResolvedGatedef { annotationAST :: ann, gateName :: String, resolvedGateRhs :: [[Complex Double]], gateSize :: Int, externQirName :: Maybe String}
+     | NOracleTable {annotationAST :: ann, gateName :: String, sourceProcName :: String, oracleValue :: [[Int]], gateSize :: Int}
      | NWhileWithGuard { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann, breakFlag :: Expr ann}
      | NProcedureWithRet { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann], retVal :: Expr ann}
      | NResolvedProcedureWithRet { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, resolvedProcArgs :: [(Type (), Int)], procBody :: [AST ann], retValR :: Maybe (Expr ann), retVarSSA :: Maybe (Type (), Int)}

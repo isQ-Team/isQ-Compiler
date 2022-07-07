@@ -356,6 +356,9 @@ emitStatement' f NResolvedFor{} = error "unreachable"
 emitStatement' f (NResolvedGatedef ann name mat sz qir) = do
     pos<-mpos ann
     pushOp $ MQDefGate pos (fromFuncName name) sz [] (MatrixRep mat: case qir of {Just x->[QIRRep (fromFuncName x)]; Nothing->[]})
+emitStatement' f (NOracleTable ann name source value size) = do
+    pos<-mpos ann
+    pushOp $ MQOracleTable pos (fromFuncName name) size [(DecompositionRep $ fromFuncName source), (OracleTableRep value)]
 emitStatement' f (NWhileWithGuard ann cond body breakflag) = do
     pos<-mpos ann
     break_block<-unscopedStatement (emitExpr breakflag)
@@ -474,6 +477,9 @@ emitTop file (NGlobalDefvar ann defs) = do
                 Nothing->return ()
     mapM_ def_one defs
 emitTop file x@NResolvedGatedef{} = do
+    let [fn] = unscopedStatement' file (emitStatement x)
+    mainModule %= (fn:)
+emitTop file x@NOracleTable{} = do
     let [fn] = unscopedStatement' file (emitStatement x)
     mainModule %= (fn:)
 emitTop file x@NResolvedExternGate{} = do

@@ -89,18 +89,20 @@ mlirI64toDouble = mlirUnaryOp ("sitofp", I64, Double)
 
 type TypedSSA = (MLIRType, SSA)
 
-data GateRep = MatrixRep [[Complex Double]] | QIRRep FuncName | DecompositionRep FuncName | OracleRep FuncName deriving Show
+data GateRep = MatrixRep [[Complex Double]] | QIRRep FuncName | DecompositionRep FuncName | OracleRep FuncName | OracleTableRep [[Int]] deriving Show
 
 gateRep :: GateRep->String
 gateRep (MatrixRep mat) = printf "{type=\"unitary\", value = %s}" (printRow (printRow printComplex) mat)
 gateRep (QIRRep fn) = printf "{type = \"qir\", value = %s}" (unFuncName fn)
 gateRep (DecompositionRep fn) = printf "{type = \"decomposition_raw\", value = %s}" (unFuncName fn)
 gateRep (OracleRep fn) = printf "{type = \"oracle\", value = %s}" (unFuncName fn)
+gateRep (OracleTableRep mat) = printf "{type = \"oracle_table\", value = %s}" (printRow (printRow printInt) mat)
 
 
 data MLIROp =
       MFunc {location :: MLIRPos, funcName :: FuncName, funcReturnType :: Maybe MLIRType, funcRegion :: [MLIRBlock]}
     | MQDefGate { location :: MLIRPos, gateName :: FuncName, gateSize :: Int, extraArgTypes :: [MLIRType], representations :: [GateRep]}
+    | MQOracleTable { location :: MLIRPos, gateName :: FuncName, gateSize :: Int, representations :: [GateRep] }
     | MQUseGate { location :: MLIRPos, value :: SSA, usedGate :: FuncName, usedGateType :: MLIRType, useGateParams :: [(MLIRType, SSA)]}
     | MExternFunc { location :: MLIRPos, funcName :: FuncName, funcReturnType :: Maybe MLIRType, funcArgTypes :: [MLIRType]}
     | MQDecorate { location :: MLIRPos, value :: SSA, decoratedGate :: SSA, trait :: ([Bool], Bool), gateSize :: Int }
@@ -167,6 +169,9 @@ funcHeader name ret args = printf "func %s(%s)%s " (unFuncName name) (intercalat
 printComplex :: Complex Double -> String
 printComplex (a :+ b) = printf "#isq.complex<%f, %f>" a b
 
+printInt :: Int -> String
+printInt x = printf "%d" x
+
 printRow :: (a->String)->[a]->String
 printRow f xs = "["++intercalate "," (fmap f xs)++"]"
 
@@ -203,6 +208,7 @@ emitOpStep f env (MModule _ ops) =
   ]++s ++ [indented env "}"])
 emitOpStep f env (MFunc loc name ret blocks) = let s = fmap (emitBlock f env) blocks in intercalate "\n" ([indented env $ funcHeader name ret (fmap fst $ blockArgs $ head blocks), indented env "{"] ++ s ++ [indented env $ printf "} %s" (mlirPos loc)])
 emitOpStep f env (MQDefGate loc name size extra reps) = indented env $ printf "isq.defgate %s%s {definition = [%s]}: !isq.gate<%d> %s" (unFuncName name) (case extra of {[]->""; xs-> "("++intercalate ", " (map mlirType extra)++")"}) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
+emitOpStep f env (MQOracleTable loc name size reps) = indented env $ printf "isq.defgate %s {definition=[%s]}: !isq.gate<%d> %s" (unFuncName name) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
 emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)
 emitOpStep f env (MExternFunc loc name (Just returns) args) = indented env $ printf "func private %s(%s)->%s %s"(unFuncName name) (intercalate ", " $ map mlirType args) (mlirType returns) (mlirPos loc)
 emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) []) = indented env $ printf "%s = isq.use %s : !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) sz (mlirPos loc)

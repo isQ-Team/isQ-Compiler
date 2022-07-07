@@ -31,6 +31,7 @@ public:
         GD_DECOMPOSITION_RAW,
         GD_QIR,
         GD_CLASSICAL_ORACLE,
+        GD_ORACLE_TABLE,
     };
     GateDefinitionAttribute(GateDefinitionKind kind): kind(kind) {}
 private:
@@ -111,6 +112,23 @@ public:
     static ::mlir::LogicalResult verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute, ::mlir::SymbolTableCollection &symbolTable);
 };
 
+// Define by oracle.
+class OracleTableDefinition: public GateDefinitionAttribute{
+private:
+    std::vector<std::vector<int>> value;
+public:
+    OracleTableDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType GateType, ::mlir::Attribute value);
+    static bool classof(const GateDefinitionAttribute *attr){
+        return attr->getKind() == GateDefinitionAttribute::GD_ORACLE_TABLE;
+    }
+
+    static ::mlir::StringRef defKindName(){
+        return "oracle_table";
+    }
+    static ::mlir::LogicalResult verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute value);
+    static ::mlir::LogicalResult verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute, ::mlir::SymbolTableCollection &symbolTable);
+    const std::vector<std::vector<int>>& getValue() const;
+};
 
 // Helpers
 template<typename T>
@@ -163,7 +181,8 @@ using AllGateDefs = GateDefParser<
     MatrixDefinition, 
     DecompositionDefinition,
     DecompositionRawDefinition,
-    QIRDefinition
+    QIRDefinition,
+    OracleTableDefinition
 >;
 
 }
