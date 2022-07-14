@@ -4,16 +4,16 @@ stages:
 build:
   stage: build
   script:
-    - nix-portable nix-build buildscript/nixTarball.nix -o isqv2.tar.gz.link
-    - nix-portable nix-shell -p coreutils --command "cp -Lr isqv2.tar.gz.link isqv2.tar.gz"
+    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/lib
+    - cd frontend && stack build --allow-different-user && cp .stack-work/dist/x86_64-linux-tinfo6/Cabal-3.2.1.0/build/isqc1/isqc1 ../bin
+    - cd ../mlir && mkdir build && cd build && cmake ../ && make && cp ./tools/isq-opt ../../bin
+    - cd ../../isqc && cargo build && cp target/debug/isqc ../bin/
+    - cd ../simulator && cargo build && cp target/debug/simulator ../bin
   artifacts:
     paths:
-      - isqv2.tar.gz
+      - bin
+      - lib
 test:
   stage: test
   script:
-    - nix-portable nix-build tests/ -o tests_result.txt.link
-    - nix-portable nix-shell -p coreutils --command "cat tests_result.txt.link | tee tests_result.txt"
-  artifacts:
-    paths:
-      - tests_result.txt
+    - bin/isqc run examples/bell.isq
