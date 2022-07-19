@@ -3,6 +3,7 @@ qbit q[4];
 procedure main() {
     H (q[0]);
     for i in 1:4 {
+        bp;
         CNOT (q[i-1], q[i]);
     }
     for i in 0:4{

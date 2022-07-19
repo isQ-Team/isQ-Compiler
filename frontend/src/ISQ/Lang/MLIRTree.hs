@@ -137,6 +137,7 @@ data MLIROp =
     | MSCFYield {location :: MLIRPos}
     | MReturn {location :: MLIRPos, returnVal :: TypedSSA}
     | MReturnUnit {location :: MLIRPos}
+    | MBp {location :: MLIRPos, bpLine :: SSA}
     | MGlobalMemref {location :: MLIRPos, globalMemrefName :: FuncName, globalMemrefType :: MLIRType}
     | MUseGlobalMemref {location :: MLIRPos, usedVal :: SSA, usedName :: FuncName, globalMemrefType :: MLIRType}
     deriving Show
@@ -203,6 +204,7 @@ emitOpStep f env (MModule _ ops) =
       -- indented env $ "    }"
       indented env $ "    isq.declare_qop @__isq__builtin__measure : [1]()->i1",
       indented env $ "    isq.declare_qop @__isq__builtin__reset : [1]()->()",
+      indented env $ "    isq.declare_qop @__isq__builtin__bp : [0](index)->()",
       indented env $ "    isq.declare_qop @__isq__builtin__print_int : [0](index)->()",
       indented env $ "    isq.declare_qop @__isq__builtin__print_double : [0](f64)->()"
   ]++s ++ [indented env "}"])
@@ -219,6 +221,7 @@ emitOpStep f env (MQApplyGate loc values [] gate) = indented env $ printf "isq.a
 emitOpStep f env (MQApplyGate loc values args gate) = indented env $ printf "%s = isq.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
 emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @__isq__builtin__measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qop @__isq__builtin__reset(%s): [1]()->() %s" (unSsa out)  (unSsa arg) (mlirPos loc)
+emitOpStep f env (MBp loc arg) = indented env $ printf "isq.call_qop @__isq__builtin__bp(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Index, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_int(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Double, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_double(%s): [0](f64)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (t, arg)) = error $ "unsupported "++ show t
@@ -303,6 +306,7 @@ emitOpStep f env (MSCFFor loc lo hi step var body) = intercalate "\n" $
   ++ [indented env $ printf "} %s" (mlirPos loc)]
 emitOpStep f env (MReturn loc (ty, v)) = indented env $ printf "return %s : %s %s" (unSsa v) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MReturnUnit loc) = indented env $ printf "return %s" (mlirPos loc)
+--emitOpStep f env (MBp loc) = indented env $ printf "isq.bp %s" (mlirPos loc)
 emitOpStep f env (MGlobalMemref loc name ty@(BorrowedRef subty)) = indented env $ printf "memref.global %s : memref<1x%s> = uninitialized %s"  (unFuncName name) (mlirType subty) (mlirPos loc)
 emitOpStep f env (MGlobalMemref loc name ty) = indented env $ printf "memref.global %s : %s = uninitialized %s"  (unFuncName name) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MUseGlobalMemref loc val name ty@(BorrowedRef subty)) = intercalate "\n" $ fmap (indented env) [

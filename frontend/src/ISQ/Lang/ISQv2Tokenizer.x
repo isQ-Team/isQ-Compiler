@@ -20,7 +20,7 @@ $idrestchar   = [$alpha $digit \_]
 @exponent = [eE] [\-\+] @decimal
 
 @reservedid = 
-	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|return|
+	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|bp|return|
     ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue|double|as|extern|gate|deriving|oracle|pi
 @reservedop = "|0>"|"=="|"="|"+"|"-"|"*"|"/"|"<"|">"|"<="|">="|"!="|"&&"|"||"|"!"|"%"|
               ","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"|"**"
