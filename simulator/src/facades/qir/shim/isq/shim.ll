@@ -97,6 +97,13 @@ entry:
     ret void
 }
 declare dllimport void @__isq__qir__shim__qis__qcis__finalize()
+define void @__quantum__qis__bp (i64 %x0) alwaysinline {
+entry:
+    %x1 = bitcast i64 %x0 to i64
+    call void @__isq__qir__shim__qis__bp(i64 %x1)
+    ret void
+}
+declare dllimport void @__isq__qir__shim__qis__bp(i64)
 define void @__quantum__qis__isq_print_i64 (i64 %x0) alwaysinline {
 entry:
     %x1 = bitcast i64 %x0 to i64

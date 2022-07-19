@@ -305,6 +305,10 @@ typeCheckAST' f (NFor pos v r b) = do
     unscope
     return $  NResolvedFor (okStmt pos) v' r'' b'
 typeCheckAST' f (NPass pos) = return $ NPass (okStmt pos)
+typeCheckAST' f (NBp pos) = do
+    temp_ssa<-nextId
+    let annotation = TypeCheckData pos (unitType ()) temp_ssa
+    return $ NBp annotation
 typeCheckAST' f (NWhile pos cond body) = do
     cond'<-typeCheckExpr cond
     cond''<-matchType [Exact (boolType ())] cond'
