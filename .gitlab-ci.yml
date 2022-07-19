@@ -4,16 +4,17 @@ stages:
 build:
   stage: build
   script:
-    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/lib
+    - cp -r /data/project/isqv2/bin .
     - cd frontend && stack build --allow-different-user && cp .stack-work/dist/x86_64-linux-tinfo6/Cabal-3.2.1.0/build/isqc1/isqc1 ../bin
     - cd ../mlir && mkdir build && cd build && cmake ../ && make && cp ./tools/isq-opt ../../bin
     - cd ../../isqc && cargo build && cp target/debug/isqc ../bin/
     - cd ../simulator && cargo build && cp target/debug/simulator ../bin
+    - ../bin/llvm-link src/facades/qir/shim/qir_builtin/shim.ll src/facades/qir/shim/qsharp_core/shim.ll src/facades/qir/shim/qsharp_foundation/shim.ll src/facades/qir/shim/isq/shim.ll -o ../bin/isq-simulator.bc
   artifacts:
     paths:
       - bin
-      - lib
 test:
   stage: test
   script:
+    - export ISQ_ROOT=`pwd`
     - bin/isqc run examples/bell.isq

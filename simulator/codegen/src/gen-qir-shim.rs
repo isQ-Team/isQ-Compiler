@@ -973,6 +973,7 @@ fn qir_isq() -> Vec<QIRInterface> {
     interfaces.push(QIRInterface::new("qis", "measure", Result, &[Qubit]));
     interfaces.push(QIRInterface::new("qis", "reset", QVoid, &[Qubit]));
     interfaces.push(QIRInterface::new("qis", "qcis__finalize", QVoid, &[]));
+    interfaces.push(QIRInterface::new("qis", "bp", QVoid, &[]));
     interfaces.push(QIRInterface::new("qis", "isq_print_i64", QVoid, &[QI64]));
     interfaces.push(QIRInterface::new("qis", "isq_print_f64", QVoid, &[QF64]));
     return interfaces;

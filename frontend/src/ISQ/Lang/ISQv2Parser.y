@@ -24,6 +24,7 @@ import Control.Exception (throw, Exception)
     print { TokenReservedId $$ "print" }
     defgate { TokenReservedId $$ "defgate" }
     pass { TokenReservedId $$ "pass" }
+    bp { TokenReservedId $$ "bp" }
     return { TokenReservedId $$ "return" }
     ctrl { TokenReservedId $$ "ctrl" }
     nctrl { TokenReservedId $$ "nctrl" }
@@ -179,6 +180,8 @@ IfStatement : if Expr '{' StatementList '}' {NIf $1 $2 $4 []}
             | if Expr '{' StatementList '}' else '{' StatementList '}'  {NIf $1 $2 $4 $8}
 PassStatement :: {LAST}
 PassStatement : pass { NPass $1 }
+BpStatement :: {LAST}
+BpStatement : bp { NBp $1 }
 DefvarStatement :: {LAST}
 DefvarStatement : LetStyleDef { $1 }
                 | ISQCore_CStyleVarDef { $1 }
@@ -245,6 +248,7 @@ BreakStatement : break { NBreak $1 }
 
 StatementNonEmpty :: {LAST}
 StatementNonEmpty : PassStatement ';' { $1 }
+          | BpStatement ';' { $1 }
           | IfStatement { $1 }
           | ForStatement { $1 }
           | WhileStatement { $1 }

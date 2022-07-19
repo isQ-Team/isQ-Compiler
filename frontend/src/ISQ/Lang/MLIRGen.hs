@@ -265,6 +265,12 @@ emitStatement' f (NIf ann cond bthen belse) = do
     pushOp $ MSCFIf pos cond' [MSCFExecRegion pos then_block] [MSCFExecRegion pos else_block]
 emitStatement' f NFor{} = error "unreachable"
 emitStatement' f NPass{} = return ()
+emitStatement' f (NBp ann) = do
+    pos<-mpos ann
+    let Pos x y f = sourcePos ann
+    let i = ssa ann
+    pushOp $ MLitInt pos i x
+    pushOp $ MBp pos i
 emitStatement' f NWhile{} = error "unreachable"
 emitStatement' f (NCall ann expr) = void $ emitExpr expr
 emitStatement' f (NDefvar ann defs) = error "unreachable"

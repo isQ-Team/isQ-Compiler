@@ -36,6 +36,7 @@ const std::string qir_result_equal = "__quantum__rt__result_equal";
 const std::string qir_reset = "__quantum__qis__reset";
 const std::string qir_gate_head = "__quantum__qis__";
 const std::string isq_decomposed_head = "__isq__decomposed__";
+const std::string qir_bp = "__quantum__qis__bp";
 const std::string qir_print_i64 = "__quantum__qis__isq_print_i64";
 const std::string qir_print_f64 = "__quantum__qis__isq_print_f64";
 
@@ -92,6 +93,11 @@ mlir::Float64Type QIRExternQuantumFunc::getF64Type(::mlir::MLIRContext *ctx){
 }
 
 
+void QIRExternQuantumFunc::breakPoint(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value i){
+    assert(i.getType() == getIndexType(module->getContext()));
+    auto indexcast = rewriter.create<arith::IndexCastOp>(loc, i, getI64Type(module.getContext()));
+    safeCallExternOp(module, rewriter, loc, qir_bp, ArrayRef<Value>{indexcast.getOut()}, ArrayRef<Type>{});
+}
 void QIRExternQuantumFunc::printInt(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value i){
     assert(i.getType() == getIndexType(module->getContext()));
     auto indexcast = rewriter.create<arith::IndexCastOp>(loc, i, getI64Type(module.getContext()));

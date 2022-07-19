@@ -132,3 +132,23 @@ pub fn isq_qir_shim_qis_qcis_finalize()->() {
     let device = ctx.get_device_mut();
     device.controlled_qop(QCIS_Finalize, &[], &[], &[]);
 }
+pub fn isq_qir_shim_qis_bp(x0: i64)->() {
+    trace!(
+        "calling isq_qir_shim_qis_bp()",
+    );
+    let rctx = context();
+    let mut ctx = RefCell::borrow_mut(&rctx);
+    if ctx.contains_bp(x0) {
+        return;
+    }
+    let device = ctx.get_device_mut();
+    extern crate std;
+    use std::println;
+    use std::string::String;
+    println!("Reaching a break point");
+    let mut buffer = String::new();
+    std::io::stdin().read_line(&mut buffer).ok().expect("Failed to read line");
+    if buffer.trim() == "d" {
+        ctx.disable_bp_index(x0);
+    }
+}

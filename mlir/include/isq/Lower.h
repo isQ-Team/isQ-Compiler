@@ -38,6 +38,7 @@ public:
     mlir::IntegerType getI1Type(::mlir::MLIRContext* ctx);
     mlir::IntegerType getI64Type(::mlir::MLIRContext* ctx);
     mlir::Float64Type getF64Type(::mlir::MLIRContext* ctx);
+    void breakPoint(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value i);
     void printInt(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value i);
     void printFloat(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value f);
     Value allocQubit(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module);

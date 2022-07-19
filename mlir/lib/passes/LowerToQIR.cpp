@@ -291,6 +291,12 @@ public:
             rewriter.eraseOp(op);
             return mlir::success();
         }
+        if(qop.sym_name() == "__isq__builtin__bp"){
+            // Don't unwire.
+            utils.breakPoint(loc, rewriter, rootModule, op.getOperand(0));
+            rewriter.eraseOp(op);
+            return mlir::success();
+        }
         if(qop.sym_name() == "__isq__builtin__print_int"){
             // Don't unwire.
             utils.printInt(loc, rewriter, rootModule, op.getOperand(0));
