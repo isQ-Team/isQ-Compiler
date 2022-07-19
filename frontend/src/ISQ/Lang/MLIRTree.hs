@@ -261,15 +261,15 @@ emitOpStep f env (MCall loc Nothing fn args) = indented env $ printf "call %s(%s
 emitOpStep f env (MCall loc (Just (retty, retval)) fn args) = indented env $ printf "%s = call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
 emitOpStep f env (MAffineIf loc (cond, lhs, rhs) then' else') = intercalate "\n" $ [
   indented env $ printf "affine.if affine_set<%s>(%s, %s) {" (affineSet cond)  (unSsa lhs)  (unSsa rhs)]
-  ++fmap (f (incrIndent env)) then'
+  ++fmap (f (incrIndent env{isTopLevel=False})) then'
   ++[indented env $ "} else {"]
-  ++fmap (f (incrIndent env)) else'
+  ++fmap (f (incrIndent env{isTopLevel=False})) else'
   ++[indented env $ "}"]
 emitOpStep f env (MSCFIf loc cond then' else') = intercalate "\n" $ [
   indented env $ printf "scf.if %s {" $ unSsa cond]
-  ++fmap (f (incrIndent env)) then'
+  ++fmap (f (incrIndent env{isTopLevel=False})) then'
   ++[indented env $ "} else {"]
-  ++fmap (f (incrIndent env)) else'
+  ++fmap (f (incrIndent env{isTopLevel=False})) else'
   ++[indented env $ "}"]
 emitOpStep f env (MSCFWhile loc breakb condb cond break body) = intercalate "\n" $
   [indented env $ "scf.while : ()->() {"]
@@ -286,7 +286,7 @@ emitOpStep f env (MSCFWhile loc breakb condb cond break body) = intercalate "\n"
   ++ [indented env $ "    }"]
   ++ [indented env $ "    scf.condition(%cond)"]
   ++ [indented env $ "} do {"]
-  ++ fmap (f (incrIndent env)) body
+  ++ fmap (f (incrIndent env{isTopLevel=False})) body
   ++ [indented env $ "scf.yield"]
   ++ [indented env $ printf "} %s" (mlirPos loc)]
 emitOpStep f env (MSCFExecRegion loc blocks) = intercalate "\n"
