@@ -62,13 +62,21 @@ pub enum Commands{
         #[clap(long)]
         qcis_config: Option<String>,
         #[clap(long, short='I', multiple_occurrences(true))]
-        inc_path: Option<Vec<String>>
+        inc_path: Option<Vec<String>>,
+        #[clap(long, short, multiple_occurrences(true))]
+        int_par: Option<Vec<i64>>,
+        #[clap(long, short, multiple_occurrences(true))]
+        double_par: Option<Vec<f64>>
     },
     Simulate{
         #[clap(required(true))]
         qir_object: String,
         #[clap(long)]
-        cuda: Option<usize>
+        cuda: Option<usize>,
+        #[clap(long, short, multiple_occurrences(true))]
+        int_par: Option<Vec<i64>>,
+        #[clap(long, short, multiple_occurrences(true))]
+        double_par: Option<Vec<f64>>
     },
     Exec{
         #[clap(multiple_occurrences(true), required(true))]
@@ -130,7 +138,7 @@ fn main()->miette::Result<()> {
             &[OsStr::new("simulate"), default_output_path.as_os_str()]
             ).map_err(ioErrorWhen("Calling isqc simulate"))?;
         }
-        Commands::Compile{input, output, opt_level, emit, target, qcis_config, inc_path}=>'command:{
+        Commands::Compile{input, output, opt_level, emit, target, qcis_config, inc_path, int_par, double_par}=>'command:{
             let (input_path, default_output_path) = resolve_input_path(&input, match emit{
                 EmitMode::Binary=>"so",
                 EmitMode::Out=> "so",
@@ -220,6 +228,15 @@ fn main()->miette::Result<()> {
             // post-processing.
             if let EmitMode::Out = emit{
                 if let CompileTarget::QCIS = target{
+                    // get parameters
+                    let par_int = match int_par{
+                        Some(x) => x,
+                        None => vec![]
+                    };
+                    let par_double = match double_par{
+                        Some(x) => x,
+                        None => vec![]
+                    };
                     // run simulator 
                     let (_, qcis_output_path) = resolve_input_path(&input, "qcis")?;
                     let mut qcis_out = MayDropFile::new(&qcis_output_path)?;
@@ -233,6 +250,14 @@ fn main()->miette::Result<()> {
                     let mut v = vec!["-e".into(), "__isq__entry".into()];
                     v.push("--qcis".into());
                     v.push(qir_object);
+                    for val in par_int{
+                        v.push("-i".into());
+                        v.push(format!("{}", val));
+                    }
+                    for val in par_double{
+                        v.push("-d".into());
+                        v.push(format!("{}", val))
+                    }
                     let config_file = qcis_config;//ok_or(QCISConfigNotSpecified)?;
                     let output = if let Some(s) = config_file {
                         exec::exec_command_with_decorator(&root, "simulator", &v, &[], |child|{
@@ -250,7 +275,8 @@ fn main()->miette::Result<()> {
             }
 
         }
-        Commands::Simulate{qir_object, cuda}=>{
+        Commands::Simulate{qir_object, cuda, int_par, double_par}=>{
+
             let qir_object = if qir_object.starts_with("/"){
                 qir_object
             }else{
@@ -264,6 +290,25 @@ fn main()->miette::Result<()> {
                 v.push("--naive".into());
             }
             v.push(qir_object);
+
+            // get parameters
+            let par_int = match int_par{
+                Some(x) => x,
+                None => vec![]
+            };
+            let par_double = match double_par{
+                Some(x) => x,
+                None => vec![]
+            };
+            for val in par_int{
+                v.push("-i".into());
+                v.push(format!("{}", val));
+            }
+            for val in par_double{
+                v.push("-d".into());
+                v.push(format!("{}", val))
+            }
+
             exec::raw_exec_command(&root, "simulator", &v).map_err(IoError)?;
         }
         Commands::Exec{exec_command}=>{
