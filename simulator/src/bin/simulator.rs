@@ -36,10 +36,15 @@ struct SimulatorArgs {
     #[clap(long)]
     qcis: bool,
     #[clap(long)]
-    noop: bool 
+    noop: bool,
+    #[clap(long, short)]
+    int_par: Option<Vec<i64>>,
+    #[clap(long, short)]
+    double_par: Option<Vec<f64>> 
 }
 
-type SimulatorEntry = extern "C" fn() -> ();
+type SimulatorEntry = extern "C" fn(x_alloc_ptr: *const i64, x_align_ptr: *const i64, x_offset: i64, x_size: i64, x_strides: i64,
+                                    y_alloc_ptr: *const f64, y_align_ptr: *const f64, y_offset: i64, y_size: i64, y_strides: i64) -> ();
 fn main() -> std::io::Result<()> {
     /*env_logger::Builder::new()
     .format(|buf, record| {
@@ -91,12 +96,24 @@ fn main() -> std::io::Result<()> {
         }),
     );
     make_context_current(Rc::new(RefCell::new(context)));
+    
+    let par_int = match args.int_par {
+        Some(x) => x,
+        None => vec![]
+    };
+    let par_int_ptr = par_int.as_ptr();
+    let par_double = match args.double_par{
+        Some(x) => x,
+        None => vec![]
+    };
+    let par_double_ptr = par_double.as_ptr();
+
     let library = unsafe { Library::new(args.qir_shared_library) }.unwrap();
     unsafe {
         let proc = library
             .get::<SimulatorEntry>(args.entrypoint.as_bytes())
             .unwrap();
-        (proc)();
+        (proc)(par_int_ptr, par_int_ptr, 0, 0, 0, par_double_ptr, par_double_ptr, 0, 0, 0);
     }
 
     let ctx_ = get_current_context();
