@@ -84,7 +84,7 @@ defineSym a b c= do
 defineGlobalSym :: Symbol->Pos->EType->TypeCheck Int
 defineGlobalSym a b c= do
     ssa<-nextId
-    when (a==SymVar "main" && c /= Type () FuncTy [Type () Unit []]) $ do
+    when (a==SymVar "main" && c /= Type () FuncTy [Type () Unit []] && c /= Type () FuncTy [Type () Unit [], Type () UnknownArray [intType ()], Type () UnknownArray [doubleType ()]]) $ do
         throwError $ BadMainSignature c
     when (a==SymVar "main") $ do
         modify' (\x->x{mainDefined = True})
@@ -507,10 +507,11 @@ typeCheckToplevel ast = do
                     Type _ Double [] -> return $ void ty
                     Type _ Bool [] -> return $ void ty
                     _ -> throwError $ BadProcedureReturnType pos (void ty, name)
-                args'<-mapM (uncurry argType) args
+                let new_args = if name == "main" && (length args) == 0 then [(Type pos UnknownArray [intType pos], "main$par1"), (Type pos UnknownArray [doubleType pos], "main$par2")] else args
+                args'<-mapM (uncurry argType) new_args
                 defineGlobalSym (SymVar name) (annotation ty) (Type () FuncTy (ty':args'))
                 -- NTempvar a (void b, procRet, Nothing)
-                return $ Left (pos, ty', name, zip args' (fmap snd args), body, ret)
+                return $ Left (pos, ty', name, zip args' (fmap snd new_args), body, ret)
             Left x -> error $ "unreachable" ++ show x
         ) resolved_defvar
     -- Finally, resolve procedure bodies.

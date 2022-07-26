@@ -8,7 +8,7 @@ import Control.Monad.State
     ( fix, void, State, zipWithM_, evalState, execState )
 import Control.Lens
 import ISQ.Lang.ISQv2Tokenizer(Pos(Pos), Annotated (annotation))
-
+import Debug.Trace
 
 
 data RegionBuilder = RegionBuilder{
@@ -506,9 +506,10 @@ generateMLIRModule file xs =
         main = _mainModule builder
         initialize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_initialize") Nothing [MLIRBlock (fromBlockName 1) [] (reverse (_globalInitializers builder) ++[MReturnUnit MLIRPosUnknown])]
         finalize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_finalize") Nothing [MLIRBlock (fromBlockName 1) [] [MReturnUnit MLIRPosUnknown]]
-        entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) [] [
+        args = [(Memref Nothing Index,SSA {unSsa = "%ssa_1"}),(Memref Nothing M.Double,SSA {unSsa = "%ssa_2"})]
+        entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) args [
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [],
-                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") [],
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") args,
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_finalize") [],
                 MReturnUnit MLIRPosUnknown 
             ]]
