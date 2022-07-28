@@ -3,7 +3,7 @@ use itertools::Itertools;
 
 use crate::qdevice::QDevice;
 
-pub const QCIS_ROUTE_BIN_PATH : Option<&'static str> = option_env!("QCIS_ROUTE_BIN_PATH");
+pub const QCIS_ROUTE_BIN_PATH : Option<&'static str> = option_env!("ISQ_ROOT");
 
 #[inline]
 pub fn qcis_route_bin_path()->&'static str{
@@ -29,7 +29,7 @@ pub fn run_qcis_route(code: String)->String{
             panic!("qcis config schema invalid");
         }
         let input = serde_json::to_string(&config_json).expect("internal qcis error");
-        let mut child = Command::new(qcis_route_bin_path())
+        let mut child = Command::new(format!("{}/bin/route", qcis_route_bin_path()))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())

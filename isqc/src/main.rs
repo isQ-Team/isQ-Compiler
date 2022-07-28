@@ -171,7 +171,7 @@ fn main()->miette::Result<()> {
                 fout.finalize();
                 break 'command;
             }
-            let qcis_flags = "-pass-pipeline=cse,builtin.func(affine-loop-unroll),isq-canonicalize,fold-memref-subview-ops,canonicalize,builtin.func(affine-scalrep),isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-target-qcis,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-target-qcis,isq-expand-decomposition,canonicalize,cse,canonicalize,cse";
+            let qcis_flags = "-pass-pipeline=cse,builtin.func(affine-loop-unroll),isq-canonicalize,canonicalize,builtin.func(affine-scalrep),isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-target-qcis,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-target-qcis,isq-expand-decomposition,canonicalize,cse,canonicalize,cse";
             let normal_flags = "-pass-pipeline=isq-oracle-decompose,isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,cse";
             let flags = if let CompileTarget::QCIS = target {qcis_flags} else {normal_flags};
             let optimized_mlir = exec::exec_command_text(&root, "isq-opt", &[
