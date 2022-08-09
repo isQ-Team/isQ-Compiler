@@ -62,7 +62,7 @@ skippedRegions pos ty = do
 
 data RAIIError =
       UnmatchedScopeError {unmatchedPos :: Pos, wantedRegionType :: RegionType}
-    deriving Show
+    deriving (Eq, Show)
 
 
 type RAIICheck = ExceptT RAIIError (State RAIICheckEnv)

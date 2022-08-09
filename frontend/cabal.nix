@@ -1,6 +1,6 @@
 { mkDerivation, aeson, alex, array, base, bytestring, containers
-, deepseq, directory, extra, happy, hpack, lens, lib
-, math-functions, mtl, parsec, pretty-simple, split, text
+, deepseq, directory, extra, happy, hpack, lens, lib, multimap
+, math-functions, mtl, parsec, pretty-simple, split, text, filepath
 }:
 mkDerivation {
   pname = "isqc-frontend";
@@ -11,7 +11,7 @@ mkDerivation {
   libraryToolDepends = [ hpack ];
   executableHaskellDepends = [
     aeson array base bytestring containers deepseq directory extra lens
-    math-functions mtl parsec pretty-simple split text
+    math-functions mtl parsec pretty-simple split text filepath multimap
   ];
   executableToolDepends = [ alex happy ];
   prePatch = "hpack";

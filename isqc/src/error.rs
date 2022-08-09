@@ -18,7 +18,7 @@ pub struct IoError (#[from] pub std::io::Error);
 
 
 #[derive(Error, Debug, Diagnostic)]
-#[error("ISQV2_ROOT undefined.")]
+#[error("ISQ_ROOT undefined.")]
 #[diagnostic(
     code(isqv2::no_isqv2_root),
     help("This means something is wrong if you are calling from isqc entry.")
@@ -40,6 +40,14 @@ pub struct QCISConfigNotSpecified;
     help("This means something is wrong.")
 )]
 pub struct InvalidISQC1Json;
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("{0}.")]
+#[diagnostic(
+    code(isqv2::isq_grammar_error),
+    help("{1}")
+)]
+pub struct GeneralGrammarError(pub String, pub String);
 
 #[derive(Error, Debug, Diagnostic)]
 #[error("Frontend Error.")]
@@ -89,6 +97,21 @@ pub struct RedefinedSymbolError {
 }
 
 #[derive(Error, Debug, Diagnostic)]
+#[error("Conflict symbol `{symName}`.")]
+#[diagnostic(
+    code(isqv2::frontend::conflict_symbol)
+)]
+pub struct ConflictSymbolError {
+    pub symName: String,
+    #[source_code]
+    pub src: NamedSource,
+    #[label("Also defined here.")]
+    pub pos: SourceSpan,
+    #[related]
+    pub related: Vec<FirstDefineError>
+}
+
+#[derive(Error, Debug, Diagnostic)]
 #[error("")]
 #[diagnostic()]
 pub struct FirstDefineError {
@@ -96,20 +119,6 @@ pub struct FirstDefineError {
     pub src: NamedSource,
     #[label("First defined here.")]
     pub posFirst: SourceSpan
-}
-
-
-#[derive(Error, Debug, Diagnostic)]
-#[error("Can't find include file `{incFile}`.")]
-#[diagnostic(
-    code(isqv2::frontend::inc_error)
-)]
-pub struct IncFileError {
-    pub incFile: String,
-    #[source_code]
-    pub src: NamedSource,
-    #[label("Trying to include file here.")]
-    pub pos: SourceSpan
 }
 
 

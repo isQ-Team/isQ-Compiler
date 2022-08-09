@@ -7,7 +7,7 @@ import Data.Complex
   
 data OracleError =
       BadOracleShape Pos
-    | BadOracleValue Pos deriving Show
+    | BadOracleValue Pos deriving (Eq, Show)
 
 mangleGate x = "$_ISQ_GATEDEF_"++x
 

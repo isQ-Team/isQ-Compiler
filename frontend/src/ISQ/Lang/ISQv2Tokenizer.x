@@ -15,12 +15,13 @@ $idfirstchar  = [$alpha \_ \@]
 $idrestchar   = [$alpha $digit \_]
 
 @ident = $idfirstchar $idrestchar*
+@qualify = (@ident \.)* @ident
 
 @decimal = $digit+
 @exponent = [eE] [\-\+] @decimal
 
 @reservedid = 
-	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|bp|return|
+	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|bp|return|package|import|
     ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue|double|as|extern|gate|deriving|oracle|pi
 @reservedop = "|0>"|"=="|"="|"+"|"-"|"*"|"/"|"<"|">"|"<="|">="|"!="|"&&"|"||"|"!"|"%"|
               ","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"|"**"
@@ -34,9 +35,9 @@ tokens :-
     <stringSC> \" {endString}
     <stringSC> . {appendString}
     <stringSC> \\[\nt\"] {escapeString}
-    <0> "--" {beginPosFile}
-    <posfileSc> "--" {endPosFile}
-    <posfileSc> . {appendPosFile}
+    --<0> "--" {beginPosFile}
+    --<posfileSc> "--" {endPosFile}
+    --<posfileSc> . {appendPosFile}
     <0> "//".* {skip}
     <0> @reservedid {tokenReservedId}
     <0> @reservedop {tokenReservedOp}
@@ -47,14 +48,19 @@ tokens :-
       | @decimal \. @decimal @exponent? j
       | @decimal @exponent j  { tokenImagPart }
     <0> @ident {tokenIdent}
+    <0> @qualify {tokenQualified}
     <0> . {errc}
 
 {
 data Token ann = 
     TokenReservedId {annotationToken :: ann, tokenReservedIdV :: String}
   | TokenReservedOp {annotationToken :: ann, tokenReservedOpV :: String} | TokenNatural {annotationToken :: ann, tokenNaturalV :: Int}
-  | TokenFloat {annotationToken :: ann, tokenFloatV :: Double}  | TokenImagPart {annotationToken :: ann, tokenImagPartV :: Double}  | TokenIdent {annotationToken :: ann, tokenIdentV :: String} | TokenEOF {annotationToken :: ann} | TokenStringLit {annotationToken :: ann, tokenStringLitV :: String} deriving Show
-data Pos = Pos {line :: Int, column :: Int, filename :: String} deriving Show
+  | TokenFloat {annotationToken :: ann, tokenFloatV :: Double}  | TokenImagPart {annotationToken :: ann, tokenImagPartV :: Double}  
+  | TokenIdent {annotationToken :: ann, tokenIdentV :: String} 
+  | TokenQualified {annotationToken :: ann, tokenIdentV :: String}
+  | TokenEOF {annotationToken :: ann} 
+  | TokenStringLit {annotationToken :: ann, tokenStringLitV :: String} deriving (Eq, Show)
+data Pos = Pos {line :: Int, column :: Int, filename :: String} deriving (Show, Eq)
 type ISQv2Token = Token Pos
 instance Exception [Token Pos]
 class Annotated x where
@@ -91,7 +97,7 @@ endComment _ _ = do
   updateCommentStatus
   return Nothing
 
-beginPosFile (pos, _, _, _) _ = do
+{-beginPosFile (pos, _, _, _) _ = do
   s<-get
   put s{stringBuffer = "", posfilePos = position pos, startRow = 1}
   alexSetStartCode posfileSc
@@ -109,7 +115,7 @@ endPosFile _ _ = do
   let file = row_file !! 1
   put s{stringBuffer="", posfilePos = Pos r c file, startRow = row}
   alexSetStartCode 0
-  return Nothing
+  return Nothing-}
   
 beginString (pos, _, _, _) _ = do
   s<-get
@@ -157,6 +163,12 @@ tokenIdent (pos, _, _, str) len = do
   let start_row = startRow s
   let Pos tr tc _ = position pos
   return $ Just $ TokenIdent (Pos (tr-r-1+start_row) tc f) (take len str)
+tokenQualified (pos, _, _, str) len = do
+  s <- get
+  let Pos r c f = posfilePos s
+  let start_row = startRow s
+  let Pos tr tc _ = position pos
+  return $ Just $ TokenQualified (Pos (tr-r-1+start_row) tc f) (take len str)
 tokenFloat (pos, _, _, str) len = do
   s <- get
   let Pos r c f = posfilePos s
