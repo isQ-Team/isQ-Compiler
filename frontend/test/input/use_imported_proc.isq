@@ -1,0 +1,6 @@
+import b.fun1;
+
+procedure main()
+{
+    print fun();
+}

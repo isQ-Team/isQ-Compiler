@@ -1,0 +1,3 @@
+// no package name, means "package inconsistent;"
+// which implies that the root folder is "test/input/b"
+// which is not the same as the other root folder (i.e., test/input)

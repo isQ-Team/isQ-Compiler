@@ -1,0 +1,7 @@
+import b.fun1;
+import b.fun2;
+
+procedure main()
+{
+    fun();
+}

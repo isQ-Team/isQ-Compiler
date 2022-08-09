@@ -20,6 +20,7 @@ import ISQ.Driver.Jsonify
 import qualified Data.List
 import qualified Data.ByteString.Lazy as BS
 import ISQ.Lang.ISQv2Tokenizer
+import Data.Typeable
 data Flag = Input String | Include String | Output String | Version | Mode String | Help  deriving Eq
 
 
@@ -79,7 +80,7 @@ writeOut (Just p) (Right f) = writeFile p f
 writeOut Nothing (Right f) = putStrLn f
 -}
 
-headers :: String
+{-headers :: String
 headers = Data.List.intercalate "\n" $ ["extern defgate Rz(double) : gate(1) = \"__quantum__qis__rz__body\";",
     "extern defgate Rx(double) : gate(1) = \"__quantum__qis__rx__body\";",
     "extern defgate Ry(double) : gate(1) = \"__quantum__qis__ry__body\";",
@@ -97,7 +98,7 @@ headers = Data.List.intercalate "\n" $ ["extern defgate Rz(double) : gate(1) = \
     "extern defgate Y2M() : gate(1) = \"__quantum__qis__y2m\";",
     "extern defgate Y2P() : gate(1) = \"__quantum__qis__y2p\";",
     "extern defgate CZ() : gate(2) = \"__quantum__qis__cz\";",
-    "extern defgate GPhase(double) : gate(0) = \"__quantum__qis__gphase\";"]
+    "extern defgate GPhase(double) : gate(0) = \"__quantum__qis__gphase\";"]-}
 
 main = do
     args<-getArgs
@@ -125,20 +126,21 @@ main = do
     output'<-readIORef output
     mode'<-fromMaybe "mlir" <$> readIORef mode
     let incpath = fromMaybe "" inc'
-    ast_body <- parseFileOrStdin input' incpath
+    --putStrLn $ show $ typeOf ast
     let inputFileName = fromMaybe "<stdin>" input'
+    ast <- generateTcast incpath inputFileName
     
-    header_ast<-fmap (\x->case x of {Right y->y; Left e->error (show e)})(runExceptT $ parseToAST headers)
-    let zeroed_ast = fmap (fmap (const $ Pos 0 0 "")) header_ast
-    let ast = fmap (zeroed_ast ++) ast_body;
+    --header_ast<-fmap (\x->case x of {Right y->y; Left e->error (show e)})(runExceptT $ parseToAST headers)
+    --let zeroed_ast = fmap (fmap (const $ Pos 0 0 "")) header_ast
+    --let ast = fmap (zeroed_ast ++) ast_body;
     case mode' of
         "mlir"-> do
             writeOut output' (ast >>= compile inputFileName)
         "ast"-> do
             writeOut output' ast
-        "raii"-> do
-            writeOut output' (ast >>=  compileRAII)
-        "typecheck" -> do
-            writeOut output' (ast >>= compileTypecheck)
+        --"raii"-> do
+        --    writeOut output' (ast >>=  compileRAII)
+        --"typecheck" -> do
+        --    writeOut output' (ast >>= compileTypecheck)
         _-> raiseError True ("Bad mode "++mode')
     return ()

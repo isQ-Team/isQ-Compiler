@@ -6,7 +6,7 @@ import Control.Monad (void)
 
 data DeriveError =
       BadGateSignature Pos
-    | BadOracleSignature Pos deriving Show
+    | BadOracleSignature Pos deriving (Eq, Show)
 mangleGate x = "$_ISQ_GATEDEF_"++x
 mangleOracle x = "@"++x
 
