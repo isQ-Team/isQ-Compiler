@@ -26,6 +26,8 @@ import Control.Exception (throw, Exception)
     pass { TokenReservedId $$ "pass" }
     bp { TokenReservedId $$ "bp" }
     return { TokenReservedId $$ "return" }
+    package { TokenReservedId $$ "package" }
+    import { TokenReservedId $$ "import" }
     ctrl { TokenReservedId $$ "ctrl" }
     nctrl { TokenReservedId $$ "nctrl" }
     inv { TokenReservedId $$ "inv" }
@@ -76,6 +78,7 @@ import Control.Exception (throw, Exception)
     IMAGPART { TokenImagPart _ _ }
     IDENTIFIERORACLE { TokenIdent _ ('@':_) }
     IDENTIFIER { TokenIdent _ _ }
+    QUALIFIED { TokenQualified _ _}
     STRING { TokenStringLit _ _}
 
 %left ':' -- Level 13
@@ -91,13 +94,32 @@ import Control.Exception (throw, Exception)
 
 %%
 
-TopLevel :: {[LAST]}
-TopLevel : {- empty -} { [] }
-     | TopLevel TopDefMember {$1 ++ [$2]}
+TopLevel :: {LAST}
+-- TODO: change to optional package
+TopLevel : Package ImportList DefMemberList { NTopLevel $1 $2 $3 }
+
+Package :: {Maybe LAST}
+Package : {- empty -} { Nothing }
+     | package IDENTIFIER ';' { Just $ NPackage $1 (tokenIdentV $2) }
+
+ImportList :: {[LAST]}
+ImportList : {- empty -} { [] }
+     | ImportList Import { $1 ++ [$2] }
+
+Import :: {LAST}
+Import : import Qualified ';' { NImport $1 (tokenIdentV $2) }
+
+Qualified :: {ISQv2Token}
+Qualified : IDENTIFIER {$1}
+     | QUALIFIED {$1}
+
+DefMemberList :: {[LAST]}
+DefMemberList : {- empty -} { [] }
+     | DefMemberList TopDefMember { $1 ++ [$2] }
 
 TopDefMember :: {LAST}
-TopDefMember : ISQCore_GatedefStatement ';' {$1} 
-             | TopLevelVar {$1}
+TopDefMember : ISQCore_GatedefStatement ';' { $1 } 
+             | TopLevelVar { $1 }
              | ExternDefgate ';' { $1 }
              | Procedure { $1 }
              | OracleTruthTable { $1 }
@@ -113,7 +135,7 @@ Expr : Expr1 {$1} | Expr2 {$1}
 
 ExprCallable :: {LExpr}
 ExprCallable : '(' Expr ')' { $2 }
-             | IDENTIFIER { EIdent (annotation $1) (tokenIdentV $1) }
+             | Qualified { EIdent (annotation $1) (tokenIdentV $1) }
              | IDENTIFIERORACLE { EIdent (annotation $1) (tokenIdentV $1)}
 Expr1Left :: {LExpr}
 Expr1Left : ExprCallable {$1}

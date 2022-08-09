@@ -20,9 +20,9 @@ unitType ann = Type ann Unit []
 refType ann s = Type ann Ref [s]
 
 
-data CmpType = Equal | NEqual | Greater | Less | GreaterEq | LessEq deriving Show
-data BinaryOperator = Add | Sub | Mul | Div | Mod | Cmp CmpType | Pow deriving Show
-data UnaryOperator = Neg | Positive deriving Show
+data CmpType = Equal | NEqual | Greater | Less | GreaterEq | LessEq deriving (Eq, Show)
+data BinaryOperator = Add | Sub | Mul | Div | Mod | Cmp CmpType | Pow deriving (Eq, Show)
+data UnaryOperator = Neg | Positive deriving (Eq, Show)
 data Expr ann = 
        EIdent { annotationExpr :: ann, identName :: String}
      | EBinary { annotationExpr :: ann, binaryOp :: BinaryOperator, binaryLhs :: Expr ann, binaryRhs :: Expr ann}
@@ -45,7 +45,7 @@ data Expr ann =
      | EResolvedIdent {annotationExpr :: ann, resolvedId :: Int}
      | EGlobalName {annotationExpr :: ann, globalName :: String}
      | EEraselist {annotationExpr :: ann, subList :: Expr ann}
-     deriving (Show,Functor)
+     deriving (Eq, Show, Functor)
 instance Annotated Expr where
   annotation = annotationExpr
 instance Annotated Type where
@@ -53,7 +53,7 @@ instance Annotated Type where
 
 -- A procedure marked with derive-gate will be seen as a parametric gate on its last n qubits.
 -- A procedure marked with derive-oracle will be seen as an oracle on its last n boolean parameters.
-data DerivingType = DeriveGate | DeriveOracle Int deriving Show
+data DerivingType = DeriveGate | DeriveOracle Int deriving (Eq, Show)
 
 data AST ann = 
        NIf { annotationAST :: ann, condition :: Expr ann, thenBlock :: [AST ann], elseBlock :: [AST ann]}
@@ -73,6 +73,9 @@ data AST ann =
      | NCoreMeasure {annotationAST :: ann, measExpr :: Expr ann}
      -- procedure my_rx(double theta, qbit a, qbit b) deriving gate { }
      -- bool database(bool flags[4], bool a, bool b) deriving oracle(2) { } 
+     | NTopLevel { package :: Maybe (AST ann), importList :: [AST ann], defMemberList :: [AST ann] }
+     | NPackage { annotationAST :: ann, packageName :: String }
+     | NImport { annotationAST :: ann, importName :: String }
      | NProcedureWithDerive { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann], deriveGate :: Maybe DerivingType}
      | NContinue { annotationAST :: ann }
      | NBreak { annotationAST :: ann }
@@ -101,7 +104,7 @@ data AST ann =
      | NResolvedDefvar { annotationAST :: ann, resolvedDefinitions :: [(Type (), Int, Maybe (Expr ann))]}
      | NGlobalDefvar {annotationAST :: ann, globalDefinitions :: [(Type (), Int, String, Maybe (Expr ann))]}
      | NOracle { annotationAST :: ann, oracleName :: String, oracleN :: Int, oracleM :: Int, oracleMap :: [Expr ann] }
-     deriving (Show,Functor)
+     deriving (Eq, Show, Functor)
 
 data GateModifier = Inv | Ctrl Bool Int deriving (Show, Eq)
 
@@ -116,14 +119,21 @@ type LType = Type Pos
 instance Annotated AST where
   annotation = annotationAST
 
-newtype InternalCompilerError = InternalCompilerError String deriving Show
+newtype InternalCompilerError = InternalCompilerError String deriving (Eq, Show)
 
 data GrammarError = 
     BadMatrixElement {badExpr :: LExpr}
   | BadMatrixShape {badMatrix :: LAST}
   | MissingGlobalVarSize {badDefPos :: Pos, badDefName :: String} 
   | UnexpectedToken {token :: Token Pos}
-  | UnexpectedEOF   deriving Show
+  | UnexpectedEOF
+  | BadPackageName {badPackageName :: String}
+  | InconsistentRoot {importedFile :: String, rootPath :: String}
+  | ReadFileError {badFileName :: String}
+  | ImportNotFound {missingImport :: String}
+  | DuplicatedImport {duplicatedImport :: String}
+  | CyclicImport {cyclicImport :: [String]}
+  | AmbiguousImport {ambImport :: String, candidate1 :: String, candidate2 :: String} deriving (Eq, Show)
 
 foldConstantComplex :: LExpr->Either LExpr (Complex Double)
 foldConstantComplex x@(EBinary _ op lhs rhs) = do
