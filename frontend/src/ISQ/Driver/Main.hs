@@ -11,6 +11,7 @@ import Text.Pretty.Simple
 import Data.Text.Lazy (unpack)
 import Data.Bifunctor
 import ISQ.Lang.CompileError
+import System.FilePath (joinPath)
 import System.IO (hPutStrLn, stderr, stdout)
 import Control.Monad.Cont.Class
 import Control.Monad.Cont
@@ -126,9 +127,14 @@ main = do
     output'<-readIORef output
     mode'<-fromMaybe "mlir" <$> readIORef mode
     let incpath = fromMaybe "" inc'
-    --putStrLn $ show $ typeOf ast
     let inputFileName = fromMaybe "<stdin>" input'
-    ast <- generateTcast incpath inputFileName
+
+    -- get defualt include directory
+    root <- lookupEnv "ISQ_ROOT"
+    let rootPath = case root of
+            Nothing -> ""
+            Just x -> joinPath [x, "lib"]
+    ast <- generateTcast (incpath ++ "" ++ rootPath) inputFileName
     
     --header_ast<-fmap (\x->case x of {Right y->y; Left e->error (show e)})(runExceptT $ parseToAST headers)
     --let zeroed_ast = fmap (fmap (const $ Pos 0 0 "")) header_ast
