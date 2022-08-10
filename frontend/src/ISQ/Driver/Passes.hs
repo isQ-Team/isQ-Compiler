@@ -207,12 +207,7 @@ generateTcast incPathStr inputFileName = do
     absolutPath <- canonicalizePath inputFileName
     let splitedPath = splitOn ":" incPathStr
     incPath <- mapM canonicalizePath splitedPath
-    -- get defualt include directory
-    root <- lookupEnv "ISQ_ROOT"
-    let allIncPath = case root of
-            Just x -> (joinPath [x, "lib"]):incPath
-            Nothing -> incPath
-    errOrTuple <- evalStateT (fileToTcast allIncPath [] absolutPath) $ ImportEnv Map.empty 0
+    errOrTuple <- evalStateT (fileToTcast incPath [] absolutPath) $ ImportEnv Map.empty 0
     case errOrTuple of
         Left x -> return $ Left x
         Right tuple -> return $ Right $ fst tuple
