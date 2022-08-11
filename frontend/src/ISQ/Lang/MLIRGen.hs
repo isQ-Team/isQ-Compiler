@@ -339,8 +339,9 @@ emitStatement' f (NCoreU3 ann (EGlobalName ann2 name) ops mods angles) = do
 emitStatement' f (NCoreReset ann operand) = do
     operand'<-emitExpr operand
     pos<-mpos ann
-    let i_in = SSA $ unSsa operand' ++"_in"
-    let i_out = SSA $ unSsa operand' ++ "_out"
+    let i = ssa ann
+    let i_in = SSA $ unSsa i ++"_in"
+    let i_out = SSA $ unSsa i ++ "_out"
     pushOp $ MLoad pos i_in (BorrowedRef QState, operand')
     pushOp $ MQReset pos i_out i_in
     pushOp $ MStore pos (BorrowedRef QState, operand') i_out
