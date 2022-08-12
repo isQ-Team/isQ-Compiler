@@ -1,5 +1,0 @@
-procedure main(){
-    qbit q[1];
-    H(q[0]);
-    return;
-}

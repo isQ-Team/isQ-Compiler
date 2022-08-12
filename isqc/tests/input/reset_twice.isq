@@ -2,4 +2,5 @@ procedure main(){
     qbit a;
     a=|0>;
     a=|0>;
+    print M<a>;
 }

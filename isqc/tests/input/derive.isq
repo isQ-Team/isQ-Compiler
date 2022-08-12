@@ -1,0 +1,15 @@
+import std;
+
+procedure myry(double theta, qbit q)
+{
+    U3(theta, 0, 0, q);
+} deriving gate
+
+procedure main()
+{
+    qbit q1, q2;
+    X<q1>;
+    ctrl myry(pi, q1, q2);
+    int m = M(q2);
+    print m;
+}

@@ -1,4 +1,5 @@
 import std;
+
 int m1, m2;
 qbit q_1, q_2, q_3;
 

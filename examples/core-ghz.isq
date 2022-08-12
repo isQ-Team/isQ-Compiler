@@ -1,3 +1,4 @@
+import std;
 qbit q[4];
 
 procedure main() {

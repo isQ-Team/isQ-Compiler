@@ -1,5 +1,3 @@
-import std;
-
 defgate CCNOT =
 [
     1,0,0,0,0,0,0,0;
@@ -12,12 +10,10 @@ defgate CCNOT =
     0,0,0,0,0,0,1,0
 ];
 
-qbit q[3];
+qbit q1, q2, q3, q4;
 
 procedure main()
 {
-    X<q1>;
-    X<q2>;
-    CCNOT<q[0], q[1] ,q[2]>;
-    print M<q[2]>;
+    CCNOT<q1, q2, q3, q4>;
+    CCNOT<q1, q2>;
 }

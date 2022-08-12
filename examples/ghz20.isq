@@ -1,3 +1,4 @@
+import std;
 procedure main(){
     qbit q[20];
     H<q[0]>;

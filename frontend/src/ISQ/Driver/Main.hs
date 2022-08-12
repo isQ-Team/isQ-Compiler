@@ -81,26 +81,6 @@ writeOut (Just p) (Right f) = writeFile p f
 writeOut Nothing (Right f) = putStrLn f
 -}
 
-{-headers :: String
-headers = Data.List.intercalate "\n" $ ["extern defgate Rz(double) : gate(1) = \"__quantum__qis__rz__body\";",
-    "extern defgate Rx(double) : gate(1) = \"__quantum__qis__rx__body\";",
-    "extern defgate Ry(double) : gate(1) = \"__quantum__qis__ry__body\";",
-    "extern defgate U3(double, double, double) : gate(1) = \"__quantum__qis__u3\";",
-    "extern defgate H() : gate(1) = \"__quantum__qis__h__body\";",
-    "extern defgate S() : gate(1) = \"__quantum__qis__s__body\";",
-    "extern defgate T() : gate(1) = \"__quantum__qis__t__body\";",
-    "extern defgate X() : gate(1) = \"__quantum__qis__x__body\";",
-    "extern defgate Y() : gate(1) = \"__quantum__qis__y__body\";",
-    "extern defgate Z() : gate(1) = \"__quantum__qis__z__body\";",
-    "extern defgate CNOT() : gate(2) = \"__quantum__qis__cnot\";",
-    "extern defgate Toffoli() : gate(3) = \"__quantum__qis__toffoli\";",
-    "extern defgate X2M() : gate(1) = \"__quantum__qis__x2m\";",
-    "extern defgate X2P() : gate(1) = \"__quantum__qis__x2p\";",
-    "extern defgate Y2M() : gate(1) = \"__quantum__qis__y2m\";",
-    "extern defgate Y2P() : gate(1) = \"__quantum__qis__y2p\";",
-    "extern defgate CZ() : gate(2) = \"__quantum__qis__cz\";",
-    "extern defgate GPhase(double) : gate(0) = \"__quantum__qis__gphase\";"]-}
-
 main = do
     args<-getArgs
     flags<-compilerOpts args
@@ -136,9 +116,6 @@ main = do
             Just x -> joinPath [x, "lib"]
     ast <- generateTcast (incpath ++ "" ++ rootPath) inputFileName
     
-    --header_ast<-fmap (\x->case x of {Right y->y; Left e->error (show e)})(runExceptT $ parseToAST headers)
-    --let zeroed_ast = fmap (fmap (const $ Pos 0 0 "")) header_ast
-    --let ast = fmap (zeroed_ast ++) ast_body;
     case mode' of
         "mlir"-> do
             writeOut output' (ast >>= compile inputFileName)

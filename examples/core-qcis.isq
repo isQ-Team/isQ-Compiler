@@ -1,3 +1,5 @@
+import std;
+
 qbit w[5];
 procedure main() {
     for i in 0:3{
