@@ -1,4 +1,4 @@
-//defgate U1 = [-1, 0; 0, 1];
+import std;
 
 procedure U1(qbit q){
     Z(q);

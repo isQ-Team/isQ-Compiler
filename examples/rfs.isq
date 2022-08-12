@@ -1,3 +1,5 @@
+import std;
+
 oracle A(4,1) = [0,1,1,0,0,0,0,0,0,0,1,1,0,1,0,1];
 oracle g(2,1) = [0,1,1,0];
 int a;
@@ -8,7 +10,7 @@ procedure recursive_fourier_sampling(int k){
         //price=price+3066;
         A(q[0], q[1], q[2], q[3], p[2]);
     } else {
-        price=price+12;
+        //price=price+12;
         H (q[2*k]);
         H (q[2*k+1]);
         X (p[k+1]);
@@ -31,7 +33,7 @@ procedure main(){
     a = 0;
     //price=0;
     recursive_fourier_sampling(a);
-    M(p[0]);
+    print M(p[0]);
     //print(price);
     //print(M(p[0]));
 }

@@ -1,0 +1,16 @@
+defgate SWAP = [ 1,0,0,0;0,0,1,0;0,1,0,0;0,0,0,1 ];
+
+qbit _QS1[4], _QS2[4];
+
+procedure Swaps()
+{
+    for (i = 0 to 3)
+    {
+        SWAP<_QS1[i], _QS2[i]>;
+    }
+}
+
+procedure main()
+{
+    Swaps();
+}

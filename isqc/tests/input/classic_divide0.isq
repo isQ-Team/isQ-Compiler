@@ -1,0 +1,7 @@
+double d;
+
+procedure main()
+{
+    d = 0.1 + 12.3 / 0.0;
+    print d;
+}
