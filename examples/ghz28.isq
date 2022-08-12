@@ -1,3 +1,5 @@
+import std;
+
 procedure main(){
     qbit q[28];
     H<q[0]>;

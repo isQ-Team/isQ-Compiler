@@ -511,15 +511,15 @@ typeCheckToplevel isMain prefix ast = do
                 return $ Right $ NResolvedExternGate (okStmt pos) (prefix ++ name) (fmap void extra) size qirname
             Left (NOracleTable pos name source value size) -> do
                 defineGlobalSym prefix name pos (Type () (Gate size) [])
-                return $ Right (NOracleTable (okStmt pos) (prefix ++ name) source value size)
+                return $ Right (NOracleTable (okStmt pos) (prefix ++ name) (prefix ++ source) value size)
             Left x@(NDerivedGatedef pos name source extra size) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
                 defineGlobalSym prefix name pos (Type () (Gate size) extra')
-                return $ Right (NDerivedGatedef (okStmt pos) (prefix ++ name) source extra' size)
+                return $ Right (NDerivedGatedef (okStmt pos) (prefix ++ name) (prefix ++ source) extra' size)
             Left x@(NDerivedOracle pos name source extra size)->do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
                 defineGlobalSym prefix name pos (Type () (Gate size) extra')
-                return $ Right (NDerivedOracle (okStmt pos) (prefix ++ name) source extra size)
+                return $ Right (NDerivedOracle (okStmt pos) (prefix ++ name) (prefix ++ source) extra size)
             Left (NProcedureWithRet pos ty name args body ret) -> do
                 -- check arg types and return types
                 ty'<-case ty of

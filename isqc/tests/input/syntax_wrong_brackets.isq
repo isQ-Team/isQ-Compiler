@@ -1,0 +1,16 @@
+qbit q,p;
+int x,y;
+
+procedure main(){
+	q = |0>;
+	p = |0>;
+	x = 0;
+	while ( x==0) do
+		H <p>;
+		CNOT <p,q>;
+		x = M[p];
+	od
+	y = M(p);
+	print x;
+	print y;
+}

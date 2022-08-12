@@ -16,8 +16,8 @@ qbit q[3];
 
 procedure main()
 {
-    X<q1>;
-    X<q2>;
+    X<q[0]>;
+    X<q[1]>;
     CCNOT<q[0], q[1] ,q[2]>;
     print M<q[2]>;
 }

@@ -1,8 +1,11 @@
 import std;
+
 int m1, m2;
 qbit q_1, q_2, q_3;
 
-procedure Teleport(qbit qsrc, qbit qanc, qbit qdest) 
+procedure Teleport(qbit qsrc,
+                   qbit qanc,
+                   qbit qdest) 
 {
     H<qanc>;
     CNOT<qanc, qdest>;
@@ -16,7 +19,6 @@ procedure Teleport(qbit qsrc, qbit qanc, qbit qdest)
 
 procedure main()
 {
-    X<q_1>;
     Teleport(q_1, q_2, q_3);
     print M<q_3>;
 }

@@ -1,0 +1,8 @@
+defgate Gempt = [
+];
+
+qbit q;
+
+procedure main()
+{
+}

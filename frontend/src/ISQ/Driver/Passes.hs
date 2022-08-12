@@ -30,13 +30,13 @@ import System.Directory (canonicalizePath, doesFileExist)
 import System.Environment (lookupEnv)
 import System.FilePath (addExtension, dropExtensions, joinPath, splitDirectories)
 
-syntaxError :: String->CompileError 
-syntaxError x = 
+syntaxError :: FilePath -> String->CompileError 
+syntaxError file x = 
     let t1 = dropWhile (not . isDigit) x
         (l, t2) = span isDigit t1
         t3 = dropWhile (not . isDigit) t2
         (c, t4) = span isDigit t3
-    in SyntaxError (Pos {line = read l, column = read c, filename = t4} )
+    in SyntaxError (Pos {line = read l, column = read c, filename = file} )
 
 parseToAST :: FilePath -> String->ExceptT CompileError IO LAST
 parseToAST file s = do
@@ -44,7 +44,7 @@ parseToAST file s = do
             let ann = annotationToken x
             let newAnn = (\y -> y{filename=file}) ann
             x{annotationToken = newAnn})
-    tokens <- liftEither $ first syntaxError $ tokenize s
+    tokens <- liftEither $ first (syntaxError file) $ tokenize s
     let newTokens = map assignFile tokens
     x <-lift $ catch (Right <$> (evaluate $ force $ isqv2 newTokens)) 
         (\e-> case e of

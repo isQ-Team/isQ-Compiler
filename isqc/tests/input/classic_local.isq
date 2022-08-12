@@ -1,0 +1,16 @@
+int a, b;
+
+procedure Foo(int a)
+{
+    a = 789;
+    print a;
+}
+
+procedure main()
+{
+    a = 123;
+    b = 456;
+    Foo(b);
+    print a;
+    print b;
+}

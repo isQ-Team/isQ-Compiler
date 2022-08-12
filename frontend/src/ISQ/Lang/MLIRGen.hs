@@ -1,13 +1,14 @@
 {-# LANGUAGE TemplateHaskell, FlexibleContexts, ViewPatterns #-}
 module ISQ.Lang.MLIRGen where
 import ISQ.Lang.ISQv2Grammar
+import ISQ.Lang.ISQv2Tokenizer(Pos(Pos), Annotated (annotation))
 import ISQ.Lang.TypeCheck
 import ISQ.Lang.MLIRTree hiding (Bool, Gate, Unit, Double)
 import qualified ISQ.Lang.MLIRTree as M
 import Control.Monad.State
     ( fix, void, State, zipWithM_, evalState, execState )
 import Control.Lens
-import ISQ.Lang.ISQv2Tokenizer(Pos(Pos), Annotated (annotation))
+import Data.List.Split (splitOn)
 import Debug.Trace
 
 
@@ -419,6 +420,9 @@ emitStatement' f (NResolvedExternGate ann name extraparams sz qirname) = do
     let extra_param_types = map mapType extraparams
     pushOp $ MExternFunc pos extern_name Nothing (extra_param_types++(replicate sz QIRQubit))
     pushOp $ MQDefGate pos (fromFuncName name) sz extra_param_types [QIRRep extern_name]
+    -- Dirty hack to provide basic gates (WITHOUT PREFIX) for decomposition and syntax algorithms
+    let bare_name = last $ splitOn "." name
+    pushOp $ MQDefGate pos (fromFuncName bare_name) sz extra_param_types [QIRRep extern_name]
 emitStatement' f (NDerivedGatedef ann name source extraparams sz ) = do
     pos<-mpos ann
     let extra_param_types = map mapType extraparams
@@ -490,8 +494,8 @@ emitTop file x@NOracleTable{} = do
     let [fn] = unscopedStatement' file (emitStatement x)
     mainModule %= (fn:)
 emitTop file x@NResolvedExternGate{} = do
-    let [g,efn] = unscopedStatement' file (emitStatement x)
-    mainModule %= ([efn,g]++)
+    let [g,efn,efn2] = unscopedStatement' file (emitStatement x)
+    mainModule %= ([efn,efn2,g]++)
 emitTop file x@NDerivedGatedef{} = do
     let [fn] = unscopedStatement' file (emitStatement x)
     mainModule %= (fn:)

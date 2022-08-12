@@ -1,0 +1,19 @@
+int n, r;
+
+procedure Fac()
+{
+    if (n > 1)
+    {
+        r = r * n;
+        n = n - 1;
+        Fac();
+    }
+}
+
+procedure main()
+{
+    n = 10;
+    r = 1;
+    Fac();
+    print r;
+}
