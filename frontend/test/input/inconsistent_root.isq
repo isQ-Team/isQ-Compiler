@@ -1,0 +1,4 @@
+// no package specified. It means the root folder is "test/input"
+
+// Importing a file that shares a different root foler leads to an error
+import b.inconsistent;

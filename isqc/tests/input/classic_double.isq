@@ -1,0 +1,7 @@
+procedure main()
+{
+    double b = 12.8/3.2;
+    print b;
+    double a = 2 * pi;
+    print a;
+}

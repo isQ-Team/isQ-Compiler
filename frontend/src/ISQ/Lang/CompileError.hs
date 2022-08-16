@@ -5,7 +5,7 @@ import ISQ.Lang.TypeCheck (TypeCheckError)
 import ISQ.Lang.RAIICheck (RAIIError)
 import ISQ.Lang.DeriveGate (DeriveError)
 import ISQ.Lang.OraclePass (OracleError)
-import ISQ.Lang.FlatInc (IncFileError)
+--import ISQ.Lang.FlatInc (IncFileError)
 
 data CompileError = 
     GrammarError GrammarError
@@ -14,11 +14,13 @@ data CompileError =
   | TypeCheckError TypeCheckError 
   | RAIIError RAIIError
   | InternalCompilerError InternalCompilerError
-  | IncFileError IncFileError 
-  | SyntaxError Pos deriving Show
+--  | IncFileError IncFileError 
+  | SyntaxError Pos deriving (Eq, Show)
 
 class CompileErr e where
   fromError :: e->CompileError
+instance CompileErr CompileError where
+  fromError x = x
 instance CompileErr GrammarError where
   fromError = GrammarError 
 instance CompileErr TypeCheckError where
@@ -31,5 +33,5 @@ instance CompileErr DeriveError where
   fromError = DeriveError
 instance CompileErr OracleError where
   fromError = OracleError
-instance CompileErr IncFileError where
-  fromError = IncFileError
+--instance CompileErr IncFileError where
+--  fromError = IncFileError

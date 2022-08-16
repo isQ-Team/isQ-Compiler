@@ -18,7 +18,7 @@ pub struct IoError (#[from] pub std::io::Error);
 
 
 #[derive(Error, Debug, Diagnostic)]
-#[error("ISQV2_ROOT undefined.")]
+#[error("ISQ_ROOT undefined.")]
 #[diagnostic(
     code(isqv2::no_isqv2_root),
     help("This means something is wrong if you are calling from isqc entry.")
@@ -40,6 +40,14 @@ pub struct QCISConfigNotSpecified;
     help("This means something is wrong.")
 )]
 pub struct InvalidISQC1Json;
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("{0}.")]
+#[diagnostic(
+    code(isqv2::isq_grammar_error),
+    help("{1}")
+)]
+pub struct GeneralGrammarError(pub String, pub String);
 
 #[derive(Error, Debug, Diagnostic)]
 #[error("Frontend Error.")]
@@ -89,6 +97,21 @@ pub struct RedefinedSymbolError {
 }
 
 #[derive(Error, Debug, Diagnostic)]
+#[error("Conflict symbol `{symName}`.")]
+#[diagnostic(
+    code(isqv2::frontend::conflict_symbol)
+)]
+pub struct ConflictSymbolError {
+    pub symName: String,
+    #[source_code]
+    pub src: NamedSource,
+    #[label("Also defined here.")]
+    pub pos: SourceSpan,
+    #[related]
+    pub related: Vec<FirstDefineError>
+}
+
+#[derive(Error, Debug, Diagnostic)]
 #[error("")]
 #[diagnostic()]
 pub struct FirstDefineError {
@@ -100,17 +123,46 @@ pub struct FirstDefineError {
 
 
 #[derive(Error, Debug, Diagnostic)]
-#[error("Can't find include file `{incFile}`.")]
-#[diagnostic(
-    code(isqv2::frontend::inc_error)
-)]
-pub struct IncFileError {
-    pub incFile: String,
+#[error("Bad oracle, shape not match")]
+#[diagnostic(code(isqv2::frontend::oracle_shape_error))]
+pub struct OracleShapeError{
     #[source_code]
     pub src: NamedSource,
-    #[label("Trying to include file here.")]
-    pub pos: SourceSpan
+    #[label("list size can not match oracle result's shape")]
+    pub pos: SourceSpan   
 }
+
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Bad oracle, result value error")]
+#[diagnostic(code(isqv2::frontend::oracle_value_error))]
+pub struct OracleValueError{
+    #[source_code]
+    pub src: NamedSource,
+    #[label("result value is not satisfied")]
+    pub pos: SourceSpan   
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Bad Gate Signature")]
+#[diagnostic(code(isqv2::frontend::derive_gate_error))]
+pub struct DeriveGateError{
+    #[source_code]
+    pub src: NamedSource,
+    #[label("derive gate here.")]
+    pub pos: SourceSpan   
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Bad Oracle Signature")]
+#[diagnostic(code(isqv2::frontend::derive_oracle_error))]
+pub struct DeriveOracleError{
+    #[source_code]
+    pub src: NamedSource,
+    #[label("derive oracle here.")]
+    pub pos: SourceSpan   
+}
+
 
 #[derive(Error, Debug, Diagnostic)]
 #[error("Undefined symbol `{symName}`.")]

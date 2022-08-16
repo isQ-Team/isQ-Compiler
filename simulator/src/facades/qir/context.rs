@@ -1,3 +1,5 @@
+extern crate std;
+use std::collections::HashSet;
 use core::{any::Any, cell::RefCell};
 
 use alloc::{boxed::Box, rc::Rc};
@@ -7,11 +9,11 @@ use crate::qdevice::QDevice;
 use super::resource::ResourceManagerExt;
 use super::resource::ResourceMap;
 use super::shim::qsharp_foundation::types::QIRArray;
-
 pub struct QIRContext {
     device: Box<dyn QDevice<Qubit = usize>>,
     classical_resource_manager: ResourceMap,
     message_handler: Box<dyn Fn(&str) -> ()>,
+    disabled_bp : HashSet<i64>,
 }
 use crate::facades::qir::resource::ResourceKey;
 impl QIRContext {
@@ -23,6 +25,7 @@ impl QIRContext {
             device,
             classical_resource_manager: ResourceMap::new(),
             message_handler,
+            disabled_bp: HashSet::new(),
         }
     }
     pub fn get_device(&self) -> &dyn QDevice<Qubit = usize> {
@@ -44,6 +47,12 @@ impl QIRContext {
     pub fn dump_registers(&mut self, reg: ResourceKey<QIRArray>) {}
     pub fn message(&self, s: &str) {
         (self.message_handler)(s);
+    }
+    pub fn contains_bp(&self, index: i64) -> bool {
+        self.disabled_bp.contains(&index)
+    }
+    pub fn disable_bp_index(&mut self, index: i64) {
+        self.disabled_bp.insert(index);
     }
 }
 

@@ -132,6 +132,34 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                             let (src,pos) = parsePos(&content["token"]["annotationToken"])?;
                             return Err(SyntaxError{reason: "unexpected token.".into(), src, pos: pos})?;
                         }
+                        "InconsistentRoot"=>{
+                            let filePath = content["importedFile"].as_str().unwrap();
+                            let rootPath = content["rootPath"].as_str().unwrap();
+                            let message = "The root path of file ".to_string() + filePath + " is " + rootPath + ", which does not consist with the project.";
+                            Err(GeneralGrammarError("Inconsistent root path".to_string(), message))?
+                        }
+                        "ImportNotFound"=>{
+                            let importString = content["missingImport"].as_str().unwrap();
+                            let message = "Cannot find ".to_string() + importString;
+                            return Err(GeneralGrammarError("Cannot find import".to_string(), message))?;
+                        }
+                        "DuplicatedImport"=>{
+                            let importString = content["duplicatedImport"].as_str().unwrap();
+                            let message = importString.to_string() + " is imported multiple times.";
+                            return Err(GeneralGrammarError("Duplicated import".to_string(), message))?;
+                        }
+                        "CyclicImport"=>{
+                            let files = content["cyclicImport"].as_array().unwrap().iter().map(|x| x.as_str().unwrap()).collect::<Vec<_>>().join(", ");
+                            let message = " cyclically import each other.";
+                            Err(GeneralGrammarError("Cyclic import".to_string(), files + message))?
+                        }
+                        "AmbiguousImport"=>{
+                            let ambImport = content["ambImport"].as_str().unwrap();
+                            let cand1 = content["candidate1"].as_str().unwrap();
+                            let cand2 = content["candidate2"].as_str().unwrap();
+                            let message = ambImport.to_string() + " has at least two candidates: " + cand1 + " and " + cand2;
+                            return Err(GeneralGrammarError("Ambiguous import".to_string(), message))?;
+                        }
                         _=>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
                     }
                 }else if tag=="TypeCheckError"{
@@ -151,6 +179,17 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                             let (src,pos) = parsePos(&content["pos"])?;
                             let symbolName = parseSymbol(&content["symbolName"]);
                             return Err(UndefinedSymbolError{symName: symbolName.into(), src, pos})?;
+                        }
+                        "AmbiguousSymbol"=>{
+                            let (src1, pos1) = parsePos(&content["firstDefinedAt"])?;
+                            let symbolName = parseSymbol(&content["symbolName"]);
+                            let (src2, pos2) = parsePos(&content["secondDefinedAt"])?;
+                            Err(vec![FirstDefineError{src: src1, posFirst: pos1}]).map_err(|err_list| ConflictSymbolError{
+                                symName: symbolName.into(),
+                                src: src2,
+                                pos: pos2,
+                                related: err_list
+                            })?
                         }
                         "TypeMismatch"=>{
                             let (src,pos) = parsePos(&content["pos"])?;
@@ -212,10 +251,29 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                 }else if tag=="SyntaxError"{
                     let (src,pos) = parsePos(content)?;
                     return Err(SyntaxError{reason: "tokenizing failed.".into(), src, pos: pos})?;
-                }else if tag=="IncFileError"{
-                    let (src, pos) = parsePos(content)?;
-                    let incFile = content["incpath"].as_str().unwrap().to_owned();
-                    return Err(IncFileError{incFile, src, pos: pos})?;
+                }else if tag=="OracleError"{
+                    let (src, pos) = parsePos(&content["contents"])?;
+                    match content["tag"].as_str().unwrap() {
+                        "BadOracleShape" => {
+                            return Err(OracleShapeError{src, pos})?;
+                        }
+                        "BadOracleValue" => {
+                            return Err(OracleValueError{src, pos})?;
+                        }
+                        _ =>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
+                    };
+                }
+                else if tag=="DeriveError"{
+                    let (src, pos) = parsePos(&content["contents"])?;
+                    match content["tag"].as_str().unwrap() {
+                        "BadGateSignature" => {
+                            return Err(DeriveGateError{src, pos})?;
+                        }
+                        "BadOracleSignature" => {
+                            return Err(DeriveOracleError{src, pos})?;
+                        }
+                        _ =>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
+                    };
                 }
                 return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;
             }else{

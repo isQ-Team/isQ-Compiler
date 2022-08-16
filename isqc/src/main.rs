@@ -62,13 +62,21 @@ pub enum Commands{
         #[clap(long)]
         qcis_config: Option<String>,
         #[clap(long, short='I', multiple_occurrences(true))]
-        inc_path: Option<Vec<String>>
+        inc_path: Option<Vec<String>>,
+        #[clap(long, short, multiple_occurrences(true))]
+        int_par: Option<Vec<i64>>,
+        #[clap(long, short, multiple_occurrences(true))]
+        double_par: Option<Vec<f64>>
     },
     Simulate{
         #[clap(required(true))]
         qir_object: String,
         #[clap(long)]
-        cuda: Option<usize>
+        cuda: Option<usize>,
+        #[clap(long, short, multiple_occurrences(true))]
+        int_par: Option<Vec<i64>>,
+        #[clap(long, short, multiple_occurrences(true))]
+        double_par: Option<Vec<f64>>
     },
     Exec{
         #[clap(multiple_occurrences(true), required(true))]
@@ -118,7 +126,7 @@ fn resolve_input_path<'a>(input: &'a str, extension: &str)->miette::Result<(&'a 
 
 fn main()->miette::Result<()> {
     let cli = Arguments::parse();
-    let root = std::env::var("ISQV2_ROOT").map_err(|_| NoISQv2RootError)?;
+    let root = std::env::var("ISQ_ROOT").map_err(|_| NoISQv2RootError)?;
     
     match cli.command{
         Commands::Run{input}=>{
@@ -130,7 +138,7 @@ fn main()->miette::Result<()> {
             &[OsStr::new("simulate"), default_output_path.as_os_str()]
             ).map_err(ioErrorWhen("Calling isqc simulate"))?;
         }
-        Commands::Compile{input, output, opt_level, emit, target, qcis_config, inc_path}=>'command:{
+        Commands::Compile{input, output, opt_level, emit, target, qcis_config, inc_path, int_par, double_par}=>'command:{
             let (input_path, default_output_path) = resolve_input_path(&input, match emit{
                 EmitMode::Binary=>"so",
                 EmitMode::Out=> "so",
@@ -163,8 +171,8 @@ fn main()->miette::Result<()> {
                 fout.finalize();
                 break 'command;
             }
-            let qcis_flags = "-pass-pipeline=cse,builtin.func(affine-loop-unroll),isq-canonicalize,fold-memref-subview-ops,canonicalize,builtin.func(affine-scalrep),isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-target-qcis,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-target-qcis,isq-expand-decomposition,canonicalize,cse,canonicalize,cse";
-            let normal_flags = "-pass-pipeline=isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,cse";
+            let qcis_flags = "-pass-pipeline=cse,builtin.func(affine-loop-unroll),isq-canonicalize,canonicalize,builtin.func(affine-scalrep),isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-target-qcis,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-target-qcis,isq-expand-decomposition,canonicalize,cse,canonicalize,cse";
+            let normal_flags = "-pass-pipeline=isq-oracle-decompose,isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,cse";
             let flags = if let CompileTarget::QCIS = target {qcis_flags} else {normal_flags};
             let optimized_mlir = exec::exec_command_text(&root, "isq-opt", &[
                 flags,
@@ -199,7 +207,7 @@ fn main()->miette::Result<()> {
             // linking with stub. This step we use byte output.
             let linked_llvm = exec::exec_command(&root, "llvm-link", &[
                 format!("-"),
-                format!("{}/share/isq-simulator/isq-simulator.bc", &root)
+                format!("{}/bin/isq-simulator.bc", &root)
             ], llvm.as_bytes()).map_err(ioErrorWhen("Calling llvm-link"))?;
             let mut opt_args: Vec<String> = Vec::new();
             if let Some(o) = opt_level{
@@ -220,6 +228,15 @@ fn main()->miette::Result<()> {
             // post-processing.
             if let EmitMode::Out = emit{
                 if let CompileTarget::QCIS = target{
+                    // get parameters
+                    let par_int = match int_par{
+                        Some(x) => x,
+                        None => vec![]
+                    };
+                    let par_double = match double_par{
+                        Some(x) => x,
+                        None => vec![]
+                    };
                     // run simulator 
                     let (_, qcis_output_path) = resolve_input_path(&input, "qcis")?;
                     let mut qcis_out = MayDropFile::new(&qcis_output_path)?;
@@ -233,6 +250,14 @@ fn main()->miette::Result<()> {
                     let mut v = vec!["-e".into(), "__isq__entry".into()];
                     v.push("--qcis".into());
                     v.push(qir_object);
+                    for val in par_int{
+                        v.push("-i".into());
+                        v.push(format!("{}", val));
+                    }
+                    for val in par_double{
+                        v.push("-d".into());
+                        v.push(format!("{}", val))
+                    }
                     let config_file = qcis_config;//ok_or(QCISConfigNotSpecified)?;
                     let output = if let Some(s) = config_file {
                         exec::exec_command_with_decorator(&root, "simulator", &v, &[], |child|{
@@ -250,7 +275,8 @@ fn main()->miette::Result<()> {
             }
 
         }
-        Commands::Simulate{qir_object, cuda}=>{
+        Commands::Simulate{qir_object, cuda, int_par, double_par}=>{
+
             let qir_object = if qir_object.starts_with("/"){
                 qir_object
             }else{
@@ -264,6 +290,25 @@ fn main()->miette::Result<()> {
                 v.push("--naive".into());
             }
             v.push(qir_object);
+
+            // get parameters
+            let par_int = match int_par{
+                Some(x) => x,
+                None => vec![]
+            };
+            let par_double = match double_par{
+                Some(x) => x,
+                None => vec![]
+            };
+            for val in par_int{
+                v.push("-i".into());
+                v.push(format!("{}", val));
+            }
+            for val in par_double{
+                v.push("-d".into());
+                v.push(format!("{}", val))
+            }
+
             exec::raw_exec_command(&root, "simulator", &v).map_err(IoError)?;
         }
         Commands::Exec{exec_command}=>{

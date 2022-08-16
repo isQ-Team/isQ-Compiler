@@ -11,3 +11,6 @@ miette = { version = "4.2.1", features = ["fancy"] }
 clap = { version = "3.1.5", features = ["derive", "cargo", "env", "unicode"] }
 thiserror = "1.0.30"
 tempfile = "3.3.0"
+assert_cmd = "2.0"
+predicates = "2.1"
+test-case = "2.2.1"

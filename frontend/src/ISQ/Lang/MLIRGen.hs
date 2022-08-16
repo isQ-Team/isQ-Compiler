@@ -1,14 +1,15 @@
 {-# LANGUAGE TemplateHaskell, FlexibleContexts, ViewPatterns #-}
 module ISQ.Lang.MLIRGen where
 import ISQ.Lang.ISQv2Grammar
+import ISQ.Lang.ISQv2Tokenizer(Pos(Pos), Annotated (annotation))
 import ISQ.Lang.TypeCheck
 import ISQ.Lang.MLIRTree hiding (Bool, Gate, Unit, Double)
 import qualified ISQ.Lang.MLIRTree as M
 import Control.Monad.State
     ( fix, void, State, zipWithM_, evalState, execState )
 import Control.Lens
-import ISQ.Lang.ISQv2Tokenizer(Pos(Pos), Annotated (annotation))
-
+import Data.List.Split (splitOn)
+import Debug.Trace
 
 
 data RegionBuilder = RegionBuilder{
@@ -265,6 +266,12 @@ emitStatement' f (NIf ann cond bthen belse) = do
     pushOp $ MSCFIf pos cond' [MSCFExecRegion pos then_block] [MSCFExecRegion pos else_block]
 emitStatement' f NFor{} = error "unreachable"
 emitStatement' f NPass{} = return ()
+emitStatement' f (NBp ann) = do
+    pos<-mpos ann
+    let Pos x y f = sourcePos ann
+    let i = ssa ann
+    pushOp $ MLitInt pos i x
+    pushOp $ MBp pos i
 emitStatement' f NWhile{} = error "unreachable"
 emitStatement' f (NCall ann expr) = void $ emitExpr expr
 emitStatement' f (NDefvar ann defs) = error "unreachable"
@@ -325,8 +332,9 @@ emitStatement' f (NCoreU3 ann (EGlobalName ann2 name) ops angles) = do
 emitStatement' f (NCoreReset ann operand) = do
     operand'<-emitExpr operand
     pos<-mpos ann
-    let i_in = SSA $ unSsa operand' ++"_in"
-    let i_out = SSA $ unSsa operand' ++ "_out"
+    let i = ssa ann
+    let i_in = SSA $ unSsa i ++"_in"
+    let i_out = SSA $ unSsa i ++ "_out"
     pushOp $ MLoad pos i_in (BorrowedRef QState, operand')
     pushOp $ MQReset pos i_out i_in
     pushOp $ MStore pos (BorrowedRef QState, operand') i_out
@@ -348,6 +356,9 @@ emitStatement' f NResolvedFor{} = error "unreachable"
 emitStatement' f (NResolvedGatedef ann name mat sz qir) = do
     pos<-mpos ann
     pushOp $ MQDefGate pos (fromFuncName name) sz [] (MatrixRep mat: case qir of {Just x->[QIRRep (fromFuncName x)]; Nothing->[]})
+emitStatement' f (NOracleTable ann name source value size) = do
+    pos<-mpos ann
+    pushOp $ MQOracleTable pos (fromFuncName name) size [(DecompositionRep $ fromFuncName source), (OracleTableRep value)]
 emitStatement' f (NWhileWithGuard ann cond body breakflag) = do
     pos<-mpos ann
     break_block<-unscopedStatement (emitExpr breakflag)
@@ -401,6 +412,9 @@ emitStatement' f (NResolvedExternGate ann name extraparams sz qirname) = do
     let extra_param_types = map mapType extraparams
     pushOp $ MExternFunc pos extern_name Nothing (extra_param_types++(replicate sz QIRQubit))
     pushOp $ MQDefGate pos (fromFuncName name) sz extra_param_types [QIRRep extern_name]
+    -- Dirty hack to provide basic gates (WITHOUT PREFIX) for decomposition and syntax algorithms
+    let bare_name = last $ splitOn "." name
+    pushOp $ MQDefGate pos (fromFuncName bare_name) sz extra_param_types [QIRRep extern_name]
 emitStatement' f (NDerivedGatedef ann name source extraparams sz ) = do
     pos<-mpos ann
     let extra_param_types = map mapType extraparams
@@ -468,9 +482,12 @@ emitTop file (NGlobalDefvar ann defs) = do
 emitTop file x@NResolvedGatedef{} = do
     let [fn] = unscopedStatement' file (emitStatement x)
     mainModule %= (fn:)
+emitTop file x@NOracleTable{} = do
+    let [fn] = unscopedStatement' file (emitStatement x)
+    mainModule %= (fn:)
 emitTop file x@NResolvedExternGate{} = do
-    let [g,efn] = unscopedStatement' file (emitStatement x)
-    mainModule %= ([efn,g]++)
+    let [g,efn,efn2] = unscopedStatement' file (emitStatement x)
+    mainModule %= ([efn,efn2,g]++)
 emitTop file x@NDerivedGatedef{} = do
     let [fn] = unscopedStatement' file (emitStatement x)
     mainModule %= (fn:)
@@ -486,9 +503,10 @@ generateMLIRModule file xs =
         main = _mainModule builder
         initialize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_initialize") Nothing [MLIRBlock (fromBlockName 1) [] (reverse (_globalInitializers builder) ++[MReturnUnit MLIRPosUnknown])]
         finalize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_finalize") Nothing [MLIRBlock (fromBlockName 1) [] [MReturnUnit MLIRPosUnknown]]
-        entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) [] [
+        args = [(Memref Nothing Index,SSA {unSsa = "%ssa_1"}),(Memref Nothing M.Double,SSA {unSsa = "%ssa_2"})]
+        entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) args [
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [],
-                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") [],
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") args,
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_finalize") [],
                 MReturnUnit MLIRPosUnknown 
             ]]

@@ -1,0 +1,3 @@
+package lib;
+
+int var = 1;

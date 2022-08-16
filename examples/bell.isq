@@ -1,3 +1,5 @@
+import std;
+
 procedure main(){
     qbit q[2];
     H(q[0]);
@@ -5,6 +7,5 @@ procedure main(){
     int a = M(q[0]);
     let b: int;
     b = M(q[1]);
-    print a;
-    print b;
+    print a - b;
 }

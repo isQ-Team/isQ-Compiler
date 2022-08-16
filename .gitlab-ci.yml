@@ -1,19 +1,36 @@
 stages:
   - build
   - test
+
 build:
   stage: build
   script:
-    - nix-portable nix-build buildscript/nixTarball.nix -o isqv2.tar.gz.link
-    - nix-portable nix-shell -p coreutils --command "cp -Lr isqv2.tar.gz.link isqv2.tar.gz"
+    - cp -r /data/project/isqv2/bin .
+    - export ISQ_ROOT=`pwd`
+    - make
   artifacts:
     paths:
-      - isqv2.tar.gz
-test:
+      - bin
+
+sanity test:
   stage: test
   script:
-    - nix-portable nix-build tests/ -o tests_result.txt.link
-    - nix-portable nix-shell -p coreutils --command "cat tests_result.txt.link | tee tests_result.txt"
-  artifacts:
-    paths:
-      - tests_result.txt
+    - export ISQ_ROOT=`pwd`
+    - bin/isqc run examples/bell.isq
+
+frontend test:
+  stage: test
+  script:
+    - cd frontend
+    - stack test
+
+integration test:
+  stage: test
+  script:
+    - export ISQ_ROOT=`pwd`
+    - cd isqc
+    - cargo test
+  dependencies:
+    - build
+    - sanity test
+    - frontend test

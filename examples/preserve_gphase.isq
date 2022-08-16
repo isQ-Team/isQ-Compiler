@@ -1,0 +1,38 @@
+import std;
+
+procedure U1(qbit q){
+    Z(q);
+    GPhase(3.141592653589793);
+} deriving gate
+procedure test1(){
+    qbit anc;
+    anc = |0>;
+    qbit q;
+    q = |0>;
+    H(anc);
+    ctrl U1(anc, q);
+    H(anc);
+    
+    int r = M(anc);
+    print r; 
+}
+
+defgate U2 = [1, 0; 0, -1];
+
+procedure test2(){
+    qbit anc;
+    anc = |0>;
+    qbit q;
+    q = |0>;
+    H(anc);
+    ctrl Z(anc, q);
+    H(anc);
+    
+    int r = M(anc);
+    print r; 
+}
+
+procedure main(){
+    test1();
+    test2();
+}

@@ -1,7 +1,7 @@
 module ISQ.Lang.TypeCheck where
 import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.ISQv2Tokenizer
-import qualified Data.Map.Lazy as Map
+import qualified Data.MultiMap as MultiMap
 import Data.List.Extra (firstJust)
 import Control.Monad (join)
 import Control.Monad.Except
@@ -15,15 +15,19 @@ data TypeCheckData = TypeCheckData{
     sourcePos :: Pos,
     termType :: EType,
     termId :: Int
-} deriving Show
+} deriving (Eq, Show)
 
 type TypeCheckInfo = TypeCheckData
 
 data Symbol = SymVar String | SymTempVar Int | SymTempArg Int deriving (Show, Eq, Ord)
 
+getSymbolName :: Symbol -> String
+getSymbolName sym = case sym of {SymVar str -> str; _ -> ""}
+
 data TypeCheckError =
-      RedefinedSymbol { pos :: Pos, symbolName :: Symbol , firstDefinedAt :: Pos}
+      RedefinedSymbol { pos :: Pos, symbolName :: Symbol, firstDefinedAt :: Pos}
     | UndefinedSymbol { pos :: Pos, symbolName :: Symbol}
+    | AmbiguousSymbol { pos :: Pos, symbolName :: Symbol, firstDefinedAt :: Pos, secondDefinedAt :: Pos}
     | TypeMismatch { pos :: Pos, expectedType :: [MatchRule], actualType :: Type ()}
     | ViolateNonCloningTheorem { pos :: Pos }
     | GateNameError { pos :: Pos }
@@ -33,17 +37,23 @@ data TypeCheckError =
     | ICETypeCheckError
     | MainUndefined
     | BadMainSignature { actualMainSignature :: Type () }
-    deriving Show
-type SymbolTableLayer = Map.Map Symbol DefinedSymbol
+    deriving (Eq, Show)
+type SymbolTableLayer = MultiMap.MultiMap Symbol DefinedSymbol
 type SymbolTable = [SymbolTableLayer]
 
-querySymbol :: Symbol->SymbolTable->Maybe DefinedSymbol
-querySymbol sym = firstJust (Map.!? sym)
+querySymbol :: Symbol -> SymbolTable -> [DefinedSymbol]
+querySymbol sym [] = []
+querySymbol sym (x:xs) = do
+    let res = MultiMap.lookup sym x
+    case res of
+        [] -> querySymbol sym xs
+        lis -> lis
+
 insertSymbol :: Symbol->DefinedSymbol->SymbolTable->Either TypeCheckError SymbolTable
-insertSymbol sym ast [] = insertSymbol sym ast [Map.empty]
-insertSymbol sym ast (x:xs) = case x Map.!? sym of
-    Just y -> Left $ RedefinedSymbol (definedPos ast) sym (definedPos y)
-    Nothing -> Right $ Map.insert sym ast x : xs
+insertSymbol sym ast [] = insertSymbol sym ast [MultiMap.empty]
+insertSymbol sym ast (x:xs) = case MultiMap.lookup sym x of
+    [] -> Right $ MultiMap.insert sym ast x : xs
+    (y:ys) -> Left $ RedefinedSymbol (definedPos ast) sym (definedPos y)
 
 
 data TypeCheckEnv = TypeCheckEnv {
@@ -52,16 +62,14 @@ data TypeCheckEnv = TypeCheckEnv {
     mainDefined :: Bool
 }
 
-newTypeCheckEnv :: TypeCheckEnv
-newTypeCheckEnv = TypeCheckEnv [Map.empty] 0 False
-
 type TypeCheck = ExceptT TypeCheckError (State TypeCheckEnv)
 
 data DefinedSymbol = DefinedSymbol{
     definedPos :: Pos,
     definedType :: EType,
     definedSSA :: Int,
-    isGlobal :: Bool
+    isGlobal :: Bool,
+    qualifiedName :: String
 } deriving (Show)
 
 addSym :: Symbol->DefinedSymbol->TypeCheck ()
@@ -69,30 +77,36 @@ addSym k v = do
     symtable<-gets symbolTable
     new_table <-liftEither $ insertSymbol k v symtable
     modify' (\x->x{symbolTable=new_table})
+
 getSym :: Pos->Symbol->TypeCheck DefinedSymbol
 getSym pos k = do
     symtable<-gets symbolTable
     case querySymbol k symtable of
-        Just x -> return x
-        Nothing -> throwError $ UndefinedSymbol pos k
+        [] -> throwError $ UndefinedSymbol pos k
+        [x] -> return x
+        (x:y:rest) -> throwError $ AmbiguousSymbol pos k (definedPos x) (definedPos y)
+
 defineSym :: Symbol->Pos->EType->TypeCheck Int
 defineSym a b c= do
     ssa<-nextId
-    addSym a (DefinedSymbol b c ssa False)
+    addSym a (DefinedSymbol b c ssa False "")
     return ssa
 
-defineGlobalSym :: Symbol->Pos->EType->TypeCheck Int
-defineGlobalSym a b c= do
+defineGlobalSym :: String -> String -> Pos -> EType -> TypeCheck Int
+defineGlobalSym prefix name b c= do
     ssa<-nextId
-    when (a==SymVar "main" && c /= Type () FuncTy [Type () Unit []]) $ do
+    when (name == "main" && c /= Type () FuncTy [Type () Unit []] && c /= Type () FuncTy [Type () Unit [], Type () UnknownArray [intType ()], Type () UnknownArray [doubleType ()]]) $ do
         throwError $ BadMainSignature c
-    when (a==SymVar "main") $ do
+    when (name == "main") $ do
         modify' (\x->x{mainDefined = True})
-    addSym a (DefinedSymbol b c ssa True)
+    let qualifiedName = prefix ++ name
+    addSym (SymVar name) (DefinedSymbol b c ssa True qualifiedName)
+    addSym (SymVar qualifiedName) (DefinedSymbol b c ssa True qualifiedName)
     return ssa
 
 scope :: TypeCheck ()
-scope = modify (\x->x{symbolTable = Map.empty:symbolTable x})
+scope = modify (\x->x{symbolTable = MultiMap.empty:symbolTable x})
+
 unscope :: TypeCheck SymbolTableLayer
 unscope = do {x<-gets (head.symbolTable); modify' (\x->x{symbolTable = tail $ symbolTable x}); return x}
 
@@ -164,7 +178,7 @@ typeCheckExpr' f (EIdent pos ident) = do
     sym<-getSym pos (SymVar ident)
     ssa<-nextId
     case isGlobal sym of
-        True ->return $ EGlobalName (TypeCheckData pos (definedType sym) ssa) ident
+        True ->return $ EGlobalName (TypeCheckData pos (definedType sym) ssa) (qualifiedName sym)
         False -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) (definedSSA sym)
     
 typeCheckExpr' f (EBinary pos Pow lhs rhs) = do
@@ -305,6 +319,10 @@ typeCheckAST' f (NFor pos v r b) = do
     unscope
     return $  NResolvedFor (okStmt pos) v' r'' b'
 typeCheckAST' f (NPass pos) = return $ NPass (okStmt pos)
+typeCheckAST' f (NBp pos) = do
+    temp_ssa<-nextId
+    let annotation = TypeCheckData pos (unitType ()) temp_ssa
+    return $ NBp annotation
 typeCheckAST' f (NWhile pos cond body) = do
     cond'<-typeCheckExpr cond
     cond''<-matchType [Exact (boolType ())] cond'
@@ -415,6 +433,7 @@ typeCheckAST' f NProcedureWithDerive{} = error "unreachable"
 typeCheckAST' f NResolvedDefvar{} = error "unreachable"
 typeCheckAST' f NGlobalDefvar {} = error "unreachable"
 typeCheckAST' f NOracle{} = error "unreachable"
+typeCheckAST' f NOracleTable{} = error "unreachable"
 typeCheckAST :: AST Pos -> TypeCheck (AST TypeCheckData)
 typeCheckAST = fix typeCheckAST'
 
@@ -430,8 +449,9 @@ argType' pos ty i = case ty of
     Type _ UnknownArray [a] -> return $ void ty
     Type _ (FixedArray _) [a] -> return $ void ty
     _ -> throwError $ BadProcedureArgType pos (void ty, i)
-typeCheckToplevel :: [AST Pos]->TypeCheck [AST TypeCheckData]
-typeCheckToplevel ast = do
+
+typeCheckToplevel :: Bool -> String -> [AST Pos]->TypeCheck ([TCAST], SymbolTableLayer, Int)
+typeCheckToplevel isMain prefix ast = do
     
     (resolved_defvar, varlist)<-flip runStateT [] $ do
         mapM (\node->case node of
@@ -441,33 +461,42 @@ typeCheckToplevel ast = do
                     p<-lift $ typeCheckAST node
                     let (NResolvedDefvar a defs') = p
                     s<-lift unscope
-                    modify' (fmap (\x->x{isGlobal=True}) s:)
-                    let node' = NGlobalDefvar a (zipWith (\(a1, a2, a3) (_, a4, _) ->(a1, a2, a4, a3)) defs' def)
+                    modify' (MultiMap.map (\x->x{isGlobal=True}) s:)
+                    let node' = NGlobalDefvar a (zipWith (\(a1, a2, a3) (_, a4, _) ->(a1, a2, prefix ++ a4, a3)) defs' def)
                     return $ Right node'
                 x -> return $ Left x
             ) ast
     -- Add all vars into table.
-    let vars=concatMap Map.toList varlist
-    mapM_ (uncurry addSym) $ reverse vars
+    let vars=concatMap MultiMap.toList varlist
+    let qualifiedVars = concat $ map (\tup -> do
+            let sym = fst tup
+            let symName = getSymbolName sym
+            let qualified = prefix ++ symName
+            let qualifiedData = (snd tup){qualifiedName = qualified}
+            [(sym, qualifiedData), (SymVar qualified, qualifiedData)]) vars
+    mapM_ (uncurry addSym) $ reverse qualifiedVars
     
     -- Resolve all gates and procedures.
     resolved_headers<-mapM (\node->case node of
             Right x->return (Right x)
             Left (NResolvedGatedef pos name matrix size qir) -> do
-                defineGlobalSym (SymVar name) pos (Type () (Gate size) [])
-                return $ Right (NResolvedGatedef (okStmt pos) name matrix size qir)
+                defineGlobalSym prefix name pos (Type () (Gate size) [])
+                return $ Right (NResolvedGatedef (okStmt pos) (prefix ++ name) matrix size qir)
             Left (NExternGate pos name extra size qirname) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym (SymVar name) pos (Type () (Gate size) extra')
-                return $ Right $ NResolvedExternGate (okStmt pos) name (fmap void extra) size qirname
+                defineGlobalSym prefix name pos (Type () (Gate size) extra')
+                return $ Right $ NResolvedExternGate (okStmt pos) (prefix ++ name) (fmap void extra) size qirname
+            Left (NOracleTable pos name source value size) -> do
+                defineGlobalSym prefix name pos (Type () (Gate size) [])
+                return $ Right (NOracleTable (okStmt pos) (prefix ++ name) (prefix ++ source) value size)
             Left x@(NDerivedGatedef pos name source extra size) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym (SymVar name) pos (Type () (Gate size) extra')
-                return $ Right (fmap okStmt x)
+                defineGlobalSym prefix name pos (Type () (Gate size) extra')
+                return $ Right (NDerivedGatedef (okStmt pos) (prefix ++ name) (prefix ++ source) extra' size)
             Left x@(NDerivedOracle pos name source extra size)->do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym (SymVar name) pos (Type () (Gate size) extra')
-                return $ Right (fmap okStmt x)
+                defineGlobalSym prefix name pos (Type () (Gate size) extra')
+                return $ Right (NDerivedOracle (okStmt pos) (prefix ++ name) (prefix ++ source) extra size)
             Left (NProcedureWithRet pos ty name args body ret) -> do
                 -- check arg types and return types
                 ty'<-case ty of
@@ -476,10 +505,12 @@ typeCheckToplevel ast = do
                     Type _ Double [] -> return $ void ty
                     Type _ Bool [] -> return $ void ty
                     _ -> throwError $ BadProcedureReturnType pos (void ty, name)
-                args'<-mapM (uncurry argType) args
-                defineGlobalSym (SymVar name) (annotation ty) (Type () FuncTy (ty':args'))
+                let new_args = if name == "main" && (length args) == 0 then [(Type pos UnknownArray [intType pos], "main$par1"), (Type pos UnknownArray [doubleType pos], "main$par2")] else args
+                args'<-mapM (uncurry argType) new_args
+                defineGlobalSym prefix name (annotation ty) (Type () FuncTy (ty':args'))
                 -- NTempvar a (void b, procRet, Nothing)
-                return $ Left (pos, ty', name, zip args' (fmap snd args), body, ret)
+                let procName = case name of {"main" -> "main"; x -> prefix ++ name}
+                return $ Left (pos, ty', procName, zip args' (fmap snd new_args), body, ret)
             Left x -> error $ "unreachable" ++ show x
         ) resolved_defvar
     -- Finally, resolve procedure bodies.
@@ -521,15 +552,30 @@ typeCheckToplevel ast = do
             return $ NResolvedProcedureWithRet (okStmt pos) ty func_name args' body' ret'' ret_var
         Left _ -> error "unreachable"
         ) resolved_headers
-    m<-gets mainDefined
-    when (not m) $ do
+
+    m <- gets mainDefined
+    when (isMain && not m) $ do
         throwError $ MainUndefined
-    return body
---typeCheckAST :: AST Pos->Either TypeCheckError (AST TypeCheckData)
 
-typeCheckTop :: [LAST]->Either TypeCheckError [AST TypeCheckData]
-typeCheckTop s = evalState (runExceptT $ typeCheckToplevel s) newTypeCheckEnv
+    -- Extract global symbols
+    symtable <- gets symbolTable
+    let topLayer = getSecondLast symtable
+    let lis = MultiMap.toList topLayer
+    let globalLis = filter (isGlobal . snd) lis
+    let globalLayer = MultiMap.fromList globalLis
+    ssaId <- gets ssaAllocator
+    return (body, globalLayer, ssaId)
 
+getSecondLast :: [a] -> a
+getSecondLast [] = error "Empty list"
+getSecondLast [x] = error "Single-element list"
+getSecondLast (x:_:[]) = x
+getSecondLast (x:xs) = getSecondLast xs
+
+typeCheckTop :: Bool -> String -> [LAST] -> SymbolTableLayer -> Int -> Either TypeCheckError ([TCAST], SymbolTableLayer, Int)
+typeCheckTop isMain prefix ast stl ssaId = do
+    let env = TypeCheckEnv [MultiMap.empty, stl] ssaId False
+    evalState (runExceptT $ typeCheckToplevel isMain prefix ast) env
 
 -- TODO: unification-based type check and type inference.
 

@@ -14,8 +14,8 @@ mlir_tablegen(ISQStructAttrs.h.inc -gen-struct-attr-decls -attrdefs-dialect isq)
 mlir_tablegen(ISQStructAttrs.cpp.inc -gen-struct-attr-defs -attrdefs-dialect isq)
 mlir_tablegen(__tmp_IR.md -gen-dialect-doc --dialect isq)
 # mlir_tablegen(IRAttr.md -gen-attrdef-doc --attrdefs-dialect isq)
-add_custom_command(OUTPUT IR.md 
-    COMMAND python3 ${PROJECT_SOURCE_DIR}/scripts/fix_dialect_doc.py __tmp_IR.md IR.md
-    DEPENDS __tmp_IR.md)
-add_custom_target(mlir-dialect-doc ALL DEPENDS IR.md)
+#add_custom_command(OUTPUT IR.md 
+#    COMMAND python3 ${PROJECT_SOURCE_DIR}/scripts/fix_dialect_doc.py __tmp_IR.md IR.md
+#    DEPENDS __tmp_IR.md)
+#add_custom_target(mlir-dialect-doc ALL DEPENDS IR.md)
 add_public_tablegen_target(MLIRTablegen)
