@@ -198,14 +198,14 @@ fn main()->miette::Result<()> {
                 fout.finalize();
                 break 'command;
             }
-            let llvm = exec::exec_command_text(&root, "mlir-translate", &["--mlir-to-llvmir"], &llvm_mlir).map_err(ioErrorWhen("Calling mlir-translate"))?;
+            let llvm = exec::exec_command_text("", "mlir-translate", &["--mlir-to-llvmir"], &llvm_mlir).map_err(ioErrorWhen("Calling mlir-translate"))?;
             if let EmitMode::LLVM = emit{
                 writeln!(fout.get_file_mut(), "{}", llvm).map_err(IoError)?;
                 fout.finalize();
                 break 'command;
             }
             // linking with stub. This step we use byte output.
-            let linked_llvm = exec::exec_command(&root, "llvm-link", &[
+            let linked_llvm = exec::exec_command("", "llvm-link", &[
                 format!("-"),
                 format!("{}/bin/isq-simulator.bc", &root)
             ], llvm.as_bytes()).map_err(ioErrorWhen("Calling llvm-link"))?;
@@ -213,14 +213,14 @@ fn main()->miette::Result<()> {
             if let Some(o) = opt_level{
                 opt_args.push(format!("-O{}", o));
             }
-            let optimized_llvm = exec::exec_command(&root, "opt", &opt_args, &linked_llvm).map_err(ioErrorWhen("Calling opt"))?;
-            let compiled_obj = exec::exec_command(&root, "llc", &["-filetype=obj"], &optimized_llvm).map_err(ioErrorWhen("Calling llc"))?;
+            let optimized_llvm = exec::exec_command("", "opt", &opt_args, &linked_llvm).map_err(ioErrorWhen("Calling opt"))?;
+            let compiled_obj = exec::exec_command("", "llc", &["-filetype=obj"], &optimized_llvm).map_err(ioErrorWhen("Calling llc"))?;
             // create obj file.
             let mut tmpfile = tempfile::NamedTempFile::new().map_err(ioErrorWhen("Creating tempfile"))?;
             tmpfile.write_all(&compiled_obj).map_err(IoError)?;
             tmpfile.flush().map_err(IoError)?;
             // link obj file.
-            let linked_obj = exec::exec_command(&root, "lld", &["-flavor", "gnu", "-shared", tmpfile.path().as_os_str().to_str().unwrap(), "-o", "-"], &[]).map_err(ioErrorWhen("Calling ld.lld"))?;
+            let linked_obj = exec::exec_command("", "lld", &["-flavor", "gnu", "-shared", tmpfile.path().as_os_str().to_str().unwrap(), "-o", "-"], &[]).map_err(ioErrorWhen("Calling ld.lld"))?;
             drop(tmpfile);
             
             fout.get_file_mut().write_all(&linked_obj).map_err(IoError)?;
