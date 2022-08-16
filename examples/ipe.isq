@@ -1,0 +1,36 @@
+import std;
+/* the phase angle is 2*pi * 867893 / 1048576 = 2*pi *  0.8276872 */
+int x=867893;
+double theta(){
+    double y = 2**20;
+    return 2*pi*x/y;
+}
+procedure U(double theta, qbit q){
+    X(q);
+    ctrl GPhase(theta, q);
+    X(q);
+} deriving gate
+procedure pow2_ctrlU(int n, qbit anc, qbit ev){
+    double t = theta() * (2**n);
+    ctrl U(t, anc, ev);
+}
+double iterative_phase_estimation_U(int n, qbit ev){
+    qbit anc;
+    double phi = 0;
+    for i in 0:n{
+        H(anc);
+        pow2_ctrlU(n - i - 1, anc, ev);
+        Rz(- phi * 2 * pi, anc);
+        H(anc);
+        int res = M(anc);
+        phi = (phi + (res / 2.0)) / 2.0;
+        anc = |0>;
+    }
+    return (phi * 2.0);
+}
+procedure main(){
+    qbit ev; 
+    ev = |0>; /* eigen vector of U */ 
+    double phi = iterative_phase_estimation_U(20, ev);
+    print (phi * (2**20)); /* output should be very close to x=867893. */
+}

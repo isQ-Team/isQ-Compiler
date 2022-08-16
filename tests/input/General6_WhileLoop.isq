@@ -1,0 +1,24 @@
+import std;
+
+qbit q1;
+int m, n;
+qbit q2;
+
+procedure RepeatUntilSuccess()
+{
+    m = 1;
+    n = 0;
+    while (m > 0)
+    {
+        H<q1>;
+        T<q2>;
+        n = n + 1;
+        m = M<q1>;
+    }
+    print n;
+}
+
+procedure main()
+{
+    RepeatUntilSuccess();
+}

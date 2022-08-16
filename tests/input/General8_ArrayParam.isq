@@ -1,0 +1,14 @@
+qbit var[2];
+int ms;
+
+procedure MH2(qbit qs[])
+{
+    H<qs[0]>;
+    H<qs[1]>;
+    H<qs[2]>;
+}
+
+procedure main()
+{
+    MH2(var);
+}

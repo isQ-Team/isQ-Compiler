@@ -1,0 +1,148 @@
+
+<html>
+<head>
+ <title>Introduction to Software Testing, edition 2, Ammann and Offutt</title>
+ <link rel=STYLESHEET href="testbook-style.css" TYPE="text/css">
+ <style>
+  span.booktitle{font-size:110%; color:blue; font-weight:bold; font-style:italic}
+  span.announce{color:red;font-size:110%;font-weight:bold;font-style:italic;background-color:yellow}
+ </style>
+
+<script Language="JavaScript">
+// Keep home page from loading in a frame
+if (top.frames.length !=0)
+{
+   top.location = document.URL;
+}
+</script>
+
+<!--
+<img src="../../../images/new-onstar.gif" width=21>
+-->
+
+<body>
+<!--
+<img src="new-star.gif" width=21>
+-->
+
+<table width=100% border=0 cellpadding=5><!-- Outer table ... menu area, center area, book cover picture area -->
+
+<tr><td colspan=3>
+<!-- Put these out of the table -->
+<h1><span style="font-size:150%">Introduction to Software Testing</span></h1>
+<h2>(<em>Edition 2</em>)</h2>
+<h2><a href="http://cs.gmu.edu/~pammann/">Paul Ammann</a> and <a href="http://cs.gmu.edu/~offutt/">Jeff Offutt</a></h2>
+</tr>
+
+<tr>
+<td width="35%"><!-- menu area -->
+
+<table bgcolor="#coe8ff" border="1px" bordercolor="#0000FF" cellpadding=2 cellspacing=0 summary="resources">
+ <tr bgcolor=#ffffff><th align=center><b>Notes &amp; materials</b>
+ <th align=center><b>Last update</b></tr>
+ <tr><td><a href="contents.html">Table of Contents</a>
+     <td>August 2016
+ <tr><td><a href="preface-public.pdf">Preface, with chapter mappings</a>
+     <td>September 2016
+ <tr><td><a href="./powerpoint/">Power Point Slides</a><td>April 2019
+ <tr><td><a href="./videos/">Video Materials</a><td>March 2016
+ <tr><td><a href="exer-student.pdf">Student Solution Manual</a><td>December 2018
+ <tr><td><a href="instructor/exer-instructor.pdf">Instructor Solution Manual</a>
+     <p><em>Contact authors for the password.</em>
+        <span class="appear">Send email to Jeff and Paul from your university email address,
+              and include documentation that you are an instructor using the book
+              (a class website, faculty list, etc.).
+     </span></p></td>
+     <td>December 2018
+ <tr><td><a href="./inclass/">In-Class Exercises</a><td>March 2017
+ <tr><td><a href="./java/">Complete Programs From Text</a><td>March 2019
+ <tr><td><a href="./errata.html">Errata List</a><td>June 2010
+
+ <tr bgcolor=#ffffff><th align=center>Support software<th align=center>&nbsp;
+ <tr><td>
+  <table cellpadding=2>
+   <tr><td><a href="https://cs.gmu.edu:8443/offutt/coverage/GraphCoverage">Graph Coverage Web App</a> (<em>Ch 7</em>)
+   <tr><td><a href="https://cs.gmu.edu:8443/offutt/coverage/DFGraphCoverage">Data Flow Coverage Web App</a> (<em>Ch 7</em>)
+   <tr><td><a href="https://cs.gmu.edu:8443/offutt/coverage/LogicCoverage">Logic Coverage Web App</a> (<em>Ch 8</em>)
+   <tr><td><a href="https://cs.gmu.edu:8443/offutt/coverage/MinimalMUMCUTCoverage">DNF Logic Coverage Web App</a> (<em>Ch 8</em>)
+   <tr><td><a href="http://cs.gmu.edu/~offutt/mujava/">muJava Mutation Tool</a> (<em>Ch 9</em>)
+ </table>
+ <td>February 2017
+
+ <tr bgcolor=#ffffff><th align=center>Publisher&rsquo;s materials<th align=center>&nbsp;
+  <tr><td colspan=2><a href="http://assets.cambridge.org/97811071/72012/frontmatter/9781107172012_frontmatter.pdf">Front matter, including preface and contents (PDF)</a>
+  <!-- <tr><td colspan=2><a href="http://assets.cambridge.org/97811071/72012/toc/9781107172012_toc.pdf">Table of contents (PDF)</a> -->
+  <tr><td colspan=2><a href="http://assets.cambridge.org/97811071/72012/excerpt/9781107172012_excerpt.pdf">Chapter 1 (PDF)</a>
+
+ <tr bgcolor=#ffffff><th align=center>Author&rsquo;s course websites<th align=center>Last taught
+  <tr><td><a href="http://cs.gmu.edu/~pammann/437.html" target="_blank">SWE 437 (Ammann)</a><td>Fall 2018
+  <tr><td><a href="http://cs.gmu.edu/~pammann/637.html" target="_blank">SWE 637 (Ammann)</a><td>Spring 2019
+  <tr><td><a href="http://cs.gmu.edu/~pammann/737.html" target="_blank">SWE 737 (Ammann)</a><td>Spring 2018
+
+  <tr><td><a href="http://cs.gmu.edu/~offutt/classes/437/" target="_blank">SWE 437 (Offutt)</a><td>Spring 2019
+  <tr><td><a href="http://cs.gmu.edu/~offutt/classes/637/" target="_blank">SWE 637 (Offutt)</a><td>Fall 2018
+  <tr><td><a href="http://cs.gmu.edu/~offutt/classes/737/" target="_blank">SWE 737 (Offutt)</a><td>Spring 2017
+
+</table> <!-- end menu table -->
+
+<td width=40% valign=top><!-- center area -->
+
+<div class="box">
+The authors 
+<!-- a href="./fund/royalty.html" -->
+donate all royalties</a>
+from book sales to a scholarship fund
+for software engineering students at George Mason University.
+</div>
+
+<div class="box">
+This is the website for the
+second edition of the
+book Introduction to Software Testing.
+The book was released December 2016 with a copyright date of 2017.
+Desk copies can be requested from the
+<a href="http://www.cambridge.org/academic/subjects/computer-science/software-engineering-and-development/introduction-software-testing-2nd-edition" target="_blank">publisher&rsquo;s website</a>.
+
+<br/>
+<a href="./edition1">Edition 1 website</a>
+</div>
+
+<div class="box">
+<span class="announce">Latest news</span>
+<ul>
+<li>December 2016: Edition 2 has been shipped and is available in bookstores!
+<li>October 2016: Book is in press and is now expected the last week of November
+<li>September 2016: Type setting complete, expecting an October release
+<li>August 2016: Finished page proofs
+<li>March 2016: Shipped edition 2 of the book to Cambridge University Press.
+<ul>
+  <li>Added videos for sections 8.1 and 8.3.
+  <li>Updated PPTX.
+  <li>Completed solutions manuals.
+</ul>
+</ul>
+</div>
+
+<div class="box">
+<a rel="license" href="http://creativecommons.org/licenses/by/4.0/" target="_blank"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/88x31.png" /></a><br /><span xmlns:dct="http://purl.org/dc/terms/" property="dct:title">Except where noted otherwise, content on </b></span> <a xmlns:cc="http://creativecommons.org/ns#" href="http://cs.gmu.edu/~offutt/softwaretest" property="cc:attributionName" rel="cc:attributionURL">this website by Paul Ammann and Jeff Offutt</a> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/" target="_blank">Creative Commons Attribution 4.0 International License</a>.<br />Based on works at <a xmlns:dct="http://purl.org/dc/terms/" href="http://cs.gmu.edu~offutt/softwaretest" rel="dct:source">http://cs.gmu.edu~offutt/softwaretest</a>.
+</div>
+
+<td width=25% align=center><!-- This is the book cover area -->
+  <table align=center>
+    <tr><td><img src="SecondEditionCover.jpg">
+    <tr><td style="font-size:80%; font-style:italic; text-align:center">Cover art by <a href="http://www.peterhoey.com/">Peter Hoey</a>
+  </table>
+</tr>
+</table>
+
+<!-- Blue Stripe -->
+<center><table border="1" cellpadding="0" width="95%">
+ <tr><td ALIGN="left" BGCOLOR="#000066">
+ <span style="font-size:40%; color:yellow"> &nbsp; </span><!-- Need space after ; -->
+ <a name="COVERART"></a>
+</table></center>
+
+<span style="font-size:80%; font-style:italic">Last modified: September 2018.</span>
+
+</body>
+</html>

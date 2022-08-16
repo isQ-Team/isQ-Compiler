@@ -1,0 +1,85 @@
+defgate Rs =[0.5+0.8660254j,0,0,0;
+	     0,1,0,0;
+	     0,0,1,0;
+         0,0,0,1];
+		 
+defgate Rs2 =[0.5-0.8660254j,0,0,0;
+	     0,1,0,0;
+	     0,0,1,0;
+         0,0,0,1];
+
+defgate Rt = [1,0,0,0;
+	     0,1,0,0;
+	     0,0,1,0;
+         0,0,0,0.5+0.8660254j];
+defgate Rt2 = [1,0,0,0;
+	     0,1,0,0;
+	     0,0,1,0;
+         0,0,0,0.5-0.8660254j];
+
+extern defgate Rz(double) : gate(1) = "__quantum__qis__rz__body";
+extern defgate Rx(double) : gate(1) = "__quantum__qis__rx__body";
+extern defgate Ry(double) : gate(1) = "__quantum__qis__ry__body";
+extern defgate H() : gate(1) = "__quantum__qis__h__body";
+extern defgate S() : gate(1) = "__quantum__qis__s__body";
+extern defgate T() : gate(1) = "__quantum__qis__t__body";
+extern defgate X() : gate(1) = "__quantum__qis__x__body";
+extern defgate Y() : gate(1) = "__quantum__qis__y__body";
+extern defgate Z() : gate(1) = "__quantum__qis__z__body";
+extern defgate CNOT() : gate(2) = "__quantum__qis__cnot";
+extern defgate u3(double, double, double) : gate(1) = "__quantum__qis__u3";
+
+/*
+Defgate Rt2 = [1,0,0,0;
+		0,1,0,0;
+		0,0,0,1;
+		0,0,1,0];
+*/
+int a, b, c;
+qbit q[3], p;
+double dd;
+
+procedure test(qbit p, qbit t){
+	H<t>;
+	CNOT<p,t>;
+	H<t>;
+} deriving gate
+
+procedure test2(qbit x[], double c){
+	H<x[1]>;
+}
+
+procedure main(){
+
+	int x;
+	int y;
+	if (1 < 2){
+		dd = (a+3*2.2)*(b+c);
+	} else{
+		int y;
+		y = c+1;
+	}
+	for a in 1:b{
+		pass;
+	}
+	int d[5];
+	a = d[c]+2;
+    test(p, q[0]);
+	test2(q, a);
+    a = M(q[0]);
+	CNOT(p, q[0]);
+	
+	nctrl inv H(q[0], p);
+	nctrl ctrl Rt2(q[0], q[2], p, q[1]);
+	dd = 0.7;
+	Rx(a+0.3, p);
+	ctrl<2> Rz(dd, p, q[0], q[1]);
+	u3(0.1, 0.3, dd, p);
+	while (a < 2){
+		a = a + 1;
+	}
+
+	print a;
+	p = |0>;
+	q[1] = |0>;
+}

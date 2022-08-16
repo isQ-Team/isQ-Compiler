@@ -1,0 +1,11 @@
+procedure U(qbit q){
+    GPhase(1.14);
+    H(q);
+} deriving gate
+
+
+procedure main(){
+    qbit q[2];
+    ctrl U(q[0], q[1]);
+//    CNOT(q[0], q[1]);
+}

@@ -1,0 +1,7 @@
+//qbit if;
+int IF;
+procedure main() //if (1 > 2)
+{
+    IF = 3 //* 1232 + 4;
+    +7;
+}

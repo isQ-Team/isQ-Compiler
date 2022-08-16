@@ -1,0 +1,12 @@
+defgate G = [
+ 0.5+0.5, 0;
+1j - 1j, 0.5j+0.5j
+];
+
+qbit q;
+
+procedure main()
+{
+    G<q>;
+    print M<q>;
+}

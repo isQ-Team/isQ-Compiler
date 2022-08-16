@@ -1,0 +1,8 @@
+import lib.var;
+
+int var = 2;
+
+procedure main()
+{
+    print lib.var.var;
+}

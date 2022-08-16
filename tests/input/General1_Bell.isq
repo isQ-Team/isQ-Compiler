@@ -1,0 +1,7 @@
+qbit q1, q2;
+
+procedure main()
+{
+    H<q1>;
+    CNOT<q1, q2>;
+}
