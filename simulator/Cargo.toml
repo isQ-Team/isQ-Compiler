@@ -23,7 +23,7 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] ,
 [dev-dependencies]
 
 [features]
-default = ["cuda", "qcis"]
+default = ["qcis"]
 none = []
 cuda = []
 qcis = ["serde_json"]
