@@ -1,0 +1,7 @@
+// Return types should be checked.
+int foo(){
+    return;
+}
+procedure main(){
+    return;
+}

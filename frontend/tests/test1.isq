@@ -1,0 +1,78 @@
+defgate Rs =[0.5+0.8660254j,0,0,0;
+	     0,1,0,0;
+	     0,0,1,0;
+         0,0,0,1];
+defgate Rs2 =[0.5-0.8660254j,0,0,0;
+	     0,1,0,0;
+	     0,0,1,0;
+         0,0,0,1];
+
+defgate Rt = [1,0,0,0;
+	     0,1,0,0;
+	     0,0,1,0;
+         0,0,0,0.5+0.8660254j];
+defgate Rt2 = [1,0,0,0;
+	     0,1,0,0;
+	     0,0,1,0;
+         0,0,0,0.5-0.8660254j];
+defgate CNOT = [1,0,0,0;
+	     0,1,0,0;
+	     0,0,0,1;
+		 0,0,1,0];
+defgate H = [0.7071067811865476,0.7071067811865476;
+			 0.7071067811865476,-0.7071067811865476];
+
+/*
+Defgate Rt2 = [1,0,0,0;
+		0,1,0,0;
+		0,0,0,1;
+		0,0,1,0];
+*/
+int a, b, c;
+qbit q[3], p;
+
+int test(qbit p, qbit t, int x){
+	H<p>;
+	qbit m;
+	CNOT<m, p>;
+	H<p>;
+	return 2;
+}
+
+procedure test2(qbit x[], int c){
+	H<x[c]>;
+}
+
+procedure main(){
+	
+	int x;
+	int y;
+	if (1 < 2){
+		x = (a+3*2)*(b+c);
+	} else{
+		int y;
+		y = c+1;
+	}
+	for a in 1:b{
+		pass;
+	}
+	int d[5];
+	a = d[c]+2;
+    b = test(p, p, x);
+    a = M<q[0]>;
+	CNOT<p, q[0]>;
+
+	inv ctrl<2> H<q[0], q[1], p>;
+	ctrl<2> H<q[1], q[0], p>;
+	nctrl inv H<q[0], p>;
+	ctrl inv nctrl<2> H<q[0], q[1], q[2], p>;
+	nctrl ctrl Rt2<q[0], q[2], p, q[1]>;
+
+	while (a < 2){
+		a = a + 1;
+	}
+
+	print a;
+	p = |0>;
+	q[1] = |0>;
+}

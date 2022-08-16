@@ -1,0 +1,17 @@
+import std;
+
+defgate CH = [
+    1, 0, 0, 0;
+    0, 1, 0, 0;
+    0, 0, 0.70710678, 0.70710678;
+    0, 0, 0.70710678, -0.70710678
+];
+
+qbit qa, qb;
+procedure main()
+{
+    X<qa>;
+    H<qb>;
+    CH<qa, qb>;
+    print M<qb>;
+}

@@ -1,0 +1,7 @@
+import std;
+
+procedure main()
+{
+    qbit q;
+    CNOT(q, q);
+}

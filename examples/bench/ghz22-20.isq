@@ -1,0 +1,12 @@
+procedure main(){
+    qbit q[22];
+    for j in 0:20{
+        H<q[0]>;
+        for i in 1:22{
+            CNOT(q[0], q[i]);
+        }
+    }
+    for i in 0:22{
+        print M(q[i]);
+    }
+}

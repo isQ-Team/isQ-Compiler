@@ -1,0 +1,7 @@
+int i1, i2;
+procedure main()
+{
+    i1 = 3;
+    i2 = 4 + i1;
+    print i2;
+}

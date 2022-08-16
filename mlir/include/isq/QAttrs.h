@@ -1,0 +1,9 @@
+#ifndef _ISQ_QATTRS_H
+#define _ISQ_QATTRS_H
+#include <mlir/IR/Dialect.h>
+#include <mlir/IR/DialectImplementation.h>
+#include <mlir/IR/AttributeSupport.h>
+#include <mlir/IR/Attributes.h>
+#define GET_ATTRDEF_CLASSES
+#include <isq/tblgen/ISQAttrs.h.inc>
+#endif

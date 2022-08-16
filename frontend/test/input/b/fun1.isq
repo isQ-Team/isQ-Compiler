@@ -1,0 +1,6 @@
+package b;
+
+int fun()
+{
+    return 1;
+}

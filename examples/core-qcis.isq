@@ -1,0 +1,20 @@
+import std;
+
+qbit w[5];
+procedure main() {
+    for i in 0:3{
+        X2P(w[i]);
+        Y2P(w[i+1]);
+        CNOT(w[i], w[i+1]);
+    }
+    for i in 0:3{
+        for j in 0:3{
+            for k in 0:3{
+                H(w[(i+j+k) % 5]);
+            }
+        }
+    }
+    for i in 0:5{
+        M(w[i]);
+    }
+}

@@ -1,0 +1,9 @@
+defgate j = [
+    0, -1j;
+    1j, 0
+];
+
+qbit j;
+procedure main()
+{
+}

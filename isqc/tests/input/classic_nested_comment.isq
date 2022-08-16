@@ -1,0 +1,9 @@
+/*
+procedure main(){
+    // print 628; /* foo */
+    print 31415;
+}
+*/
+procedure main(){
+    print 114514;
+}

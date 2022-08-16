@@ -1,0 +1,15 @@
+
+
+procedure CZ(a: qbit, b: qbit) {
+    H(b);
+    CNOT(a, b);
+    H(b);
+} deriving gate
+
+procedure main(){
+    qbit a,b,c;
+    H(a); H(b);
+    ctrl<1> CZ(a, b, c);
+    ctrl<1> Rz(0.5, a, b);
+    return;
+}

@@ -1,0 +1,13 @@
+import std;
+
+procedure main(){
+    qbit q[28];
+    H<q[0]>;
+    for i in 1:28{
+        CNOT(q[0], q[i]);
+    }
+    for i in 0:28{
+        print M(q[i]);
+    }
+
+}

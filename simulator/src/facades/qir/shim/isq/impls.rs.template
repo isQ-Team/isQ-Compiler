@@ -1,0 +1,43 @@
+use super::types::*;
+pub fn isq_qir_shim_qis_u3(x0: f64, x1: f64, x2: f64, x3: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_rz_body(x0: f64, x1: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_x2p(x0: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_x2m(x0: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_y2p(x0: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_y2m(x0: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_gphase(x0: f64)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_cnot(x0: K<QIRQubit>, x1: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_cz(x0: K<QIRQubit>, x1: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_measure(x0: K<QIRQubit>)->QIRResult {
+    todo!()
+}
+pub fn isq_qir_shim_qis_reset(x0: K<QIRQubit>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_qcis_finalize()->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_isq_print_i64(x0: i64)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_isq_print_f64(x0: f64)->() {
+    todo!()
+}

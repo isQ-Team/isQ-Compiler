@@ -1,0 +1,17 @@
+defgate SWAP = [
+    1, 0, 0, 0;
+    0, 0, 1, 0;
+    0, 1, 0, 0;
+    0, 0, 0, 1
+];
+
+qbit q[4];
+
+procedure main()
+{
+    ctrl H<q[0], q[1]>;
+    nctrl S<q[1], q[2]>;
+    inv ctrl<2> X<q[0], q[1], q[2]>;
+    ctrl SWAP<q[1], q[2], q[3]>;
+    ctrl nctrl ctrl inv Rx(0.12, q[3], q[2], q[1], q[0]);
+}

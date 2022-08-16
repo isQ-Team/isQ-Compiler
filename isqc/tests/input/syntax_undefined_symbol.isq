@@ -1,0 +1,13 @@
+import std;
+int s, m;
+qbit q;
+procedure main()
+{
+    s = 3;
+    while(s > 0)
+    {
+        s =  s - 1;
+        H<qt>;
+        m = M<qt>;
+    }
+}
