@@ -1,197 +1,37 @@
+# isq
 
-isQ is a quantum programming software. The compiler of isQ accepts isQ programs as input, and procedure low-level codes written several kinds of intermediate representations or instruction sets (depending on the conceret compiler options). 
+#### 介绍
+a part of quantum software toolkit of Institute of Software, Chinese Academy of Science
 
-
-Install
-=========================
-
-
-Via docker containers.
--------------------------
-
-We provide a container which contains the isQ running environment, you can quickly get it through the following command
-
-```bash
-docker pull arclightquantum/isq:latest
-```
+#### 软件架构
+软件架构说明
 
 
-From source code
--------------------------
+#### 安装教程
 
-You can also get isQ compiling from source code. Since isQ contains many modules,  there are some environments need to be installed first.
+1.  xxxx
+2.  xxxx
+3.  xxxx
 
-### requirements
-| software | version |ref|
-|----|-----|----|
-|mlir|=14.0.0|https://mlir.llvm.org/getting_started/|
-|stack|>=2.7|https://docs.haskellstack.org/en/stable/README/|
-|cargo|>=1.61|https://github.com/rust-lang/cargo|
-|python|>=3.8|https://docs.conda.io/en/latest/miniconda.html#linux-installers|
+#### 使用说明
 
-### get source code
+1.  xxxx
+2.  xxxx
+3.  xxxx
 
-Get source from gitee and set an environment variable `ISQ_ROOT`
-```bash
-git clone xxxxxx
-cd xxx
-mkdir bin
-export ISQ_ROOT=`pwd`/xxx
-```
+#### 参与贡献
 
-### install plugin
-
-##### python-routing-plugin
-
-This plugin is used to do qubit mapping. We need use pyinstaller to convert .py to .exe
-
-We suggest using `conda` to create a pure python env, otherwise the .exe may become very big
-
-``` bash
-cd ${ISQ_ROOT}/simulator/plugins/python-routing-plugin/src
-conda create -n route python=3.8
-conda activate route
-pip install numpy
-pip install networkx
-pip install pyinstaller
-```
-
-The one thing you must do is modify the `test_sahs_qct.spec` file, changing the file path to path on your computer
-
-```python
-a = Analysis(['test_sahs_qct.py',
-            'front_circuit.py',
-            'YOUR_PATH/cir_gen/interface.py',
-            'YOUR_PATH/multi_objectives/init_mapping/get_init_map.py',
-            'YOUR_PATH/multi_objectives/init_mapping/sa_mapping.py',
-            'YOUR_PATH/multi_objectives/sahs/sahs_search.py',
-            ],
-             pathex=["YOUR_PATH/multi_objectives"],
-```
-
-Use pyinstaller to get .exe
-```bash
-pyinstaller test_sahs_qct.spec
-cp ./dist/route ${ISQ_ROOT}/bin/
-```
-
-##### cuda-plugin (optional)
-
-This plugin is used to simulate with gpu and it is optinal. When you need use this plugin, you may install cuda env first, and then use makefile to install plugin
-
-```bash
-cd ${ISQ_ROOT}/simulator/plugins/cuda-plugin
-make
-cp ./libqsim_kernel.so /usr/lib/
-```
-
-Another thing you need to do is add `cuda` to profile `${ISQ_ROOT}/simulator/Cargo.toml`
+1.  Fork 本仓库
+2.  新建 Feat_xxx 分支
+3.  提交代码
+4.  新建 Pull Request
 
 
-```bash
-#before
-[features]
-default = ["qcis"]
-none = []
+#### 特技
 
-#after
-[features]
-default = ["cuda", "qcis"]
-none = []
-```
-
-### install isQ
-
-Now, you can use makefile to install isQ
-
-```bash
-cd ${ISQ_ROOT}
-make
-export PATH=${ISQ_ROOT}/bin:$PATH
-```
-
-
-
-Run
--------------------------
-
-You can use isQ’s `run` command to compile and run quantum programs
-
-	isqc run <Input>
-
-Compile
--------------------------
-
-The isQ compiler receives the isQ source file as input, and the instruction format is as follows:
-
-    isqc compile [options] <Input>
-
-options:
-
-* `--emit <FORMAT>` : output content format, format value can be `mlir, mlirqir, llvm, mlir-optimized, binary, out` \[default: `out`\]
-* `-o, --output <OUTFILE>` : output file
-* `-O, --opt-level <OPT_LEVEL>` : llvm opt-level such as `-O1, -O2, -O3` etc.
-* `--target <TARGET_IR>` : target ir, now support `qir, open-qasm3, qcis` \[default: `qir`\]
-* `--qcis-config <MAPPING_CONFIG_FILE>` : qcis mapping config file
-
-You can compile isQ source file to [qir](https://github.com/qir-alliance/qir-spec) or [qcis](https://quantumcomputer.ac.cn/UserBook.html) use follow command:
-
-```bash
-# compile to qir, default output file is source.so
-isqc compile source.isq
-# compile to qcis, default output file is source.qcis
-isqc compile --target qcis --qcis-config MAPPING_CONFIG_FILE source.isq
-```
-
-Qcis instructions can run on real superconducting hardware, so isQ compiler provides qubit-mapping function. You should feed `mapping_config_file` like above. The file content needs to include the following fields:
-
-```json
-{
-// required
-    "qbit_num": 12, // qubit number on hardware
-    "topo": [[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,12]], // topology of hardware
-// option 
-    "init_map": "simulated_annealing" // the way to get init mapping
-}
-
-```
-
-Of course, you can get the intermediate results of compilation by using `--emit` like that:
-
-```bash
-# compile to mlir, default output file is source.mlir
-isqc compile --emit mlir source.isq
-# compile to llvm(qir), default output file is source.ll
-isqc compile --emit llvm source.isq
-```
-
-Simulate
-------------------
-
-The simulator of isQ provides the simulation of `qir`. The input must be a .so file generated by compiler. There is only one option `--cuda <CUDA>` which use gpu for simulation. For example:
-
-```bash
-# simulate in cpu
-isqc simulate ./source.so
-# simulate in gpu
-isqc simulate --cuda 10 ./source.so
-```
-
-The output is the `print value` in source.isq. Note that isQ simulator only simulate the circuit one time, so you may write a simple script to get multiple simulation results.
-
-
-
-
-<script type="text/javascript" id="MathJax-script" async
-  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.0.0/es5/tex-mml-chtml.js">
-</script>
-<script>
-MathJax = {
-  tex: {
-    inlineMath: [['$', '$'], ['\\(', '\\)']]
-  }
-};
-</script>
-<script id="MathJax-script" async
-  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
-</script>
+1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
+2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
+3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
+4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
+5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
+6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
