@@ -29,7 +29,8 @@ pub fn run_qcis_route(code: String)->String{
             panic!("qcis config schema invalid");
         }
         let input = serde_json::to_string(&config_json).expect("internal qcis error");
-        let mut child = Command::new(format!("{}/bin/route", qcis_route_bin_path()))
+        let qcis_root_bin = std::env::var("ISQ_ROOT").expect("QCIS_ROUTE_BIN_PATH not defined at compile time!");
+        let mut child = Command::new(format!("{}/bin/route", qcis_root_bin))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())

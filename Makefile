@@ -24,4 +24,4 @@ simulator: check-env
 isq-simulator.bc: check-env
 	export PATH=${ISQ_ROOT}/bin:${PATH} && cd simulator \
 	llvm-link src/facades/qir/shim/qir_builtin/shim.ll src/facades/qir/shim/qsharp_core/shim.ll \
-	src/facades/qir/shim/qsharp_foundation/shim.ll src/facades/qir/shim/isq/shim.ll -o {ISQ_ROOT}/bin/isq-simulator.bc
+	src/facades/qir/shim/qsharp_foundation/shim.ll src/facades/qir/shim/isq/shim.ll -o ${ISQ_ROOT}/bin/isq-simulator.bc
