@@ -49,6 +49,7 @@ fn tests_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
 }
 
 #[test_case("bell", "0")]
+#[test_case("bernstein", &("1".to_string()+LINE_ENDING+"1"+LINE_ENDING+"0"))]
 #[test_case("ipe", "867893")]
 #[test_case("preserve_gphase", &("1".to_string()+LINE_ENDING+"0"))]
 #[test_case("teleport", "1")]
@@ -105,6 +106,7 @@ fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
+#[test_case("grover")]
 #[test_case("qubit")]
 #[test_case("random")]
 #[test_case("repeat_until_success")]
