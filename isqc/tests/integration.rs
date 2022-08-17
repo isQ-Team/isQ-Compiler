@@ -25,8 +25,7 @@ fn tests_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
 }
 
 #[test_case("bell", "0")]
-#[test_case("bernstein", &merge(&["1", "1", "0"]))]
-#[test_case("bernstein_oracle_func", &merge(&["1", "1", "0"]))]
+#[test_case("bernstein", &("1".to_string()+LINE_ENDING+"1"+LINE_ENDING+"0"))]
 #[test_case("ipe", "867893")]
 #[test_case("mul", "6")]
 #[test_case("preserve_gphase", &merge(&["1", "0"]))]
