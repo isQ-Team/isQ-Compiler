@@ -25,6 +25,7 @@ pkgs.buildEnv rec {
       mlir
       ninja
       doxygen
+      glibc
       graphviz
       libxml2
       stack
