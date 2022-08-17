@@ -39,6 +39,24 @@ build-tools:
 - happy
 - alex
 
+library:
+  source-dirs: src
+  exposed-modules:
+    - ISQ.Driver.Jsonify
+    - ISQ.Driver.Main
+    - ISQ.Driver.Passes
+    - ISQ.Lang.CompileError
+    - ISQ.Lang.DeriveGate
+    - ISQ.Lang.OraclePass
+    - ISQ.Lang.ISQv2Grammar
+    - ISQ.Lang.ISQv2Parser
+    - ISQ.Lang.ISQv2Tokenizer
+    - ISQ.Lang.MLIRGen
+    - ISQ.Lang.MLIRTree
+    - ISQ.Lang.RAIICheck
+    - ISQ.Lang.TypeCheck
+    - Paths_isqc_frontend
+
 executables:
   isqc1:
     main:                Main.hs
@@ -47,3 +65,15 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - test
+    dependencies:
+      - hspec
+      - isqc-frontend
+      - base
+      - directory
+      - filepath
