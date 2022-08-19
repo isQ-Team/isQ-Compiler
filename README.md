@@ -1,10 +1,6 @@
 # isq
 
-#### 介绍
-a part of quantum software toolkit of Institute of Software, Chinese Academy of Science
-
-#### 软件架构
-软件架构说明
+isQ is a quantum programming software. The compiler of isQ accepts isQ programs as input, and produces low-level codes written in several kinds of intermediate representations or instruction sets (depending on the specific compiler options).
 
 
 #### 安装教程
