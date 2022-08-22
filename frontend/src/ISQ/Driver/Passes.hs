@@ -169,7 +169,7 @@ doImport incPath froms file node = do
                                 Right (importTcast, importTable) -> do
                                     let errOrRaii = compileRAII defList
                                     case errOrRaii of
-                                        Left x -> return $ Left x
+                                        Left x -> return $ Left $ fromError x
                                         Right raii -> do
                                             oldId <- gets ssaId
                                             let errOrTuple = typeCheckTop isMain prefix raii importTable oldId

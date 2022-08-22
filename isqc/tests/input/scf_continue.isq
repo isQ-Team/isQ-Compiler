@@ -1,0 +1,11 @@
+procedure main()
+{
+    int i = 3;
+    int j = 0;
+    while (i > 0) {
+        i = i - 1;
+        if (i == 2) {continue;}
+        j = j + 2;
+    }
+    print j;
+}
