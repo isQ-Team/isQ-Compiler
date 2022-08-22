@@ -235,7 +235,7 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                     match content["tag"].as_str().unwrap(){
                         "UnmatchedScopeError"=>{
                             let (src,pos) = parsePos(&content["unmatchedPos"])?;
-                            let rtype = content["wantedRegionType"]["tag"].as_str().unwrap();
+                            let rtype = content["wantedRegionType"].as_str().unwrap();
                             let r = match rtype{
                                 "RFunc"=>"function",
                                 "RLoop"=>"loop",

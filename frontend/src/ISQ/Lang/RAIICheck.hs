@@ -62,6 +62,7 @@ skippedRegions pos ty = do
 
 data RAIIError =
       UnmatchedScopeError {unmatchedPos :: Pos, wantedRegionType :: RegionType}
+    | PlaceHolder
     deriving (Eq, Show)
 
 
@@ -171,7 +172,7 @@ raiiTransform' f (NFor ann var range b) = do
     b'<-mapM f b
     popRegion
     finalize<-checkCurrentScope ann
-    return [tempBool ann i, NFor ann var range (concat b'), finalize]
+    return [NFor ann var range ([tempBool ann i] ++ concat b'), finalize]
 raiiTransform' f (NWhile ann cond body) = do
     ihead<-nextId
     ibody<-nextId
@@ -179,7 +180,7 @@ raiiTransform' f (NWhile ann cond body) = do
     b'<-mapM f body
     popRegion
     finalize<-checkCurrentScope ann
-    return [tempBool ann ihead, tempBool ann ibody, NWhileWithGuard ann cond (concat b') (ETempVar ann ihead)]
+    return [tempBool ann ihead, NWhileWithGuard ann cond ([tempBool ann ibody] ++ concat b') (ETempVar ann ihead)]
 raiiTransform' f (NProcedure a b c d e) = do
     procRet<-nextId
     procFlag<-nextId

@@ -1,0 +1,9 @@
+procedure main()
+{
+    int j = 0;
+    for i in 0:3 {
+        if (i == 1) {break;}
+        j = j + 2;
+    }
+    print j;
+}
