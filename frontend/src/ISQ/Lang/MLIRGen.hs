@@ -23,8 +23,6 @@ data RegionBuilder = RegionBuilder{
 
 makeLenses ''RegionBuilder
 
-type MLIRGen = State RegionBuilder
-
 mapType :: EType->MLIRType
 mapType (Type () Bool []) = M.Bool
 mapType (Type () Ref [x]) = BorrowedRef (mapType x)
@@ -35,7 +33,6 @@ mapType (Type () (FixedArray n) [x]) = Memref (Just n) (mapType x)
 mapType (Type () (Gate n) _) = M.Gate n
 mapType (Type () Double []) = M.Double
 mapType _ = error "unsupported type"
-
 
 
 -- Create an empty region builder, with entry and exit.
@@ -257,14 +254,19 @@ emitExpr :: Expr TypeCheckData -> State RegionBuilder SSA
 emitExpr = fix emitExpr'
 
 emitStatement' :: (AST TypeCheckData-> State RegionBuilder ())->(AST TypeCheckData->State RegionBuilder ())
+emitStatement' f (NBlock ann lis) = do
+    pos<-mpos ann
+    lis' <- scopedStatement [] [MSCFYield pos] (mapM f lis)
+    pushOp $ MSCFExecRegion pos lis'
 -- Generic if.
 emitStatement' f (NIf ann cond bthen belse) = do
     pos<-mpos ann
     cond'<-emitExpr cond
     then_block <- scopedStatement [] [MSCFYield pos] (mapM f bthen)
     else_block <- scopedStatement [] [MSCFYield pos] (mapM f belse)
-    pushOp $ MSCFIf pos cond' [MSCFExecRegion pos then_block] [MSCFExecRegion pos else_block]
+    pushOp $ MSCFIf pos cond' (MSCFExecRegion pos then_block) (MSCFExecRegion pos else_block)
 emitStatement' f NFor{} = error "unreachable"
+emitStatement' f NEmpty{} = return ()
 emitStatement' f NPass{} = return ()
 emitStatement' f (NBp ann) = do
     pos<-mpos ann
@@ -305,30 +307,9 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
                 pushOp $ MQDecorate pos decorated_gate used_gate folded_mods gate_size
                 return $ decorated_gate
     zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins qubit_ssa
-    {-
-    r <- case rotation of
-        Just x -> do
-            r'<- emitExpr x
-            pushOp $ MQApplyRotateGate pos outs ins decorated_gate r'
-        Nothing -> pushOp $ MQApplyGate pos outs ins decorated_gate
-    -}
     pushOp $ MQApplyGate pos outs ins decorated_gate
     zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs qubit_ssa
 emitStatement' f NCoreUnitary{} = error "first-class gate unsupported"
-{-
-emitStatement' f (NCoreU3 ann (EGlobalName ann2 name) ops angles) = do
-    ops'<-mapM emitExpr ops
-    angles' <- mapM emitExpr angles
-    pos<-mpos ann
-    let i = ssa ann2
-    let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..(length ops)]
-    let used_gate = i;
-    let gate_type@(M.Gate gate_size) = mType ann2;
-    pushOp $ MQUseU3Gate pos used_gate (fromFuncName "__isq__builtin__u3") gate_type angles'
-    zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins ops'
-    pushOp $ MQApplyGate pos outs ins used_gate
-    zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs ops'
--}
 emitStatement' f (NCoreReset ann operand) = do
     operand'<-emitExpr operand
     pos<-mpos ann
@@ -381,7 +362,6 @@ emitStatement' f (NResolvedProcedureWithRet ann ret mname args body (Just retval
     pushOp $ MFunc pos (fromFuncName name) (Just $ mapType ret) body''
 emitStatement' f (NResolvedProcedureWithRet ann ret mname args body Nothing Nothing) = do
     let name = if mname=="main" then "__isq__main" else mname
-    pos<-mpos ann
     pos<-mpos ann
     let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
     body'<-scopedStatement first_args [MReturnUnit pos] (mapM f body)
@@ -511,6 +491,3 @@ generateMLIRModule file xs =
                 MReturnUnit MLIRPosUnknown 
             ]]
     in MModule MLIRPosUnknown (reverse $ entry : finalize : initialize:view mainModule builder)
-
-
---mlirGen :: [TCAST]->MLIRGen [MLIROp]

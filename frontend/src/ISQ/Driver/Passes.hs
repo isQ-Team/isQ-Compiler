@@ -4,7 +4,9 @@ import Control.DeepSeq (force)
 import Control.Exception (catch, Exception, evaluate, SomeException, try)
 import Control.Monad.Except 
 import Control.Monad.State
+import Data.Aeson
 import Data.Bifunctor (first)
+import qualified Data.ByteString.Lazy as BS
 import Data.Char (isDigit)
 import Data.Either (lefts, rights)
 import Data.Function (on)
@@ -29,6 +31,7 @@ import ISQ.Lang.RAIICheck (raiiCheck)
 import System.Directory (canonicalizePath, doesFileExist)
 import System.Environment (lookupEnv)
 import System.FilePath (addExtension, dropExtensions, joinPath, splitDirectories)
+import System.IO (stdout)
 
 syntaxError :: FilePath -> String->CompileError 
 syntaxError file x = 
@@ -171,6 +174,7 @@ doImport incPath froms file node = do
                                     case errOrRaii of
                                         Left x -> return $ Left $ fromError x
                                         Right raii -> do
+                                            --liftIO $ BS.hPut stdout (encode raii) -- for debug
                                             oldId <- gets ssaId
                                             let errOrTuple = typeCheckTop isMain prefix raii importTable oldId
                                             case errOrTuple of

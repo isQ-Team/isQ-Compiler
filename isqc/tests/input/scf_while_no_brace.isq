@@ -1,0 +1,7 @@
+procedure main()
+{
+    int res = 1;
+    while (res < 15)
+        res = res * 2;
+    print res;
+}

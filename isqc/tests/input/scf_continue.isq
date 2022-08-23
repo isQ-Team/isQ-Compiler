@@ -4,7 +4,7 @@ procedure main()
     int j = 0;
     while (i > 0) {
         i = i - 1;
-        if (i == 2) {continue;}
+        if (i == 2) continue;
         j = j + 2;
     }
     print j;
