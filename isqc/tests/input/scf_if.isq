@@ -4,11 +4,7 @@ procedure main()
 {
     i = 1;
     if (i >= 0)
-    {
         print 2;
-    }
     else
-    {
         print 3;
-    }
 }

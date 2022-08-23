@@ -124,11 +124,9 @@ TopDefMember : ISQCore_GatedefStatement ';' { $1 }
              | Procedure { $1 }
              | OracleTruthTable { $1 }
 
-StatementListMaybe :: {[Maybe LAST]}
-StatementListMaybe : StatementListMaybe Statement { $1 ++ [$2] }
-              | {- empty -} { [] }
 StatementList :: {[LAST]}
-StatementList : StatementListMaybe { catMaybes $1 }
+StatementList : {- empty -} { [] }
+               | StatementList Statement { $1 ++ [$2] }
 
 Expr :: {LExpr}
 Expr : Expr1 {$1} | Expr2 {$1}
@@ -193,13 +191,16 @@ Expr1LeftListNonEmpty : Expr1Left { [$1] }
 IdentListNonEmpty :: {[ISQv2Token]}
 IdentListNonEmpty : IDENTIFIER { [$1] }
                   | IdentListNonEmpty ',' IDENTIFIER { $1 ++ [$3] }
+
+BlockStatement :: {LAST}
+BlockStatement : '{' StatementList '}' { NBlock $1 $2 }
 ForStatement :: {LAST}
-ForStatement : for IDENTIFIER in RangeExpr '{' StatementList '}' {NFor $1 (tokenIdentV $2) $4 $6 }
+ForStatement : for IDENTIFIER in RangeExpr Statement { NFor $1 (tokenIdentV $2) $4 [$5] }
 WhileStatement :: {LAST}
-WhileStatement : while Expr '{' StatementList '}' {NWhile $1 $2 $4}
+WhileStatement : while Expr Statement { NWhile $1 $2 [$3] }
 IfStatement :: {LAST}
-IfStatement : if Expr '{' StatementList '}' {NIf $1 $2 $4 []}
-            | if Expr '{' StatementList '}' else '{' StatementList '}'  {NIf $1 $2 $4 $8}
+IfStatement : if Expr Statement { NIf $1 $2 [$3] [] }
+            | if Expr Statement else Statement  { NIf $1 $2 [$3] [$5] }
 PassStatement :: {LAST}
 PassStatement : pass { NPass $1 }
 BpStatement :: {LAST}
@@ -271,9 +272,11 @@ ContinueStatement : continue { NContinue $1 }
 BreakStatement :: {LAST}
 BreakStatement : break { NBreak $1 }
 
-StatementNonEmpty :: {LAST}
-StatementNonEmpty : PassStatement ';' { $1 }
+Statement :: {LAST}
+Statement : ';' { NEmpty $1 }
+          | PassStatement ';' { $1 }
           | BpStatement ';' { $1 }
+          | BlockStatement { $1 }
           | IfStatement { $1 }
           | ForStatement { $1 }
           | WhileStatement { $1 }
@@ -287,10 +290,6 @@ StatementNonEmpty : PassStatement ';' { $1 }
           | ISQCore_MeasureStatement ';' { $1 }
           | ISQCore_ResetStatement ';' { $1 }
           | ISQCore_PrintStatement ';' { $1 }
-
-Statement :: {Maybe LAST}
-Statement : StatementNonEmpty {Just $1}
-          | ';' {Nothing}
 
 ArrayTypeDecorator :: {BuiltinType}
 ArrayTypeDecorator : '[' ']' { UnknownArray }
