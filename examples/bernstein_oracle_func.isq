@@ -1,0 +1,23 @@
+import std;
+
+// support 3-bit s is 110
+oracle g(3, 1) : x
+{
+    return x % 2;
+}
+qbit q[3], anc;
+
+procedure main(){
+    for i in 0:3{
+        H(q[i]);
+    }
+    X(anc);
+    H(anc);
+
+    g(q[0], q[1], q[2], anc);
+    for i in 0:3{
+        H(q[i]);
+        int a = M(q[i]);
+        print a;
+    }
+}

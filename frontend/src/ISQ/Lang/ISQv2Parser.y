@@ -95,7 +95,6 @@ import Control.Exception (throw, Exception)
 %%
 
 TopLevel :: {LAST}
--- TODO: change to optional package
 TopLevel : Package ImportList DefMemberList { NTopLevel $1 $2 $3 }
 
 Package :: {Maybe LAST}
@@ -123,6 +122,7 @@ TopDefMember : ISQCore_GatedefStatement ';' { $1 }
              | ExternDefgate ';' { $1 }
              | Procedure { $1 }
              | OracleTruthTable { $1 }
+             | OracleFunction { $1 }
 
 StatementList :: {[LAST]}
 StatementList : {- empty -} { [] }
@@ -351,10 +351,10 @@ TopLevelVar : DefvarStatement ';' { $1 }
 OracleTruthTable :: {LAST}
 OracleTruthTable : oracle IDENTIFIER '(' NATURAL ',' NATURAL ')' '=' '[' ISQCore_GatedefMatrixRow ']' ';' { NOracle $1 (tokenIdentV $2) (tokenNaturalV $4) (tokenNaturalV $6) $10}
 
-           
+OracleFunction :: {LAST}
+OracleFunction : oracle IDENTIFIER '(' NATURAL ',' NATURAL ')' ':' IDENTIFIER '{' StatementList '}' { NOracleFunc $1 (tokenIdentV $2) (tokenNaturalV $4) (tokenNaturalV $6) (tokenIdentV $9) $11 }
 
 {
 parseError :: [ISQv2Token] -> a
 parseError xs = throw xs
-     
 }
