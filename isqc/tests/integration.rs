@@ -29,6 +29,7 @@ pub const LINE_ENDING: &'static str = "\n";
 #[test_case("classic_local", &("789".to_string()+LINE_ENDING+"123"+LINE_ENDING+"456"))]
 #[test_case("classic_neg", "-114514")]
 #[test_case("classic_nested_comment", "114514")]
+#[test_case("classic_nested_region", "2")]
 #[test_case("classic_recursion", "3628800")]
 #[test_case("derive", "1")]
 #[test_case("extreme_long_code", "8820")]

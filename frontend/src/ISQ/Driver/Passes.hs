@@ -2,7 +2,7 @@
 module ISQ.Driver.Passes where
 import Control.DeepSeq (force)
 import Control.Exception (catch, Exception, evaluate, SomeException, try)
-import Control.Monad.Except 
+import Control.Monad.Except
 import Control.Monad.State
 import Data.Aeson
 import Data.Bifunctor (first)
