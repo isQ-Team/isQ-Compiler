@@ -16,7 +16,6 @@ pub struct IoErrorWhen (&'static str, pub std::io::Error);
 pub struct IoError (#[from] pub std::io::Error);
 
 
-
 #[derive(Error, Debug, Diagnostic)]
 #[error("ISQ_ROOT undefined.")]
 #[diagnostic(
@@ -57,8 +56,6 @@ pub struct GeneralGrammarError(pub String, pub String);
 )]
 pub struct GeneralISQC1Error(pub String);
 
-
-
 #[derive(Error, Debug, Diagnostic)]
 #[error("Bad source extension.")]
 #[diagnostic(
@@ -79,7 +76,6 @@ pub struct SyntaxError {
     #[label("Bad syntax here.")]
     pub pos: SourceSpan,
 }
-
 
 #[derive(Error, Debug, Diagnostic)]
 #[error("Redefined symbol `{symName}`.")]
