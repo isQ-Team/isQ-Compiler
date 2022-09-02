@@ -4,13 +4,15 @@ import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.OraclePass
 
 import Control.Monad.Except
+import Control.Monad.State
+import qualified Data.Map.Lazy as Map
 import System.Directory (canonicalizePath)
 import System.FilePath
 import Test.Hspec
 
 oracleTestTemplate :: String -> Int -> IO (Either OracleError Int)
 oracleTestTemplate input val = do
-    errorOrAst <- runExceptT $ parseToAST "" input
+    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) emptyImportEnv
     case errorOrAst of
         Left x -> error "input file error"
         Right ast -> do
@@ -100,6 +102,18 @@ oracleSpec = do
     it "evaluates correctly with if-else" $ do
         let str = "oracle o(2, 1) : x { if (x > 2) return 1; else return 0;}"
         evaluateExpect str 3 1
+
+    it "evaluates correctly with greater equal" $ do
+        let str = "oracle o(2, 1) : x { if (x >= 2) return 1; else return 0;}"
+        evaluateExpect str 2 1
+
+    it "evaluates correctly with less equal" $ do
+        let str = "oracle o(2, 1) : x { if (x <= 2) return 1; else return 0;}"
+        evaluateExpect str 2 1
+
+    it "evaluates correctly with not equal" $ do
+        let str = "oracle o(2, 1) : x { if (x != 2) return 1; else return 0;}"
+        evaluateExpect str 1 1
 
     it "evaluates correctly with newly defined variable" $ do
         let str = "oracle o(1, 1) : x { int y = 1; return y;}"
