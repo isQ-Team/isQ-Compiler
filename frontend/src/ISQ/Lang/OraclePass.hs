@@ -13,11 +13,10 @@ import qualified Data.Map.Lazy as Map
 data OracleError =
       BadOracleShape Pos
     | BadOracleValue Pos
-    | Unsupported
     | IllegalExpression Pos
-    | MultipleDefined Pos
-    | NoReturnValue Pos
-    | UndefinedSymbol Pos String
+    | MultipleDefined {sourcePos :: Pos, varName :: String}
+    | NoReturnValue {sourcePos :: Pos, inputValue :: Int}
+    | UndefinedSymbol {sourcePos :: Pos, varName :: String}
     | UnmatchedType Pos
     | UnsupportedType Pos
     deriving (Eq, Show)
@@ -122,9 +121,18 @@ evaluateExpression (EBinary ann op lexpr rexpr) = do
                     lbool <- getBool ann lobj
                     rbool <- getBool ann robj
                     return $ OBool $ lbool == rbool
+        Cmp NEqual -> do
+            unless (isInt lobj && isInt robj || isBool lobj && isBool robj)
+                (throwError $ UnmatchedType ann)
+            if (isInt lobj) then binaryComparison ann (/=) lobj robj
+                else do
+                    lbool <- getBool ann lobj
+                    rbool <- getBool ann robj
+                    return $ OBool $ lbool /= rbool
         Cmp Greater -> binaryComparison ann (>) lobj robj
         Cmp Less -> binaryComparison ann (<) lobj robj
-        _ -> throwError Unsupported
+        Cmp GreaterEq -> binaryComparison ann (>=) lobj robj
+        Cmp LessEq -> binaryComparison ann (<=) lobj robj
 
 evaluateExpression (EUnary ann op expr) = do
     obj <- evaluateExpression(expr)
@@ -153,7 +161,7 @@ defineVariable pos (ltype, identifier, maybeExpr) = do
     let currentTable = head symbolTables
     let maybe = Map.lookup identifier currentTable
     case maybe of
-        Just _ -> throwError $ MultipleDefined pos
+        Just _ -> throwError $ MultipleDefined pos identifier
         Nothing -> do
             obj <- case maybeExpr of
                 Nothing -> return OUnit
@@ -268,7 +276,7 @@ evaluateFunc body pos var val = do
     obj <- evalState (runExceptT $ evaluateStatements $ [defVar] ++ body) [Map.empty]
     case obj of
         OInt val -> Right val
-        OUnit -> Left $ NoReturnValue pos
+        OUnit -> Left $ NoReturnValue pos val
         _ -> Left $ UnmatchedType pos
 
 --replace orcale with deriving gate (use multi-contrl-x)
