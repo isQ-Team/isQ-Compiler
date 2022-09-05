@@ -4,7 +4,7 @@ Created on Sun Aug  1 18:30:20 2021
 
 @author: zhoux
 """
-
+import secrets
 import numpy as np
 
 def init_error_matrix(ag_matrix):
@@ -123,6 +123,7 @@ def get_grid_from_edges(num_q, edges):
 
 def get_cir_in_from_qcis(qcis_str):
     cir_in = []
+    measure = []
     qcis = qcis_str.split('\n')
     for command in qcis:
         #print(command)
@@ -130,16 +131,16 @@ def get_cir_in_from_qcis(qcis_str):
         if len(command) == 0:
             continue
         gate = command[0]
-        if gate == 'M':
-            continue
         q = int(command[1][1:])-1
+        if gate == 'M':
+            measure.append(q)
         qn = 1
         if len(command) > 2:
             q = (q, int(command[2][1:])-1)
             qn = 2
         cir_in.append((qn, gate, q, []))
     
-    return cir_in
+    return cir_in, measure
 
 def convert_swap(q):
     (q2, q1) = q
@@ -151,7 +152,7 @@ def convert_swap(q):
         swap.append("H Q{}".format(q2+1))
     return "\n".join(swap)
 
-def get_qcis_from_cir_out(cir_out):
+def get_qcis_from_cir_out(cir_out, final_map_list, measure):
     
     qcis = []
 
@@ -163,7 +164,9 @@ def get_qcis_from_cir_out(cir_out):
                 qcis.append("{} Q{}".format(gate, q+1))
             else:
                 qcis.append("{} Q{} Q{}".format(gate, q[0]+1, q[1]+1))
-        
+    
+    for m in measure:
+        qcis.append("M Q{}".format(final_map_list[m]+1))
     return "\n".join(qcis)
 
 if __name__ == '__main__':
@@ -187,7 +190,7 @@ if __name__ == '__main__':
     # init example error_matrix
     error_matrix = init_error_matrix(ag_matrix)
 
-    cir_in = get_cir_in_from_qcis(data["qcis"])
+    cir_in, measure = get_cir_in_from_qcis(data["qcis"])
 
     init_map = 'naive'
     if "init_map" in data:
@@ -200,7 +203,7 @@ if __name__ == '__main__':
                                                           display_state=display_state,
                                                           init_map = init_map)
     
-    qcis_out = get_qcis_from_cir_out(cir_out)
+    qcis_out = get_qcis_from_cir_out(cir_out, final_map_list, measure)
     sys.stdout.write(qcis_out)
 
     '''

@@ -248,7 +248,7 @@ fn main()->miette::Result<()> {
                     };
                     
                     let mut v = vec!["-e".into(), "__isq__entry".into()];
-                    v.push("--qcis".into());
+                    v.push("--qcisgen".into());
                     v.push(qir_object);
                     for val in par_int{
                         v.push("-i".into());

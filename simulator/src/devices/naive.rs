@@ -5,6 +5,8 @@ use crate::qdevice::QDevice;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use num_complex::Complex64;
+
+#[derive(Clone)]
 pub struct NaiveSimulator {
     state: Vec<Complex64>,
     qubit_map: BTreeMap<usize, usize>,
