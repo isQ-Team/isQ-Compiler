@@ -19,6 +19,7 @@ libloading = "0.7.2"
 clap = { version = "3.0.0-rc.9", features = ["derive"] }
 env_logger = "0.9.0"
 chrono = "0.4.19"
+regex = "1.5.4"
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] , optional = true}
 [dev-dependencies]
 

@@ -1,6 +1,7 @@
 use isq_simulator::{
     devices::{checked::CheckedDevice, naive::NaiveSimulator, sq2u3::SQ2U3Device, noop::NoopDevice},
-    facades::qir::context::{get_current_context, make_context_current, QIRContext}, qdevice::QDevice,
+    facades::qir::{context::{get_current_context, make_context_current, QIRContext}, types::QIRQubit, string}, qdevice::QDevice,
+    sim::qcis,
 };
 
 use libloading::*;
@@ -11,10 +12,9 @@ extern crate env_logger;
 
 #[macro_use]
 extern crate std;
-use std::io::Write;
+use std::{io::{Read, Write}, path::{Path, PathBuf}, fs::File};
 use std::{cell::RefCell, ffi::OsString, rc::Rc};
 extern crate isq_simulator;
-
 
 use clap::ArgGroup;
 #[derive(Parser, Debug)]
@@ -22,7 +22,7 @@ use clap::ArgGroup;
 #[clap(group(
     ArgGroup::new("simulator_type")
         .required(true)
-        .args(&["naive", "cuda", "qcis", "noop"]),
+        .args(&["naive", "cuda", "qcisgen", "noop", "qcis"]),
 ))]
 struct SimulatorArgs {
     #[clap(index = 1, parse(from_os_str))]
@@ -34,14 +34,19 @@ struct SimulatorArgs {
     #[clap(long)]
     cuda: Option<usize>,
     #[clap(long)]
-    qcis: bool,
+    qcisgen: bool,
     #[clap(long)]
     noop: bool,
+    #[clap(long)]
+    qcis: bool,
+    #[clap(long)]
+    shots: Option<i64>,
     #[clap(long, short)]
     int_par: Option<Vec<i64>>,
     #[clap(long, short)]
-    double_par: Option<Vec<f64>> 
+    double_par: Option<Vec<f64>>
 }
+
 
 type SimulatorEntry = extern "C" fn(x_alloc_ptr: *const i64, x_align_ptr: *const i64, x_offset: i64, x_size: i64, x_strides: i64,
                                     y_alloc_ptr: *const f64, y_align_ptr: *const f64, y_offset: i64, y_size: i64, y_strides: i64) -> ();
@@ -58,9 +63,24 @@ fn main() -> std::io::Result<()> {
             record.args()
         )
     }).parse_default_env().init();*/
+
     env_logger::init();
 
     let args: SimulatorArgs = SimulatorArgs::parse();
+
+    if args.qcis{
+        let input_path = Path::new(&args.qir_shared_library);
+        let mut f = File::open(input_path)?;
+        let mut buf = String::new();
+        f.read_to_string(&mut buf).unwrap();
+        let shots = match args.shots {
+            Some(v) => v,
+            _ => 100
+        };
+        qcis::sim(buf, shots);
+        return Ok(());
+    }
+
     let device: Box<dyn QDevice<Qubit=usize>> = {
         if args.naive{
             Box::new(CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new())))
@@ -73,7 +93,7 @@ fn main() -> std::io::Result<()> {
                 Box::new(CheckedDevice::new(SQ2U3Device::new(QSimKernelSimulator::new(cap))))
             }
             
-        }else if args.qcis{
+        }else if args.qcisgen{
             #[cfg(not(feature = "qcis"))]
             panic!("Simulator is built with `qcis` feature disabled.");
             #[cfg(feature = "qcis")]
@@ -120,5 +140,6 @@ fn main() -> std::io::Result<()> {
     let ctx = ctx_.borrow_mut();
     let res = ctx.get_classical_resource_manager();
     res.leak_check();
+
     return Ok(());
 }
