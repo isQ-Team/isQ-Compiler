@@ -300,6 +300,11 @@ definedRefType x = Type () Ref [x]
 
 
 typeCheckAST' :: (AST Pos->TypeCheck (AST TypeCheckData))->AST Pos->TypeCheck (AST TypeCheckData)
+typeCheckAST' f (NBlock pos lis) = do
+    scope
+    lis' <- mapM f lis
+    unscope
+    return $ NBlock (okStmt pos) lis'
 typeCheckAST' f (NIf pos cond bthen belse) = do
     cond'<-typeCheckExpr cond
     cond''<-matchType [Exact (boolType ())] cond'
@@ -318,6 +323,7 @@ typeCheckAST' f (NFor pos v r b) = do
     b'<-mapM f b
     unscope
     return $  NResolvedFor (okStmt pos) v' r'' b'
+typeCheckAST' f (NEmpty pos) = return $ NEmpty (okStmt pos)
 typeCheckAST' f (NPass pos) = return $ NPass (okStmt pos)
 typeCheckAST' f (NBp pos) = do
     temp_ssa<-nextId

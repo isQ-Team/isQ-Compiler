@@ -1,0 +1,9 @@
+procedure main()
+{
+    int i = 1;
+    if (i >= 0)
+        i = i + 2;
+    if (false)
+        i = 30;
+    print i;
+}

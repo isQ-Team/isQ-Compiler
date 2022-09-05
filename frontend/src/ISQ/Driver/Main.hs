@@ -15,7 +15,7 @@ import System.FilePath (joinPath)
 import System.IO (hPutStrLn, stderr, stdout)
 import Control.Monad.Cont.Class
 import Control.Monad.Cont
-import Control.Monad.Except 
+import Control.Monad.Except
 import Data.Aeson
 import ISQ.Driver.Jsonify
 import qualified Data.List

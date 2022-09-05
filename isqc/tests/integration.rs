@@ -25,10 +25,11 @@ pub const LINE_ENDING: &'static str = "\n";
 #[test_case("classic_comment", "10")]
 #[test_case("classic_divide0", "inf")]
 #[test_case("classic_double", &("4".to_string()+LINE_ENDING+"6.283185"))]
-#[test_case("classic_if", "2")]
+#[test_case("classic_empty_statement", "0")]
 #[test_case("classic_local", &("789".to_string()+LINE_ENDING+"123"+LINE_ENDING+"456"))]
 #[test_case("classic_neg", "-114514")]
 #[test_case("classic_nested_comment", "114514")]
+#[test_case("classic_nested_region", "2")]
 #[test_case("classic_recursion", "3628800")]
 #[test_case("derive", "1")]
 #[test_case("extreme_long_code", "8820")]
@@ -41,6 +42,23 @@ pub const LINE_ENDING: &'static str = "\n";
 #[test_case("matrix_decimal", "0")]
 #[test_case("measure_twice", "0")]
 #[test_case("reset_twice", "0")]
+#[test_case("scf_block", "0")]
+#[test_case("scf_break", "2")]
+#[test_case("scf_break_for", "2")]
+#[test_case("scf_continue", "4")]
+#[test_case("scf_continue_for", "7")]
+#[test_case("scf_else_if", "2")]
+#[test_case("scf_empty_block", "0")]
+#[test_case("scf_for", "10")]
+#[test_case("scf_for_if", "4")]
+#[test_case("scf_for_step", "4")]
+#[test_case("scf_if", "2")]
+#[test_case("scf_if_break", "2")]
+#[test_case("scf_if_break_block", "2")]
+#[test_case("scf_if_break_for", "2")]
+#[test_case("scf_if_no_else", "3")]
+#[test_case("scf_while", "6")]
+#[test_case("scf_while_no_brace", "16")]
 #[test_case("teleport_diff_line", "0")]
 #[test_case("teleport_one_line", "0")]
 fn tests_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -49,6 +67,7 @@ fn tests_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
 }
 
 #[test_case("bell", "0")]
+#[test_case("bernstein", &("1".to_string()+LINE_ENDING+"1"+LINE_ENDING+"0"))]
 #[test_case("ipe", "867893")]
 #[test_case("preserve_gphase", &("1".to_string()+LINE_ENDING+"0"))]
 #[test_case("teleport", "1")]
@@ -72,21 +91,23 @@ fn fixed_output(path: PathBuf, res: &str) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-#[test_case("unknown_token", "Syntax Error: tokenizing failed")]
+#[test_case("empty_gate", "Syntax Error: unexpected token")]
 #[test_case("keyword_as_identifier", "Syntax Error: unexpected token")]
+#[test_case("mat_not_square", "bad matrix shape")]
+#[test_case("mat_not_2_pow", "Syntax Error: unexpected token")]
+#[test_case("not_utf8", "invalid byte sequence")]
+#[test_case("other_lang", "Syntax Error: tokenizing failed")]
 #[test_case("repeated_names", "isqv2::frontend::redefined_symbol")]
+#[test_case("type_mismatch", "Type mismatch")]
+#[test_case("undefined_symbol", "Undefined symbol")]
+#[test_case("unknown_token", "Syntax Error: tokenizing failed")]
+#[test_case("wrong_brackets", "Syntax Error: unexpected token")]
+#[test_case("wrong_break", "Unexpected statement outside a loop")]
+#[test_case("wrong_continue", "Unexpected statement outside a loop")]
 #[test_case("wrong_for", "Syntax Error: unexpected token")]
 #[test_case("wrong_ctrl_size", "Argument number mismatch")]
 #[test_case("wrong_inv", "Syntax Error: unexpected token")]
 #[test_case("wrong_size", "Argument number mismatch")]
-#[test_case("other_lang", "Syntax Error: tokenizing failed")]
-#[test_case("not_utf8", "invalid byte sequence")]
-#[test_case("empty_gate", "Syntax Error: unexpected token")]
-#[test_case("wrong_brackets", "Syntax Error: unexpected token")]
-#[test_case("type_mismatch", "Type mismatch")]
-#[test_case("undefined_symbol", "Undefined symbol")]
-#[test_case("mat_not_square", "bad matrix shape")]
-#[test_case("mat_not_2_pow", "Syntax Error: unexpected token")]
 fn syntax_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Error>> {
     let file_name = "syntax_".to_string() + name + ".isq";
     let path = Path::new("isqc").join("tests").join("input").join(file_name);
@@ -105,6 +126,7 @@ fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
+#[test_case("grover")]
 #[test_case("qubit")]
 #[test_case("random")]
 #[test_case("repeat_until_success")]

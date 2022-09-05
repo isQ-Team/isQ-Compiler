@@ -56,8 +56,10 @@ instance Annotated Type where
 data DerivingType = DeriveGate | DeriveOracle Int deriving (Eq, Show)
 
 data AST ann = 
-       NIf { annotationAST :: ann, condition :: Expr ann, thenBlock :: [AST ann], elseBlock :: [AST ann]}
+       NBlock { annotationAST :: ann, statementList :: ASTBlock ann}
+     | NIf { annotationAST :: ann, condition :: Expr ann, ifStat :: ASTBlock ann, elseStat :: ASTBlock ann}
      | NFor { annotationAST :: ann, forVar :: Ident, forRange :: Expr ann, body :: ASTBlock ann}
+     | NEmpty { annotationAST :: ann }
      | NPass { annotationAST :: ann }
      | NBp { annotationAST :: ann }
      | NWhile { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann}
@@ -107,6 +109,7 @@ data AST ann =
      | NResolvedDefvar { annotationAST :: ann, resolvedDefinitions :: [(Type (), Int, Maybe (Expr ann))]}
      | NGlobalDefvar {annotationAST :: ann, globalDefinitions :: [(Type (), Int, String, Maybe (Expr ann))]}
      | NOracle { annotationAST :: ann, oracleName :: String, oracleN :: Int, oracleM :: Int, oracleMap :: [Expr ann] }
+     | NOracleFunc { annotationAST :: ann, gateName :: String, oracleN :: Int, oracleM :: Int, inVar :: String, procBody :: [AST ann] }
      deriving (Eq, Show, Functor)
 
 data GateModifier = Inv | Ctrl Bool Int deriving (Show, Eq)
