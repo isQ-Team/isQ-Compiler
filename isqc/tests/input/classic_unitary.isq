@@ -1,0 +1,6 @@
+procedure main() {
+    int x = 2;
+    print +x;
+    print -114514;
+    print !false;
+}

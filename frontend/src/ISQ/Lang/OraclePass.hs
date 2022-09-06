@@ -5,6 +5,7 @@ import Control.Monad.Except
 import Control.Monad.Extra (concatMapM)
 import Control.Monad (void)
 import Control.Monad.State.Lazy (evalState, get, put, State)
+import Data.Bits
 import Data.Complex
 import Data.List (null)
 --import Data.Either.Combinators (mapRight)
@@ -67,17 +68,25 @@ type OracleEvaluate = ExceptT OracleError (State [Map.Map String Obj])
 
 getInt :: Pos -> Obj -> OracleEvaluate Int
 getInt _ (OInt val) = return $ val
+getInt _ (OBool True) = return $ 1
+getInt _ (OBool False) = return $ 0
 getInt ann _ = throwError $ UnmatchedType ann
 
 getBool :: Pos -> Obj -> OracleEvaluate Bool
 getBool _ (OBool val) = return $ val
 getBool ann _ = throwError $ UnmatchedType ann
 
-binaryOperation :: Pos -> (Int -> Int -> Int) -> Obj -> Obj -> OracleEvaluate Obj
-binaryOperation ann op lobj robj = do
+binaryIntOperation :: Pos -> (Int -> Int -> Int) -> Obj -> Obj -> OracleEvaluate Obj
+binaryIntOperation ann op lobj robj = do
     lint <- getInt ann lobj
     rint <- getInt ann robj
     return $ OInt $ op lint rint
+
+binaryBoolOperation :: Pos -> (Bool -> Bool -> Bool) -> Obj -> Obj -> OracleEvaluate Obj
+binaryBoolOperation ann op lobj robj = do
+    lint <- getBool ann lobj
+    rint <- getBool ann robj
+    return $ OBool $ op lint rint
 
 binaryComparison :: Pos -> (Int -> Int -> Bool) -> Obj -> Obj -> OracleEvaluate Obj
 binaryComparison ann op lobj robj = do
@@ -107,12 +116,17 @@ evaluateExpression (EBinary ann op lexpr rexpr) = do
     lobj <- evaluateExpression(lexpr)
     robj <- evaluateExpression(rexpr)
     case op of
-        Add -> binaryOperation ann (+) lobj robj
-        Sub -> binaryOperation ann (-) lobj robj
-        Mul -> binaryOperation ann (*) lobj robj
-        Div -> binaryOperation ann div lobj robj
-        Mod -> binaryOperation ann mod lobj robj
-        Pow -> binaryOperation ann (^) lobj robj
+        Add -> binaryIntOperation ann (+) lobj robj
+        Sub -> binaryIntOperation ann (-) lobj robj
+        Mul -> binaryIntOperation ann (*) lobj robj
+        Div -> binaryIntOperation ann div lobj robj
+        Mod -> binaryIntOperation ann mod lobj robj
+        Pow -> binaryIntOperation ann (^) lobj robj
+        And -> binaryBoolOperation ann (&&) lobj robj
+        Or -> binaryBoolOperation ann (||) lobj robj
+        Andi -> binaryIntOperation ann (.&.) lobj robj
+        Ori -> binaryIntOperation ann (.|.) lobj robj
+        Xori -> binaryIntOperation ann xor lobj robj
         Cmp Equal -> do
             unless (isInt lobj && isInt robj || isBool lobj && isBool robj)
                 (throwError $ UnmatchedType ann)
@@ -133,14 +147,15 @@ evaluateExpression (EBinary ann op lexpr rexpr) = do
         Cmp Less -> binaryComparison ann (<) lobj robj
         Cmp GreaterEq -> binaryComparison ann (>=) lobj robj
         Cmp LessEq -> binaryComparison ann (<=) lobj robj
+        Shl -> binaryIntOperation ann shiftL lobj robj
+        Shr -> binaryIntOperation ann shiftR lobj robj
 
 evaluateExpression (EUnary ann op expr) = do
     obj <- evaluateExpression(expr)
     case op of
         Positive -> return obj
-        Neg -> do
-            val <- getInt ann obj
-            return $ OInt (-val)
+        Neg -> getInt ann obj >>= (\x -> return $ OInt $ 0 - x)
+        Not -> getBool ann obj >>= (\x -> return $ OBool $ x == False)
 
 evaluateExpression exp = throwError $ IllegalExpression $ annotationExpr exp
 
@@ -276,6 +291,8 @@ evaluateFunc body pos var val = do
     obj <- evalState (runExceptT $ evaluateStatements $ [defVar] ++ body) [Map.empty]
     case obj of
         OInt val -> Right val
+        OBool True -> Right 1
+        OBool False -> Right 0
         OUnit -> Left $ NoReturnValue pos val
         _ -> Left $ UnmatchedType pos
 

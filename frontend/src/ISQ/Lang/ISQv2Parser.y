@@ -61,7 +61,16 @@ import Control.Exception (throw, Exception)
     '>=' { TokenReservedOp $$ ">=" }
     '!=' { TokenReservedOp $$ "!=" }
     '&&' { TokenReservedOp $$ "&&" }
+    and { TokenReservedOp $$ "and" }
     '||' { TokenReservedOp $$ "||" }
+    or { TokenReservedOp $$ "or" }
+    '!' { TokenReservedOp $$ "!" }
+    not { TokenReservedOp $$ "not" }
+    '&' { TokenReservedOp $$ "&" }
+    '|' { TokenReservedOp $$ "|" }
+    '^' { TokenReservedOp $$ "^" }
+    '<<' { TokenReservedOp $$ "<<" }
+    '>>' { TokenReservedOp $$ ">>" }
     ',' { TokenReservedOp $$ "," }
     ';' { TokenReservedOp $$ ";" }
     '(' { TokenReservedOp $$ "(" }
@@ -82,13 +91,18 @@ import Control.Exception (throw, Exception)
     STRING { TokenStringLit _ _}
 
 %left ':' -- Level 13
+%left '||' and -- Level 12
+%left '&&' or -- Level 11
+%left '|' -- Level 10
+%left '^' -- Level 9
+%left '&' -- Level 8
 %left '==' '!=' -- Level 7
 %nonassoc '>' '<' '>=' '<=' -- Level 6
-%left '%' -- Level 5
+%left '>>' '<<' -- Level 5
 %left '+' '-' -- Level 4
-%left '*' '/' -- Level 3
+%left '*' '/' '%' -- Level 3
 %left '**'  -- Level 2
-%right NEG POS -- Level 2
+%right NEG POS '!' not -- Level 2
 %left SUBSCRIPT CALL '[' '(' -- Level 1
 %left ':'
 
@@ -147,14 +161,25 @@ Expr1 : Expr1Left { $1 }
      |  Expr1 '/' Expr1 { EBinary $2 Div $1 $3 }
      |  Expr1 '%' Expr1 { EBinary $2 Mod $1 $3 }
      |  Expr1 '**' Expr1 { EBinary $2 Pow $1 $3 }
+     |  Expr1 '&&' Expr1 { EBinary $2 And $1 $3 }
+     |  Expr1 and Expr1 { EBinary $2 And $1 $3 }
+     |  Expr1 '||' Expr1 { EBinary $2 Or $1 $3 }
+     |  Expr1 or Expr1 { EBinary $2 Or $1 $3 }
+     |  Expr1 '&' Expr1 { EBinary $2 Andi $1 $3 }
+     |  Expr1 '|' Expr1 { EBinary $2 Ori $1 $3 }
+     |  Expr1 '^' Expr1 { EBinary $2 Xori $1 $3 }
      |  Expr1 '==' Expr1 { EBinary $2 (Cmp Equal) $1 $3 }
      |  Expr1 '!=' Expr1 { EBinary $2 (Cmp NEqual) $1 $3 }
      |  Expr1 '>' Expr1 { EBinary $2 (Cmp Greater) $1 $3 }
      |  Expr1 '<' Expr1 { EBinary $2 (Cmp Less) $1 $3 }
      |  Expr1 '>=' Expr1 { EBinary $2 (Cmp GreaterEq) $1 $3 }
      |  Expr1 '<=' Expr1 { EBinary $2 (Cmp LessEq) $1 $3 }
+     |  Expr1 '<<' Expr1 { EBinary $2 Shl $1 $3 }
+     |  Expr1 '>>' Expr1 { EBinary $2 Shr $1 $3 }
      | '-' Expr1 %prec NEG { EUnary $1 Neg $2 }
      | '+' Expr1 %prec POS { EUnary $1 Positive $2 }
+     | '!' Expr1 { EUnary $1 Not $2 }
+     | not Expr1 { EUnary $1 Not $2 }
      | NATURAL{ EIntLit (annotation $1) (tokenNaturalV $1) }
      | FLOAT { EFloatingLit (annotation $1) (tokenFloatV $1) }
      | pi { EFloatingLit $1 3.14159265358979323846264338327950288 }

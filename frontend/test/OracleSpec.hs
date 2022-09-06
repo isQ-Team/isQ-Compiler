@@ -6,8 +6,6 @@ import ISQ.Lang.OraclePass
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.Map.Lazy as Map
-import System.Directory (canonicalizePath)
-import System.FilePath
 import Test.Hspec
 
 oracleTestTemplate :: String -> Int -> IO (Either OracleError Int)
@@ -43,6 +41,10 @@ oracleSpec = do
         let str = "oracle o(1, 1) : x { return 1;}"
         evaluateExpect str 1 1
 
+    it "evaluates correctly with bool-to-int conversion" $ do
+        let str = "oracle o(1, 1) : x { return true;}"
+        evaluateExpect str 1 1
+
     it "evaluates correctly with returning a variable" $ do
         let str = "oracle o(1, 1) : x { return x;}"
         evaluateExpect str 1 1
@@ -71,9 +73,53 @@ oracleSpec = do
         let str = "oracle o(2, 3) : x { return x ** 2;}"
         evaluateExpect str 2 4
 
+    it "evaluates correctly with &&" $ do
+        let str = "oracle o(1, 1) : x { return true && false;}"
+        evaluateExpect str 1 0
+
+    it "evaluates correctly with and" $ do
+        let str = "oracle o(1, 1) : x { return true and true;}"
+        evaluateExpect str 1 1
+
+    it "evaluates correctly with ||" $ do
+        let str = "oracle o(1, 1) : x { return true || false;}"
+        evaluateExpect str 1 1
+
+    it "evaluates correctly with or" $ do
+        let str = "oracle o(1, 1) : x { return false or false;}"
+        evaluateExpect str 1 0
+
+    it "evaluates correctly with andi" $ do
+        let str = "oracle o(4, 4) : x { return x & 12;}"
+        evaluateExpect str 9 8
+
+    it "evaluates correctly with ori" $ do
+        let str = "oracle o(4, 4) : x { return x | 12;}"
+        evaluateExpect str 9 13
+
+    it "evaluates correctly with xori" $ do
+        let str = "oracle o(4, 4) : x { return x ^ 12;}"
+        evaluateExpect str 9 5
+
+    it "evaluates correctly with <<" $ do
+        let str = "oracle o(4, 4) : x { return (x << 2) & 15;}"
+        evaluateExpect str 9 4
+
+    it "evaluates correctly with >>" $ do
+        let str = "oracle o(4, 4) : x { return x >> 2;}"
+        evaluateExpect str 9 2
+
     it "evaluates correctly with neg" $ do
         let str = "oracle o(2, 1) : x { return x + -1;}"
         evaluateExpect str 2 1
+
+    it "evaluates correctly with !" $ do
+        let str = "oracle o(1, 1) : x { return !false;}"
+        evaluateExpect str 1 1
+
+    it "evaluates correctly with not" $ do
+        let str = "oracle o(1, 1) : x { return not true;}"
+        evaluateExpect str 1 0
 
     it "evaluates correctly with assigned variables" $ do
         let str = "oracle o(2, 2) : x { x = 3; return x;}"
@@ -220,20 +266,12 @@ oracleSpec = do
         let str = "oracle o(1, 1) : x { y = 3; }"
         illegalEvaluate str 0 "UndefinedSymbol"
 
-    it "returns an error when adding booleans" $ do
-        let str = "oracle o(1, 1) : x { return 1 + true; }"
+    it "returns an error when anding an integer" $ do
+        let str = "oracle o(1, 1) : x { return 1 && true; }"
         illegalEvaluate str 0 "UnmatchedType"
 
     it "returns an error when using int as condition" $ do
         let str = "oracle o(1, 1) : x { if (2) ; }"
-        illegalEvaluate str 0 "UnmatchedType"
-
-    it "returns an error when comparing int with bool" $ do
-        let str = "oracle o(1, 1) : x { return 1 == true; }"
-        illegalEvaluate str 0 "UnmatchedType"
-
-    it "returns an error when returning a boolean" $ do
-        let str = "oracle o(1, 1) : x { return true; }"
         illegalEvaluate str 0 "UnmatchedType"
 
     it "returns an error when defining a qbit" $ do
