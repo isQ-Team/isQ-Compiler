@@ -55,6 +55,11 @@ mlirMuli = mlirBinaryOp ("muli", Index, Index, Index)
 mlirDivsi = mlirBinaryOp ("divsi", Index, Index, Index)
 mlirRemsi = mlirBinaryOp ("remsi", Index, Index, Index)
 mlirFloorDivsi = mlirBinaryOp ("floordivsi", Index, Index, Index) -- Use this by default
+mlirAnd = mlirBinaryOp ("andi", Bool, Bool, Bool)
+mlirOr = mlirBinaryOp ("ori", Bool, Bool, Bool)
+mlirAndi = mlirBinaryOp ("andi", Index, Index, Index)
+mlirOri = mlirBinaryOp ("ori", Index, Index, Index)
+mlirXori = mlirBinaryOp ("xori", Index, Index, Index)
 mlirAddf = mlirBinaryOp ("addf", Double, Double, Double)
 mlirSubf = mlirBinaryOp ("subf", Double, Double, Double)
 mlirMulf = mlirBinaryOp ("mulf", Double, Double, Double)
@@ -74,6 +79,8 @@ mlirEqF = mlirBinaryOp ("cmpf \"eq\",", Index, Index, Bool)
 mlirNeF = mlirBinaryOp ("cmpf \"ne\",", Index, Index, Bool)
 mlirEqB = mlirBinaryOp ("cmpi \"eq\",", Bool, Bool, Bool)
 mlirNeB = mlirBinaryOp ("cmpi \"ne\",", Bool, Bool, Bool)
+mlirShl = mlirBinaryOp ("shli", Index, Index, Index)
+mlirShr = mlirBinaryOp ("shrui", Index, Index, Index)
 
 data MLIRUnaryOp = MLIRUnaryOp {unaryOpType :: String, argType :: MLIRType, unaryResultType :: MLIRType} deriving Show
 

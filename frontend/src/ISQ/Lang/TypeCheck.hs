@@ -170,6 +170,14 @@ matchType wanted e = do
         Just x->return x
         Nothing -> throwError $ TypeMismatch (sourcePos $ annotation e) wanted (astType e)
 
+exactBinaryCheck :: (Expr Pos->TypeCheck (Expr TypeCheckData)) -> EType -> Pos -> BinaryOperator -> LExpr -> LExpr -> TypeCheck (Expr TypeCheckData)
+exactBinaryCheck f etype pos op lhs rhs = do
+    ref_lhs <- f lhs
+    ref_rhs <- f rhs
+    lhs' <- matchType (map Exact [etype]) ref_lhs
+    rhs' <- matchType (map Exact [etype]) ref_rhs
+    ssa <- nextId
+    return $ EBinary (TypeCheckData pos etype ssa) op lhs' rhs'
 
 -- By now we only support bottom-up type checking.
 -- All leaf nodes have their own type, and intermediate types are calculated.
@@ -180,7 +188,11 @@ typeCheckExpr' f (EIdent pos ident) = do
     case isGlobal sym of
         True ->return $ EGlobalName (TypeCheckData pos (definedType sym) ssa) (qualifiedName sym)
         False -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) (definedSSA sym)
-    
+
+typeCheckExpr' f (EBinary pos And lhs rhs) = exactBinaryCheck f (boolType ()) pos And lhs rhs
+typeCheckExpr' f (EBinary pos Or lhs rhs) = exactBinaryCheck f (boolType ()) pos Or lhs rhs
+typeCheckExpr' f (EBinary pos Shl lhs rhs) = exactBinaryCheck f (intType ()) pos Shl lhs rhs
+typeCheckExpr' f (EBinary pos Shr lhs rhs) = exactBinaryCheck f (intType ()) pos Shr lhs rhs
 typeCheckExpr' f (EBinary pos Pow lhs rhs) = do
     ref_lhs<-f lhs
     ref_rhs<-f rhs
@@ -214,6 +226,12 @@ typeCheckExpr' f (EBinary pos op lhs rhs) = do
         Mod -> if (return_type /= intType ()) then throwError $ TypeMismatch pos [Exact (intType ())] return_type else return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
         _ -> return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
 
+typeCheckExpr' f (EUnary pos Not lhs) = do
+    lhs'<-f lhs
+    matched_lhs <- matchType (map Exact [boolType ()]) lhs'
+    ssa<-nextId
+    let return_type = boolType ()
+    return $ EUnary (TypeCheckData pos return_type ssa) Not matched_lhs
 typeCheckExpr' f (EUnary pos op lhs) = do
     lhs'<-f lhs
     matched_lhs <- matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
