@@ -6,7 +6,7 @@ procedure main()
     s = 3;
     while(s > 0)
     {
-        s =  s - 1;
+        s = s - 1;
         H<q2>;
         m = M<s>;
     }

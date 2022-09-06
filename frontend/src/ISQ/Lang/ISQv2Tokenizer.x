@@ -23,8 +23,8 @@ $idrestchar   = [$alpha $digit \_]
 @reservedid = 
 	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|bp|return|package|import|
     ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue|double|as|extern|gate|deriving|oracle|pi
-@reservedop = "|0>"|"=="|"="|"+"|"-"|"*"|"/"|"<"|">"|"<="|">="|"!="|"&&"|"||"|"!"|"%"|
-              ","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"|"**"
+@reservedop = "|0>"|"=="|"="|"+"|"-"|"*"|"/"|"<"|">"|"<="|">="|"!="|and|"&&"|or|"||"|not|"!"|"%"|"&"|"|"|"^"
+              |">>"|"<<"|","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"|"**"
 
 tokens :-
     <0> $white+ {skip}
@@ -35,9 +35,6 @@ tokens :-
     <stringSC> \" {endString}
     <stringSC> . {appendString}
     <stringSC> \\[\nt\"] {escapeString}
-    --<0> "--" {beginPosFile}
-    --<posfileSc> "--" {endPosFile}
-    --<posfileSc> . {appendPosFile}
     <0> "//".* {skip}
     <0> @reservedid {tokenReservedId}
     <0> @reservedop {tokenReservedOp}
@@ -97,26 +94,6 @@ endComment _ _ = do
   updateCommentStatus
   return Nothing
 
-{-beginPosFile (pos, _, _, _) _ = do
-  s<-get
-  put s{stringBuffer = "", posfilePos = position pos, startRow = 1}
-  alexSetStartCode posfileSc
-  return Nothing
-appendPosFile (_, _, _, c:_) _ = do
-  s<-get
-  put s{stringBuffer = c:(stringBuffer s)}
-  return Nothing
-endPosFile _ _ = do
-  s<-get
-  let buf = reverse $ stringBuffer s
-  let Pos r c _ = posfilePos s
-  let row_file = splitOn " " buf
-  let row = read (row_file !! 0)
-  let file = row_file !! 1
-  put s{stringBuffer="", posfilePos = Pos r c file, startRow = row}
-  alexSetStartCode 0
-  return Nothing-}
-  
 beginString (pos, _, _, _) _ = do
   s<-get
   put s{stringBuffer = "", stringPos = position pos}

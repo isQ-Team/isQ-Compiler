@@ -100,12 +100,17 @@ astMType x = mapType $ termType $ annotation x
 mType :: TypeCheckData->MLIRType
 mType x = mapType $ termType $ x
 
-binopTranslate :: BinaryOperator->MLIRType->MLIRBinaryOp
+binopTranslate :: BinaryOperator -> MLIRType -> MLIRBinaryOp
 binopTranslate Add Index = mlirAddi
 binopTranslate Sub Index = mlirSubi
 binopTranslate Mul Index = mlirMuli
-binopTranslate Mod Index = mlirRemsi
 binopTranslate Div Index = mlirFloorDivsi
+binopTranslate Mod Index = mlirRemsi
+binopTranslate And M.Bool = mlirAnd
+binopTranslate Or M.Bool = mlirOr
+binopTranslate Andi Index = mlirAndi
+binopTranslate Ori Index = mlirOri
+binopTranslate Xori Index = mlirXori
 binopTranslate Pow M.Double = mlirPowf 
 binopTranslate Add M.Double = mlirAddf
 binopTranslate Sub M.Double = mlirSubf
@@ -125,6 +130,8 @@ binopTranslate (Cmp Equal) M.Double = mlirEqF
 binopTranslate (Cmp NEqual) M.Double = mlirNeF
 binopTranslate (Cmp Equal) M.Bool = mlirEqB
 binopTranslate (Cmp NEqual) M.Bool = mlirNeB
+binopTranslate Shl Index = mlirShl
+binopTranslate Shr Index = mlirShr
 binopTranslate _ _ = undefined
 
 unaryopTranslate Neg M.Double = mlirNegF
@@ -143,11 +150,11 @@ emitExpr' f x@(EBinary ann binop lhs rhs) = do
     return i
 emitExpr' f (EUnary ann uop lhs) = do
     lhs'<-f lhs
+    pos<-mpos ann
+    let lhsTy = astMType lhs
     case uop of
         Positive -> return lhs' -- Positive x is x
         Neg -> do
-            pos<-mpos ann
-            let lhsTy = astMType lhs
             case lhsTy of
                 Index -> do
                     let i = ssa ann
@@ -160,6 +167,12 @@ emitExpr' f (EUnary ann uop lhs) = do
                     pushOp $ MUnary pos i lhs' (unaryopTranslate uop lhsTy)
                     return i
                 _->error "bad neg type"
+        Not -> do
+            let i = ssa ann
+            let zero = SSA (unSsa i ++ "_false")
+            pushOp $ MLitBool pos zero False
+            pushOp $ MBinary pos i zero lhs' (binopTranslate (Cmp Equal) lhsTy)
+            return i
 emitExpr' f (ESubscript ann base offset) = do
     base'<-f base
     offset'<-f offset
@@ -405,6 +418,7 @@ emitStatement' f (NDerivedOracle ann name source extraparams sz ) = do
     pushOp $ MQDefGate pos (fromFuncName name) sz extra_param_types [OracleRep $ fromFuncName source]
 emitStatement' f NGlobalDefvar{} = error "not top"
 emitStatement' f NOracle {} = error "not top"
+emitStatement' f other = error "unexpected statement to emit"
 --emitStatement' f (NJumpToEndOnFlag)=
 emitStatement :: AST TypeCheckData -> State RegionBuilder ()
 emitStatement = fix emitStatement'
