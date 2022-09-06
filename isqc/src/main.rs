@@ -92,7 +92,9 @@ pub enum Commands{
         exec_command: Vec<String>
     },
     Run{
-        input: String
+        input: String,
+        #[clap(long)]
+        shots: Option<i64>
     }
 }
 
@@ -138,13 +140,19 @@ fn main()->miette::Result<()> {
     let root = std::env::var("ISQV2_ROOT").map_err(|_| NoISQv2RootError)?;
     
     match cli.command{
-        Commands::Run{input}=>{
+        Commands::Run{input, shots}=>{
             let (input_path, default_output_path) = resolve_input_path(&input, "so")?;
             exec::system_exec_command(&root, "isqc", 
             &[OsStr::new("compile"), input_path.as_os_str(), OsStr::new("-o"), default_output_path.as_os_str()]
             ).map_err(ioErrorWhen("Calling isqc compile"))?;
+            
+            let shots_num = match shots{
+                Some(x) => format!("{}", x),
+                _ => "1".into()
+            };
+
             exec::system_exec_command(&root, "isqc", 
-            &[OsStr::new("simulate"), default_output_path.as_os_str()]
+            &[OsStr::new("simulate"), OsStr::new("--shots"), OsStr::new(shots_num.as_str()), default_output_path.as_os_str()]
             ).map_err(ioErrorWhen("Calling isqc simulate"))?;
         }
         Commands::Compile{input, output, opt_level, emit, target, qcis_config, inc_path, int_par, double_par}=>'command:{
@@ -302,12 +310,11 @@ fn main()->miette::Result<()> {
                     v.push("--naive".into());
                 }
             }
-
             if let Some(x)=shots{
                 v.push("--shots".into());
                 v.push(format!("{}", x));
             }
-
+            
             v.push(qir_object);
 
             // get parameters

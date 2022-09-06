@@ -68,55 +68,20 @@ fn main() -> std::io::Result<()> {
 
     let args: SimulatorArgs = SimulatorArgs::parse();
 
+    let shots = match args.shots {
+        Some(v) => v,
+        _ => 1
+    };
+
     if args.qcis{
         let input_path = Path::new(&args.qir_shared_library);
         let mut f = File::open(input_path)?;
         let mut buf = String::new();
         f.read_to_string(&mut buf).unwrap();
-        let shots = match args.shots {
-            Some(v) => v,
-            _ => 100
-        };
         qcis::sim(buf, shots);
         return Ok(());
     }
 
-    let device: Box<dyn QDevice<Qubit=usize>> = {
-        if args.naive{
-            Box::new(CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new())))
-        }else if let Some(cap) = args.cuda{
-            #[cfg(not(feature = "cuda"))]
-            panic!("Simulator is built with `cuda` feature disabled.");
-            #[cfg(feature = "cuda")]
-            {
-                use isq_simulator::devices::cuda::QSimKernelSimulator;
-                Box::new(CheckedDevice::new(SQ2U3Device::new(QSimKernelSimulator::new(cap))))
-            }
-            
-        }else if args.qcisgen{
-            #[cfg(not(feature = "qcis"))]
-            panic!("Simulator is built with `qcis` feature disabled.");
-            #[cfg(feature = "qcis")]
-            {
-                use isq_simulator::devices::qcisgen::QCISCodegen;
-                Box::new(CheckedDevice::new(QCISCodegen::new()))
-            }
-            
-        }else if args.noop{
-            Box::new(CheckedDevice::new(SQ2U3Device::new(NoopDevice::new())))
-        }else {
-            unreachable!();
-        }
-    };
-    // initialize context.
-    let context = QIRContext::new(
-        device,
-        Box::new(|s| {
-            println!("{}", s);
-        }),
-    );
-    make_context_current(Rc::new(RefCell::new(context)));
-    
     let par_int = match args.int_par {
         Some(x) => x,
         None => vec![]
@@ -128,18 +93,57 @@ fn main() -> std::io::Result<()> {
     };
     let par_double_ptr = par_double.as_ptr();
 
-    let library = unsafe { Library::new(args.qir_shared_library) }.unwrap();
-    unsafe {
-        let proc = library
-            .get::<SimulatorEntry>(args.entrypoint.as_bytes())
-            .unwrap();
-        (proc)(par_int_ptr, par_int_ptr, 0, 0, 0, par_double_ptr, par_double_ptr, 0, 0, 0);
-    }
+    for i in 0..shots{
+        println!("{}th simulation res:", i);
+        let device: Box<dyn QDevice<Qubit=usize>> = {
+            if args.naive{
+                Box::new(CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new())))
+            }else if let Some(cap) = args.cuda{
+                #[cfg(not(feature = "cuda"))]
+                panic!("Simulator is built with `cuda` feature disabled.");
+                #[cfg(feature = "cuda")]
+                {
+                    use isq_simulator::devices::cuda::QSimKernelSimulator;
+                    Box::new(CheckedDevice::new(SQ2U3Device::new(QSimKernelSimulator::new(cap))))
+                }
+                
+            }else if args.qcisgen{
+                #[cfg(not(feature = "qcis"))]
+                panic!("Simulator is built with `qcis` feature disabled.");
+                #[cfg(feature = "qcis")]
+                {
+                    use isq_simulator::devices::qcisgen::QCISCodegen;
+                    Box::new(CheckedDevice::new(QCISCodegen::new()))
+                }
+                
+            }else if args.noop{
+                Box::new(CheckedDevice::new(SQ2U3Device::new(NoopDevice::new())))
+            }else {
+                unreachable!();
+            }
+        };
+        // initialize context.
+        let context = QIRContext::new(
+            device,
+            Box::new(|s| {
+                println!("{}", s);
+            }),
+        );
+        make_context_current(Rc::new(RefCell::new(context)));
 
-    let ctx_ = get_current_context();
-    let ctx = ctx_.borrow_mut();
-    let res = ctx.get_classical_resource_manager();
-    res.leak_check();
+        let library = unsafe { Library::new(args.qir_shared_library.clone()) }.unwrap();
+        unsafe {
+            let proc = library
+                .get::<SimulatorEntry>(args.entrypoint.as_bytes())
+                .unwrap();
+            (proc)(par_int_ptr, par_int_ptr, 0, 0, 0, par_double_ptr, par_double_ptr, 0, 0, 0);
+        }
+
+        let ctx_ = get_current_context();
+        let ctx = ctx_.borrow_mut();
+        let res = ctx.get_classical_resource_manager();
+        res.leak_check();
+    }
 
     return Ok(());
 }
