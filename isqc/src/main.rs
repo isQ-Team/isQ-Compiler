@@ -68,11 +68,20 @@ pub enum Commands{
         #[clap(long, short, multiple_occurrences(true))]
         double_par: Option<Vec<f64>>
     },
+    #[clap(group(
+        ArgGroup::new("simulator_type")
+            .required(false)
+            .args(&["cuda", "qcis"]),
+    ))]
     Simulate{
         #[clap(required(true))]
         qir_object: String,
         #[clap(long)]
         cuda: Option<usize>,
+        #[clap(long)]
+        qcis: bool,
+        #[clap(long)]
+        shots: Option<i64>,
         #[clap(long, short, multiple_occurrences(true))]
         int_par: Option<Vec<i64>>,
         #[clap(long, short, multiple_occurrences(true))]
@@ -275,7 +284,7 @@ fn main()->miette::Result<()> {
             }
 
         }
-        Commands::Simulate{qir_object, cuda, int_par, double_par}=>{
+        Commands::Simulate{qir_object, cuda, qcis, shots, int_par, double_par}=>{
 
             let qir_object = if qir_object.starts_with("/"){
                 qir_object
@@ -287,8 +296,18 @@ fn main()->miette::Result<()> {
                 v.push("--cuda".into());
                 v.push(format!("{}", x));
             }else{
-                v.push("--naive".into());
+                if qcis{
+                    v.push("--qcis".into());
+                }else{
+                    v.push("--naive".into());
+                }
             }
+
+            if let Some(x)=shots{
+                v.push("--shots".into());
+                v.push(format!("{}", x));
+            }
+
             v.push(qir_object);
 
             // get parameters
