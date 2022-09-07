@@ -76,4 +76,5 @@ impl<T: MeasurementResultReader> QDevice for InteractiveSimulator<T> {
         info!("Measurement on qubit {} = {}", qubit, r);
         r
     }
+
 }

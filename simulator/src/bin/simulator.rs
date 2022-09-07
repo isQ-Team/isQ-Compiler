@@ -9,10 +9,12 @@ use libloading::*;
 use clap::{Parser, ArgEnum, PossibleValue};
 
 extern crate env_logger;
+use std::env::set_var;
+use log::debug;
 
 #[macro_use]
 extern crate std;
-use std::{io::{Read, Write}, path::{Path, PathBuf}, fs::File};
+use std::{io::{Read, Write}, path::{Path, PathBuf}, fs::File, collections::HashMap};
 use std::{cell::RefCell, ffi::OsString, rc::Rc};
 extern crate isq_simulator;
 
@@ -41,6 +43,8 @@ struct SimulatorArgs {
     qcis: bool,
     #[clap(long)]
     shots: Option<i64>,
+    #[clap(long)]
+    debug: bool,
     #[clap(long, short)]
     int_par: Option<Vec<i64>>,
     #[clap(long, short)]
@@ -63,10 +67,17 @@ fn main() -> std::io::Result<()> {
             record.args()
         )
     }).parse_default_env().init();*/
-
-    env_logger::init();
+    
 
     let args: SimulatorArgs = SimulatorArgs::parse();
+
+    if args.debug{
+        set_var("RUST_LOG", "simulator=debug, isq_simulator::facades::qir::shim=debug");
+    }
+
+    env_logger::builder().format(|buf, record| {
+        writeln!(buf, "{}: {}", record.level(), record.args())
+    }).init();
 
     let shots = match args.shots {
         Some(v) => v,
@@ -93,8 +104,9 @@ fn main() -> std::io::Result<()> {
     };
     let par_double_ptr = par_double.as_ptr();
 
+    let mut res_map: HashMap<String, i32> = HashMap::new();
     for i in 0..shots{
-        println!("{}th simulation res:", i);
+        debug!("{}th simulation print:", i);
         let device: Box<dyn QDevice<Qubit=usize>> = {
             if args.naive{
                 Box::new(CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new())))
@@ -129,6 +141,7 @@ fn main() -> std::io::Result<()> {
                 println!("{}", s);
             }),
         );
+        
         make_context_current(Rc::new(RefCell::new(context)));
 
         let library = unsafe { Library::new(args.qir_shared_library.clone()) }.unwrap();
@@ -138,12 +151,19 @@ fn main() -> std::io::Result<()> {
                 .unwrap();
             (proc)(par_int_ptr, par_int_ptr, 0, 0, 0, par_double_ptr, par_double_ptr, 0, 0, 0);
         }
-
+        
         let ctx_ = get_current_context();
-        let ctx = ctx_.borrow_mut();
+        let mut ctx = ctx_.borrow_mut();
+
+        let r = ctx.get_device_mut().get_measure_res();
+        let count = res_map.entry(r).or_insert(0);
+        *count += 1;
+        
         let res = ctx.get_classical_resource_manager();
         res.leak_check();
     }
+
+    println!("{:?}", res_map);
 
     return Ok(());
 }
