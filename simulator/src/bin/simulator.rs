@@ -76,7 +76,7 @@ fn main() -> std::io::Result<()> {
     }
 
     env_logger::builder().format(|buf, record| {
-        writeln!(buf, "{}: {}", record.level(), record.args())
+        writeln!(buf, "{}", record.args())
     }).init();
 
     let shots = match args.shots {
