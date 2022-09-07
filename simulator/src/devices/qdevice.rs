@@ -105,8 +105,6 @@ pub trait QDevice {
         self.qop(op_type, qubits, parameters)
     }
     fn measure(&mut self, qubit: &Self::Qubit) -> bool;
-    fn get_measure_res(&mut self) -> String{
-        "".into()
-    }
+    fn print_state(&self) {}
 }
 

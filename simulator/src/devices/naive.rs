@@ -343,8 +343,13 @@ impl QDevice for NaiveSimulator {
         result
     }
 
-    fn get_measure_res(&mut self) -> String {
-        return self.measure_res.clone();
+    fn print_state(&self) {
+        extern crate std;
+        use std::println;
+        println!("Qubit states:");
+        for (count, v) in self.state.iter().enumerate() {
+            println!("{}: {}", count, v);
+        }
     }
 }
 
