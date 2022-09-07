@@ -1,5 +1,5 @@
 // Useful quantum ops that can be supported.
-use alloc::vec::Vec;
+use alloc::{vec::Vec, string::String};
 use num_complex::Complex64;
 #[derive(Copy, Clone, Eq, PartialEq, Debug, PartialOrd, Ord)]
 pub enum QuantumOp {
@@ -105,5 +105,8 @@ pub trait QDevice {
         self.qop(op_type, qubits, parameters)
     }
     fn measure(&mut self, qubit: &Self::Qubit) -> bool;
+    fn get_measure_res(&mut self) -> String{
+        "".into()
+    }
 }
 

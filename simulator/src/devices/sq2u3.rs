@@ -155,4 +155,8 @@ impl<Q: Eq, T: QDevice<Qubit = Q>> QDevice for SQ2U3Device<Q, T>{
     fn measure(&mut self, qubit: &Self::Qubit) -> bool {
         self.0.measure(qubit)
     }
+
+    fn get_measure_res(&mut self) -> alloc::string::String {
+        self.0.get_measure_res()
+    }
 }
