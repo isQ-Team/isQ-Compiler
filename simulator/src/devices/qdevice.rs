@@ -108,5 +108,6 @@ pub trait QDevice {
     fn get_measure_res(&mut self) -> String{
         "".into()
     }
+    fn print_state(&self) {}
 }
 
