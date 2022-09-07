@@ -141,11 +141,12 @@ pub fn isq_qir_shim_qis_bp(x0: i64)->() {
     if ctx.contains_bp(x0) {
         return;
     }
-    let device = ctx.get_device_mut();
     extern crate std;
     use std::println;
     use std::string::String;
     println!("Reaching a break point");
+    let device = ctx.get_device();
+    device.print_state();
     let mut buffer = String::new();
     std::io::stdin().read_line(&mut buffer).ok().expect("Failed to read line");
     if buffer.trim() == "d" {

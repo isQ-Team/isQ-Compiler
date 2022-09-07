@@ -94,4 +94,5 @@ impl<Q, T: QDevice<Qubit = Q>> QDevice for CheckedDevice<Q, T> {
             .expect(&format!("Qubit #{} does not exist", x));
         self.device.measure(&real_qubit)
     }
+    fn print_state(&self) { self.device.print_state(); }
 }
