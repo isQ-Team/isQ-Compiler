@@ -8,6 +8,7 @@ use std::{fs::File, io::{Read, Write}, path::{Path, PathBuf}, ffi::OsStr};
 
 use clap::*;
 use error::*;
+use serde_json::de;
 use std::str::FromStr;
 use tempfile::tempfile;
 use crate::frontend::resolve_isqc1_output;
@@ -82,6 +83,8 @@ pub enum Commands{
         qcis: bool,
         #[clap(long)]
         shots: Option<i64>,
+        #[clap(long)]
+        debug: bool,
         #[clap(long, short, multiple_occurrences(true))]
         int_par: Option<Vec<i64>>,
         #[clap(long, short, multiple_occurrences(true))]
@@ -94,7 +97,9 @@ pub enum Commands{
     Run{
         input: String,
         #[clap(long)]
-        shots: Option<i64>
+        shots: Option<i64>,
+        #[clap(long)]
+        debug: bool
     }
 }
 
@@ -140,19 +145,28 @@ fn main()->miette::Result<()> {
     let root = std::env::var("ISQ_ROOT").map_err(|_| NoISQv2RootError)?;
     
     match cli.command{
-        Commands::Run{input, shots}=>{
+        Commands::Run{input, shots, debug}=>{
             let (input_path, default_output_path) = resolve_input_path(&input, "so")?;
             exec::system_exec_command(&root, "isqc", 
             &[OsStr::new("compile"), input_path.as_os_str(), OsStr::new("-o"), default_output_path.as_os_str()]
             ).map_err(ioErrorWhen("Calling isqc compile"))?;
             
-            let shots_num = match shots{
-                Some(x) => format!("{}", x),
-                _ => "1".into()
+            let mut v = vec![OsStr::new("simulate")];
+            
+            let mut shot_str = "".to_string();
+            if let Some(x) = shots{
+                v.push(OsStr::new("--shots"));
+                shot_str = format!("{}", x);
+                v.push(OsStr::new(shot_str.as_str()));
             };
+            
+            if debug{
+                v.push(OsStr::new("--debug"))
+            }
+            v.push(default_output_path.as_os_str());
 
             exec::system_exec_command(&root, "isqc", 
-            &[OsStr::new("simulate"), OsStr::new("--shots"), OsStr::new(shots_num.as_str()), default_output_path.as_os_str()]
+            &v
             ).map_err(ioErrorWhen("Calling isqc simulate"))?;
         }
         Commands::Compile{input, output, opt_level, emit, target, qcis_config, inc_path, int_par, double_par}=>'command:{
@@ -292,7 +306,7 @@ fn main()->miette::Result<()> {
             }
 
         }
-        Commands::Simulate{qir_object, cuda, qcis, shots, int_par, double_par}=>{
+        Commands::Simulate{qir_object, cuda, qcis, shots, debug, int_par, double_par}=>{
 
             let qir_object = if qir_object.starts_with("/"){
                 qir_object
@@ -314,7 +328,10 @@ fn main()->miette::Result<()> {
                 v.push("--shots".into());
                 v.push(format!("{}", x));
             }
-            
+            if debug{
+                v.push("--debug".into());
+            }
+
             v.push(qir_object);
 
             // get parameters
