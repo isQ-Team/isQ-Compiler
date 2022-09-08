@@ -132,7 +132,7 @@ fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Er
 fn expect_no_error(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let path = Path::new("..").join("examples").join(name.to_string() + ".isq");
     let mut cmd = Command::cargo_bin("isqc")?;
-    cmd.arg("run").arg("--debug").arg(path.to_str().to_owned().unwrap());
+    cmd.arg("run").arg(path.to_str().to_owned().unwrap());
     cmd.assert().success().stderr(predicate::str::is_empty());
     Ok(())
 }
