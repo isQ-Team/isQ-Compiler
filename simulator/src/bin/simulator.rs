@@ -162,8 +162,8 @@ fn main() -> std::io::Result<()> {
         let res = ctx.get_classical_resource_manager();
         res.leak_check();
     }
-
-    println!("{:?}", res_map);
-
+    if !args.qcisgen{
+        println!("{:?}", res_map);
+    }
     return Ok(());
 }
