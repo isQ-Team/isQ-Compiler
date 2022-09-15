@@ -17,23 +17,24 @@ copyright:           "2021 Author name here"
 description:         Please see the README on GitHub at <https://github.com/githubuser/isq-frontend-exp#readme>
 
 dependencies:
-- base >= 4.7 && < 5
-- split
-- directory
-- lens
-- mtl
-- parsec
-- containers
-- extra
-- math-functions
-- array
-- pretty-simple
-- text
 - aeson
+- array
+- base >= 4.7 && < 5
 - bytestring
+- containers
 - deepseq
+- directory
+- extra
 - filepath
+- ilist
+- lens
+- math-functions
+- mtl
 - multimap
+- parsec
+- pretty-simple
+- split
+- text
 
 build-tools:
 - happy
