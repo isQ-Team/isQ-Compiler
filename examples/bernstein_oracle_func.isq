@@ -3,7 +3,12 @@ import std;
 // support 3-bit s is 110
 oracle g(3, 1) : x
 {
-    return x % 2;
+    int xand6 = x & 6;
+    int res = 0;
+    for i in 0:3 {
+        res = res + (xand6 >> i);
+    }
+    return res % 2;
 }
 qbit q[3], anc;
 

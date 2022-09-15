@@ -263,7 +263,7 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                             let value = content["varName"].as_i64().unwrap();
                             return Err(SyntaxError{reason: format!("No return value for input {}.", value), src, pos})?;
                         }
-                        "UnDefinedSymbol"=>{
+                        "UndefinedSymbol"=>{
                             let (src,pos) = parsePos(&content["sourcePos"])?;
                             let symbolName = content["varName"].as_str().unwrap();
                             return Err(SyntaxError{reason: "Undefined symbol: ".to_string() + symbolName, src, pos})?;

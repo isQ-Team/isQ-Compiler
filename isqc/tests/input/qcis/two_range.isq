@@ -1,0 +1,6 @@
+import std;
+procedure main()
+{
+    qbit q[6];
+    CNOT(q[0:3], q[3:6]);
+}

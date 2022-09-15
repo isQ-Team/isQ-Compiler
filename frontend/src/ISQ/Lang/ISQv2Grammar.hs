@@ -18,7 +18,8 @@ doubleType ann = Type ann Double []
 complexType ann = Type ann Complex []
 unitType ann = Type ann Unit []
 refType ann s = Type ann Ref [s]
-
+refIntType ann = Type ann Ref [intType ann]
+refBoolType ann = Type ann Ref [boolType ann]
 
 data CmpType = Equal | NEqual | Greater | Less | GreaterEq | LessEq deriving (Eq, Show)
 data BinaryOperator = Add | Sub | Mul | Div | Mod | And | Or | Andi | Ori | Xori | Cmp CmpType | Pow | Shl | Shr deriving (Eq, Show)
