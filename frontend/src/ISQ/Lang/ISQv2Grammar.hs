@@ -8,7 +8,7 @@ import qualified Data.Map.Lazy as Map
 import Control.Monad.Fix
 type Ident = String
 type ASTBlock ann = [AST ann]
-data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | FixedArray Int | UnknownArray | UserType String | IntRange | Gate Int | FuncTy deriving (Show, Eq)
+data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | Array Int | UserType String | IntRange | Gate Int | FuncTy deriving (Show, Eq)
 data Type ann = Type { annotationType :: ann, ty :: BuiltinType, subTypes :: [Type ann]} deriving (Show,Functor, Eq)
 
 intType ann = Type ann Int []
@@ -46,6 +46,7 @@ data Expr ann =
      | EResolvedIdent {annotationExpr :: ann, resolvedId :: Int}
      | EGlobalName {annotationExpr :: ann, globalName :: String}
      | EEraselist {annotationExpr :: ann, subList :: Expr ann}
+     | EArrayLen {annotationExpr :: ann, subList :: Expr ann}
      deriving (Eq, Show, Functor)
 instance Annotated Expr where
   annotation = annotationExpr
@@ -183,7 +184,7 @@ passVerifyDefgate = mapM go where
 checkTopLevelVardef :: [LAST]->Either GrammarError [LAST]
 checkTopLevelVardef = mapM go where
   go v@(NDefvar pos defs) = NDefvar pos <$> mapM go' defs where
-    go' (Type _ UnknownArray _,b,c) = Left $ MissingGlobalVarSize pos b
+    go' (Type _ (Array 0) _,b,c) = Left $ MissingGlobalVarSize pos b
     go' (a,b,c) = Right (a,b,c)
   go v = return v
 

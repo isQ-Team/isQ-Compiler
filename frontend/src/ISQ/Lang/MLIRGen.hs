@@ -18,26 +18,33 @@ data RegionBuilder = RegionBuilder{
     _currentBlock:: MLIRBlock,
     _headBlocks :: [MLIRBlock],
     _tailBlocks :: [MLIRBlock],
-    _filename :: String
+    _filename :: String,
+    _ssaId :: Int
 } deriving Show
 
 makeLenses ''RegionBuilder
+
+nextSsaId :: State RegionBuilder Int
+nextSsaId = do
+    id <- use ssaId
+    ssaId %= (+1)
+    return id
 
 mapType :: EType->MLIRType
 mapType (Type () Bool []) = M.Bool
 mapType (Type () Ref [x]) = BorrowedRef (mapType x)
 mapType (Type () Int []) = Index
 mapType (Type () Qbit []) = QState
-mapType (Type () UnknownArray [x]) = Memref Nothing (mapType x)
-mapType (Type () (FixedArray n) [x]) = Memref (Just n) (mapType x)
+mapType (Type () (Array 0) [x]) = Memref Nothing (mapType x)
+mapType (Type () (Array n) [x]) = Memref (Just n) (mapType x)
 mapType (Type () (Gate n) _) = M.Gate n
 mapType (Type () Double []) = M.Double
 mapType _ = error "unsupported type"
 
 
 -- Create an empty region builder, with entry and exit.
-generalRegion :: String->[(MLIRType, SSA)]->[MLIROp]->RegionBuilder
-generalRegion name init_args end_body = RegionBuilder 1 1 (MLIRBlock (BlockName "^entry") init_args []) [] [MLIRBlock (BlockName "^exit") [] end_body] name
+generalRegion :: String -> [(MLIRType, SSA)] -> [MLIROp] -> Int -> RegionBuilder
+generalRegion name init_args end_body ssa = RegionBuilder 1 1 (MLIRBlock (BlockName "^entry") init_args []) [] [MLIRBlock (BlockName "^exit") [] end_body] name ssa
 
 -- Called to emit a branch statement according to a flag.
 pushBlock :: MLIRPos->SSA->State RegionBuilder ()
@@ -269,14 +276,17 @@ emitExpr = fix emitExpr'
 emitStatement' :: (AST TypeCheckData-> State RegionBuilder ())->(AST TypeCheckData->State RegionBuilder ())
 emitStatement' f (NBlock ann lis) = do
     pos<-mpos ann
-    lis' <- scopedStatement [] [MSCFYield pos] (mapM f lis)
+    curSsa <- use ssaId
+    lis' <- scopedStatement [] [MSCFYield pos] (mapM f lis) curSsa
     pushOp $ MSCFExecRegion pos lis'
 -- Generic if.
 emitStatement' f (NIf ann cond bthen belse) = do
     pos<-mpos ann
     cond'<-emitExpr cond
-    then_block <- scopedStatement [] [MSCFYield pos] (mapM f bthen)
-    else_block <- scopedStatement [] [MSCFYield pos] (mapM f belse)
+    curSsa <- use ssaId
+    then_block <- scopedStatement [] [MSCFYield pos] (mapM f bthen) curSsa
+    curSsa <- use ssaId
+    else_block <- scopedStatement [] [MSCFYield pos] (mapM f belse) curSsa
     pushOp $ MSCFIf pos cond' (MSCFExecRegion pos then_block) (MSCFExecRegion pos else_block)
 emitStatement' f NFor{} = error "unreachable"
 emitStatement' f NEmpty{} = return ()
@@ -344,7 +354,8 @@ emitStatement' f (NResolvedFor ann fori (ERange _ (Just lo) (Just hi) (Just (EIn
     lo'<-emitExpr lo
     hi'<-emitExpr hi
     pos<-mpos ann
-    r<-scopedStatement [] [MSCFYield pos] (mapM f body)
+    curSsa <- use ssaId
+    r<-scopedStatement [] [MSCFYield pos] (mapM f body) curSsa
     pushOp $ MAffineFor pos lo' hi' step (fromSSA fori) [MSCFExecRegion pos r]
 emitStatement' f NResolvedFor{} = error "unreachable"
 emitStatement' f (NResolvedGatedef ann name mat sz qir) = do
@@ -355,9 +366,12 @@ emitStatement' f (NOracleTable ann name source value size) = do
     pushOp $ MQOracleTable pos (fromFuncName name) size [(DecompositionRep $ fromFuncName source), (OracleTableRep value)]
 emitStatement' f (NWhileWithGuard ann cond body breakflag) = do
     pos<-mpos ann
-    break_block<-unscopedStatement (emitExpr breakflag)
-    cond_block<-unscopedStatement (emitExpr cond)
-    body_block<-scopedStatement [] [MSCFYield pos] (mapM f body)
+    curSsa <- use ssaId
+    break_block <- unscopedStatement (emitExpr breakflag) curSsa
+    curSsa <- use ssaId
+    cond_block <- unscopedStatement (emitExpr cond) curSsa
+    curSsa <- use ssaId
+    body_block <- scopedStatement [] [MSCFYield pos] (mapM f body) curSsa
     let break_ssa = fromSSA $ termId $ annotation breakflag
     let cond_ssa = fromSSA $ termId $ annotation cond
     pushOp $ MSCFWhile pos break_block cond_block cond_ssa break_ssa [MSCFExecRegion pos body_block]
@@ -366,9 +380,11 @@ emitStatement' f (NResolvedProcedureWithRet ann ret mname args body (Just retval
     let name = if mname=="main" then "__isq__main" else mname
     pos<-mpos ann
     let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
-    load_return_value<-unscopedStatement (emitExpr retval)
+    curSsa <- use ssaId
+    load_return_value <- unscopedStatement (emitExpr retval) curSsa
     let tail_ret = load_return_value ++ [MFreeMemref pos (fromSSA $ snd retvar) (mapType $ fst retvar), MReturn pos (astMType retval, ssa $ annotation retval)]
-    body'<-scopedStatement first_args tail_ret (mapM f body)
+    curSsa <- use ssaId
+    body' <- scopedStatement first_args tail_ret (mapM f body) curSsa
     let first_alloc = MAllocMemref pos (fromSSA $ snd retvar) (mapType $ fst retvar)
     let body_head = head body'
     let body'' = (body_head{blockBody = first_alloc : blockBody body_head}):tail body'
@@ -377,7 +393,8 @@ emitStatement' f (NResolvedProcedureWithRet ann ret mname args body Nothing Noth
     let name = if mname=="main" then "__isq__main" else mname
     pos<-mpos ann
     let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
-    body'<-scopedStatement first_args [MReturnUnit pos] (mapM f body)
+    curSsa <- use ssaId
+    body'<-scopedStatement first_args [MReturnUnit pos] (mapM f body) curSsa
     pushOp $ MFunc pos (fromFuncName name) Nothing body'
 emitStatement' f NResolvedProcedureWithRet{} = error "unreachable"
 emitStatement' f (NJumpToEndOnFlag ann flag) = do
@@ -390,8 +407,25 @@ emitStatement' f (NJumpToEnd ann) = do
 emitStatement' f NTempvar{} = error "unreachable"
 emitStatement' f (NResolvedDefvar ann defs) = do
     pos<-mpos ann
-    let one_def (ty, ssa, Just initializer) = do
-            initialized_val <-emitExpr initializer
+    let one_def :: (Type (), Int, Maybe TCExpr) -> State RegionBuilder ()
+        one_def ((Type () (Array llen) [sub_ty]), ssa, Just initializer) = do
+            let lis = exprListElems initializer     -- initializer must be an Elist
+            let rlen = length lis
+            let len = case llen of
+                    0 -> rlen
+                    _ -> minimum [llen, rlen]
+            let mlir_ty = mapType $ Type () (Array $ maximum [len, llen]) [sub_ty]
+            pushAllocFree pos (mlir_ty, fromSSA ssa)
+            let one_assign base (index, right) = do
+                    index_ssa <- nextSsaId
+                    pushOp $ MLitInt pos (fromSSA index_ssa) index
+                    ref_ssa <- nextSsaId
+                    pushOp $ MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) (fromSSA index_ssa)
+                    initialized_val <- emitExpr right
+                    pushOp $ MStore pos (mapType $ refType () sub_ty, fromSSA ref_ssa) initialized_val
+            mapM_ (one_assign ssa) $ zip [0..len-1] lis
+        one_def (ty, ssa, Just initializer) = do
+            initialized_val <- emitExpr initializer
             pushAllocFree pos (mapType ty, fromSSA ssa)
             pushOp $ MStore pos (mapType ty, fromSSA ssa) initialized_val
         one_def (ty, ssa, Nothing) = do
@@ -423,25 +457,24 @@ emitStatement' f other = error "unexpected statement to emit"
 emitStatement :: AST TypeCheckData -> State RegionBuilder ()
 emitStatement = fix emitStatement'
 
-scopedStatement :: [(MLIRType, SSA)]->[MLIROp]->State RegionBuilder a->State RegionBuilder [MLIRBlock]
-scopedStatement args tailops op = do
+scopedStatement :: [(MLIRType, SSA)] -> [MLIROp] -> State RegionBuilder a -> Int -> State RegionBuilder [MLIRBlock]
+scopedStatement args tailops op curSsa = do
     file<-use filename
-    let region = generalRegion file args tailops
+    let region = generalRegion file args tailops curSsa
     return $ evalState (op >> finalizeBlock) region
 
-unscopedStatement :: State RegionBuilder a->State RegionBuilder [MLIROp]
-unscopedStatement op = do
+unscopedStatement :: State RegionBuilder a -> Int -> State RegionBuilder [MLIROp]
+unscopedStatement op curSsa = do
     file<-use filename
-    let region = generalRegion file [] []
+    let region = generalRegion file [] [] curSsa
     let finalized_block = evalState (op >> finalizeBlock) region
     let x = head finalized_block
     let y= init $ blockBody x
     return y
 
-
-unscopedStatement' :: String->State RegionBuilder a->[MLIROp]
-unscopedStatement' file op =
-    let region = generalRegion file [] []
+unscopedStatement' :: String -> State RegionBuilder a -> Int -> [MLIROp]
+unscopedStatement' file op ssa =
+    let region = generalRegion file [] [] ssa
         finalized_block = evalState (op >> finalizeBlock) region
         x = head finalized_block
         y= init $ blockBody x
@@ -450,50 +483,58 @@ unscopedStatement' file op =
 
 data TopBuilder = TopBuilder{
     _mainModule :: [MLIROp],
-    _globalInitializers :: [MLIROp]
+    _globalInitializers :: [MLIROp],
+    _currentSsa :: Int
 } deriving Show
 makeLenses ''TopBuilder
 emitTop :: String->AST TypeCheckData->State TopBuilder ()
 emitTop file x@NResolvedProcedureWithRet{} = do
-    let [fn] = unscopedStatement' file (emitStatement x)
+    ssa <- use currentSsa
+    let [fn] = unscopedStatement' file (emitStatement x) ssa
     mainModule %= (fn:)
 emitTop file (NGlobalDefvar ann defs) = do
     let Pos l c f = sourcePos ann
     let pos = MLIRLoc f l c
-    let def_one (ty, s, name, initializer) = do
+    let def_one :: (Type (), Int, String, Maybe TCExpr) -> State TopBuilder ()
+        def_one (ty, s, name, initializer) = do
             let stmt = MGlobalMemref pos (fromFuncName name) (mapType ty)
             mainModule %= (stmt:)
-            let maybe_initializer = do
+            case initializer of
+                Nothing -> return ()
+                Just initial -> do
                     let use_global_ref = MUseGlobalMemref pos (fromSSA s) (fromFuncName name) (mapType ty)
-                    i<-initializer
-                    let compute_init_value = unscopedStatement' file (emitExpr i)
-                    let store_back = MStore pos (mapType ty, fromSSA s) (ssa $ annotation i)
-                    return $ use_global_ref : (compute_init_value ++ [store_back])
-            case maybe_initializer of
-                Just init->globalInitializers%=(reverse init++)
-                Nothing->return ()
+                    curSsa <- use currentSsa
+                    let compute_init_value = unscopedStatement' file (emitExpr initial) curSsa
+                    let store_back = MStore pos (mapType ty, fromSSA s) (ssa $ annotation initial)
+                    let init = use_global_ref : (compute_init_value ++ [store_back])
+                    globalInitializers %= (reverse init++)
     mapM_ def_one defs
 emitTop file x@NResolvedGatedef{} = do
-    let [fn] = unscopedStatement' file (emitStatement x)
+    ssa <- use currentSsa
+    let [fn] = unscopedStatement' file (emitStatement x) ssa
     mainModule %= (fn:)
 emitTop file x@NOracleTable{} = do
-    let [fn] = unscopedStatement' file (emitStatement x)
+    ssa <- use currentSsa
+    let [fn] = unscopedStatement' file (emitStatement x) ssa
     mainModule %= (fn:)
 emitTop file x@NResolvedExternGate{} = do
-    let [g,efn,efn2] = unscopedStatement' file (emitStatement x)
+    ssa <- use currentSsa
+    let [g,efn,efn2] = unscopedStatement' file (emitStatement x) ssa
     mainModule %= ([efn,efn2,g]++)
 emitTop file x@NDerivedGatedef{} = do
-    let [fn] = unscopedStatement' file (emitStatement x)
+    ssa <- use currentSsa
+    let [fn] = unscopedStatement' file (emitStatement x) ssa
     mainModule %= (fn:)
 emitTop file x@NDerivedOracle{} = do
-    let [fn] = unscopedStatement' file (emitStatement x)
+    ssa <- use currentSsa
+    let [fn] = unscopedStatement' file (emitStatement x) ssa
     mainModule %= (fn:)
 emitTop _ x = error $ "unreachable" ++ show x
 
 
-generateMLIRModule :: String->[AST TypeCheckData]->MLIROp
-generateMLIRModule file xs = 
-    let builder = execState (mapM_ (emitTop file) xs) (TopBuilder [] [])
+generateMLIRModule :: String -> ([AST TypeCheckData], Int) -> MLIROp
+generateMLIRModule file (xs, ssa) = 
+    let builder = execState (mapM_ (emitTop file) xs) (TopBuilder [] [] ssa)
         main = _mainModule builder
         initialize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_initialize") Nothing [MLIRBlock (fromBlockName 1) [] (reverse (_globalInitializers builder) ++[MReturnUnit MLIRPosUnknown])]
         finalize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_finalize") Nothing [MLIRBlock (fromBlockName 1) [] [MReturnUnit MLIRPosUnknown]]
