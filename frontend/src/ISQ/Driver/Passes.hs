@@ -167,17 +167,17 @@ fileToTcast incPath froms file = do
                     modify' (\x->x{symbolTable = newStl})
                     return $ tuple
 
-generateTcast :: String -> FilePath -> IO (Either CompileError [TCAST])
+generateTcast :: String -> FilePath -> IO (Either CompileError ([TCAST], Int))
 generateTcast incPathStr inputFileName = do
     absolutPath <- canonicalizePath inputFileName
     let splitedPath = splitOn ":" incPathStr
     incPath <- mapM canonicalizePath splitedPath
-    errOrTuple <- evalStateT (runExceptT $ fileToTcast incPath [] absolutPath) emptyImportEnv
+    (errOrTuple, (ImportEnv _ ssa)) <- runStateT (runExceptT $ fileToTcast incPath [] absolutPath) emptyImportEnv
     case errOrTuple of
         Left x -> return $ Left x
-        Right tuple -> return $ Right $ fst tuple
+        Right tuple -> return $ Right (fst tuple, ssa)
 
-compile :: String -> [TCAST] -> Either CompileError String
+compile :: String -> ([TCAST], Int) -> Either CompileError String
 compile s ast_tc = runExcept $ do
     let mlir_module = generateMLIRModule s ast_tc
     return $ emitOp mlir_module

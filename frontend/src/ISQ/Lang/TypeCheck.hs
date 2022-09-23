@@ -3,7 +3,6 @@ import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.ISQv2Tokenizer
 import qualified Data.MultiMap as MultiMap
 import Data.List.Extra (firstJust)
-import Data.List.Index (imapM)
 import Data.Maybe
 import Control.Monad (join)
 import Control.Monad.Except
@@ -30,7 +29,8 @@ data TypeCheckError =
       RedefinedSymbol { pos :: Pos, symbolName :: Symbol, firstDefinedAt :: Pos}
     | UndefinedSymbol { pos :: Pos, symbolName :: Symbol}
     | AmbiguousSymbol { pos :: Pos, symbolName :: Symbol, firstDefinedAt :: Pos, secondDefinedAt :: Pos}
-    | TypeMismatch { pos :: Pos, expectedType :: [MatchRule], actualType :: Type ()}
+    | TypeMismatch {pos :: Pos, expectedType :: [MatchRule], actualType :: Type ()}
+    | UnsupportedType {pos :: Pos, actualType :: Type ()}
     | ViolateNonCloningTheorem { pos :: Pos }
     | GateNameError { pos :: Pos }
     | ArgNumberMismatch { pos :: Pos, expectedArgs :: Int, actualArgs :: Int }
@@ -97,7 +97,7 @@ defineSym a b c= do
 defineGlobalSym :: String -> String -> Pos -> EType -> TypeCheck Int
 defineGlobalSym prefix name b c= do
     ssa<-nextId
-    when (name == "main" && c /= Type () FuncTy [Type () Unit []] && c /= Type () FuncTy [Type () Unit [], Type () UnknownArray [intType ()], Type () UnknownArray [doubleType ()]]) $ do
+    when (name == "main" && c /= Type () FuncTy [Type () Unit []] && c /= Type () FuncTy [Type () Unit [], Type () (Array 0) [intType ()], Type () (Array 0) [doubleType ()]]) $ do
         throwError $ BadMainSignature c
     when (name == "main") $ do
         modify' (\x->x{mainDefined = True})
@@ -121,22 +121,36 @@ nextId = do
     modify' (\x->x{ssaAllocator = id+1})
     return id
 
+typeToInt :: Type () -> Int
+typeToInt (Type () Bool []) = 3
+typeToInt (Type () Int []) = 2
+typeToInt (Type () Double []) = 1
+typeToInt (Type () Complex []) = 0
+typeToInt (Type () Ref [sub_type]) = typeToInt sub_type
+typeToInt _ = -1
+
+intToType :: Int -> Type ()
+intToType 3 = boolType ()
+intToType 2 = intType ()
+intToType 1 = doubleType ()
+intToType 0 = complexType ()
+intToType _ = error "Unreachable."
+
 type TCExpr = Expr TypeCheckData
 
 data MatchRule = Exact EType | AnyUnknownList | AnyKnownList Int | AnyList | AnyFunc | AnyGate | AnyRef
-    | FixedArrayRule MatchRule
+    | ArrayType MatchRule
     deriving (Show, Eq)
 
 checkRule :: MatchRule->EType->Bool
 checkRule (Exact x) y = x==y
-checkRule AnyUnknownList (Type () UnknownArray [_]) = True
-checkRule (AnyKnownList x) (Type () (FixedArray y) [_]) = x==y
-checkRule AnyList (Type () UnknownArray [_]) = True
-checkRule AnyList (Type () (FixedArray y) [_]) = True
+checkRule AnyUnknownList (Type () (Array 0) [_]) = True
+checkRule (AnyKnownList x) (Type () (Array y) [_]) = x==y
+checkRule AnyList (Type () (Array _) [_]) = True
 checkRule AnyFunc (Type () FuncTy _) = True
 checkRule AnyGate (Type () (Gate _) _) = True
 checkRule AnyRef (Type () Ref [_]) = True
-checkRule (FixedArrayRule subRule) (Type () (FixedArray _) [subType]) = checkRule subRule subType
+checkRule (ArrayType subRule) (Type () (Array _) [subType]) = checkRule subRule subType
 checkRule _ _ = False
 
 -- try to match two types, using auto dereference and int-to-bool implicit conversion.
@@ -164,9 +178,10 @@ matchType' wanted e = do
                 id<-nextId
                 matchType' wanted (EImplicitCast (TypeCheckData pos (Type () Complex [] ) id) e)
             -- Auto list erasure
-            Type () (FixedArray x) [y] -> do
+            Type () (Array 0) [y] -> return Nothing
+            Type () (Array x) [y] -> do
                 id<-nextId
-                matchType' wanted (EEraselist (TypeCheckData pos (Type () UnknownArray [y]) id) e)
+                matchType' wanted (EEraselist (TypeCheckData pos (Type () (Array 0) [y]) id) e)
             _ -> return Nothing
 matchType :: [MatchRule]->TCExpr->TypeCheck TCExpr
 matchType wanted e = do
@@ -250,11 +265,8 @@ typeCheckExpr' f (ESubscript pos base offset) = do
     offset''<-matchType [Exact $ intType (), Exact $ Type () IntRange []] offset'
     ssa<-nextId
     let a = case astType base'' of
-            Type () UnknownArray [ax] -> case astType offset'' of
-                    Type () IntRange [] -> Type () (FixedArray 0) [ax]
-                    _ -> refType () ax
-            Type () (FixedArray _) [ax] -> case astType offset'' of
-                    Type () IntRange [] -> Type () (FixedArray 0) [ax]
+            Type () (Array _) [ax] -> case astType offset'' of
+                    Type () IntRange [] -> Type () (Array 0) [ax]
                     _ -> refType () ax
             _ -> undefined
     return $ ESubscript (TypeCheckData pos a ssa) base'' offset''
@@ -296,7 +308,17 @@ typeCheckExpr' f (ECoreMeasure pos qubit) = do
     qubit''<-matchType [Exact (refType () (qbitType ()))] qubit'
     ssa<-nextId
     return $ ECoreMeasure (TypeCheckData pos (boolType ()) ssa) qubit''
-typeCheckExpr' f x@EList{} = error "Not implemented yet."
+typeCheckExpr' f (EList pos lis) = do
+    lis' <- mapM f lis
+    let levels = map (typeToInt . termType . annotationExpr) lis'
+    let (min_level, min_idx) = minimum $ zip levels [0..]
+    when (min_level < 0) $ throwError $ do
+        let ann = annotationExpr $ lis' !! min_idx
+        UnsupportedType (sourcePos ann) (termType ann)
+    let ele_type = intToType min_level
+    lis'' <- mapM (matchType [Exact ele_type]) lis'
+    let ty = Type () (Array $ length lis) [ele_type]
+    return $ EList (TypeCheckData pos ty (-1)) lis''
 typeCheckExpr' f x@EDeref{} = error "Unreachable."
 typeCheckExpr' f x@EImplicitCast{} = error "Unreachable."
 typeCheckExpr' f (ETempVar pos ident) = do
@@ -311,6 +333,13 @@ typeCheckExpr' f (EUnitLit pos) = EUnitLit . TypeCheckData pos (unitType ()) <$>
 typeCheckExpr' f x@EResolvedIdent{} = error "Unreachable."
 typeCheckExpr' f x@EGlobalName{} = error "Unreachable."
 typeCheckExpr' f x@EEraselist{} = error "Unreachable."
+typeCheckExpr' f (EArrayLen pos array) = do
+    array' <- f array
+    ssa <- nextId
+    let ty = termType $ annotationExpr array'
+    case ty of
+        Type () (Array x) [_] -> return $ EIntLit (TypeCheckData pos (intType()) ssa) x
+        _ -> throwError $ TypeMismatch pos [AnyList] ty
 typeCheckExpr :: Expr Pos -> TypeCheck (Expr TypeCheckData)
 typeCheckExpr = fix typeCheckExpr'
 
@@ -321,8 +350,7 @@ okStmt pos = (TypeCheckData pos (unitType ()) (-1))
 -- Transforms a defvar-type into a ref type.
 -- Lists are passed by value and thus are right-values.
 definedRefType :: EType->EType
-definedRefType x@(Type () (FixedArray _) _) = x
-definedRefType x@(Type () UnknownArray _) = x
+definedRefType x@(Type () (Array _) _) = x
 definedRefType x = Type () Ref [x]
 
 getBaseFromArray :: TCExpr -> TCExpr
@@ -336,11 +364,13 @@ getRangeFromArray (EResolvedIdent ann _) = do
     init_id <- nextId
     let init = EIntLit (TypeCheckData pos (intType ()) init_id) 0
     let length = case termType ann of
-            Type () (FixedArray x) [Type () Qbit []] -> x
+            Type () (Array x) [Type () Qbit []] -> x
             _ -> undefined
     hi_id <- nextId
     let hi = EIntLit (TypeCheckData pos (intType ()) hi_id) length
-    return $ ERange ann (Just init) (Just hi) Nothing
+    step_id <- nextId
+    let step = EIntLit (TypeCheckData pos (intType ()) step_id) 1
+    return $ ERange ann (Just init) (Just hi) (Just step)
 getRangeFromArray (ESubscript ann _ subscript) = return $ subscript
 getRangeFromArray x = error "Unreachable."
 
@@ -352,9 +382,7 @@ generateIteratorDef (ERange ann lo hi step) = do
             Just _ -> nextId
     let hi_def = NResolvedDefvar ann [(refIntType (), hi_id, hi)]
     estep <- case step of
-            Nothing -> do
-                lit_id <- nextId
-                return $ Just $ EIntLit (TypeCheckData (sourcePos ann) (refIntType ()) lit_id) 1
+            Nothing -> error "Unreachable."
             Just x -> return $ Just $ x
     step_id <- nextId
     let step_def = NResolvedDefvar ann [(refIntType (), step_id, estep)]
@@ -403,7 +431,7 @@ andRangeCondition pos in_id (it_id, hi_id) = do
 getItemFromArray :: Pos -> (TCExpr, TCExpr) -> TypeCheck TCExpr
 getItemFromArray pos (base, it) = do
     let subtype = case astType base of
-            Type () (FixedArray _) [ax] -> ax
+            Type () (Array _) [ax] -> ax
             _ -> error "Unreachable."
     ssa <- nextId
     return $ ESubscript (TypeCheckData pos subtype ssa) base it
@@ -452,14 +480,30 @@ typeCheckAST' f (NCall pos c@(ECall _ callee args)) = do
 typeCheckAST' f (NCall pos c) = error "unreachable"
 typeCheckAST' f (NDefvar pos defs) = do
     let def_one (ty, name, initializer) = do
-            i'<-case initializer of
+            let left_type = void ty
+            (i', ty')<-case initializer of
                 Just r->do
-                        r'<-typeCheckExpr r
-                        r''<-matchType [Exact (void ty)] r'
-                        return $ Just r''
-                Nothing -> return Nothing
-            s<-defineSym (SymVar name) pos $ definedRefType $ void ty
-            return (definedRefType $ void ty, s, i')
+                    r' <- typeCheckExpr r
+                    case left_type of
+                        Type () (Array llen) [lsub] -> do
+                            let right_type = termType $ annotationExpr r'
+                            case right_type of
+                                Type () (Array rlen) [rsub] -> do
+                                    let li = typeToInt lsub
+                                    let ri = typeToInt rsub
+                                    let min = minimum [li, ri]
+                                    when (min < 0 || li > ri) $ throwError $ TypeMismatch pos [Exact left_type] right_type
+                                    let llen' = case llen of
+                                            0 -> rlen
+                                            _ -> llen
+                                    return (Just r', Type () (Array llen') [lsub])
+                                _ -> throwError $ TypeMismatch pos [Exact left_type] right_type
+                        _ -> do
+                            r''<-matchType [Exact left_type] r'
+                            return (Just r'', definedRefType left_type)
+                Nothing -> return (Nothing, definedRefType left_type)
+            s <- defineSym (SymVar name) pos ty'
+            return (ty', s, i')
     defs'<-mapM def_one defs
     return $ NResolvedDefvar (okStmt pos) defs'
 typeCheckAST' f (NAssign pos lhs rhs) = do
@@ -493,7 +537,7 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     let operands'' = op_extra' ++ op_qubits'
                     return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers
                 Nothing -> do
-                    op_qubits' <- mapM (matchType [FixedArrayRule $ Exact $ qbitType ()]) op_qubits
+                    op_qubits' <- mapM (matchType [ArrayType $ Exact $ qbitType ()]) op_qubits
                     ranges <- mapM getRangeFromArray op_qubits'
                     var_defs <- mapM generateIteratorDef ranges
                     let get_second (a, b, c) = b
@@ -600,8 +644,7 @@ argType' pos ty i = case ty of
     Type _ Double [] -> return $ void ty
     Type _ Bool [] -> return $ void ty
     Type _ Qbit [] -> return $ Type () Ref [void ty]
-    Type _ UnknownArray [a] -> return $ void ty
-    Type _ (FixedArray _) [a] -> return $ void ty
+    Type _ (Array _) [a] -> return $ void ty
     _ -> throwError $ BadProcedureArgType pos (void ty, i)
 
 typeCheckToplevel :: Bool -> String -> [AST Pos]->TypeCheck ([TCAST], SymbolTableLayer, Int)
@@ -659,7 +702,7 @@ typeCheckToplevel isMain prefix ast = do
                     Type _ Double [] -> return $ void ty
                     Type _ Bool [] -> return $ void ty
                     _ -> throwError $ BadProcedureReturnType pos (void ty, name)
-                let new_args = if name == "main" && (length args) == 0 then [(Type pos UnknownArray [intType pos], "main$par1"), (Type pos UnknownArray [doubleType pos], "main$par2")] else args
+                let new_args = if name == "main" && (length args) == 0 then [(Type pos (Array 0) [intType pos], "main$par1"), (Type pos (Array 0) [doubleType pos], "main$par2")] else args
                 args'<-mapM (uncurry argType) new_args
                 defineGlobalSym prefix name (annotation ty) (Type () FuncTy (ty':args'))
                 -- NTempvar a (void b, procRet, Nothing)

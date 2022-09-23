@@ -1,0 +1,7 @@
+procedure main()
+{
+    int q[3] = {2, 3, 4};
+    for i in q {
+        print i;
+    }
+}

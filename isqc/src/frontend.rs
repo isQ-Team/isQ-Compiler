@@ -18,8 +18,7 @@ pub fn parseType(input: &Value)->String{
         "Bool"=>format!("bool"),
         "Double"=>format!("double"),
         "Complex"=>format!("complex"),
-        "FixedArray"=>format!("[{};{}]", parseType(&subtypes[0]), input["ty"]["contents"].as_i64().unwrap()),
-        "UnknownArray"=>format!("[{}]", parseType(&subtypes[0])),
+        "Array"=>format!("[{};{}]", parseType(&subtypes[0]), input["ty"]["contents"].as_i64().unwrap()),
         "UserType"=>format!("{}<{}>", input["ty"]["contents"].as_str().unwrap(), subtypes.iter().map(parseType).collect::<Vec<_>>().join(", ")),
         "IntRange"=>format!("range"),
         "Gate"=>format!("gate<{}>", input["ty"]["contents"].as_i64().unwrap()),
@@ -196,6 +195,11 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                             let expected = content["expectedType"].as_array().unwrap().iter().map(parseMatchRule).collect::<Vec<_>>().join(" or ");
                             let actual = parseType(&content["actualType"]);
                             return Err(TypeMismatchError{expected, actual, src, pos})?;
+                        }
+                        "UnsupportedType"=>{
+                            let (src,pos) = parsePos(&content["pos"])?;
+                            let actual = parseType(&content["actualType"]);
+                            return Err(SyntaxError{reason: "UnsupportedType: ".to_string() + actual.as_str(), src, pos: pos})?;
                         }
                         "ViolateNonCloningTheorem"=>{
                             let (src,pos) = parsePos(&content["pos"])?;

@@ -51,8 +51,10 @@ tokens :-
 {
 data Token ann = 
     TokenReservedId {annotationToken :: ann, tokenReservedIdV :: String}
-  | TokenReservedOp {annotationToken :: ann, tokenReservedOpV :: String} | TokenNatural {annotationToken :: ann, tokenNaturalV :: Int}
-  | TokenFloat {annotationToken :: ann, tokenFloatV :: Double}  | TokenImagPart {annotationToken :: ann, tokenImagPartV :: Double}  
+  | TokenReservedOp {annotationToken :: ann, tokenReservedOpV :: String}
+  | TokenNatural {annotationToken :: ann, tokenNaturalV :: Int}
+  | TokenFloat {annotationToken :: ann, tokenFloatV :: Double}
+  | TokenImagPart {annotationToken :: ann, tokenImagPartV :: Double}  
   | TokenIdent {annotationToken :: ann, tokenIdentV :: String} 
   | TokenQualified {annotationToken :: ann, tokenIdentV :: String}
   | TokenEOF {annotationToken :: ann} 

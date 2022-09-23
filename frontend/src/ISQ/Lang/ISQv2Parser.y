@@ -185,7 +185,6 @@ Expr1 : Expr1Left { $1 }
      | pi { EFloatingLit $1 3.14159265358979323846264338327950288 }
      | IMAGPART { EImagLit (annotation $1) (tokenImagPartV $1) }
      | CallExpr { $1 }
-     | '[' Expr1List ']' { EList $1 $2 }
      | true { EBoolLit $1 True }
      | false { EBoolLit $1 False }
      -- isQ Core (isQ v1) grammar.
@@ -194,14 +193,17 @@ Expr1 : Expr1Left { $1 }
 
 CallExpr :: {LExpr}
 CallExpr : ExprCallable '(' Expr1List ')' %prec CALL { ECall (annotation $1) $1 $3}
+
 MaybeExpr1 :: {Maybe LExpr}
 MaybeExpr1 : Expr1 {Just $1}
           | {- empty -} {Nothing}
 RangeExpr :: {LExpr}
 RangeExpr : MaybeExpr1 ':' MaybeExpr1 ':' MaybeExpr1 { ERange $2 $1 $3 $5 }
           | MaybeExpr1 ':' MaybeExpr1 { ERange $2 $1 $3 Nothing }
+
 Expr2 :: {LExpr}
 Expr2 : RangeExpr { $1 }
+     | '{' Expr1ListNonEmpty '}' { EList $1 $2 }
 
 Expr1List :: {[LExpr]}
 Expr1List : Expr1 { [$1] } 
@@ -220,7 +222,7 @@ IdentListNonEmpty : IDENTIFIER { [$1] }
 BlockStatement :: {LAST}
 BlockStatement : '{' StatementList '}' { NBlock $1 $2 }
 ForStatement :: {LAST}
-ForStatement : for IDENTIFIER in RangeExpr Statement { NFor $1 (tokenIdentV $2) $4 [$5] }
+ForStatement : for IDENTIFIER in Expr Statement { NFor $1 (tokenIdentV $2) $4 [$5] }
 WhileStatement :: {LAST}
 WhileStatement : while Expr Statement { NWhile $1 $2 [$3] }
 IfStatement :: {LAST}
@@ -314,8 +316,8 @@ Statement : ';' { NEmpty $1 }
           | ISQCore_PrintStatement ';' { $1 }
 
 ArrayTypeDecorator :: {BuiltinType}
-ArrayTypeDecorator : '[' ']' { UnknownArray }
-                   | '[' NATURAL ']' { FixedArray (tokenNaturalV $2)}
+ArrayTypeDecorator : '[' ']' { (Array 0) }
+                   | '[' NATURAL ']' { Array (tokenNaturalV $2)}
 
 Type :: {LType}
 Type : SimpleType { $1 }
