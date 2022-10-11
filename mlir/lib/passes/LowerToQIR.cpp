@@ -559,6 +559,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
             populateUsefulPatternSets(rps, converter);
             mlir::ConversionTarget target(*ctx);
             target.addIllegalDialect<ISQDialect>();
+            target.addLegalOp<AssertOp>();
             target.addLegalDialect<mlir::arith::ArithmeticDialect>();
             target.addLegalOp<mlir::UnrealizedConversionCastOp>();
             target.addDynamicallyLegalOp<mlir::FuncOp>(
