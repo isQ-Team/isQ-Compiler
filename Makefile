@@ -13,7 +13,7 @@ frontend: check-env
 	cp .stack-work/dist/x86_64-linux-tinfo6/Cabal-3.2.1.0/build/isqc1/isqc1 ${ISQ_ROOT}/bin/
 
 mlir: check-env
-	cd mlir && mkdir build && cd build && cmake ../ && make && cp tools/isq-opt ${ISQ_ROOT}/bin/
+	cd mlir && mkdir -p build && cd build && cmake ../ && make && cp tools/isq-opt ${ISQ_ROOT}/bin/
 
 isqc: check-env
 	cd isqc && cargo build && cp target/debug/isqc ${ISQ_ROOT}/bin/
