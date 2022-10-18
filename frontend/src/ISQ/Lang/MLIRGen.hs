@@ -187,6 +187,12 @@ emitExpr' f (ESubscript ann base offset) = do
     let i = ssa ann
     pushOp $ MTakeRef pos i (astMType base, base') offset'
     return i
+emitExpr' f (EArrayLen ann base) = do
+    base' <- f base
+    pos <- mpos ann
+    let i = ssa ann
+    pushOp $ MArrayLen pos i (astMType base, base')
+    return i
 emitExpr' f x@(ECall ann (EGlobalName ann2 mname) args) = do
     let name = if mname=="main" then "__isq__main" else mname
     args'<-mapM f args

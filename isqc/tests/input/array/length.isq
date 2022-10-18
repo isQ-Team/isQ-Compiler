@@ -1,0 +1,11 @@
+procedure fun(int b[])
+{
+    print b.length;
+}
+
+procedure main()
+{
+    int a[5];
+    print a.length;
+    fun(a);
+}
