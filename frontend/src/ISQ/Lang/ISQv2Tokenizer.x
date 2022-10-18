@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module ISQ.Lang.ISQv2Tokenizer where
 import Control.Exception (Exception)
+import Data.List (isSuffixOf)
 import Data.List.Split
 import Debug.Trace
 }
@@ -15,7 +16,7 @@ $idfirstchar  = [$alpha \_ \@]
 $idrestchar   = [$alpha $digit \_]
 
 @ident = $idfirstchar $idrestchar*
-@qualify = (@ident \.)* @ident
+@qualify = @ident (\. @ident)*
 
 @decimal = $digit+
 @exponent = [eE] [\-\+] @decimal
@@ -24,7 +25,7 @@ $idrestchar   = [$alpha $digit \_]
 	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|bp|return|package|import|
     ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue|double|as|extern|gate|deriving|oracle|pi
 @reservedop = "|0>"|"=="|"="|"+"|"-"|"*"|"/"|"<"|">"|"<="|">="|"!="|and|"&&"|or|"||"|not|"!"|"%"|"&"|"|"|"^"
-              |">>"|"<<"|","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"|"**"
+              |">>"|"<<"|","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"|"**"|".length"
 
 tokens :-
     <0> $white+ {skip}
@@ -182,6 +183,16 @@ tokenize str = runAlex str $ do
         case tok of
           (Just (TokenEOF _)) -> return []
           Nothing -> step
+          (Just tok@(TokenQualified ann str)) -> do
+              let prefix = case isSuffixOf ".length" str of
+                      True -> do
+                          let newLen = length str - 7
+                          let newTok = TokenQualified ann $ take newLen str
+                          let newOp = TokenReservedOp ann ".length"
+                          [newTok, newOp]
+                      False -> [tok]
+              rest <- step
+              return $ prefix ++ rest
           (Just tok) -> do
               rest<-step
               return $ tok:rest

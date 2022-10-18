@@ -81,6 +81,7 @@ import Control.Exception (throw, Exception)
     '}' { TokenReservedOp $$ "}" }
     ':' { TokenReservedOp $$ ":" }
     '->' { TokenReservedOp $$ "->" }
+    '.length' { TokenReservedOp $$ ".length" }
     '.' { TokenReservedOp $$ "." }
     NATURAL { TokenNatural _ _ }
     FLOAT { TokenFloat _ _ }
@@ -103,8 +104,8 @@ import Control.Exception (throw, Exception)
 %left '*' '/' '%' -- Level 3
 %left '**'  -- Level 2
 %right NEG POS '!' not -- Level 2
+%left '.length'
 %left SUBSCRIPT CALL '[' '(' -- Level 1
-%left ':'
 
 %%
 
@@ -152,6 +153,7 @@ ExprCallable : '(' Expr ')' { $2 }
 Expr1Left :: {LExpr}
 Expr1Left : ExprCallable {$1}
           | Expr1Left '[' Expr ']' { ESubscript $2 $1 $3 }
+          | Expr1Left '.length' { EArrayLen $2 $1 }
 
 Expr1 :: {LExpr}
 Expr1 : Expr1Left { $1 }

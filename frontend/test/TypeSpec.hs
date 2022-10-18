@@ -72,3 +72,7 @@ typeSpec = do
         it "returns an error when using for over an int" $ do
             let str = "bool fun(){ for i in 4 {}; }"
             typeTestTemplate str "TypeMismatch"
+
+        it "returns an error when getting the length of an int" $ do
+            let str = "bool fun(){ int a; print a.length; }"
+            typeTestTemplate str "TypeMismatch"

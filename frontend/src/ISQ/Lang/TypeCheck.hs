@@ -338,6 +338,7 @@ typeCheckExpr' f (EArrayLen pos array) = do
     ssa <- nextId
     let ty = termType $ annotationExpr array'
     case ty of
+        Type () (Array 0) [_] -> return $ EArrayLen (TypeCheckData pos (intType()) ssa) array'
         Type () (Array x) [_] -> return $ EIntLit (TypeCheckData pos (intType()) ssa) x
         _ -> throwError $ TypeMismatch pos [AnyList] ty
 typeCheckExpr :: Expr Pos -> TypeCheck (Expr TypeCheckData)

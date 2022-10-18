@@ -10,6 +10,7 @@ use test_case::test_case;
 #[test_case("init_long", &("4".to_string()+LINE_ENDING+"5"))]
 #[test_case("init_short", &("4".to_string()+LINE_ENDING+"5"))]
 #[test_case("init_zero", &("4".to_string()+LINE_ENDING+"5"+LINE_ENDING+"6"))]
+#[test_case("length", &("5".to_string()+LINE_ENDING+"5"))]
 fn test_array(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
     let folder = Path::new("tests").join("input").join("array");
