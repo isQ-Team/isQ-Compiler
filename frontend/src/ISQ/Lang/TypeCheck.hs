@@ -61,7 +61,8 @@ insertSymbol sym ast (x:xs) = case MultiMap.lookup sym x of
 data TypeCheckEnv = TypeCheckEnv {
     symbolTable :: SymbolTable,
     ssaAllocator :: Int,
-    mainDefined :: Bool
+    mainDefined :: Bool,
+    qcis :: Bool
 }
 
 type TypeCheck = ExceptT TypeCheckError (State TypeCheckEnv)
@@ -305,9 +306,18 @@ typeCheckExpr' f (ERange pos lo hi step) = do
     return $ ERange (TypeCheckData pos (Type () IntRange []) ssa) lo' hi' step'
 typeCheckExpr' f (ECoreMeasure pos qubit) = do
     qubit'<-f qubit
-    qubit''<-matchType [Exact (refType () (qbitType ()))] qubit'
     ssa<-nextId
-    return $ ECoreMeasure (TypeCheckData pos (boolType ()) ssa) qubit''
+    is_qubit <- matchType' [Exact (refType () (qbitType ()))] qubit'
+    case is_qubit of
+        Just qubit'' -> return $ ECoreMeasure (TypeCheckData pos (boolType ()) ssa) qubit''
+        Nothing -> do
+            q <- gets qcis
+            case q of
+                True -> throwError $ TypeMismatch (sourcePos $ annotation qubit') [Exact (refType () (qbitType ()))] (astType qubit')
+                False -> do
+                    qubit'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] qubit'
+                    fun <- f (EIdent pos ".__measure_bundle")
+                    return $ ECall (TypeCheckData pos (intType ()) ssa) fun [qubit'']
 typeCheckExpr' f (EList pos lis) = do
     lis' <- mapM f lis
     let levels = map (typeToInt . termType . annotationExpr) lis'
@@ -770,9 +780,9 @@ getSecondLast [x] = error "Single-element list"
 getSecondLast (x:_:[]) = x
 getSecondLast (x:xs) = getSecondLast xs
 
-typeCheckTop :: Bool -> String -> [LAST] -> SymbolTableLayer -> Int -> Either TypeCheckError ([TCAST], SymbolTableLayer, Int)
-typeCheckTop isMain prefix ast stl ssaId = do
-    let env = TypeCheckEnv [MultiMap.empty, stl] ssaId False
+typeCheckTop :: Bool -> String -> [LAST] -> SymbolTableLayer -> Int -> Bool -> Either TypeCheckError ([TCAST], SymbolTableLayer, Int)
+typeCheckTop isMain prefix ast stl ssaId qcis = do
+    let env = TypeCheckEnv [MultiMap.empty, stl] ssaId False qcis
     evalState (runExceptT $ typeCheckToplevel isMain prefix ast) env
 
 -- TODO: unification-based type check and type inference.
