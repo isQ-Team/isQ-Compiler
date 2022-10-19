@@ -195,7 +195,9 @@ fn main()->miette::Result<()> {
                 None => "".to_string(),
             };
 
-            let mlir = exec::exec_command_text::<&str>(&root, "isqc1", &["-i", fin.as_os_str().to_str().unwrap(), "-I", &incpath], "").map_err(ioErrorWhen("Calling isqc1"))?;
+            let full_flags = ["-i", fin.as_os_str().to_str().unwrap(), "-I", &incpath, "--qcis"];
+            let frontend_flags = if let CompileTarget::QCIS = target {&full_flags} else {&full_flags[..4]};
+            let mlir = exec::exec_command_text::<&str>(&root, "isqc1", frontend_flags, "").map_err(ioErrorWhen("Calling isqc1"))?;
             let resolved_mlir = resolve_isqc1_output(&mlir)?;
             if let EmitMode::MLIR = emit{
                 writeln!(fout.get_file_mut(), "{}", resolved_mlir).map_err(IoError)?;

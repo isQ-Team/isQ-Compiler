@@ -6,11 +6,12 @@ import ISQ.Lang.OraclePass
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.Map.Lazy as Map
+import qualified Data.MultiMap as MultiMap
 import Test.Hspec
 
 oracleTestTemplate :: String -> Int -> IO (Either OracleError Int)
 oracleTestTemplate input val = do
-    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) emptyImportEnv
+    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) $ ImportEnv MultiMap.empty Map.empty 0 True
     case errorOrAst of
         Left x -> error "input file error"
         Right ast -> do

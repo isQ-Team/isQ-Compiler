@@ -22,8 +22,7 @@ import qualified Data.List
 import qualified Data.ByteString.Lazy as BS
 import ISQ.Lang.ISQv2Tokenizer
 import Data.Typeable
-data Flag = Input String | Include String | Output String | Version | Mode String | Help  deriving Eq
-
+data Flag = Input String | Include String | Output String | Qcis | Version | Mode String | Help  deriving Eq
 
 
 options :: [OptDescr Flag]
@@ -31,11 +30,11 @@ options = [
     Option ['i'] ["input"] (ReqArg Input "FILE") "Input isQ source file.",
     Option ['I'] ["include"] (ReqArg Include "PATH") "isQ include file directory",
     Option ['o'] ["output"] (ReqArg Output "FILE") "Output file.",
+    Option ['q'] ["qcis"] (NoArg Qcis) "Target at QCIS.",
     Option ['v'] ["version"] (NoArg Version) "Show version.",
     Option ['m'] ["mode"] (ReqArg Mode "MODE") "Output mode. Supported modes: ast, raii, typecheck, mlir, mlir-llvm, llvm, so(default)",
     Option ['h'] ["help"] (NoArg Help) "Show help."
     ]
-
 
 
 header :: [Char]
@@ -101,6 +100,7 @@ main = do
                 Include s -> setExactlyOnce inc s "Include file directory set multiple times!"
                 Output s -> setExactlyOnce output s  "Output file set multiple times!"
                 Mode m -> setExactlyOnce mode m "Mode set multiple times!"
+                Qcis -> return ()
                 Version -> undefined
     input'<-readIORef input
     inc' <- readIORef inc
@@ -108,13 +108,14 @@ main = do
     mode'<-fromMaybe "mlir" <$> readIORef mode
     let incpath = fromMaybe "" inc'
     let inputFileName = fromMaybe "<stdin>" input'
+    let qcis = Qcis `elem` flags
 
     -- get defualt include directory
     root <- lookupEnv "ISQ_ROOT"
     let rootPath = case root of
             Nothing -> ""
             Just x -> joinPath [x, "lib"]
-    ast <- generateTcast (incpath ++ "" ++ rootPath) inputFileName
+    ast <- generateTcast (incpath ++ "" ++ rootPath) inputFileName qcis
     
     case mode' of
         "mlir"-> do
