@@ -484,6 +484,17 @@ public:
         return mlir::success();
     }
 };
+class LowerDim : public TypeReplacer<mlir::memref::DimOp>{
+public:
+    LowerDim(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::DimOp>(ctx, converter){}
+    mlir::LogicalResult matchAndRewrite(mlir::memref::DimOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
+        rewriter.startRootUpdate(op);
+        auto new_value = this->legalize(op->getLoc(), rewriter, adaptor.source());
+        op.sourceMutable().assign(new_value.getResult(0));
+        rewriter.finalizeRootUpdate(op);
+        return mlir::success();
+    }
+};
 struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::OperationPass<mlir::ModuleOp>>{
     void populateUsefulPatternSets(mlir::RewritePatternSet& patterns, mlir::TypeConverter& converter ){
         mlir::populateFunctionOpInterfaceTypeConversionPattern<mlir::FuncOp>(patterns, converter);
@@ -556,6 +567,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
             rps.add<LowerSubView>(ctx, converter);
             rps.add<LowerGlobal>(ctx, converter);
             rps.add<LowerGetGlobal>(ctx, converter);
+            rps.add<LowerDim>(ctx, converter);
             populateUsefulPatternSets(rps, converter);
             mlir::ConversionTarget target(*ctx);
             target.addIllegalDialect<ISQDialect>();

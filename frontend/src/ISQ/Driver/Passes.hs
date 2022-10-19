@@ -25,9 +25,6 @@ import ISQ.Lang.MLIRTree (emitOp)
 import ISQ.Lang.OraclePass (passOracle)
 import ISQ.Lang.TypeCheck (SymbolTableLayer, TCAST, typeCheckTop)
 import ISQ.Lang.RAIICheck (raiiCheck)
---import Text.Pretty.Simple ( pPrint, pPrintNoColor )
---import System.Environment (getArgs)
---import ISQ.Lang.FlatInc (parseIncFile, parseIncStdin)
 import System.Directory (canonicalizePath, doesFileExist)
 import System.Environment (lookupEnv)
 import System.FilePath (addExtension, dropExtensions, joinPath, splitDirectories)
@@ -42,12 +39,11 @@ syntaxError file x =
     in SyntaxError (Pos {line = read l, column = read c, filename = file} )
 
 data ImportEnv = ImportEnv {
+    globalTable :: SymbolTableLayer,
     symbolTable :: Map.Map String SymbolTableLayer,
-    ssaId :: Int
+    ssaId :: Int,
+    qcis :: Bool
 }
-
-emptyImportEnv :: ImportEnv
-emptyImportEnv = ImportEnv Map.empty 0
 
 type PassMonad = ExceptT CompileError (StateT ImportEnv IO)
 
@@ -78,6 +74,19 @@ compileRAII ast = runExcept $ do
     ast_raii <- pass $ raiiCheck ast_verify_top_vardef
     return ast_raii
 
+processGlobal :: String -> ([TCAST], SymbolTableLayer, Int)
+processGlobal s = do
+    case tokenize s of
+        Left _ -> error "Global code pass error"
+        Right tokens -> do
+            let ast = defMemberList $ isqv2 tokens
+            case compileRAII ast of
+                Left _ -> error "Global code RAII error"
+                Right raii -> do
+                    case typeCheckTop False "." raii MultiMap.empty 0 False of
+                        Left x -> error $ "Global code type check error: " ++ (show $ encode x)
+                        Right x -> x
+
 getConcatName :: [String] -> FilePath -> FilePath
 getConcatName fields prefix= do
     let joined = joinPath ([prefix] ++ fields)
@@ -106,7 +115,9 @@ getImportedTcasts froms incPath impList = do
     files <- getImportedFiles froms incPath impList
     tupList <- mapM (fileToTcast incPath froms) files
     let tcast = concat $ map fst tupList
-    let table = MultiMap.fromList $ concat $ map (MultiMap.toList . snd) tupList
+    gtable <- gets globalTable
+    let tables = gtable : map snd tupList
+    let table = MultiMap.fromList $ concat $ map MultiMap.toList tables
     return (tcast, table)
 
 doImport :: [FilePath] -> [FilePath] -> FilePath -> LAST -> PassMonad ([TCAST], SymbolTableLayer)
@@ -143,7 +154,8 @@ doImport incPath froms file node = do
                                 Right raii -> do
                                     --liftIO $ BS.hPut stdout (encode raii) -- for debug
                                     oldId <- gets ssaId
-                                    let errOrTuple = typeCheckTop isMain prefix raii importTable oldId
+                                    q <- gets qcis
+                                    let errOrTuple = typeCheckTop isMain prefix raii importTable oldId q
                                     case errOrTuple of
                                         Left x -> throwError $ fromError x
                                         Right (tcast, table, newId) -> do
@@ -167,15 +179,31 @@ fileToTcast incPath froms file = do
                     modify' (\x->x{symbolTable = newStl})
                     return $ tuple
 
-generateTcast :: String -> FilePath -> IO (Either CompileError ([TCAST], Int))
-generateTcast incPathStr inputFileName = do
+globalSource :: String
+globalSource = "int __measure_bundle(qbit q[])\
+\{\
+\    int res = 0;\
+\    int i = q.length - 1;\
+\    while (i >= 0) {\
+\        res = res * 2 + M(q[i]);\
+\        i = i - 1;\
+\    }\
+\    return res;\
+\}"
+
+generateTcast :: String -> FilePath -> Bool -> IO (Either CompileError ([TCAST], Int))
+generateTcast incPathStr inputFileName qcis = do
+    let (globalTcasts, globalTable, ssaId) = case qcis of
+            True -> ([], MultiMap.empty, 0)
+            False -> processGlobal globalSource
     absolutPath <- canonicalizePath inputFileName
     let splitedPath = splitOn ":" incPathStr
     incPath <- mapM canonicalizePath splitedPath
-    (errOrTuple, (ImportEnv _ ssa)) <- runStateT (runExceptT $ fileToTcast incPath [] absolutPath) emptyImportEnv
+    let env = ImportEnv globalTable Map.empty ssaId qcis
+    (errOrTuple, (ImportEnv _ _ ssa _)) <- runStateT (runExceptT $ fileToTcast incPath [] absolutPath) env
     case errOrTuple of
         Left x -> return $ Left x
-        Right tuple -> return $ Right (fst tuple, ssa)
+        Right tuple -> return $ Right (globalTcasts ++ fst tuple, ssa)
 
 compile :: String -> ([TCAST], Int) -> Either CompileError String
 compile s ast_tc = runExcept $ do
