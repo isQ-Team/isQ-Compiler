@@ -204,8 +204,12 @@ evaluateStatement (NAssign ann lexpr rexpr op) = do
                     let maybe = Map.lookup ident x
                     case maybe of
                         Nothing -> findIdent (pre ++ [x]) xs
-                        Just _ -> do
-                            obj <- evaluateExpression rexpr
+                        Just lobj -> do
+                            robj <- evaluateExpression rexpr
+                            obj <- case op of
+                                AssignEq -> return robj
+                                AddEq -> binaryIntOperation ann (+) lobj robj
+                                SubEq -> binaryIntOperation ann (-) lobj robj
                             let newx = Map.insert ident obj x
                             return $ pre ++ [newx] ++ xs
             symbolTables <- get
