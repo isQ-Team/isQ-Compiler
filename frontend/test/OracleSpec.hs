@@ -130,6 +130,14 @@ oracleSpec = do
         let str = "oracle o(2, 2) : x { int y; y = 3; return y;}"
         evaluateExpect str 2 3
 
+    it "evaluates correctly with plus and assign" $ do
+        let str = "oracle o(2, 2) : x { int y = 2; y += x; return y;}"
+        evaluateExpect str 1 3
+
+    it "evaluates correctly with minus and assign" $ do
+        let str = "oracle o(2, 2) : x { int y = 2; y -= x; return y;}"
+        evaluateExpect str 1 1
+
     it "evaluates correctly with scoped assigned variables" $ do
         let str = "oracle o(2, 1) : x { { x = 3; } return x;}"
         evaluateExpect str 2 3
