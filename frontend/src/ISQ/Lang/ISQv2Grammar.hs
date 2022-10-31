@@ -57,6 +57,7 @@ instance Annotated Type where
 -- A procedure marked with derive-oracle will be seen as an oracle on its last n boolean parameters.
 data DerivingType = DeriveGate | DeriveOracle Int deriving (Eq, Show)
 
+data AssignOperator = AssignEq | AddEq | SubEq deriving (Eq, Show)
 data AST ann = 
        NBlock { annotationAST :: ann, statementList :: ASTBlock ann}
      | NIf { annotationAST :: ann, condition :: Expr ann, ifStat :: ASTBlock ann, elseStat :: ASTBlock ann}
@@ -67,7 +68,7 @@ data AST ann =
      | NWhile { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann}
      | NCall { annotationAST :: ann, callExpr :: Expr ann}
      | NDefvar { annotationAST :: ann, definitions :: [(Type ann, Ident, Maybe (Expr ann))]}
-     | NAssign { annotationAST :: ann, assignLhs :: Expr ann, assignRhs :: Expr ann}
+     | NAssign { annotationAST :: ann, assignLhs :: Expr ann, assignRhs :: Expr ann, operator :: AssignOperator}
      | NGatedef { annotationAST :: ann, gateName :: String, gateRhs :: [[Expr ann]], externQirName :: Maybe String}
      | NReturn { annotationAST :: ann, returnedVal :: Expr ann}
      | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier]}

@@ -1,0 +1,5 @@
+procedure main()
+{
+    qbit q[3];
+    M(q);
+}

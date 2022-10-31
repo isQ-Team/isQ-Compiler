@@ -1,28 +1,29 @@
 mod util;
-use util::LINE_ENDING;
+use util::{merge, LINE_ENDING};
 use assert_cmd::prelude::*; // Add methods on commands
 use predicates::prelude::*; // Used for writing assertions
 use std::{process::Command}; // Run programs
 use std::path::Path;
 use test_case::test_case;
 
-#[test_case("classic_add_sub", &("7".to_string()+LINE_ENDING+"-1"))]
-#[test_case("classic_and_or", &("0".to_string()+LINE_ENDING+"2"))]
-#[test_case("classic_bitwise_logic", &("8".to_string()+LINE_ENDING+"13"+LINE_ENDING+"5"))]
+#[test_case("add_sub_equal", &merge(&["7", "4"]))]
+#[test_case("classic_add_sub", &merge(&["7", "-1"]))]
+#[test_case("classic_and_or", &merge(&["0", "2"]))]
+#[test_case("classic_bitwise_logic", &merge(&["8", "13", "5"]))]
 #[test_case("classic_bool_to_int", "3")]
 #[test_case("classic_comment", "10")]
 #[test_case("classic_double", &("4".to_string()+LINE_ENDING+"6.283185"))]
 #[test_case("classic_empty_statement", "0")]
-#[test_case("classic_equal", &("0".to_string()+LINE_ENDING+"1"))]
-#[test_case("classic_local", &("789".to_string()+LINE_ENDING+"123"+LINE_ENDING+"456"))]
-#[test_case("classic_mod_pow", &("1".to_string()+LINE_ENDING+"49"))]
-#[test_case("classic_mul_div", &("32".to_string()+LINE_ENDING+"2"))]
+#[test_case("classic_equal", &merge(&["0", "1"]))]
+#[test_case("classic_local", &merge(&["789", "123", "456"]))]
+#[test_case("classic_mod_pow", &merge(&["1", "49"]))]
+#[test_case("classic_mul_div", &merge(&["32", "2"]))]
 #[test_case("classic_nested_comment", "114514")]
 #[test_case("classic_nested_region", "2")]
 #[test_case("classic_recursion", "3628800")]
-#[test_case("classic_shift", &("12".to_string()+LINE_ENDING+"2"))]
-#[test_case("classic_unitary", &("2".to_string()+LINE_ENDING+"-114514"+LINE_ENDING+"1"))]
-fn test_assert(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
+#[test_case("classic_shift", &merge(&["12", "2"]))]
+#[test_case("classic_unitary", &merge(&["2", "-114514", "1"]))]
+fn test_classic(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
     let folder = Path::new("tests").join("input").join("classic");
     let mut cmd = Command::cargo_bin("isqc")?;
