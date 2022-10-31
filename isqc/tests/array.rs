@@ -20,3 +20,13 @@ fn test_array(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().success().stderr(predicate::str::contains(res));
     Ok(())
 }
+
+#[test_case("measure_statement")]
+fn array_no_error(name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let source_file = name.to_string() + ".isq";
+    let folder = Path::new("tests").join("input").join("array");
+    let mut cmd = Command::cargo_bin("isqc")?;
+    cmd.arg("run").arg(folder.join(source_file).to_str().to_owned().unwrap());
+    cmd.assert().success().stderr(predicate::str::is_empty());
+    Ok(())
+}

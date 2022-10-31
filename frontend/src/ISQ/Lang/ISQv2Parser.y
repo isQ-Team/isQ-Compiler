@@ -50,7 +50,9 @@ import Control.Exception (throw, Exception)
     '=' { TokenReservedOp $$ "=" }
     '==' { TokenReservedOp $$ "==" }
     '+' { TokenReservedOp $$ "+" }
+    '+=' { TokenReservedOp $$ "+=" }
     '-' { TokenReservedOp $$ "-" }
+    '-=' { TokenReservedOp $$ "-=" }
     '*' { TokenReservedOp $$ "*" }
     '/' { TokenReservedOp $$ "/" }
     '%' { TokenReservedOp $$ "%" }
@@ -244,7 +246,9 @@ LetStyleDef : let IdentListNonEmpty ':' Type { NDefvar $1 (fmap (\x->($4, tokenI
 CallStatement :: {LAST}
 CallStatement : CallExpr { NCall (annotation $1) $1 }
 AssignStatement :: {LAST}
-AssignStatement : Expr1Left '=' Expr { NAssign $2 $1 $3 }
+AssignStatement : Expr1Left '=' Expr { NAssign $2 $1 $3 AssignEq }
+                | Expr1Left '+=' Expr { NAssign $2 $1 $3 AddEq }
+                | Expr1Left '-=' Expr { NAssign $2 $1 $3 SubEq }
 
 ReturnStatement :: {LAST}
 ReturnStatement : return Expr {NReturn $1 $2}

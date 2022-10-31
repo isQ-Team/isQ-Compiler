@@ -1,0 +1,12 @@
+import std;
+
+procedure fun(qbit q[])
+{
+    H(q);
+}
+
+procedure main()
+{
+    qbit q[3];
+    fun(q);
+}

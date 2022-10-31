@@ -195,7 +195,7 @@ evaluateStatement (NDefvar ann defs) = do
 
 evaluateStatement (NReturn ann exp) = evaluateExpression exp
 
-evaluateStatement (NAssign ann lexpr rexpr) = do
+evaluateStatement (NAssign ann lexpr rexpr op) = do
     case lexpr of
         EIdent eann ident -> do
             let findIdent :: [Map.Map String Obj] -> [Map.Map String Obj] -> OracleEvaluate [Map.Map String Obj]
@@ -257,7 +257,7 @@ evaluateStatement (NFor ann forVar range@(ERange eann lo hi step) body) = do
             case bcond of
                 True -> do
                     res <- evaluateStatement $ head body
-                    evaluateStatement $ NAssign eann evar eadd
+                    evaluateStatement $ NAssign eann evar eadd AssignEq
                     case res of
                         OBreak -> return OUnit
                         _ -> executeFor

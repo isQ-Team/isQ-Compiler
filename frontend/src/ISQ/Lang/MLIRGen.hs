@@ -306,7 +306,7 @@ emitStatement' f (NBp ann) = do
 emitStatement' f NWhile{} = error "unreachable"
 emitStatement' f (NCall ann expr) = void $ emitExpr expr
 emitStatement' f (NDefvar ann defs) = error "unreachable"
-emitStatement' f (NAssign ann lhs rhs) = do
+emitStatement' f (NAssign ann lhs rhs op) = do
     lhs'<-emitExpr lhs
     rhs'<-emitExpr rhs
     pos<-mpos ann

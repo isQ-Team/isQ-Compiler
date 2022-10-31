@@ -53,6 +53,8 @@ deriving instance Generic BinaryOperator
 instance ToJSON BinaryOperator 
 deriving instance Generic CmpType
 instance ToJSON CmpType
+deriving instance Generic AssignOperator 
+instance ToJSON AssignOperator 
 instance ToJSON (Complex Double)
 deriving instance Generic GateModifier 
 instance ToJSON GateModifier 
@@ -66,6 +68,7 @@ instance NFData BuiltinType
 instance NFData UnaryOperator 
 instance NFData BinaryOperator 
 instance NFData CmpType 
+instance NFData AssignOperator 
 instance NFData (Type Pos)
 instance NFData (Type ())
 instance NFData GateModifier 
