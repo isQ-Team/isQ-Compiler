@@ -61,8 +61,7 @@ insertSymbol sym ast (x:xs) = case MultiMap.lookup sym x of
 data TypeCheckEnv = TypeCheckEnv {
     symbolTable :: SymbolTable,
     ssaAllocator :: Int,
-    mainDefined :: Bool,
-    qcis :: Bool
+    mainDefined :: Bool
 }
 
 type TypeCheck = ExceptT TypeCheckError (State TypeCheckEnv)
@@ -200,6 +199,28 @@ exactBinaryCheck f etype pos op lhs rhs = do
     ssa <- nextId
     return $ EBinary (TypeCheckData pos etype ssa) op lhs' rhs'
 
+buildBinaryExpr :: Pos -> BinaryOperator -> Expr TypeCheckData -> Expr TypeCheckData -> TypeCheck (Expr TypeCheckData)
+buildBinaryExpr pos op ref_lhs ref_rhs = do
+    lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
+    rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
+    ssa<-nextId
+    let lty = astType lhs'
+    let rty = astType rhs'
+    --traceM $ show rty
+    matched_lhs <- case ty rty of
+            Double -> matchType [Exact (doubleType ())] lhs'
+            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
+    matched_rhs <- case ty lty of
+            Double -> matchType [Exact (doubleType ())] rhs'
+            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
+    --traceM $ show matched_lhs
+    let return_type = case op of
+            Cmp _ -> boolType ()
+            _ -> astType matched_lhs
+    case op of
+        Mod -> if (return_type /= intType ()) then throwError $ TypeMismatch pos [Exact (intType ())] return_type else return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+        _ -> return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+
 -- By now we only support bottom-up type checking.
 -- All leaf nodes have their own type, and intermediate types are calculated.
 typeCheckExpr' :: (Expr Pos->TypeCheck (Expr TypeCheckData))->Expr Pos->TypeCheck (Expr TypeCheckData)
@@ -227,26 +248,7 @@ typeCheckExpr' f (EBinary pos Pow lhs rhs) = do
 typeCheckExpr' f (EBinary pos op lhs rhs) = do
     ref_lhs<-f lhs
     ref_rhs<-f rhs
-    lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
-    rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
-    ssa<-nextId
-    let lty = astType lhs'
-    let rty = astType rhs'
-    --traceM $ show rty
-    matched_lhs <- case ty rty of
-            Double -> matchType [Exact (doubleType ())] lhs'
-            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
-    matched_rhs <- case ty lty of
-            Double -> matchType [Exact (doubleType ())] rhs'
-            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
-    --traceM $ show matched_lhs
-    let return_type = case op of
-            Cmp _ -> boolType ()
-            _ -> astType matched_lhs
-    case op of
-        Mod -> if (return_type /= intType ()) then throwError $ TypeMismatch pos [Exact (intType ())] return_type else return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
-        _ -> return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
-
+    buildBinaryExpr pos op ref_lhs ref_rhs
 typeCheckExpr' f (EUnary pos Not lhs) = do
     lhs'<-f lhs
     matched_lhs <- matchType (map Exact [boolType ()]) lhs'
@@ -311,13 +313,9 @@ typeCheckExpr' f (ECoreMeasure pos qubit) = do
     case is_qubit of
         Just qubit'' -> return $ ECoreMeasure (TypeCheckData pos (boolType ()) ssa) qubit''
         Nothing -> do
-            q <- gets qcis
-            case q of
-                True -> throwError $ TypeMismatch (sourcePos $ annotation qubit') [Exact (refType () (qbitType ()))] (astType qubit')
-                False -> do
-                    qubit'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] qubit'
-                    fun <- f (EIdent pos ".__measure_bundle")
-                    return $ ECall (TypeCheckData pos (intType ()) ssa) fun [qubit'']
+            qubit'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] qubit'
+            fun <- f (EIdent pos ".__measure_bundle")
+            return $ ECall (TypeCheckData pos (intType ()) ssa) fun [qubit'']
 typeCheckExpr' f (EList pos lis) = do
     lis' <- mapM f lis
     let levels = map (typeToInt . termType . annotationExpr) lis'
@@ -370,33 +368,31 @@ getBaseFromArray (ESubscript ann base _) = base
 getBaseFromArray _ = error "Unreachable."
 
 getRangeFromArray :: TCExpr -> TypeCheck TCExpr
-getRangeFromArray (EResolvedIdent ann _) = do
+getRangeFromArray array@(EResolvedIdent ann _) = do
     let pos = sourcePos ann
     init_id <- nextId
     let init = EIntLit (TypeCheckData pos (intType ()) init_id) 0
-    let length = case termType ann of
-            Type () (Array x) [Type () Qbit []] -> x
-            _ -> undefined
     hi_id <- nextId
-    let hi = EIntLit (TypeCheckData pos (intType ()) hi_id) length
+    let hi = EArrayLen (TypeCheckData pos (intType ()) hi_id) array
     step_id <- nextId
     let step = EIntLit (TypeCheckData pos (intType ()) step_id) 1
     return $ ERange ann (Just init) (Just hi) (Just step)
 getRangeFromArray (ESubscript ann _ subscript) = return $ subscript
 getRangeFromArray x = error "Unreachable."
 
-generateIteratorDef :: TCExpr -> TypeCheck [TCAST]
+generateIteratorDef :: TCExpr -> TypeCheck [Maybe TCAST]
 generateIteratorDef (ERange ann lo hi step) = do
-    let it_def = NResolvedDefvar ann [(refIntType (), termId ann, lo)]
-    hi_id <- case hi of
-            Nothing -> return (-1)
-            Just _ -> nextId
-    let hi_def = NResolvedDefvar ann [(refIntType (), hi_id, hi)]
+    let it_def = Just $ NResolvedDefvar ann [(refIntType (), termId ann, lo)]
+    hi_def <- case hi of
+            Nothing -> return $ Nothing
+            Just _ -> do
+                hi_id <- nextId
+                return $ Just $ NResolvedDefvar ann [(refIntType (), hi_id, hi)]
     estep <- case step of
             Nothing -> error "Unreachable."
             Just x -> return $ Just $ x
     step_id <- nextId
-    let step_def = NResolvedDefvar ann [(refIntType (), step_id, estep)]
+    let step_def = Just $ NResolvedDefvar ann [(refIntType (), step_id, estep)]
     return [it_def, hi_def, step_def]
 
 getVariableRef :: Pos -> Type () -> Int -> TypeCheck TCExpr
@@ -420,7 +416,7 @@ increaseIterator pos (it_id, step_id) = do
     let add_ann = TypeCheckData pos (intType ()) add_id
     let add = EBinary add_ann Add it step
     left <- getVariableRef pos (intType ()) it_id
-    return $ NAssign (okStmt pos) left add
+    return $ NAssign (okStmt pos) left add AssignEq
 
 andRangeCondition :: Pos -> Int -> (Int, Int) -> TypeCheck TCAST
 andRangeCondition pos in_id (it_id, hi_id) = do
@@ -437,7 +433,7 @@ andRangeCondition pos in_id (it_id, hi_id) = do
     let and_ann = TypeCheckData pos (boolType ()) and_id
     let and = EBinary and_ann And cond_in cond
     left <- getVariableRef pos (boolType ()) in_id
-    return $ NAssign (okStmt pos) left and
+    return $ NAssign (okStmt pos) left and AssignEq
 
 getItemFromArray :: Pos -> (TCExpr, TCExpr) -> TypeCheck TCExpr
 getItemFromArray pos (base, it) = do
@@ -517,14 +513,43 @@ typeCheckAST' f (NDefvar pos defs) = do
             return (ty', s, i')
     defs'<-mapM def_one defs
     return $ NResolvedDefvar (okStmt pos) defs'
-typeCheckAST' f (NAssign pos lhs rhs) = do
+typeCheckAST' f (NAssign pos lhs rhs op) = do
     lhs'<-typeCheckExpr lhs
-    lhs''<-matchType [AnyRef] lhs'
     rhs'<-typeCheckExpr rhs
-    let Type () Ref [lhs_ty] = astType lhs''
-    when (ty lhs_ty==Qbit) $ throwError $ ViolateNonCloningTheorem pos
-    rhs''<-matchType [Exact lhs_ty] rhs'
-    return $ NAssign (okStmt pos) lhs'' rhs''
+    let doAssign lhs' rhs' = do
+            lhs'' <- matchType [AnyRef] lhs'
+            let Type () Ref [lhs_ty] = astType lhs''
+            when (ty lhs_ty==Qbit) $ throwError $ ViolateNonCloningTheorem pos
+            rhs'' <- matchType [Exact lhs_ty] rhs'
+            return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
+    case op of
+        AssignEq -> doAssign lhs' rhs'
+        AddEq -> do
+            let lhs_ty = termType $ annotationExpr lhs'
+            case lhs_ty of
+                Type () (Array _) [Type () Qbit []] -> do
+                    lhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] lhs'
+                    rhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] rhs'
+                    call_id <- nextId
+                    callee <- typeCheckExpr $ EIdent pos "__add"
+                    let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
+                    return $ NCall (okStmt pos) ecall
+                other -> do
+                    eadd <- buildBinaryExpr pos Add lhs' rhs'
+                    doAssign lhs' eadd
+        SubEq -> do
+            let lhs_ty = termType $ annotationExpr lhs'
+            case lhs_ty of
+                Type () (Array _) [Type () Qbit []] -> do
+                    lhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] lhs'
+                    rhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] rhs'
+                    call_id <- nextId
+                    callee <- typeCheckExpr $ EIdent pos "__sub"
+                    let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
+                    return $ NCall (okStmt pos) ecall
+                other -> do
+                    esub <- buildBinaryExpr pos Sub lhs' rhs'
+                    doAssign lhs' esub
 typeCheckAST' f (NGatedef pos lhs rhs _) = error "unreachable"
 typeCheckAST' f (NReturn _ _) = error "unreachable"
 typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
@@ -552,7 +577,8 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     ranges <- mapM getRangeFromArray op_qubits'
                     var_defs <- mapM generateIteratorDef ranges
                     let get_second (a, b, c) = b
-                    let getIdFromDefvar = get_second . head . resolvedDefinitions
+                    let getIdFromDefvar Nothing = -1
+                        getIdFromDefvar (Just x) = get_second $ head $ resolvedDefinitions x
                     let it_ids = map (getIdFromDefvar . head) var_defs
                     let hi_ids = map (getIdFromDefvar . head . tail) var_defs
                     let step_ids = map (getIdFromDefvar . last) var_defs
@@ -581,7 +607,7 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     let false_ann = TypeCheckData pos (boolType ()) false_id
                     let false_lit = Just $ EBoolLit false_ann False
                     let temp_def = NResolvedDefvar (okStmt pos) [(refBoolType (), ntemp_id, false_lit)]
-                    let block_body = concat var_defs ++ cond_def:apply_cond ++ [temp_def, nwhile]
+                    let block_body = (catMaybes $ concat var_defs) ++ cond_def:apply_cond ++ [temp_def, nwhile]
                     let block = NBlock (okStmt pos) block_body 
                     return block
 typeCheckAST' f (NCoreReset pos qubit) = do
@@ -600,8 +626,7 @@ typeCheckAST' f (NCorePrint pos val) = do
     return $ NCorePrint (okStmt pos) val''
 typeCheckAST' f (NCoreMeasure pos qubit) = do
     qubit'<-typeCheckExpr qubit
-    qubit''<-matchType [Exact (boolType ())] qubit'
-    return $ NCoreMeasure (okStmt pos) qubit''
+    return $ NCoreMeasure (okStmt pos) qubit'
 typeCheckAST' f (NProcedure _ _ _ _ _) = error "unreachable"
 typeCheckAST' f (NContinue _) = error "unreachable"
 typeCheckAST' f (NBreak _) = error "unreachable"
@@ -780,9 +805,9 @@ getSecondLast [x] = error "Single-element list"
 getSecondLast (x:_:[]) = x
 getSecondLast (x:xs) = getSecondLast xs
 
-typeCheckTop :: Bool -> String -> [LAST] -> SymbolTableLayer -> Int -> Bool -> Either TypeCheckError ([TCAST], SymbolTableLayer, Int)
-typeCheckTop isMain prefix ast stl ssaId qcis = do
-    let env = TypeCheckEnv [MultiMap.empty, stl] ssaId False qcis
+typeCheckTop :: Bool -> String -> [LAST] -> SymbolTableLayer -> Int -> Either TypeCheckError ([TCAST], SymbolTableLayer, Int)
+typeCheckTop isMain prefix ast stl ssaId = do
+    let env = TypeCheckEnv [MultiMap.empty, stl] ssaId False
     evalState (runExceptT $ typeCheckToplevel isMain prefix ast) env
 
 -- TODO: unification-based type check and type inference.

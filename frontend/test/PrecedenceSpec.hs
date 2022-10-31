@@ -10,7 +10,7 @@ import Test.Hspec
 
 strToAst :: String -> IO LAST
 strToAst input = do
-    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) $ ImportEnv MultiMap.empty Map.empty 0 True
+    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) $ ImportEnv MultiMap.empty Map.empty 0
     case errorOrAst of
         Left x -> error "input file error"
         Right ast -> return $ head $ defMemberList ast

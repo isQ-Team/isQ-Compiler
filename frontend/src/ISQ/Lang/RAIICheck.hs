@@ -169,7 +169,7 @@ eliminateNonAffineForStmts' f (NFor (_, ann) vn (ERange (_, ann2) (Just a) (Just
             NTempvar ann (intType (), idhi, Just $ eraseSafe b),
             NTempvar ann (intType (), idstep, Just $ eraseSafe c),
             NDefvar ann [(intType ann, vn, Just lo)],
-            NWhile ann (EBinary ann2 (Cmp Less) v hi) ((concat b') ++ [NAssign ann v (EBinary ann2 Add v step)])
+            NWhile ann (EBinary ann2 (Cmp Less) v hi) ((concat b') ++ [NAssign ann v (EBinary ann2 Add v step) AssignEq])
         ]
 eliminateNonAffineForStmts' f NFor{} = error "For-statement with non-standard range indices not supported."
 eliminateNonAffineForStmts' f (NProcedure a b c d e) = do
@@ -259,9 +259,9 @@ raiiTransform' _ ast = return [ast]
 
 
 setFlag :: ann->Int->AST ann
-setFlag ann x= NAssign ann (ETempVar ann x) (EBoolLit ann True)
+setFlag ann x= NAssign ann (ETempVar ann x) (EBoolLit ann True) AssignEq
 setReturnVal :: ann->Int->Expr ann->AST ann
-setReturnVal ann x y = NAssign ann (ETempVar ann x) y
+setReturnVal ann x y = NAssign ann (ETempVar ann x) y AssignEq
 raiiTransform :: LAST -> RAIICheck [LAST]
 raiiTransform = fix raiiTransform'
 
