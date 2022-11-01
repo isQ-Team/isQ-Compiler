@@ -418,16 +418,24 @@ increaseIterator pos (it_id, step_id) = do
     left <- getVariableRef pos (intType ()) it_id
     return $ NAssign (okStmt pos) left add AssignEq
 
-andRangeCondition :: Pos -> Int -> (Int, Int) -> TypeCheck TCAST
-andRangeCondition pos in_id (it_id, hi_id) = do
+andRangeCondition :: Pos -> Int -> (Int, Int, Int) -> TypeCheck TCAST
+andRangeCondition pos in_id (it_id, hi_id, step_id) = do
     cond_id <- nextId
     let cond_ann = TypeCheckData pos (boolType ()) cond_id
-    ident <- getVariableDeref pos (intType ()) it_id
     cond <- case hi_id of
             -1 -> return $ EBoolLit cond_ann True
             x -> do
+                -- the condtion is: ident * step < hi * step
+                -- it handles both cases that step is positive or negative
+                ident <- getVariableDeref pos (intType ()) it_id
+                step1 <- getVariableDeref pos (intType ()) step_id
+                ip_id <- nextId
+                let ip = EBinary (TypeCheckData pos (intType ()) ip_id) Mul ident step1
                 hi <- getVariableDeref pos (intType ()) hi_id
-                return $ EBinary cond_ann (Cmp Less) ident hi
+                hp_id <- nextId
+                step2 <- getVariableDeref pos (intType ()) step_id
+                let hp = EBinary (TypeCheckData pos (intType ()) hp_id) Mul hi step2
+                return $ EBinary cond_ann (Cmp Less) ip hp
     cond_in <- getVariableDeref pos (boolType ()) in_id
     and_id <- nextId
     let and_ann = TypeCheckData pos (boolType ()) and_id
@@ -590,14 +598,14 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     cond_id <- nextId
                     let cond_def = NResolvedDefvar (okStmt pos) [(refBoolType (), cond_id, true_lit)]
 
-                    apply_cond <- mapM (andRangeCondition pos cond_id) $ zip it_ids hi_ids
+                    apply_cond <- mapM (andRangeCondition pos cond_id) $ zip3 it_ids hi_ids step_ids
                     econd <- getVariableDeref pos (boolType ()) cond_id
                     current_ids <- mapM (getVariableDeref pos (intType ())) it_ids
                     let bases = map getBaseFromArray op_qubits'
                     qubits <- mapM (getItemFromArray pos) $ zip bases current_ids
                     let apply_unitary = NCoreUnitary (okStmt pos) gate'' qubits modifiers
                     inc_its <- mapM (increaseIterator pos) $ zip it_ids step_ids
-                    apply_cond2 <- mapM (andRangeCondition pos cond_id) $ zip it_ids hi_ids
+                    apply_cond2 <- mapM (andRangeCondition pos cond_id) $ zip3 it_ids hi_ids step_ids
                     let while_body = apply_unitary : inc_its ++ apply_cond2
                     ntemp_id <- nextId
                     flag <- getVariableDeref pos (boolType ()) ntemp_id

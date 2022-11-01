@@ -224,13 +224,13 @@ oracleSpec = do
     it "evaluates correctly with for and break statements" $ do
         let str = "oracle o(2, 3) : x {\
             \int sum = 0;\
-            \for i in 1:4 {\
+            \for i in 4:0:-1 {\
                 \if (i == 2) break;\
                 \sum = sum + i;\
             \}\
             \return sum;\
         \}"
-        evaluateExpect str 3 1
+        evaluateExpect str 3 7
 
     it "evaluates correctly with for and continue statement" $ do
         let str = "oracle o(2, 3) : x {\
