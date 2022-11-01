@@ -21,15 +21,11 @@ procedure __add(qbit a[], qbit b[])
 {
     int len = a.length;
     CNOT(a[1:len], b[1:]);
-    for i in 1 : len - 1 {
-        CNOT(a[len - i - 1], a[len - i]);
-    }
+    CNOT(a[len-2:0:-1], a[len-1::-1]);
     Toffoli(a[0:], b, a[1:len]);
-    int i = len - 1;
-    while (i > 0) {
+    for i in len-1:0:-1 {
         CNOT(a[i], b[i]);
         Toffoli(a[i - 1], b[i - 1], a[i]);
-        i = i - 1;
     }
     CNOT(a[1:], a[2:len]);
     CNOT(a, b);
@@ -39,16 +35,12 @@ procedure __sub(qbit a[], qbit b[])
 {
     int len = a.length;
     CNOT(a, b);
-    for i in 1 : len - 1 {
-        CNOT(a[len - i - 1], a[len - i]);
-    }
+    CNOT(a[len-2:0:-1], a[len-1::-1]);
     for i in 1 : len {
         Toffoli(a[i - 1], b[i - 1], a[i]);
         CNOT(a[i], b[i]);
     }
-    for i in 1 : len {
-        Toffoli(a[len - i - 1], b[len - i - 1], a[len - i]);
-    }
+    Toffoli(a[len-2::-1], b[len-2::-1], a[len-1:0:-1]);
     CNOT(a[1:], a[2:len]);
     CNOT(a[1:len], b[1:]);
 }

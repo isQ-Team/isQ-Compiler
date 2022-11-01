@@ -247,12 +247,15 @@ evaluateStatement (NWhile ann cond body) = do
 
 evaluateStatement (NFor ann forVar range@(ERange eann lo hi step) body) = do
     let evar = EIdent ann forVar
-    let econd = case hi of
-            Nothing -> EBoolLit eann True
-            Just x -> EBinary eann (Cmp Less) evar x
     let estep = case step of
             Nothing -> EIntLit eann 1
             Just x -> x
+    let econd = case hi of
+            Nothing -> EBoolLit eann True
+            Just x -> do
+                let left = EBinary eann Mul evar estep
+                let right = EBinary eann Mul x estep
+                EBinary eann (Cmp Less) left right
     let eadd = EBinary eann Add evar estep
     let executeFor :: OracleEvaluate Obj
         executeFor = do

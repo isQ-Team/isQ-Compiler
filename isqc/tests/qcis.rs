@@ -9,6 +9,7 @@ use test_case::test_case;
 #[test_case("measure")]
 #[test_case("range_init_high")]
 #[test_case("range_init_high_step")]
+#[test_case("range_init_high_step_neg")]
 #[test_case("two_array")]
 #[test_case("two_range")]
 #[test_case("two_range_unequal")]

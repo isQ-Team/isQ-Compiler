@@ -92,7 +92,7 @@ instance Monoid AffineSafe where
 
 isExprSafe :: Expr ann->Expr (AffineSafe, ann)
 isExprSafe x@(ERange _ _ _ Nothing) = fmap (Safe,) x
-isExprSafe x@(ERange _ _ _ (Just (EIntLit _ _))) = fmap (Safe,) x
+isExprSafe x@(ERange _ _ _ (Just (EIntLit _ val))) | val > 0 = fmap (Safe,) x
 isExprSafe x@(ERange ann lo hi (Just (EUnary ann2 Neg (EIntLit ann3 v)))) = isExprSafe (ERange ann lo hi (Just (EIntLit ann2 (-v))))
 isExprSafe x@(ERange ann lo hi (Just (EUnary ann2 Positive (EIntLit ann3 v)))) = isExprSafe (ERange ann lo hi (Just (EIntLit ann2 v)))
 isExprSafe x@ERange{} = fmap (ContainsBreak,) x
@@ -164,12 +164,14 @@ eliminateNonAffineForStmts' f (NFor (_, ann) vn (ERange (_, ann2) (Just a) (Just
         lo = ETempVar ann2 idlo
         hi = ETempVar ann2 idhi
         step = ETempVar ann2 idstep
+        left = EBinary ann2 Mul v step
+        right = EBinary ann2 Mul hi step
         in return [
             NTempvar ann (intType (), idlo, Just $ eraseSafe a),
             NTempvar ann (intType (), idhi, Just $ eraseSafe b),
             NTempvar ann (intType (), idstep, Just $ eraseSafe c),
             NDefvar ann [(intType ann, vn, Just lo)],
-            NWhile ann (EBinary ann2 (Cmp Less) v hi) ((concat b') ++ [NAssign ann v (EBinary ann2 Add v step) AssignEq])
+            NWhile ann (EBinary ann2 (Cmp Less) left right) ((concat b') ++ [NAssign ann v (EBinary ann2 Add v step) AssignEq])
         ]
 eliminateNonAffineForStmts' f NFor{} = error "For-statement with non-standard range indices not supported."
 eliminateNonAffineForStmts' f (NProcedure a b c d e) = do
