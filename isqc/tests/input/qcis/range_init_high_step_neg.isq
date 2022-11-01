@@ -1,0 +1,6 @@
+import std;
+procedure main()
+{
+    qbit q[6];
+    H(q[5:0:-2]);
+}
