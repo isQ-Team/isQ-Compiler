@@ -51,33 +51,6 @@ fn fixed_output(path: PathBuf, res: &str) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-#[test_case("empty_gate", "Syntax Error: unexpected token")]
-#[test_case("keyword_as_identifier", "Syntax Error: unexpected token")]
-#[test_case("mat_not_square", "bad matrix shape")]
-#[test_case("mat_not_2_pow", "Syntax Error: unexpected token")]
-#[test_case("not_utf8", "invalid byte sequence")]
-#[test_case("other_lang", "Syntax Error: tokenizing failed")]
-#[test_case("repeated_names", "isqv2::frontend::redefined_symbol")]
-#[test_case("type_mismatch", "Type mismatch")]
-#[test_case("undefined_symbol", "Undefined symbol")]
-#[test_case("unknown_token", "Syntax Error: tokenizing failed")]
-#[test_case("wrong_brackets", "Syntax Error: unexpected token")]
-#[test_case("wrong_break", "Unexpected statement outside a loop")]
-#[test_case("wrong_continue", "Unexpected statement outside a loop")]
-#[test_case("wrong_for", "Syntax Error: unexpected token")]
-#[test_case("wrong_ctrl_size", "Argument number mismatch")]
-#[test_case("wrong_inv", "Syntax Error: unexpected token")]
-#[test_case("wrong_size", "Argument number mismatch")]
-fn syntax_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let file_name = "syntax_".to_string() + name + ".isq";
-    let path = Path::new("tests").join("input").join(file_name);
-    let mut cmd = Command::cargo_bin("isqc")?;
-    cmd.arg("compile").arg(path.to_str().to_owned().unwrap());
-    cmd.assert().failure().stderr(predicate::str::contains(syndrome));
-    Ok(())
-}
-
-//#[test_case("out_of_range", "does not exist")]
 #[test_case("same_qubit", "is used twice")]
 fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Error>> {
     let file_name = "runtime_".to_string() + name + ".isq";
