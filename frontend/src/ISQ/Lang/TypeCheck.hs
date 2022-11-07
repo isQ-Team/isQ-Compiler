@@ -494,7 +494,7 @@ typeCheckAST' f (NCall pos c@(ECall _ callee args)) = do
         _ -> undefined
 typeCheckAST' f (NCall pos c) = error "unreachable"
 typeCheckAST' f (NDefvar pos defs) = do
-    let def_one (ty, name, initializer) = do
+    let def_one (ty, name, initializer, length) = do
             let left_type = void ty
             (i', ty')<-case initializer of
                 Just r->do
@@ -516,7 +516,12 @@ typeCheckAST' f (NDefvar pos defs) = do
                         _ -> do
                             r''<-matchType [Exact left_type] r'
                             return (Just r'', definedRefType left_type)
-                Nothing -> return (Nothing, definedRefType left_type)
+                Nothing -> case length of
+                    Nothing -> return (Nothing, definedRefType left_type)
+                    Just len -> do
+                        len' <- typeCheckExpr len
+                        len'' <- matchType [Exact $ intType ()] len'
+                        return (Just len'', left_type)
             s <- defineSym (SymVar name) pos ty'
             return (ty', s, i')
     defs'<-mapM def_one defs
@@ -703,7 +708,7 @@ typeCheckToplevel isMain prefix ast = do
                     let (NResolvedDefvar a defs') = p
                     s<-lift unscope
                     modify' (MultiMap.map (\x->x{isGlobal=True}) s:)
-                    let node' = NGlobalDefvar a (zipWith (\(a1, a2, a3) (_, a4, _) ->(a1, a2, prefix ++ a4, a3)) defs' def)
+                    let node' = NGlobalDefvar a (zipWith (\(a1, a2, a3) (_, a4, _, _) ->(a1, a2, prefix ++ a4, a3)) defs' def)
                     return $ Right node'
                 x -> return $ Left x
             ) ast
@@ -775,7 +780,7 @@ typeCheckToplevel isMain prefix ast = do
                     s<-lift $ defineSym (SymTempArg temp_arg) pos (intType ())
                     -- Leave the good name for defvar.
                     --real_arg<-lift $ defineSym (SymVar i) pos (refType () (intType ()))
-                    modify' (++[NDefvar pos [(intType pos, i, Just $ ETempArg pos temp_arg )]])
+                    modify' (++[NDefvar pos [(intType pos, i, Just $ ETempArg pos temp_arg, Nothing)]])
                     return (ty, s)
                 x -> do
                     s<-lift $ defineSym (SymVar i) pos x

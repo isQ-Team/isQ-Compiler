@@ -1,9 +1,0 @@
-import std;
-
-qbit q[2];
-
-procedure main() {
-H <q[0]>;
-CNOT <q[0],q[1]>;
-H <q[2]>;
-}
