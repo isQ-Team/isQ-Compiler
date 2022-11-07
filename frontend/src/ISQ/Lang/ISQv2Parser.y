@@ -236,12 +236,6 @@ PassStatement :: {LAST}
 PassStatement : pass { NPass $1 }
 BpStatement :: {LAST}
 BpStatement : bp { NBp $1 }
-DefvarStatement :: {LAST}
-DefvarStatement : LetStyleDef { $1 }
-                | ISQCore_CStyleVarDef { $1 }
-
-LetStyleDef :: {LAST}
-LetStyleDef : let IdentListNonEmpty ':' Type { NDefvar $1 (fmap (\x->($4, tokenIdentV x, Nothing)) $2) }
 
 CallStatement :: {LAST}
 CallStatement : CallExpr { NCall (annotation $1) $1 }
@@ -345,16 +339,16 @@ TypeList : TypeList ',' Type { $1 ++ [$3] }
          | Type { [$1] }
          | {- empty -} {[]}
 
-ISQCore_CStyleVarDefTerm :: {LType->(LType, ISQv2Token, Maybe LExpr)}
-ISQCore_CStyleVarDefTerm : IDENTIFIER { \t->(t, $1, Nothing) }
-                         | IDENTIFIER ArrayTypeDecorator { \t->(Type (annotation $1) $2 [t], $1, Nothing)}
-                         | IDENTIFIER '=' Expr { \t->(t, $1, Just $3) }
-                         | IDENTIFIER ArrayTypeDecorator '=' Expr { \t->(Type (annotation $1) $2 [t], $1, Just $4)}
-ISQCore_CStyleVarDefList :: {[LType->(LType, ISQv2Token, Maybe LExpr)]}
+ISQCore_CStyleVarDefTerm :: {LType -> (LType, ISQv2Token, Maybe LExpr, Maybe LExpr)}
+ISQCore_CStyleVarDefTerm : IDENTIFIER { \t->(t, $1, Nothing, Nothing) }
+                         | IDENTIFIER '[' Expr1 ']' { \t->(Type (annotation $1) (Array 0) [t], $1, Nothing, Just $3)}
+                         | IDENTIFIER '=' Expr { \t->(t, $1, Just $3, Nothing) }
+                         | IDENTIFIER '[' ']' '=' Expr { \t->(Type (annotation $1) (Array 0) [t], $1, Just $5, Nothing)}
+ISQCore_CStyleVarDefList :: {[LType -> (LType, ISQv2Token, Maybe LExpr, Maybe LExpr)]}
 ISQCore_CStyleVarDefList : ISQCore_CStyleVarDefTerm {[$1]}
                          | ISQCore_CStyleVarDefList ',' ISQCore_CStyleVarDefTerm {$1 ++ [$3]}
-ISQCore_CStyleVarDef :: {LAST}
-ISQCore_CStyleVarDef: SimpleType ISQCore_CStyleVarDefList { let args = fmap (\f->let (a, b, c) = f $1 in (a, tokenIdentV b, c)) $2 in NDefvar (annotation $1) args}
+DefvarStatement :: {LAST}
+DefvarStatement: SimpleType ISQCore_CStyleVarDefList { let args = fmap (\f->let (a, b, c, d) = f $1 in (a, tokenIdentV b, c, d)) $2 in NDefvar (annotation $1) args}
 
 ProcedureArgListNonEmpty :: {[(LType, Ident)]}
 ProcedureArgListNonEmpty : ProcedureArg { [$1] }

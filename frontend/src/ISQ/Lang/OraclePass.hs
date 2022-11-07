@@ -170,8 +170,8 @@ unscope = do
     symbolTables <- get
     put $ tail symbolTables
 
-defineVariable :: Pos -> (LType, String, Maybe LExpr) -> OracleEvaluate ()
-defineVariable pos (ltype, identifier, maybeExpr) = do
+defineVariable :: Pos -> (LType, String, Maybe LExpr, Maybe LExpr) -> OracleEvaluate ()
+defineVariable pos (ltype, identifier, maybeExpr, _) = do
     symbolTables <- get
     let currentTable = head symbolTables
     let maybe = Map.lookup identifier currentTable
@@ -270,7 +270,7 @@ evaluateStatement (NFor ann forVar range@(ERange eann lo hi step) body) = do
                         _ -> executeFor
                 False -> return OUnit
     scope
-    evaluateStatement $ NDefvar ann [(intType ann, forVar, lo)]
+    evaluateStatement $ NDefvar ann [(intType ann, forVar, lo, Nothing)]
     res <- executeFor
     unscope
     return res
@@ -294,7 +294,7 @@ evaluateStatements (x:xs) = do
 
 evaluateFunc :: [LAST] -> Pos -> String -> Int -> Either OracleError Int
 evaluateFunc body pos var val = do
-    let defVar = NDefvar pos [(intType pos, var, Just $ EIntLit pos val)]
+    let defVar = NDefvar pos [(intType pos, var, Just $ EIntLit pos val, Nothing)]
     obj <- evalState (runExceptT $ evaluateStatements $ [defVar] ++ body) [Map.empty]
     case obj of
         OInt val -> Right val

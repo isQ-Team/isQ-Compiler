@@ -1,6 +1,9 @@
 procedure fun(int b[])
 {
-    print b.length;
+    int len = b.length;
+    print len;
+    int c[len];
+    print c.length;
 }
 
 procedure main()

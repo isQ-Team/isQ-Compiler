@@ -67,7 +67,8 @@ data AST ann =
      | NBp { annotationAST :: ann }
      | NWhile { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann}
      | NCall { annotationAST :: ann, callExpr :: Expr ann}
-     | NDefvar { annotationAST :: ann, definitions :: [(Type ann, Ident, Maybe (Expr ann))]}
+     -- The tuple elements are: type, identifier, initilizer, length (only valid for array)
+     | NDefvar { annotationAST :: ann, definitions :: [(Type ann, Ident, Maybe (Expr ann), Maybe (Expr ann))]}
      | NAssign { annotationAST :: ann, assignLhs :: Expr ann, assignRhs :: Expr ann, operator :: AssignOperator}
      | NGatedef { annotationAST :: ann, gateName :: String, gateRhs :: [[Expr ann]], externQirName :: Maybe String}
      | NReturn { annotationAST :: ann, returnedVal :: Expr ann}
@@ -130,7 +131,7 @@ newtype InternalCompilerError = InternalCompilerError String deriving (Eq, Show)
 data GrammarError = 
     BadMatrixElement {badExpr :: LExpr}
   | BadMatrixShape {badMatrix :: LAST}
-  | MissingGlobalVarSize {badDefPos :: Pos, badDefName :: String} 
+  | BadGlobalVarSize {badDefPos :: Pos, badDefName :: String}
   | UnexpectedToken {token :: Token Pos}
   | UnexpectedEOF
   | BadPackageName {badPackageName :: String}
@@ -178,12 +179,12 @@ passVerifyDefgate = mapM go where
 
     go x = Right x
 
-
 checkTopLevelVardef :: [LAST]->Either GrammarError [LAST]
 checkTopLevelVardef = mapM go where
   go v@(NDefvar pos defs) = NDefvar pos <$> mapM go' defs where
-    go' (Type _ (Array 0) _,b,c) = Left $ MissingGlobalVarSize pos b
-    go' (a,b,c) = Right (a,b,c)
+    go' (Type ann (Array 0) [sub], b, Nothing, Just len) = do
+      case len of
+        EIntLit _ val -> Right (Type ann (Array val) [sub], b, Nothing, Nothing)
+        other -> Left $ BadGlobalVarSize pos b
+    go' (a, b, c, d) = Right (a, b, c, d)
   go v = return v
-
-

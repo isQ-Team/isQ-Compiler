@@ -1,0 +1,11 @@
+double a = 2.3 + 5;
+int b[] = {4, 5};
+int c[3];
+
+procedure main()
+{
+    print a;
+    print b[0];
+    c[2] = 8;
+    print c[2];
+}
