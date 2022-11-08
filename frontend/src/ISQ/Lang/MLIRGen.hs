@@ -361,7 +361,7 @@ emitStatement' f (NResolvedFor ann fori (ERange _ (Just lo) (Just hi) (Just (EIn
     pos<-mpos ann
     curSsa <- use ssaId
     r<-scopedStatement [] [MSCFYield pos] (mapM f body) curSsa
-    pushOp $ MAffineFor pos lo' hi' step (fromSSA fori) [MSCFExecRegion pos r]
+    pushOp $ MSCFFor pos lo' hi' step (fromSSA fori) [MSCFExecRegion pos r]
 emitStatement' f NResolvedFor{} = error "unreachable"
 emitStatement' f (NResolvedGatedef ann name mat sz qir) = do
     pos<-mpos ann
