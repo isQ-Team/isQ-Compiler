@@ -70,9 +70,6 @@ public:
         auto shape = memrefty.getShape();
         // One-dim known arrays supported only.
         if(shape.size()!=1) return mlir::failure();
-        if(memrefty.isDynamicDim(0)){
-            return mlir::failure();
-        }
         if(op->hasAttr(ISQ_INITIALIZED)) return mlir::failure();
         
         rewriter.updateRootInPlace(op, [&]{
@@ -83,7 +80,13 @@ public:
         auto loc = op.getLoc();
         // Create an `scf.for` op. 
         auto lo = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 0);
-        auto hi = rewriter.create<mlir::arith::ConstantIndexOp>(loc, memrefty.getDimSize(0));
+        mlir::Value hi;
+        if (memrefty.isDynamicDim(0)) {
+            hi = *op.getDynamicSizes().begin();
+        }
+        else {
+            hi = rewriter.create<mlir::arith::ConstantIndexOp>(loc, memrefty.getDimSize(0));
+        }
         auto step = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 1);
         auto loop =
           rewriter.create<mlir::scf::ForOp>(loc, lo, hi, step, mlir::ValueRange{}, [&](mlir::OpBuilder& b, mlir::Location loc, mlir::Value iv, mlir::ValueRange iterArgs){
