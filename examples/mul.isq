@@ -1,0 +1,38 @@
+import std;
+
+procedure mul(qbit a[], qbit b[], qbit c[])
+{
+    int len = a.length;
+    for i in 0:len {
+        Toffoli(a[0], b[i], c[i]);
+    }
+    qbit anc[len * 2];
+    for i in 1:len {
+        for j in 0:len {
+            Toffoli(a[i], b[j], anc[i + j]);
+        }
+        c += anc;
+        for j in 0:len {
+            Toffoli(a[i], b[j], anc[i + j]);
+        }
+    }
+}
+
+procedure set(qbit q[], int val)
+{
+    for i in 0:q.length {
+        if (((val >> i) & 1) == 1) {
+            X(q[i]);
+        }
+    }
+}
+
+procedure main()
+{
+    int width = 2;
+    qbit a[width], b[width], c[width * 2];
+    set(a, 2);
+    set(b, 3);
+    mul(a, b, c);
+    print M(c);
+}
