@@ -2,7 +2,7 @@ procedure fun(int b[])
 {
     int len = b.length;
     print len;
-    int c[len];
+    qbit c[len];
     print c.length;
 }
 
