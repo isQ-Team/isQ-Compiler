@@ -23,6 +23,8 @@ use test_case::test_case;
 #[test_case("classic_recursion", "3628800")]
 #[test_case("classic_shift", &merge(&["12", "2"]))]
 #[test_case("classic_unitary", &merge(&["2", "-114514", "1"]))]
+#[test_case("compare", &merge(&["1", "0", "1", "1"]))]
+#[test_case("double_compare", &merge(&["1", "0", "1", "1"]))]
 #[test_case("global", &merge(&["7.3", "4", "8"]))]
 fn test_classic(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
