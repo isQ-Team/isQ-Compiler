@@ -1,0 +1,7 @@
+set(LLVM_TARGET_DEFINITIONS IR.td)
+mlir_tablegen(LogicDialect.h.inc -gen-dialect-decls -dialect logic)
+mlir_tablegen(LogicDialect.cpp.inc -gen-dialect-defs -dialect logic)
+mlir_tablegen(LogicOps.h.inc -gen-op-decls -dialect logic)
+mlir_tablegen(LogicOPs.cpp.inc -gen-op-defs -dialect logic)
+mlir_tablegen(__tmp_IR.md -gen-dialect-doc --dialect logic)
+add_public_tablegen_target(LogicMLIRTablegen)

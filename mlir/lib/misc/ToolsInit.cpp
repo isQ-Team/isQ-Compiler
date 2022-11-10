@@ -3,6 +3,7 @@
 #include <mlir/InitAllDialects.h>
 #include <isq/IR.h>
 #include <isq/passes/Passes.h>
+#include "logic/IR.h"
 namespace isq {
 namespace ir {
 void ISQToolsInitialize(mlir::DialectRegistry &registry) {
@@ -25,6 +26,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     isq::contrib::mlir::registerAffineScalarReplacementPass();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
+    registry.insert<logic::ir::LogicDialect>();
 }
 } // namespace ir
 } // namespace isq
