@@ -144,6 +144,7 @@ TopDefMember : ISQCore_GatedefStatement ';' { $1 }
              | Procedure { $1 }
              | OracleTruthTable { $1 }
              | OracleFunction { $1 }
+             | OracleLogic { $1 }
 
 StatementList :: {[LAST]}
 StatementList : {- empty -} { [] }
@@ -389,7 +390,7 @@ OracleFunction :: {LAST}
 OracleFunction : oracle IDENTIFIER '(' NATURAL ',' NATURAL ')' ':' IDENTIFIER '{' StatementList '}' { NOracleFunc $1 (tokenIdentV $2) (tokenNaturalV $4) (tokenNaturalV $6) (tokenIdentV $9) $11 }
 
 OracleLogic :: {LAST}
-OracleLogic : oracle Type IDENTIFIER '(' ProcedureArgList ')' '{' StatementList '}' { NOracleLogic $1 (void $2) (tokenIdentV $3) (fmap (\(ty, ident) -> (void ty, ident)) $5) $8 }
+OracleLogic : as Type IDENTIFIER '(' ProcedureArgList ')' '{' StatementList '}' { NOracleLogic $1 (void $2) (tokenIdentV $3) (fmap (\(ty, ident) -> (void ty, ident)) $5) $8 }
 
 {
 parseError :: [ISQv2Token] -> a
