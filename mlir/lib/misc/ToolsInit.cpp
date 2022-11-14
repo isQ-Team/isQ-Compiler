@@ -8,6 +8,7 @@ namespace isq {
 namespace ir {
 void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     mlir::registerAllPasses();
+    passes::registerLogicToISQ();
     passes::registerDecorateFolding();
     passes::registerQSD();
     passes::registerExpandDecomposition();

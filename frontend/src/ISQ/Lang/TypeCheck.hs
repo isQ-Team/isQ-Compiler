@@ -736,8 +736,8 @@ typeCheckToplevel isMain prefix ast = do
                 defineGlobalSym prefix name pos (Type () (Gate size) [])
                 return $ Right (NOracleTable (okStmt pos) (prefix ++ name) (prefix ++ source) value size)
             Left (NOracleLogic pos ty name args body) -> do
-                let fun_ty = Type () FuncTy [unitType(), Type () (Array 2) [qbitType ()]]
-                defineGlobalSym prefix name pos fun_ty
+                let fun_ty = Type () FuncTy [unitType(), qbitType ()]
+                defineGlobalSym prefix name pos (Type () (Gate 1) [])
                 scope
                 mapM (\(ty, i) -> defineSym (SymVar i) pos ty) args
                 body' <- mapM typeCheckAST body
