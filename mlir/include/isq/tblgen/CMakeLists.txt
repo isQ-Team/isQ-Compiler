@@ -1,4 +1,4 @@
-set(LLVM_TARGET_DEFINITIONS IR.td)
+set(LLVM_TARGET_DEFINITIONS ISQOps.td)
 mlir_tablegen(ISQOps.h.inc -gen-op-decls -dialect isq)
 mlir_tablegen(ISQOPs.cpp.inc -gen-op-defs -dialect isq)
 mlir_tablegen(ISQDialect.h.inc -gen-dialect-decls -dialect isq)

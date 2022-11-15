@@ -1,6 +1,7 @@
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
+include "isq/tblgen/ISQBase.td"
 
 ////////////////////////////////////
 // Dialect
@@ -16,7 +17,8 @@ def Logic_Dialect: Dialect {
     }];
 }
 
-class Logic_Op<string mnemonic> : Op<Logic_Dialect, mnemonic> {}
+class Logic_Op<string mnemonic, list<Trait> traits = []> :
+    Op<Logic_Dialect, mnemonic, traits> {}
 
 def Logic_FuncOp : Logic_Op<"func"> {
     let summary = "Define a logic function.";
@@ -27,5 +29,36 @@ def Logic_FuncOp : Logic_Op<"func"> {
     let regions = (region AnyRegion: $body);
     let assemblyFormat = [{
         $sym_name `:` $type $body attr-dict
+    }];
+}
+
+def Logic_UseGateOp : Logic_Op<"use"> {
+    let summary = "Use logic gate";
+    let arguments = (ins
+        SymbolRefAttr: $name,
+        Variadic<AnyType>: $parameters
+    );
+    let results = (outs AnyType: $result);
+    let assemblyFormat = [{
+        $name attr-dict  ( `(` $parameters^ `)` `:` `(` qualified(type($parameters)) `)` `->`):(`:`)? qualified(type(results))
+    }];
+}
+
+def Logic_ApplyGateOp : Logic_Op<"apply", [
+        NoSideEffect,
+        TypesMatchWith<
+            "args equivalence", "gate", "args", "::isq::ir::getGateParameterType($_self.cast<::isq::ir::GateType>())"
+        >,TypesMatchWith<
+            "output equivalence", "gate", "r", "::isq::ir::getGateParameterType($_self.cast<::isq::ir::GateType>())"
+        >
+    ]> {
+    let summary = "Apply a logic gate onto qstates";
+    let arguments = (ins
+        ISQ_Gate: $gate,
+        Variadic<ISQ_QState>: $args
+    );
+    let results = (outs Variadic<ISQ_QState>: $r);
+    let assemblyFormat = [{
+        $gate `(` $args `)` attr-dict `:` qualified(type($gate))
     }];
 }

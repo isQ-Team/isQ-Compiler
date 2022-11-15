@@ -37,6 +37,7 @@ mapType (Type () Qbit []) = QState
 mapType (Type () (Array 0) [x]) = Memref Nothing (mapType x)
 mapType (Type () (Array n) [x]) = Memref (Just n) (mapType x)
 mapType (Type () (Gate n) _) = M.Gate n
+mapType (Type () (Logic n) _) = M.Gate n
 mapType (Type () Double []) = M.Double
 mapType _ = error "unsupported type"
 
@@ -321,13 +322,18 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
     let i = ssa ann2
     
     let used_gate = i;
-    let Type _ (Gate _) extra_params_type = termType ann2;
-    let gate_type@(M.Gate gate_size) = mType ann2;
+    let ty = termType ann2;
+    let isq = case ty of
+            Type _ (Gate _) _ -> True
+            Type _ (Logic _) _ -> False
+            other -> error "unexpected type"
+    let len = length $ subTypes ty
+    let gate_type@(M.Gate gate_size) = mapType ty;
     
-    let (extra_args, qubit_args) = splitAt (length extra_params_type) ops
-    let (extra_ssa, qubit_ssa) = splitAt (length extra_params_type) ops'
+    let (extra_args, qubit_args) = splitAt len ops
+    let (extra_ssa, qubit_ssa) = splitAt len ops'
     let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..length qubit_ssa]
-    pushOp $ MQUseGate pos used_gate (fromFuncName name) gate_type (zipWith (\arg ssa->(astMType arg, ssa)) extra_args extra_ssa)
+    pushOp $ MQUseGate pos used_gate (fromFuncName name) gate_type (zipWith (\arg ssa->(astMType arg, ssa)) extra_args extra_ssa) isq
     decorated_gate<-case folded_mods of
             ([], False)->return i
             (ctrls, adj)->do
@@ -335,7 +341,7 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
                 pushOp $ MQDecorate pos decorated_gate used_gate folded_mods gate_size
                 return $ decorated_gate
     zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins qubit_ssa
-    pushOp $ MQApplyGate pos outs ins decorated_gate
+    pushOp $ MQApplyGate pos outs ins decorated_gate isq
     zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs qubit_ssa
 emitStatement' f NCoreUnitary{} = error "first-class gate unsupported"
 emitStatement' f (NCoreReset ann operand) = do
