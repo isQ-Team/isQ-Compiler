@@ -29,13 +29,40 @@ public:
     }
 };
 
+class RuleReplaceLogicApply : public mlir::OpRewritePattern<logic::ir::ApplyGateOp> {
+public:
+    RuleReplaceLogicApply(mlir::MLIRContext *ctx): mlir::OpRewritePattern<logic::ir::ApplyGateOp>(ctx, 1) {}
+    mlir::LogicalResult matchAndRewrite(logic::ir::ApplyGateOp op, mlir::PatternRewriter &rewriter) const override {
+        auto ctx = op.getContext();
+        auto qst = QStateType::get(rewriter.getContext());
+        mlir::SmallVector<mlir::Type> types;
+        types.push_back(qst);
+        rewriter.replaceOpWithNewOp<isq::ir::ApplyGateOp, mlir::ArrayRef<mlir::Type>, ::mlir::Value, ::mlir::ValueRange>(op, types, op.gate(), op.args());
+        return mlir::success();
+    }
+};
+
+class RuleReplaceLogicUse : public mlir::OpRewritePattern<logic::ir::UseGateOp> {
+public:
+    RuleReplaceLogicUse(mlir::MLIRContext *ctx): mlir::OpRewritePattern<logic::ir::UseGateOp>(ctx, 1) {}
+    mlir::LogicalResult matchAndRewrite(logic::ir::UseGateOp op, mlir::PatternRewriter &rewriter) const override {
+        auto ctx = op.getContext();
+        //auto gate_type = ;
+        //rewriter.create<isq::ir::UseGateOp>(mlir::UnknownLoc::get(ctx), op.result(), op.name(), op.parameters());
+        rewriter.replaceOpWithNewOp<isq::ir::UseGateOp, isq::ir::GateType, ::mlir::SymbolRefAttr, ::mlir::ValueRange>(op, isq::ir::GateType::get(ctx, 1, GateTrait::General), op.name(), op.parameters());
+        return mlir::success();
+    }
+};
+
 struct LogicToISQPass : public mlir::PassWrapper<LogicToISQPass, mlir::OperationPass<mlir::ModuleOp>> {
     void runOnOperation() override {
         mlir::ModuleOp m = this->getOperation();
         auto ctx = m->getContext();
 
         mlir::RewritePatternSet rps(ctx);
-        rps.add<RuleReplaceLogicFunc>(ctx);
+        //rps.add<RuleReplaceLogicFunc>(ctx);
+        rps.add<RuleReplaceLogicApply>(ctx);
+        rps.add<RuleReplaceLogicUse>(ctx);
         mlir::FrozenRewritePatternSet frps(std::move(rps));
         (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
     }

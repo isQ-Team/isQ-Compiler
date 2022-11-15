@@ -8,7 +8,7 @@ import qualified Data.Map.Lazy as Map
 import Control.Monad.Fix
 type Ident = String
 type ASTBlock ann = [AST ann]
-data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | Array Int | UserType String | IntRange | Gate Int | FuncTy deriving (Show, Eq)
+data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | Array Int | UserType String | IntRange | Gate Int | Logic Int | FuncTy deriving (Show, Eq)
 data Type ann = Type { annotationType :: ann, ty :: BuiltinType, subTypes :: [Type ann]} deriving (Show,Functor, Eq)
 
 intType ann = Type ann Int []

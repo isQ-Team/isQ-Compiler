@@ -149,6 +149,7 @@ checkRule (AnyKnownList x) (Type () (Array y) [_]) = x==y
 checkRule AnyList (Type () (Array _) [_]) = True
 checkRule AnyFunc (Type () FuncTy _) = True
 checkRule AnyGate (Type () (Gate _) _) = True
+checkRule AnyGate (Type () (Logic _) _) = True
 checkRule AnyRef (Type () Ref [_]) = True
 checkRule (ArrayType subRule) (Type () (Array _) [subType]) = checkRule subRule subType
 checkRule _ _ = False
@@ -496,6 +497,7 @@ typeCheckAST' f (NCall pos c@(ECall _ callee args)) = do
             c'<-typeCheckExpr c
             return $ NCall (okStmt pos) c'
         Gate _ -> f (NCoreUnitary pos callee args [])
+        Logic _ -> f (NCoreUnitary pos callee args [])
         _ -> undefined
 typeCheckAST' f (NCall pos c) = error "unreachable"
 typeCheckAST' f (NDefvar pos defs) = do
@@ -573,7 +575,9 @@ typeCheckAST' f (NReturn _ _) = error "unreachable"
 typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
     gate'<-typeCheckExpr gate
     gate''<-matchType [AnyGate] gate'
-    let Type _ (Gate x) extra = astType gate''
+    let (x, extra) = case astType gate'' of
+            Type _ (Gate x) extra -> (x, extra)
+            Type _ (Logic x) extra -> (x, extra)
     let total_qubits = sum (map addedQubits modifiers) + x
     let total_operands = length extra + total_qubits
     when (total_operands /= length operands) $ throwError $ ArgNumberMismatch pos total_qubits (length operands)
@@ -742,7 +746,7 @@ typeCheckToplevel isMain prefix ast = do
                 return $ Right (NOracleTable (okStmt pos) (prefix ++ name) (prefix ++ source) value size)
             Left (NOracleLogic pos ty name args body) -> do
                 let fun_ty = Type () FuncTy [unitType(), qbitType ()]
-                defineGlobalSym prefix name pos (Type () (Gate 1) [])
+                defineGlobalSym prefix name pos (Type () (Logic 1) [])
                 scope
                 mapM (\(ty, i) -> defineSym (SymVar i) pos ty) args
                 body' <- mapM typeCheckAST body
