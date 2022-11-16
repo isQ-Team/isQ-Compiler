@@ -7,6 +7,7 @@ import ISQ.Lang.MLIRTree hiding (Bool, Gate, Unit, Double)
 import qualified ISQ.Lang.MLIRTree as M
 import Control.Monad.State (fix, void, State, zipWithM_, evalState, execState, runState)
 import Control.Lens
+import Data.List (isSuffixOf, take)
 import Data.List.Split (splitOn)
 import Debug.Trace
 
@@ -30,6 +31,7 @@ nextSsaId = do
     return id
 
 mapType :: EType->MLIRType
+mapType (Type () Unit []) = MUnit
 mapType (Type () Bool []) = M.Bool
 mapType (Type () Ref [x]) = BorrowedRef (mapType x)
 mapType (Type () Int []) = Index
@@ -39,6 +41,7 @@ mapType (Type () (Array n) [x]) = Memref (Just n) (mapType x)
 mapType (Type () (Gate n) _) = M.Gate n
 mapType (Type () (Logic n) _) = M.Gate n
 mapType (Type () Double []) = M.Double
+mapType (Type () FuncTy (ret:arg)) = Func (mapType ret) $ map mapType arg
 mapType _ = error "unsupported type"
 
 
@@ -195,12 +198,15 @@ emitExpr' f (EArrayLen ann base) = do
     return i
 emitExpr' f x@(ECall ann (EGlobalName ann2 mname) args) = do
     let name = if mname=="main" then "__isq__main" else mname
+    let logic = isSuffixOf logicSuffix name
+    -- remove logicSuffix
+    let name' = if logic then take (length name - length logicSuffix) name else name
     args'<-mapM f args
     let args'' = zip (fmap astMType args) args'
     let ret = if (ty $ termType $ ann) == Unit then Nothing else Just (astMType x, ssa ann)
     pos<-mpos ann
     let i = ssa ann
-    pushOp $ MCall pos ret (fromFuncName name) args''
+    pushOp $ MCall pos ret (fromFuncName name') args'' logic
     return i
 emitExpr' f (ECall ann _ _) = error "indirect call not supported"
 emitExpr' f (EIntLit ann val) = do
@@ -597,9 +603,9 @@ generateMLIRModule file (xs, ssa) =
         finalize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_finalize") Nothing [MLIRBlock (fromBlockName 1) [] [MReturnUnit MLIRPosUnknown]]
         args = [(Memref Nothing Index,SSA {unSsa = "%ssa_1"}),(Memref Nothing M.Double,SSA {unSsa = "%ssa_2"})]
         entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) args [
-                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [],
-                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") args,
-                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_finalize") [],
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [] False,
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") args False,
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_finalize") [] False,
                 MReturnUnit MLIRPosUnknown 
             ]]
     in MModule MLIRPosUnknown (reverse $ entry : finalize : initialize:view mainModule builder)
