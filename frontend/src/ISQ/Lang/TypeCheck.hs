@@ -741,14 +741,15 @@ typeCheckToplevel isMain prefix ast = do
                 defineGlobalSym prefix name pos (Type () (Gate size) []) False
                 return $ Right (NOracleTable (okStmt pos) (prefix ++ name) (prefix ++ source) value size)
             Left (NOracleLogic pos ty name args body) -> do
-                let qtype = Type () Ref [qbitType ()]
-                let ty' = Type () FuncTy [unitType(), qtype]
-                defineGlobalSym prefix name pos ty' True
+                let bool2qbit (Type () (Array x) [Type () Bool []]) = (Type () (Array x) [Type () Qbit []])
+                let arg_types = map fst args
+                let arg_types' = map bool2qbit $ arg_types ++ [ty]
+                defineGlobalSym prefix name pos (Type () FuncTy $ unitType() : arg_types') True
                 scope
-                mapM (\(ty, i) -> defineSym (SymVar i) pos ty) args
+                ids <- mapM (\(ty, i) -> defineSym (SymVar i) pos ty) args
                 body' <- mapM typeCheckAST body
                 unscope
-                return $ Right (NOracleLogic (okStmt pos) ty' (prefix ++ name) [(qtype, snd $ head args)] body')
+                return $ Right (NResolvedOracleLogic (okStmt pos) (Type () FuncTy $ ty:arg_types) (prefix ++ name) (zip arg_types ids) body')
             Left x@(NDerivedGatedef pos name source extra size) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
                 defineGlobalSym prefix name pos (Type () (Gate size) extra') False

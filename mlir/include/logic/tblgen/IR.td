@@ -2,6 +2,7 @@ include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/IR/FunctionInterfaces.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "isq/tblgen/ISQBase.td"
 
 ////////////////////////////////////
@@ -21,7 +22,7 @@ def Logic_Dialect: Dialect {
 class Logic_Op<string mnemonic, list<Trait> traits = []> :
     Op<Logic_Dialect, mnemonic, traits> {}
 
-def Logic_FuncOp : Logic_Op<"func", [/*CallableOpInterface,*/ FunctionOpInterface/*, Symbol*/]> {
+def Logic_FuncOp : Logic_Op<"func", [FunctionOpInterface]> {
     let summary = "Define a logic function.";
     let arguments = (ins
         SymbolNameAttr: $sym_name,
@@ -75,6 +76,12 @@ def Logic_CallOp : Logic_Op<"call"> {
     let assemblyFormat = [{
         $callee `(` $operands `)` attr-dict `:` functional-type($operands, results)
     }];
+}
+
+def Logic_ReturnOp : Logic_Op<"return", [NoSideEffect, ReturnLike, Terminator]> {
+    let summary = "return operation";
+    let arguments = (ins Variadic<AnyType>:$operands);
+    let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
 }
 
 def Logic_UseGateOp : Logic_Op<"use"> {
