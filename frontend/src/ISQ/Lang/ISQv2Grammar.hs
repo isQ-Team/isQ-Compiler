@@ -112,6 +112,7 @@ data AST ann =
      | NOracle { annotationAST :: ann, oracleName :: String, oracleN :: Int, oracleM :: Int, oracleMap :: [Expr ann] }
      | NOracleFunc { annotationAST :: ann, gateName :: String, oracleN :: Int, oracleM :: Int, inVar :: String, procBody :: [AST ann] }
      | NOracleLogic { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, logicArgs :: [(Type (), Ident)], procBody :: [AST ann] }
+     | NResolvedOracleLogic { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, resolvedProcArgs :: [(Type (), Int)], procBody :: [AST ann] }
      deriving (Eq, Show, Functor)
 
 data GateModifier = Inv | Ctrl Bool Int deriving (Show, Eq)

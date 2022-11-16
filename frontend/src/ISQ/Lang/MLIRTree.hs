@@ -116,7 +116,7 @@ data MLIROp =
       MFunc {location :: MLIRPos, funcName :: FuncName, funcReturnType :: Maybe MLIRType, funcRegion :: [MLIRBlock]}
     | MQDefGate { location :: MLIRPos, gateName :: FuncName, gateSize :: Int, extraArgTypes :: [MLIRType], representations :: [GateRep]}
     | MQOracleTable { location :: MLIRPos, gateName :: FuncName, gateSize :: Int, representations :: [GateRep] }
-    | MQOracleLogic { location :: MLIRPos, gateName :: FuncName, funcReturnType :: Maybe MLIRType, funcRegion :: [MLIRBlock] }
+    | MQOracleLogic { location :: MLIRPos, gateName :: FuncName, funcReturnType :: Maybe MLIRType, logicRegion :: MLIRBlock }
     | MQUseGate { location :: MLIRPos, value :: SSA, usedGate :: FuncName, usedGateType :: MLIRType, useGateParams :: [(MLIRType, SSA)], isqDialect :: Bool }
     | MExternFunc { location :: MLIRPos, funcName :: FuncName, funcReturnType :: Maybe MLIRType, funcArgTypes :: [MLIRType]}
     | MQDecorate { location :: MLIRPos, value :: SSA, decoratedGate :: SSA, trait :: ([Bool], Bool), gateSize :: Int }
@@ -253,9 +253,10 @@ emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_crecv\"") _ _) = "\n\
 emitOpStep f env (MFunc loc name ret blocks) = let s = fmap (emitBlock f env) blocks in intercalate "\n" ([indented env $ funcHeader name ret (fmap fst $ blockArgs $ head blocks), indented env "{"] ++ s ++ [indented env $ printf "} %s" (mlirPos loc)])
 emitOpStep f env (MQDefGate loc name size extra reps) = indented env $ printf "isq.defgate %s%s {definition = [%s]}: !isq.gate<%d> %s" (unFuncName name) (case extra of {[]->""; xs-> "("++intercalate ", " (map mlirType extra)++")"}) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
 emitOpStep f env (MQOracleTable loc name size reps) = indented env $ printf "isq.defgate %s {definition=[%s]}: !isq.gate<%d> %s" (unFuncName name) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
-emitOpStep f env (MQOracleLogic loc name (Just ty) blocks) = intercalate "\n" $ fmap (indented env)
+emitOpStep f env (MQOracleLogic loc name (Just ty) region) = intercalate "\n" $ fmap (indented env)
   [
     indented env $ printf "logic.func %s: %s {" (unFuncName name) (mlirType ty),
+    emitBlock f env region,
     indented env $ printf "} %s" (mlirPos loc)
   ]
 emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)

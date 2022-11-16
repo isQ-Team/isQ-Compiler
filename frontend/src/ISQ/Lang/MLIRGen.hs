@@ -385,9 +385,15 @@ emitStatement' f (NResolvedGatedef ann name mat sz qir) = do
 emitStatement' f (NOracleTable ann name source value size) = do
     pos<-mpos ann
     pushOp $ MQOracleTable pos (fromFuncName name) size [(DecompositionRep $ fromFuncName source), (OracleTableRep value)]
-emitStatement' f (NOracleLogic ann ty name args body) = do
+emitStatement' f NOracleLogic{} = error "unreachable"
+emitStatement' f (NResolvedOracleLogic ann ty name args body) = do
     pos <- mpos ann
-    pushOp $ MQOracleLogic pos (fromFuncName name) (Just $ mapType ty) []
+    let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
+    curSsa <- use ssaId
+    body' <- scopedStatement first_args [] (mapM f body) curSsa
+    let entry = head body'
+    let region = entry{blockBody = init $ blockBody entry}
+    pushOp $ MQOracleLogic pos (fromFuncName name) (Just $ mapType ty) region
 emitStatement' f (NWhileWithGuard ann cond body breakflag) = do
     pos<-mpos ann
     curSsa <- use ssaId
@@ -576,7 +582,7 @@ emitTop file x@NOracleTable{} = do
     let ([fn], ssa') = unscopedStatement' file (emitStatement x) ssa
     currentSsa .= ssa'
     mainModule %= (fn:)
-emitTop file x@NOracleLogic{} = do
+emitTop file x@NResolvedOracleLogic{} = do
     ssa <- use currentSsa
     let ([fn], ssa') = unscopedStatement' file (emitStatement x) ssa
     currentSsa .= ssa'
