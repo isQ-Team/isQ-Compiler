@@ -94,16 +94,17 @@ defineSym a b c= do
     addSym a (DefinedSymbol b c ssa False "")
     return ssa
 
-defineGlobalSym :: String -> String -> Pos -> EType -> TypeCheck Int
-defineGlobalSym prefix name b c= do
+defineGlobalSym :: String -> String -> Pos -> EType -> Bool -> TypeCheck Int
+defineGlobalSym prefix name b c logic = do
     ssa<-nextId
     when (name == "main" && c /= Type () FuncTy [Type () Unit []] && c /= Type () FuncTy [Type () Unit [], Type () (Array 0) [intType ()], Type () (Array 0) [doubleType ()]]) $ do
         throwError $ BadMainSignature c
     when (name == "main") $ do
         modify' (\x->x{mainDefined = True})
     let qualifiedName = prefix ++ name
-    addSym (SymVar name) (DefinedSymbol b c ssa True qualifiedName)
-    addSym (SymVar qualifiedName) (DefinedSymbol b c ssa True qualifiedName)
+    let qualifiedName' = if logic then qualifiedName ++ logicSuffix else qualifiedName
+    addSym (SymVar name) (DefinedSymbol b c ssa True qualifiedName')
+    addSym (SymVar qualifiedName) (DefinedSymbol b c ssa True qualifiedName')
     return ssa
 
 scope :: TypeCheck ()
@@ -735,30 +736,31 @@ typeCheckToplevel isMain prefix ast = do
     resolved_headers<-mapM (\node->case node of
             Right x->return (Right x)
             Left (NResolvedGatedef pos name matrix size qir) -> do
-                defineGlobalSym prefix name pos (Type () (Gate size) [])
+                defineGlobalSym prefix name pos (Type () (Gate size) []) False
                 return $ Right (NResolvedGatedef (okStmt pos) (prefix ++ name) matrix size qir)
             Left (NExternGate pos name extra size qirname) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym prefix name pos (Type () (Gate size) extra')
+                defineGlobalSym prefix name pos (Type () (Gate size) extra') False
                 return $ Right $ NResolvedExternGate (okStmt pos) (prefix ++ name) (fmap void extra) size qirname
             Left (NOracleTable pos name source value size) -> do
-                defineGlobalSym prefix name pos (Type () (Gate size) [])
+                defineGlobalSym prefix name pos (Type () (Gate size) []) False
                 return $ Right (NOracleTable (okStmt pos) (prefix ++ name) (prefix ++ source) value size)
             Left (NOracleLogic pos ty name args body) -> do
-                let fun_ty = Type () FuncTy [unitType(), qbitType ()]
-                defineGlobalSym prefix name pos (Type () (Logic 1) [])
+                let qtype = Type () Ref [qbitType ()]
+                let ty' = Type () FuncTy [unitType(), qtype]
+                defineGlobalSym prefix name pos ty' True
                 scope
                 mapM (\(ty, i) -> defineSym (SymVar i) pos ty) args
                 body' <- mapM typeCheckAST body
                 unscope
-                return $ Right (NOracleLogic (okStmt pos) ty (prefix ++ name) args body')
+                return $ Right (NOracleLogic (okStmt pos) ty' (prefix ++ name) [(qtype, snd $ head args)] body')
             Left x@(NDerivedGatedef pos name source extra size) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym prefix name pos (Type () (Gate size) extra')
+                defineGlobalSym prefix name pos (Type () (Gate size) extra') False
                 return $ Right (NDerivedGatedef (okStmt pos) (prefix ++ name) (prefix ++ source) extra' size)
             Left x@(NDerivedOracle pos name source extra size)->do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym prefix name pos (Type () (Gate size) extra')
+                defineGlobalSym prefix name pos (Type () (Gate size) extra') False
                 return $ Right (NDerivedOracle (okStmt pos) (prefix ++ name) (prefix ++ source) extra size)
             Left (NProcedureWithRet pos ty name args body ret) -> do
                 -- check arg types and return types
@@ -770,7 +772,7 @@ typeCheckToplevel isMain prefix ast = do
                     _ -> throwError $ BadProcedureReturnType pos (void ty, name)
                 let new_args = if name == "main" && (length args) == 0 then [(Type pos (Array 0) [intType pos], "main$par1"), (Type pos (Array 0) [doubleType pos], "main$par2")] else args
                 args'<-mapM (uncurry argType) new_args
-                defineGlobalSym prefix name (annotation ty) (Type () FuncTy (ty':args'))
+                defineGlobalSym prefix name (annotation ty) (Type () FuncTy (ty':args')) False
                 -- NTempvar a (void b, procRet, Nothing)
                 let procName = case name of {"main" -> "main"; x -> prefix ++ name}
                 return $ Left (pos, ty', procName, zip args' (fmap snd new_args), body, ret)

@@ -8,9 +8,10 @@ import GHC.Stack (HasCallStack)
 import Debug.Trace
 
 data MLIRType =
-    Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
-  | Gate Int | Double | QIRQubit deriving Show
+    MUnit | Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
+  | Gate Int | Double | QIRQubit | Func MLIRType [MLIRType] deriving Show
 mlirType :: MLIRType->String
+mlirType MUnit = "()"
 mlirType Bool = "i1"
 mlirType I2 = "i2"
 mlirType I64 = "i64"
@@ -22,6 +23,7 @@ mlirType (Memref Nothing ty) = "memref<?x" ++ mlirType ty ++ ">"
 mlirType (Memref (Just x) ty) = "memref<"++show x++"x" ++ mlirType ty ++ ">"
 mlirType (BorrowedRef ty) = "memref<1x"++ mlirType ty ++", affine_map<(d0)[s0]->(d0+s0)>>"
 mlirType (Gate x) = "!isq.gate<"++show x++">"
+mlirType (Func ret args) = "(" ++ concat (map mlirType args) ++ ")->" ++ mlirType ret
 newtype BlockName = BlockName {unBlockName :: String} deriving Show
 newtype SSA = SSA {unSsa :: String} deriving Show
 newtype FuncName = FuncName {unFuncName :: String} deriving Show
@@ -139,7 +141,7 @@ data MLIROp =
     | MJmp {location :: MLIRPos, jmpBlock :: BlockName}
     | MBranch {location :: MLIRPos, value :: SSA, branches :: (BlockName, BlockName)}
     | MModule {location :: MLIRPos, topOps :: [MLIROp]}
-    | MCall {location :: MLIRPos, callRet :: Maybe (MLIRType, SSA), funcName :: FuncName, operands :: [(MLIRType, SSA)]}
+    | MCall {location :: MLIRPos, callRet :: Maybe (MLIRType, SSA), funcName :: FuncName, operands :: [(MLIRType, SSA)], isLogic :: Bool}
     | MSCFIf {location :: MLIRPos, ifCondition :: SSA, thenRegion :: MLIROp, elseRegion :: MLIROp}
     | MSCFWhile {location :: MLIRPos, breakBlock :: [MLIROp], condBlock :: [MLIROp], condExpr :: SSA, breakCond :: SSA, whileBody :: [MLIROp]}
     | MAffineFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
@@ -253,7 +255,7 @@ emitOpStep f env (MQDefGate loc name size extra reps) = indented env $ printf "i
 emitOpStep f env (MQOracleTable loc name size reps) = indented env $ printf "isq.defgate %s {definition=[%s]}: !isq.gate<%d> %s" (unFuncName name) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
 emitOpStep f env (MQOracleLogic loc name (Just ty) blocks) = intercalate "\n" $ fmap (indented env)
   [
-    indented env $ printf "logic.func %s: (!isq.qstate) -> () {" (unFuncName name),
+    indented env $ printf "logic.func %s: %s {" (unFuncName name) (mlirType ty),
     indented env $ printf "} %s" (mlirPos loc)
   ]
 emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)
@@ -329,10 +331,10 @@ emitOpStep f env (MFreeMemref loc val ty@(BorrowedRef subty)) = intercalate "\n"
   indented env $ printf "memref.dealloc %s_real : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc)]
 emitOpStep f env (MFreeMemref loc val ty) = intercalate "\n" $ [indented env $ printf "isq.accumulate_gphase %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc),
   indented env $ printf "memref.dealloc %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)]
-emitOpStep f env (MJmp loc blk) = indented env $ printf "cf.br %s %s" (unBlockName blk) (mlirPos loc)
-emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "cf.cond_br %s, %s, %s %s" (unSsa val) (unBlockName trueDst) (unBlockName falseDst) (mlirPos loc)
-emitOpStep f env (MCall loc Nothing fn args) = indented env $ printf "func.call %s(%s) : (%s)->() %s" (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
-emitOpStep f env (MCall loc (Just (retty, retval)) fn args) = indented env $ printf "%s = func.call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
+emitOpStep f env (MJmp loc blk) = indented env $ printf "br %s %s" (unBlockName blk) (mlirPos loc)
+emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "cond_br %s, %s, %s %s" (unSsa val) (unBlockName trueDst) (unBlockName falseDst) (mlirPos loc)
+emitOpStep f env (MCall loc Nothing fn args logic) = let dialect = if logic then "logic." else "" in indented env $ printf "%scall %s(%s) : (%s)->() %s" dialect (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
+emitOpStep f env (MCall loc (Just (retty, retval)) fn args _) = indented env $ printf "%s = call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
 emitOpStep f env (MSCFIf loc cond then' else') = intercalate "\n" $ [
   indented env $ printf "scf.if %s {" $ unSsa cond]
   ++[f (incrIndent env{isTopLevel=False}) then']

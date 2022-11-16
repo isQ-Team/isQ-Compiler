@@ -120,6 +120,8 @@ addedQubits :: GateModifier->Int
 addedQubits Inv = 0
 addedQubits (Ctrl _ x) = x
 
+logicSuffix :: String
+logicSuffix = "__logic"
 
 type LAST = AST Pos
 type LExpr = Expr Pos
