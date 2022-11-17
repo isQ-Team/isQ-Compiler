@@ -125,7 +125,7 @@ data MLIROp =
     | MStore {location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA}
     | MTakeRef {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), arrayOffset :: SSA}
     | MArrayLen {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
-    | MEraseMemref {location :: MLIRPos, value :: SSA, rankedMemref :: (MLIRType, SSA)}
+    | MListCast { location :: MLIRPos, value :: SSA, rhs :: SSA, to_zero :: Bool, listType :: MLIRType }
     | MLitInt {location :: MLIRPos, value :: SSA, litInt :: Int}
     | MLitBool {location :: MLIRPos, value :: SSA, litBool :: Bool}
     | MLitDouble {location :: MLIRPos, value :: SSA, litDouble :: Double}
@@ -267,8 +267,9 @@ emitOpStep f env (MArrayLen loc value (arr_ty@(Memref _ elem_ty), arr_val)) = in
     indented env $ printf "%s_zero = arith.constant 0 : index %s" (unSsa value) (mlirPos loc),
     indented env $ printf "%s = memref.dim %s, %s_zero : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_ty) (mlirPos loc)
   ]
-emitOpStep f env (MEraseMemref loc value (arr_ty@(Memref (Just x) elem_ty), arr_val)) = indented env $ printf "%s = memref.cast %s : %s to %s %s" (unSsa value) (unSsa arr_val) (mlirType arr_ty) (mlirType $ Memref Nothing elem_ty) (mlirPos loc)
-emitOpStep f env (MEraseMemref loc value (arr_ty, arr_val)) = error "wtf?"
+emitOpStep f env (MListCast loc value rhs True arr_ty@(Memref (Just x) elem_ty)) = indented env $ printf "%s = memref.cast %s : %s to %s %s" (unSsa value) (unSsa rhs) (mlirType arr_ty) (mlirType $ Memref Nothing elem_ty) (mlirPos loc)
+emitOpStep f env (MListCast loc value rhs False arr_ty@(Memref (Just x) elem_ty)) = indented env $ printf "%s = memref.cast %s : %s to %s %s" (unSsa value) (unSsa rhs) (mlirType $ Memref Nothing elem_ty) (mlirType arr_ty) (mlirPos loc)
+emitOpStep f env (MListCast loc value rhs to_zero arr_ty) = error "wtf?"
 emitOpStep f env (MLitInt loc value val) = indented env $ printf "%s = arith.constant %d : index %s" (unSsa value) val (mlirPos loc)
 emitOpStep f env (MLitBool loc value val) = indented env $ printf "%s = arith.constant %d : i1 %s" (unSsa value) (if val then 1::Int else 0) (mlirPos loc)
 emitOpStep f env (MLitDouble loc value val) = indented env $ printf "%s = arith.constant %f : f64 %s" (unSsa value) val (mlirPos loc)

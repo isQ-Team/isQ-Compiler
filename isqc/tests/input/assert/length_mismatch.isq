@@ -1,0 +1,7 @@
+procedure foo(int a[2]) { }
+
+procedure main()
+{
+    int a[3];
+    foo(a);
+}
