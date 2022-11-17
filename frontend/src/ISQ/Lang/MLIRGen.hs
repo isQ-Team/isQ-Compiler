@@ -269,11 +269,15 @@ emitExpr' f (EGlobalName ann@(mType->(Memref (Just _) _)) name) = do
     pushOp $ MUseGlobalMemref pos (ssa ann) (fromFuncName name) (mType ann)
     return (ssa ann)
 emitExpr' f (EGlobalName ann _) = error "first-class global gate/function not supported"
-emitExpr' f (EEraselist ann sublist) = do
-    l<-f sublist
+emitExpr' f (EListCast ann sublist) = do
     let i = ssa ann
     pos<-mpos ann
-    pushOp $ MEraseMemref pos i (astMType sublist, l)
+    let Type () (Array llen) [sub_ty] = termType ann
+    let Type () (Array rlen) [_] = termType $ annotation sublist
+    let to_zero = llen == 0
+    let len = if to_zero then rlen else llen
+    right <- f sublist
+    pushOp $ MListCast pos i right to_zero $ mapType $ Type () (Array len) [sub_ty]
     return i
 emitExpr :: Expr TypeCheckData -> State RegionBuilder SSA
 emitExpr = fix emitExpr'

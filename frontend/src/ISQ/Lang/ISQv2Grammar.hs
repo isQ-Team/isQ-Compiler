@@ -45,7 +45,7 @@ data Expr ann =
      | EUnitLit {annotationExpr :: ann}
      | EResolvedIdent {annotationExpr :: ann, resolvedId :: Int}
      | EGlobalName {annotationExpr :: ann, globalName :: String}
-     | EEraselist {annotationExpr :: ann, subList :: Expr ann}
+     | EListCast {annotationExpr :: ann, subList :: Expr ann}
      | EArrayLen {annotationExpr :: ann, subList :: Expr ann}
      deriving (Eq, Show, Functor)
 instance Annotated Expr where

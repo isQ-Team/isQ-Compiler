@@ -1,4 +1,4 @@
-procedure fun(int b[])
+procedure foo(int b[])
 {
     int len = b.length;
     print len;
@@ -6,9 +6,15 @@ procedure fun(int b[])
     print c.length;
 }
 
+procedure bar(int b[5])
+{
+    print b.length;
+}
+
 procedure main()
 {
     int a[5];
     print a.length;
-    fun(a);
+    foo(a);
+    bar(a);
 }
