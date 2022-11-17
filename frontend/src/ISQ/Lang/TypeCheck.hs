@@ -179,11 +179,16 @@ matchType' wanted e = do
             Type () Double [] -> if Exact (Type () Complex []) `notElem` wanted then return Nothing else do
                 id<-nextId
                 matchType' wanted (EImplicitCast (TypeCheckData pos (Type () Complex [] ) id) e)
+            -- Auto cast. Only the first rule is considered
+            Type () (Array 0) [y] -> case head wanted of
+                    Exact (Type () (Array x) [y]) -> do
+                        id <- nextId
+                        matchType' wanted (EListCast (TypeCheckData pos (Type () (Array x) [y]) id) e)
+                    other -> return Nothing
             -- Auto list erasure
-            Type () (Array 0) [y] -> return Nothing
             Type () (Array x) [y] -> do
                 id<-nextId
-                matchType' wanted (EEraselist (TypeCheckData pos (Type () (Array 0) [y]) id) e)
+                matchType' wanted (EListCast (TypeCheckData pos (Type () (Array 0) [y]) id) e)
             _ -> return Nothing
 matchType :: [MatchRule]->TCExpr->TypeCheck TCExpr
 matchType wanted e = do
@@ -342,7 +347,7 @@ typeCheckExpr' f (ETempArg pos ident) = do
 typeCheckExpr' f (EUnitLit pos) = EUnitLit . TypeCheckData pos (unitType ()) <$> nextId
 typeCheckExpr' f x@EResolvedIdent{} = error "Unreachable."
 typeCheckExpr' f x@EGlobalName{} = error "Unreachable."
-typeCheckExpr' f x@EEraselist{} = error "Unreachable."
+typeCheckExpr' f x@EListCast{} = error "Unreachable."
 typeCheckExpr' f (EArrayLen pos array) = do
     array' <- f array
     ssa <- nextId
