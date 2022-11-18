@@ -17,25 +17,68 @@ class RuleReplaceLogicFunc : public mlir::OpRewritePattern<logic::ir::FuncOp> {
 public:
     RuleReplaceLogicFunc(mlir::MLIRContext *ctx): mlir::OpRewritePattern<logic::ir::FuncOp>(ctx, 1) {}
     mlir::LogicalResult matchAndRewrite(logic::ir::FuncOp op, mlir::PatternRewriter &rewriter) const override {
-        auto ctx = op.getContext();
-        // construct func signature.
-        ::mlir::SmallVector<::mlir::Type> argtypes;
-        ::mlir::SmallVector<::mlir::Type> returntypes;
-        mlir::AffineExpr d0, s0;
-        mlir::bindDims(op.getContext(), d0);
-        mlir::bindSymbols(op.getContext(), s0);
-        auto affine_map = mlir::AffineMap::get(1, 1, d0+s0);
-        auto memref_1_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{1},::isq::ir::QStateType::get(op.getContext()), affine_map);
-        for(auto i=0; i<1; i++){
-            argtypes.push_back(memref_1_qstate);
-        }
-        auto functype = ::mlir::FunctionType::get(op->getContext(), argtypes, returntypes);
-        auto funcop = rewriter.create<mlir::FuncOp>(mlir::UnknownLoc::get(ctx), op.sym_name(), functype);
-        auto entry_block = funcop.addEntryBlock();
-        mlir::OpBuilder builder(entry_block, entry_block->begin());
-        builder.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()));
+        // Build the AXG.
+        unsigned int input_num = op.getNumArguments();
 
-        rewriter.eraseOp(op);
+        // Below is a demonstration of creating a quantum circuit with isQ dialect.
+        // The circuit is
+        // in0[0] ---X--*--X---
+        // in0[1] ------|------
+        //    .   ------|------
+        //    .   ------|------
+        //    .   ------|------
+        // out[0] ------X------
+        // out[1] -------------
+        //    .   -------------
+        //    .   -------------
+        //    .   -------------
+        // i.e., X(in0[0]); CNOT(in0[0], out[0]); X(in0[0]);
+
+        mlir::MLIRContext *ctx = op.getContext();
+        mlir::Location loc = op.getLoc(); // The source code location of the oracle function.
+
+        // Construct function signature.
+        mlir::SmallVector<::mlir::Type> argtypes;
+        mlir::SmallVector<::mlir::Type> returntypes;
+        isq::ir::QStateType qstate = isq::ir::QStateType::get(ctx);
+        mlir::MemRefType memref_3_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{3}, qstate);
+        for(int i=0; i<=input_num; i++){
+            argtypes.push_back(memref_3_qstate);
+        }
+        mlir::FunctionType functype = mlir::FunctionType::get(ctx, argtypes, returntypes);
+
+        // Create a FuncOp that represent the quantum circuit.
+        mlir::FuncOp funcop = rewriter.create<mlir::FuncOp>(loc, op.sym_name(), functype);
+        mlir::Block *entry_block = funcop.addEntryBlock(); // Arguments are automatically created based on the function signature.
+        mlir::OpBuilder builder(entry_block, entry_block->begin());
+        mlir::BlockArgument in0 = entry_block->getArgument(0);
+        mlir::BlockArgument out = entry_block->getArgument(input_num);
+
+        // Fetch the original qstates.
+        mlir::arith::ConstantIndexOp const0 = builder.create<mlir::arith::ConstantIndexOp>(loc, 0);
+        mlir::memref::LoadOp in00 = builder.create<mlir::memref::LoadOp>(loc, qstate, in0, mlir::ValueRange{const0});
+        mlir::memref::LoadOp out0 = builder.create<mlir::memref::LoadOp>(loc, qstate, out, mlir::ValueRange{const0});
+
+        // Load the quantum gates. The last argument is the parameters of the gate, e.g., `theta` for Rz(theta, q);
+        mlir::Value x_gate = builder.create<isq::ir::UseGateOp>(loc, isq::ir::GateType::get(ctx, 1, GateTrait::General),
+            mlir::FlatSymbolRefAttr::get(ctx, "X"), mlir::ValueRange{}).getResult();
+        mlir::Value cnot_gate = builder.create<isq::ir::UseGateOp>(loc, isq::ir::GateType::get(ctx, 2, GateTrait::General),
+            mlir::FlatSymbolRefAttr::get(ctx, "CNOT"), mlir::ValueRange{}).getResult();
+
+        // Apply gates to qstates. The last argument is the qstates to be applied on.
+        isq::ir::ApplyGateOp applied_x = builder.create<isq::ir::ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate},
+            x_gate, mlir::ArrayRef<mlir::Value>({in00}));
+        isq::ir::ApplyGateOp applied_cnot = builder.create<isq::ir::ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate, qstate},
+            cnot_gate, mlir::ArrayRef<mlir::Value>({applied_x.getResult(0), out0}));
+        isq::ir::ApplyGateOp applied_x2 = builder.create<isq::ir::ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate},
+            x_gate, mlir::ArrayRef<mlir::Value>({applied_cnot.getResult(0)}));
+
+        // Store qstates back to registers (i.e., the Memref<!isq.qstate> struct).
+        builder.create<mlir::memref::StoreOp>(loc, applied_x2.getResult(0), in0, mlir::ValueRange{const0});
+        builder.create<mlir::memref::StoreOp>(loc, applied_cnot.getResult(1), out, mlir::ValueRange{const0});
+        builder.create<mlir::ReturnOp>(loc); // dummy terminator
+
+        rewriter.eraseOp(op); // Remove original logic.func op
         return mlir::success();
     }
 };

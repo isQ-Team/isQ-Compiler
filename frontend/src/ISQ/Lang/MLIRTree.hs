@@ -257,6 +257,7 @@ emitOpStep f env (MQOracleLogic loc name (Just ty) region) = intercalate "\n" $ 
   [
     indented env $ printf "logic.func %s: %s {" (unFuncName name) (mlirType ty),
     emitBlock f env region,
+    indented env $ printf "logic.return %s" (mlirPos loc),
     indented env $ printf "} %s" (mlirPos loc)
   ]
 emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)
