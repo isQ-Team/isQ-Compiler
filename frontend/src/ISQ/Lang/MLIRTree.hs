@@ -22,7 +22,7 @@ mlirType (Memref Nothing ty) = "memref<?x" ++ mlirType ty ++ ">"
 mlirType (Memref (Just x) ty) = "memref<"++show x++"x" ++ mlirType ty ++ ">"
 mlirType (BorrowedRef ty) = "memref<1x"++ mlirType ty ++", affine_map<(d0)[s0]->(d0+s0)>>"
 mlirType (Gate x) = "!isq.gate<"++show x++">"
-mlirType (Func ret args) = "(" ++ concat (map mlirType args) ++ ")->" ++ mlirType ret
+mlirType (Func ret args) = "(" ++ intercalate "," (map mlirType args) ++ ")->" ++ mlirType ret
 newtype BlockName = BlockName {unBlockName :: String} deriving Show
 newtype SSA = SSA {unSsa :: String} deriving Show
 newtype FuncName = FuncName {unFuncName :: String} deriving Show
@@ -122,6 +122,7 @@ data MLIROp =
     | MQPrint { location :: MLIRPos, printIn :: (MLIRType, SSA)}
     -- | MQCallQop { location :: MLIRPos, values :: [(MLIRType, SSA)], funcName :: FuncName, operands :: [(MLIRType, SSA)]}
     | MBinary {location :: MLIRPos, value :: SSA, lhs :: SSA, rhs :: SSA, bopType :: MLIRBinaryOp}
+    | MLBinary { location :: MLIRPos, returnVal :: TypedSSA, lhs :: SSA, rhs :: SSA, logicOp :: String}
     | MUnary {location :: MLIRPos, value :: SSA, unaryOperand :: SSA, uopType :: MLIRUnaryOp}
     | MCast {location::MLIRPos, value :: SSA, unaryOperand :: SSA, uopType :: MLIRUnaryOp}
     | MLoad {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
@@ -137,14 +138,14 @@ data MLIROp =
     | MJmp {location :: MLIRPos, jmpBlock :: BlockName}
     | MBranch {location :: MLIRPos, value :: SSA, branches :: (BlockName, BlockName)}
     | MModule {location :: MLIRPos, topOps :: [MLIROp]}
-    | MCall {location :: MLIRPos, callRet :: Maybe (MLIRType, SSA), funcName :: FuncName, operands :: [(MLIRType, SSA)], isLogic :: Bool}
+    | MCall { location :: MLIRPos, callRet :: Maybe (MLIRType, SSA), funcName :: FuncName, operands :: [(MLIRType, SSA)], isLogic :: Bool }
     | MSCFIf {location :: MLIRPos, ifCondition :: SSA, thenRegion :: MLIROp, elseRegion :: MLIROp}
     | MSCFWhile {location :: MLIRPos, breakBlock :: [MLIROp], condBlock :: [MLIROp], condExpr :: SSA, breakCond :: SSA, whileBody :: [MLIROp]}
     | MAffineFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
     | MSCFFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
     | MSCFExecRegion {location :: MLIRPos, blocks :: [MLIRBlock]}
     | MSCFYield {location :: MLIRPos}
-    | MReturn {location :: MLIRPos, returnVal :: TypedSSA}
+    | MReturn { location :: MLIRPos, returnVal :: TypedSSA, isLogic :: Bool }
     | MReturnUnit {location :: MLIRPos}
     | MBp {location :: MLIRPos, bpLine :: SSA}
     | MGlobalMemref {location :: MLIRPos, globalMemrefName :: FuncName, globalMemrefType :: MLIRType}
@@ -218,7 +219,6 @@ emitOpStep f env (MQOracleLogic loc name (Just ty) region) = intercalate "\n" $ 
   [
     indented env $ printf "logic.func %s: %s {" (unFuncName name) (mlirType ty),
     emitBlock f env region,
-    indented env $ printf "logic.return %s" (mlirPos loc),
     indented env $ printf "} %s" (mlirPos loc)
   ]
 emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)
@@ -250,6 +250,7 @@ emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp "arith.divf" lt rt res
     indented env $ printf "%s = arith.divf %s, %s : %s %s" (unSsa value) (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
   ]
 emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = %s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
+emitOpStep f env (MLBinary loc (ty, value) lhs rhs op) = indented env $ printf "%s = logic.%s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
 emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
 emitOpStep f env (MLoad loc value (arr_type, arr_val)) = intercalate "\n" $
@@ -337,7 +338,8 @@ emitOpStep f env (MSCFFor loc lo hi step var body) = intercalate "\n" $
     indented env $ printf "scf.for %s = %s to %s step %s_one {" (unSsa var) (unSsa lo) (unSsa hi) (unSsa var)]
   ++ fmap (f (incrIndent (env{isTopLevel=False}))) body
   ++ [indented env $ printf "} %s" (mlirPos loc)]
-emitOpStep f env (MReturn loc (ty, v)) = indented env $ printf "return %s : %s %s" (unSsa v) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MReturn loc (ty, v) logic) = let dialect = if logic then "logic." else "" in 
+  indented env $ printf "%sreturn %s : %s %s" dialect (unSsa v) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MReturnUnit loc) = indented env $ printf "return %s" (mlirPos loc)
 --emitOpStep f env (MBp loc) = indented env $ printf "isq.bp %s" (mlirPos loc)
 emitOpStep f env (MGlobalMemref loc name ty@(BorrowedRef subty)) = indented env $ printf "memref.global %s : memref<1x%s> = uninitialized %s"  (unFuncName name) (mlirType subty) (mlirPos loc)

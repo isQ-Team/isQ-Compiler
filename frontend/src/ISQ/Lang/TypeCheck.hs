@@ -61,7 +61,8 @@ insertSymbol sym ast (x:xs) = case MultiMap.lookup sym x of
 data TypeCheckEnv = TypeCheckEnv {
     symbolTable :: SymbolTable,
     ssaAllocator :: Int,
-    mainDefined :: Bool
+    mainDefined :: Bool,
+    inOracle :: Bool
 }
 
 type TypeCheck = ExceptT TypeCheckError (State TypeCheckEnv)
@@ -208,25 +209,33 @@ exactBinaryCheck f etype pos op lhs rhs = do
 
 buildBinaryExpr :: Pos -> BinaryOperator -> Expr TypeCheckData -> Expr TypeCheckData -> TypeCheck (Expr TypeCheckData)
 buildBinaryExpr pos op ref_lhs ref_rhs = do
-    lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
-    rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
-    ssa<-nextId
-    let lty = astType lhs'
-    let rty = astType rhs'
-    --traceM $ show rty
-    matched_lhs <- case ty rty of
-            Double -> matchType [Exact (doubleType ())] lhs'
-            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
-    matched_rhs <- case ty lty of
-            Double -> matchType [Exact (doubleType ())] rhs'
-            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
-    --traceM $ show matched_lhs
-    let return_type = case op of
-            Cmp _ -> boolType ()
-            _ -> astType matched_lhs
-    case op of
-        Mod -> if (return_type /= intType ()) then throwError $ TypeMismatch pos [Exact (intType ())] return_type else return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
-        _ -> return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+    ssa <- nextId
+    logic <- gets inOracle
+    case logic of
+        True -> do
+            lhs <- matchType [ArrayType $ Exact $ boolType ()] ref_lhs
+            rhs <- matchType [ArrayType $ Exact $ boolType ()] ref_rhs
+            return $ EBinary (TypeCheckData pos (astType lhs) ssa) op lhs rhs
+        False -> do
+            lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
+            rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
+            let lty = astType lhs'
+            let rty = astType rhs'
+            --traceM $ show rty
+            matched_lhs <- case ty rty of
+                    Double -> matchType [Exact (doubleType ())] lhs'
+                    _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
+            matched_rhs <- case ty lty of
+                    Double -> matchType [Exact (doubleType ())] rhs'
+                    _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
+            --traceM $ show matched_lhs
+            let return_type = case op of
+                    Cmp _ -> boolType ()
+                    _ -> astType matched_lhs
+            case op of
+                Mod -> if (return_type /= intType ()) then throwError $ TypeMismatch pos [Exact (intType ())] return_type
+                    else return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+                _ -> return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
 
 -- By now we only support bottom-up type checking.
 -- All leaf nodes have their own type, and intermediate types are calculated.
@@ -572,7 +581,9 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
                     esub <- buildBinaryExpr pos Sub lhs' rhs'
                     doAssign lhs' esub
 typeCheckAST' f (NGatedef pos lhs rhs _) = error "unreachable"
-typeCheckAST' f (NReturn _ _) = error "unreachable"
+typeCheckAST' f (NReturn pos expr) = do
+    expr' <- typeCheckExpr expr
+    return $ NReturn (okStmt pos) expr'
 typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
     gate'<-typeCheckExpr gate
     gate''<-matchType [AnyGate] gate'
@@ -752,7 +763,9 @@ typeCheckToplevel isMain prefix ast = do
                 defineGlobalSym prefix name pos (Type () FuncTy $ unitType() : arg_types') True
                 scope
                 ids <- mapM (\(ty, i) -> defineSym (SymVar i) pos ty) args
+                modify' (\x->x{inOracle = True})
                 body' <- mapM typeCheckAST body
+                modify' (\x->x{inOracle = False})
                 unscope
                 return $ Right (NResolvedOracleLogic (okStmt pos) (Type () FuncTy $ ty:arg_types) (prefix ++ name) (zip arg_types ids) body')
             Left x@(NDerivedGatedef pos name source extra size) -> do
@@ -840,7 +853,7 @@ getSecondLast (x:xs) = getSecondLast xs
 
 typeCheckTop :: Bool -> String -> [LAST] -> SymbolTableLayer -> Int -> Either TypeCheckError ([TCAST], SymbolTableLayer, Int)
 typeCheckTop isMain prefix ast stl ssaId = do
-    let env = TypeCheckEnv [MultiMap.empty, stl] ssaId False
+    let env = TypeCheckEnv [MultiMap.empty, stl] ssaId False False
     evalState (runExceptT $ typeCheckToplevel isMain prefix ast) env
 
 -- TODO: unification-based type check and type inference.
