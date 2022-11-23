@@ -455,6 +455,7 @@ emitStatement' f (NJumpToEnd ann) = do
 emitStatement' f NTempvar{} = error "unreachable"
 emitStatement' f (NResolvedDefvar ann defs) = do
     pos<-mpos ann
+    in_logic <- use inLogic
     let one_def :: (Type (), Int, Maybe TCExpr) -> State RegionBuilder ()
         -- isQ source: sub_ty arr[] = lis;
         one_def ((Type () (Array _) [sub_ty]), ssa, Just (EList eann lis)) = do
@@ -472,10 +473,13 @@ emitStatement' f (NResolvedDefvar ann defs) = do
 
         -- isQ source: sub_ty arr[elen];
         one_def ((Type () (Array _) [sub_ty]), ssa, Just len) = do
-            let mlir_ty = mapType $ Type () (Array 0) [sub_ty]
             len' <- emitExpr len
-            pushOp (MAllocMemref pos (fromSSA ssa) mlir_ty len')
-            pushRAII [MFreeMemref pos (fromSSA ssa) mlir_ty]
+            case in_logic of
+                True -> return ()
+                False -> do
+                    let mlir_ty = mapType $ Type () (Array 0) [sub_ty]
+                    pushOp (MAllocMemref pos (fromSSA ssa) mlir_ty len')
+                    pushRAII [MFreeMemref pos (fromSSA ssa) mlir_ty]
         one_def (ty, ssa, Just initializer) = do
             initialized_val <- emitExpr initializer
             pushAllocFree pos (mapType ty, fromSSA ssa)

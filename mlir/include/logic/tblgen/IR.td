@@ -69,7 +69,7 @@ def Logic_FuncOp : Logic_Op<"func", [FunctionOpInterface]> {
 
 // Base class for unary and binary logic ops
 class Logic_LogicalOp<string mnemonic, list<Trait> traits = []>:
-    Logic_Op<mnemonic, traits # [SameOperandsAndResultType]>;
+    Logic_Op<mnemonic, traits # [NoSideEffect, SameOperandsAndResultType]>;
 
 class Logic_BinaryOp<string mnemonic, list<Trait> traits = []>:
     Logic_LogicalOp<mnemonic, traits> {
@@ -105,7 +105,7 @@ def Logic_CallOp : Logic_Op<"call"> {
     }];
 }
 
-def Logic_ReturnOp : Logic_Op<"return", [NoSideEffect, ReturnLike, Terminator]> {
+def Logic_ReturnOp : Logic_Op<"return", [ReturnLike, Terminator]> {
     let summary = "return operation";
     let arguments = (ins Variadic<AnyType>:$operands);
     let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
