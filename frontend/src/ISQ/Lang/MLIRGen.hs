@@ -327,10 +327,14 @@ emitStatement' f NWhile{} = error "unreachable"
 emitStatement' f (NCall ann expr) = void $ emitExpr expr
 emitStatement' f (NDefvar ann defs) = error "unreachable"
 emitStatement' f (NAssign ann lhs rhs op) = do
-    lhs'<-emitExpr lhs
-    rhs'<-emitExpr rhs
-    pos<-mpos ann
-    pushOp $ MStore pos (astMType lhs, lhs') rhs'
+    rhs' <- emitExpr rhs
+    in_logic <- use inLogic
+    case in_logic of
+        True -> return ()
+        False -> do
+            lhs' <- emitExpr lhs
+            pos <- mpos ann
+            pushOp $ MStore pos (astMType lhs, lhs') rhs'
 emitStatement' f NGatedef{} = error "unreachable"
 emitStatement' f (NReturn ann expr) = do
     pos <- mpos ann

@@ -30,7 +30,8 @@ data TypeCheckError =
     | UndefinedSymbol { pos :: Pos, symbolName :: Symbol}
     | AmbiguousSymbol { pos :: Pos, symbolName :: Symbol, firstDefinedAt :: Pos, secondDefinedAt :: Pos}
     | TypeMismatch {pos :: Pos, expectedType :: [MatchRule], actualType :: Type ()}
-    | UnsupportedType {pos :: Pos, actualType :: Type ()}
+    | UnsupportedType { pos :: Pos, actualType :: Type () }
+    | UnsupportedLeftSide { pos :: Pos }
     | ViolateNonCloningTheorem { pos :: Pos }
     | GateNameError { pos :: Pos }
     | ArgNumberMismatch { pos :: Pos, expectedArgs :: Int, actualArgs :: Int }
@@ -544,42 +545,64 @@ typeCheckAST' f (NDefvar pos defs) = do
     defs'<-mapM def_one defs
     return $ NResolvedDefvar (okStmt pos) defs'
 typeCheckAST' f (NAssign pos lhs rhs op) = do
-    lhs'<-typeCheckExpr lhs
     rhs'<-typeCheckExpr rhs
-    let doAssign lhs' rhs' = do
-            lhs'' <- matchType [AnyRef] lhs'
-            let Type () Ref [lhs_ty] = astType lhs''
-            when (ty lhs_ty==Qbit) $ throwError $ ViolateNonCloningTheorem pos
-            rhs'' <- matchType [Exact lhs_ty] rhs'
-            return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
-    case op of
-        AssignEq -> doAssign lhs' rhs'
-        AddEq -> do
-            let lhs_ty = termType $ annotationExpr lhs'
-            case lhs_ty of
-                Type () (Array _) [Type () Qbit []] -> do
-                    lhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] lhs'
-                    rhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] rhs'
-                    call_id <- nextId
-                    callee <- typeCheckExpr $ EIdent pos "__add"
-                    let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
-                    return $ NCall (okStmt pos) ecall
-                other -> do
-                    eadd <- buildBinaryExpr pos Add lhs' rhs'
-                    doAssign lhs' eadd
-        SubEq -> do
-            let lhs_ty = termType $ annotationExpr lhs'
-            case lhs_ty of
-                Type () (Array _) [Type () Qbit []] -> do
-                    lhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] lhs'
-                    rhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] rhs'
-                    call_id <- nextId
-                    callee <- typeCheckExpr $ EIdent pos "__sub"
-                    let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
-                    return $ NCall (okStmt pos) ecall
-                other -> do
-                    esub <- buildBinaryExpr pos Sub lhs' rhs'
-                    doAssign lhs' esub
+    in_oracle <- gets inOracle
+    case in_oracle of
+        True -> do
+            sym_tables <- gets symbolTable
+            let cur_table = head sym_tables
+            case lhs of
+                EIdent lpos ident -> do
+                    let sym = SymVar ident
+                    sym_data <- getSym lpos sym
+                    let lhs_ty = definedType sym_data
+                    case lhs_ty of
+                        Type () (Array llen) [Type () Bool []] -> do
+                            rhs'' <- matchType [Exact lhs_ty] rhs'
+                            let rid = termId $ annotationExpr rhs''
+                            let deleted = MultiMap.delete sym cur_table
+                            let new_data = DefinedSymbol lpos lhs_ty rid False ""
+                            let new_curr = MultiMap.insert sym new_data deleted
+                            modify' (\x -> x{symbolTable=new_curr : tail sym_tables})
+                            return $ NAssign (okStmt pos) rhs'' rhs'' AssignEq
+                        other -> throwError $ UnsupportedType pos other
+                other -> throwError $ UnsupportedLeftSide $ annotationExpr lhs
+        False -> do
+            lhs'<-typeCheckExpr lhs
+            let doAssign lhs' rhs' = do
+                    lhs'' <- matchType [AnyRef] lhs'
+                    let Type () Ref [lhs_ty] = astType lhs''
+                    when (ty lhs_ty==Qbit) $ throwError $ ViolateNonCloningTheorem pos
+                    rhs'' <- matchType [Exact lhs_ty] rhs'
+                    return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
+            case op of
+                AssignEq -> doAssign lhs' rhs'
+                AddEq -> do
+                    let lhs_ty = termType $ annotationExpr lhs'
+                    case lhs_ty of
+                        Type () (Array _) [Type () Qbit []] -> do
+                            lhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] lhs'
+                            rhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] rhs'
+                            call_id <- nextId
+                            callee <- typeCheckExpr $ EIdent pos "__add"
+                            let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
+                            return $ NCall (okStmt pos) ecall
+                        other -> do
+                            eadd <- buildBinaryExpr pos Add lhs' rhs'
+                            doAssign lhs' eadd
+                SubEq -> do
+                    let lhs_ty = termType $ annotationExpr lhs'
+                    case lhs_ty of
+                        Type () (Array _) [Type () Qbit []] -> do
+                            lhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] lhs'
+                            rhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] rhs'
+                            call_id <- nextId
+                            callee <- typeCheckExpr $ EIdent pos "__sub"
+                            let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
+                            return $ NCall (okStmt pos) ecall
+                        other -> do
+                            esub <- buildBinaryExpr pos Sub lhs' rhs'
+                            doAssign lhs' esub
 typeCheckAST' f (NGatedef pos lhs rhs _) = error "unreachable"
 typeCheckAST' f (NReturn pos expr) = do
     expr' <- typeCheckExpr expr

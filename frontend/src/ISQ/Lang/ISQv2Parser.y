@@ -157,7 +157,6 @@ ExprCallable : '(' Expr ')' { $2 }
 Expr1Left :: {LExpr}
 Expr1Left : ExprCallable {$1}
           | Expr1Left '[' Expr ']' { ESubscript $2 $1 $3 }
-          | Expr1Left '.length' { EArrayLen $2 $1 }
 
 Expr1 :: {LExpr}
 Expr1 : Expr1Left { $1 }
@@ -186,6 +185,7 @@ Expr1 : Expr1Left { $1 }
      | '+' Expr1 %prec POS { EUnary $1 Positive $2 }
      | '!' Expr1 { EUnary $1 Not $2 }
      | not Expr1 { EUnary $1 Not $2 }
+     | Expr1Left '.length' { EArrayLen $2 $1 }
      | NATURAL{ EIntLit (annotation $1) (tokenNaturalV $1) }
      | FLOAT { EFloatingLit (annotation $1) (tokenFloatV $1) }
      | pi { EFloatingLit $1 3.14159265358979323846264338327950288 }
