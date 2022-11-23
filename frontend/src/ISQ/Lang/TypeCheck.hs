@@ -109,6 +109,16 @@ defineGlobalSym prefix name b c logic = do
     addSym (SymVar qualifiedName) (DefinedSymbol b c ssa True qualifiedName')
     return ssa
 
+setSym :: Symbol -> Pos -> TypeCheckData -> TypeCheck Int
+setSym sym pos (TypeCheckData _ ty rid) = do
+    sym_tables <- gets symbolTable
+    let cur_table = head sym_tables
+    let deleted = MultiMap.delete sym cur_table
+    let new_data = DefinedSymbol pos ty rid False ""
+    let new_curr = MultiMap.insert sym new_data deleted
+    modify' (\x -> x{symbolTable=new_curr : tail sym_tables})
+    return rid
+
 scope :: TypeCheck ()
 scope = modify (\x->x{symbolTable = MultiMap.empty:symbolTable x})
 
@@ -512,36 +522,60 @@ typeCheckAST' f (NCall pos c@(ECall _ callee args)) = do
         _ -> undefined
 typeCheckAST' f (NCall pos c) = error "unreachable"
 typeCheckAST' f (NDefvar pos defs) = do
+    in_oracle <- gets inOracle
     let def_one (ty, name, initializer, length) = do
             let left_type = void ty
-            (i', ty')<-case initializer of
-                Just r->do
-                    r' <- typeCheckExpr r
-                    case left_type of
-                        Type () (Array llen) [lsub] -> do
-                            let right_type = termType $ annotationExpr r'
-                            case right_type of
-                                Type () (Array rlen) [rsub] -> do
-                                    let li = typeToInt lsub
-                                    let ri = typeToInt rsub
-                                    let min = minimum [li, ri]
-                                    when (min < 0 || li > ri) $ throwError $ TypeMismatch pos [Exact left_type] right_type
-                                    let llen' = case llen of
-                                            0 -> rlen
-                                            _ -> llen
-                                    return (Just r', Type () (Array llen') [lsub])
-                                _ -> throwError $ TypeMismatch pos [Exact left_type] right_type
-                        _ -> do
-                            r''<-matchType [Exact left_type] r'
-                            return (Just r'', definedRefType left_type)
-                Nothing -> case length of
-                    Nothing -> return (Nothing, definedRefType left_type)
-                    Just len -> do
-                        len' <- typeCheckExpr len
-                        len'' <- matchType [Exact $ intType ()] len'
-                        return (Just len'', left_type)
-            s <- defineSym (SymVar name) pos ty'
-            return (ty', s, i')
+            case in_oracle of
+                True -> do
+                    let sym = SymVar name
+                    case initializer of
+                        Just r -> do
+                            r' <- typeCheckExpr r
+                            case left_type of
+                                Type () (Array 0) [Type () Bool []] -> do
+                                    r'' <- matchType [ArrayType $ Exact $ boolType ()] r'
+                                    rid <- setSym sym pos $ annotationExpr r''
+                                    return (left_type, rid, Just r'')
+                                other -> throwError $ UnsupportedType pos other
+                        Nothing -> case length of
+                            Nothing -> throwError $ UnsupportedType pos left_type
+                            Just (EIntLit _ len) -> do
+                                case left_type of
+                                    Type () (Array 0) [Type () Bool []] -> do
+                                        let ty = Type () (Array len) [Type () Bool []]
+                                        rid <- defineSym sym pos ty
+                                        return (ty, rid, Nothing)
+                                    other -> throwError $ UnsupportedType pos other
+                            other -> throwError $ UnsupportedLeftSide pos
+                False -> do
+                    (i', ty') <- case initializer of
+                        Just r -> do
+                            r' <- typeCheckExpr r
+                            case left_type of
+                                Type () (Array llen) [lsub] -> do
+                                    let right_type = termType $ annotationExpr r'
+                                    case right_type of
+                                        Type () (Array rlen) [rsub] -> do
+                                            let li = typeToInt lsub
+                                            let ri = typeToInt rsub
+                                            let min = minimum [li, ri]
+                                            when (min < 0 || li > ri) $ throwError $ TypeMismatch pos [Exact left_type] right_type
+                                            let llen' = case llen of
+                                                    0 -> rlen
+                                                    _ -> llen
+                                            return (Just r', Type () (Array llen') [lsub])
+                                        _ -> throwError $ TypeMismatch pos [Exact left_type] right_type
+                                _ -> do
+                                    r''<-matchType [Exact left_type] r'
+                                    return (Just r'', definedRefType left_type)
+                        Nothing -> case length of
+                            Nothing -> return (Nothing, definedRefType left_type)
+                            Just len -> do
+                                len' <- typeCheckExpr len
+                                len'' <- matchType [Exact $ intType ()] len'
+                                return (Just len'', left_type)
+                    s <- defineSym (SymVar name) pos ty'
+                    return (ty', s, i')
     defs'<-mapM def_one defs
     return $ NResolvedDefvar (okStmt pos) defs'
 typeCheckAST' f (NAssign pos lhs rhs op) = do
@@ -549,8 +583,6 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
     in_oracle <- gets inOracle
     case in_oracle of
         True -> do
-            sym_tables <- gets symbolTable
-            let cur_table = head sym_tables
             case lhs of
                 EIdent lpos ident -> do
                     let sym = SymVar ident
@@ -559,11 +591,7 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
                     case lhs_ty of
                         Type () (Array llen) [Type () Bool []] -> do
                             rhs'' <- matchType [Exact lhs_ty] rhs'
-                            let rid = termId $ annotationExpr rhs''
-                            let deleted = MultiMap.delete sym cur_table
-                            let new_data = DefinedSymbol lpos lhs_ty rid False ""
-                            let new_curr = MultiMap.insert sym new_data deleted
-                            modify' (\x -> x{symbolTable=new_curr : tail sym_tables})
+                            setSym sym lpos $ annotationExpr rhs''
                             return $ NAssign (okStmt pos) rhs'' rhs'' AssignEq
                         other -> throwError $ UnsupportedType pos other
                 other -> throwError $ UnsupportedLeftSide $ annotationExpr lhs
