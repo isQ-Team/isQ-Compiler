@@ -3,6 +3,7 @@ include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/IR/FunctionInterfaces.td"
 include "mlir/Interfaces/ControlFlowInterfaces.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
 include "isq/tblgen/ISQBase.td"
 
 ////////////////////////////////////
@@ -64,6 +65,32 @@ def Logic_FuncOp : Logic_Op<"func", [FunctionOpInterface]> {
     let assemblyFormat = [{
         $sym_name `:` $type $body attr-dict
     }];
+}
+
+// Base class for unary and binary logic ops
+class Logic_LogicalOp<string mnemonic, list<Trait> traits = []>:
+    Logic_Op<mnemonic, traits # [SameOperandsAndResultType]>;
+
+class Logic_BinaryOp<string mnemonic, list<Trait> traits = []>:
+    Logic_LogicalOp<mnemonic, traits> {
+    let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+}
+
+class Logic_VecBinaryOp<string mnemonic, list<Trait> traits = []>:
+    Logic_BinaryOp<mnemonic, traits>,
+    Arguments<(ins AnyType: $lhs, AnyType: $rhs)>,
+    Results<(outs AnyType: $result)>;
+
+def Logic_AndvOp : Logic_VecBinaryOp<"andv"> {
+    let summary = "bit-wise AND operation for bit array";
+}
+
+def Logic_OrvOp : Logic_VecBinaryOp<"orv"> {
+    let summary = "bit-wise OR operation for bit array";
+}
+
+def Logic_XorvOp : Logic_VecBinaryOp<"xorv"> {
+    let summary = "bit-wise XOR operation for bit array";
 }
 
 def Logic_CallOp : Logic_Op<"call"> {

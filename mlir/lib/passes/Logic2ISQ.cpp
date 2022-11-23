@@ -1,9 +1,16 @@
+#include <string>
+#include <unordered_map>
+
+#include <mlir/IR/AsmState.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Rewrite/FrozenRewritePatternSet.h>
 #include <mlir/Transforms/GreedyPatternRewriteDriver.h>
+
+#include "mockturtle/algorithms/simulation.hpp"
+#include "mockturtle/networks/xag.hpp"
 
 #include "logic/IR.h"
 #include "isq/IR.h"
@@ -13,12 +20,100 @@ namespace ir {
 namespace passes {
 namespace {
 
+template<typename Ty>
+std::ostream& operator<<(std::ostream& os, const std::vector<Ty>& v) {
+    os << '[';
+    for (int i=0; i<v.size(); i++) {
+        os << v[i] << ", ";
+    }
+    os << ']';
+    return os;
+}
+
 class RuleReplaceLogicFunc : public mlir::OpRewritePattern<logic::ir::FuncOp> {
 public:
     RuleReplaceLogicFunc(mlir::MLIRContext *ctx): mlir::OpRewritePattern<logic::ir::FuncOp>(ctx, 1) {}
     mlir::LogicalResult matchAndRewrite(logic::ir::FuncOp op, mlir::PatternRewriter &rewriter) const override {
-        // Build the AXG.
+
+        // Build the XAG.
+        mockturtle::xag_network xag; // the xag to be built
+        auto hash = [](const std::pair<std::string, int> &p){
+            return std::hash<std::string>()(p.first) * 31 + std::hash<int>()(p.second);
+        };
+        std::unordered_map<std::pair<std::string, int>, mockturtle::xag_network::signal, decltype(hash)> symbol_table(8, hash);
+
+        // A helper function that get the SSA identifier linked to a value
+        mlir::AsmState state(op);
+        auto value2str = [&](mlir::Value value) -> std::string {
+            std::string res;
+            llvm::raw_string_ostream output(res);
+            value.printAsOperand(output, state);
+            return res;
+        };
+
+        // Create input signals based on the function inputs.
         unsigned int input_num = op.getNumArguments();
+        for (int i=0; i<input_num; i++) {
+            mlir::Value arg = op.getArgument(i);
+            std::string str = value2str(arg);
+            int width = getBitWidth(arg);
+            for (int j=0; j<width; j++) {
+                symbol_table[{str, j}] = xag.create_pi();
+            }
+        }
+
+        // Binary operator processing template
+        auto vec_binary = [&](mlir::Value lhs, mlir::Value rhs, mlir::Value res,
+            mockturtle::xag_network::signal(mockturtle::xag_network::*create)(mockturtle::xag_network::signal, mockturtle::xag_network::signal)) {
+            std::string lname = value2str(lhs);
+            std::string rname = value2str(rhs);
+            std::string res_name = value2str(res);
+            int width = getBitWidth(res);
+            for (int j=0; j<width; j++) {
+                symbol_table[{res_name, j}] = (xag.*create)(symbol_table[{lname, j}], symbol_table[{rname, j}]);
+            }
+        };
+
+        // Process each statement in the funciton body.
+        for (mlir::Operation &it : op.getRegion().getOps()) {
+            if (logic::ir::AndvOp binop = llvm::dyn_cast<logic::ir::AndvOp>(it)) {
+                vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_and);
+            }
+            else if (logic::ir::OrvOp binop = llvm::dyn_cast<logic::ir::OrvOp>(it)) {
+                vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_or_no_const);
+            }
+            else if (logic::ir::XorvOp binop = llvm::dyn_cast<logic::ir::XorvOp>(it)) {
+                vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xor);
+            }
+            else if (logic::ir::ReturnOp ret = llvm::dyn_cast<logic::ir::ReturnOp>(it)) {
+                mlir::Value oprand = ret.getOperand(0);
+                std::string str = value2str(oprand);
+                int width = getBitWidth(oprand);
+                for (int i=0; i<width; i++) {
+                    mockturtle::xag_network::signal sig = symbol_table[{str, i}];
+                    xag.create_po(sig);
+                }
+            } else {
+                std::string str;
+                llvm::raw_string_ostream output(str);
+                it.getName().print(output);
+                std::cout << str << std::endl;
+                assert(0 && "unrecognized operation");
+            }
+        }
+        //mockturtle::xag_network::signal res = xag.create_and(pi, pi2);
+        std::vector<bool> results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>(6, false)));
+        std::cout << results << std::endl;
+        results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>{true, true, true, false, false, false}));
+        std::cout << results << std::endl;
+        results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>(6, true)));
+        std::cout << results << std::endl;
+        //mockturtle::write_dot(xag, std::cout);
+
+
+        // Convert XAG to quantum circuit
+        // To be added...
+
 
         // Below is a demonstration of creating a quantum circuit with isQ dialect.
         // The circuit is
@@ -35,7 +130,7 @@ public:
         // i.e., X(in0[0]); CNOT(in0[0], out[0]); X(in0[0]);
 
         mlir::MLIRContext *ctx = op.getContext();
-        mlir::Location loc = op.getLoc(); // The source code location of the oracle function.
+        mlir::Location loc = op.getLoc(); // The location of the oracle function in the source code.
 
         // Construct function signature.
         mlir::SmallVector<::mlir::Type> argtypes;
@@ -80,6 +175,12 @@ public:
 
         rewriter.eraseOp(op); // Remove original logic.func op
         return mlir::success();
+    }
+private:
+    int getBitWidth(mlir::Value val) const {
+        auto mem_type = val.getType().dyn_cast<mlir::MemRefType>();
+        assert(mem_type && "Returned value is not of MemRefType");
+        return mem_type.getDimSize(0);
     }
 };
 
