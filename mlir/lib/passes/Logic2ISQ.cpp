@@ -20,6 +20,7 @@ namespace ir {
 namespace passes {
 namespace {
 
+// debug helper function
 template<typename Ty>
 std::ostream& operator<<(std::ostream& os, const std::vector<Ty>& v) {
     os << '[';
@@ -63,6 +64,15 @@ public:
         }
 
         // Binary operator processing template
+        auto binary = [&](mlir::Value lhs, mlir::Value rhs, mlir::Value res,
+            mockturtle::xag_network::signal(mockturtle::xag_network::*create)(mockturtle::xag_network::signal, mockturtle::xag_network::signal)) {
+            std::string lname = value2str(lhs);
+            std::string rname = value2str(rhs);
+            std::string res_name = value2str(res);
+            symbol_table[{res_name, -1}] = (xag.*create)(symbol_table[{lname, -1}], symbol_table[{rname, -1}]);
+        };
+
+        // Binary vector operator processing template
         auto vec_binary = [&](mlir::Value lhs, mlir::Value rhs, mlir::Value res,
             mockturtle::xag_network::signal(mockturtle::xag_network::*create)(mockturtle::xag_network::signal, mockturtle::xag_network::signal)) {
             std::string lname = value2str(lhs);
@@ -76,7 +86,16 @@ public:
 
         // Process each statement in the funciton body.
         for (mlir::Operation &it : op.getRegion().getOps()) {
-            if (logic::ir::AndvOp binop = llvm::dyn_cast<logic::ir::AndvOp>(it)) {
+            if (logic::ir::AndOp binop = llvm::dyn_cast<logic::ir::AndOp>(it)) {
+                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_and);
+            }
+            else if (logic::ir::OrOp binop = llvm::dyn_cast<logic::ir::OrOp>(it)) {
+                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_or_no_const);
+            }
+            else if (logic::ir::XorOp binop = llvm::dyn_cast<logic::ir::XorOp>(it)) {
+                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xor);
+            }
+            else if (logic::ir::AndvOp binop = llvm::dyn_cast<logic::ir::AndvOp>(it)) {
                 vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_and);
             }
             else if (logic::ir::OrvOp binop = llvm::dyn_cast<logic::ir::OrvOp>(it)) {
