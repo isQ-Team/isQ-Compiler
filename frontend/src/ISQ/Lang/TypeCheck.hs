@@ -196,7 +196,7 @@ matchType' wanted e = do
                     Exact (Type () (Array x) [y]) -> do
                         id <- nextId
                         matchType' wanted (EListCast (TypeCheckData pos (Type () (Array x) [y]) id) e)
-                    other -> return Nothing
+                    _ -> return Nothing
             -- Auto list erasure
             Type () (Array x) [y] -> do
                 id<-nextId
@@ -254,9 +254,14 @@ typeCheckExpr' :: (Expr Pos->TypeCheck (Expr TypeCheckData))->Expr Pos->TypeChec
 typeCheckExpr' f (EIdent pos ident) = do
     sym<-getSym pos (SymVar ident)
     ssa<-nextId
+    in_oracle <- gets inOracle
     case isGlobal sym of
         True ->return $ EGlobalName (TypeCheckData pos (definedType sym) ssa) (qualifiedName sym)
-        False -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) (definedSSA sym)
+        False -> do
+            let sym_ssa = definedSSA sym
+            case in_oracle of
+                True -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) sym_ssa) sym_ssa
+                False -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) sym_ssa
 
 typeCheckExpr' f (EBinary pos And lhs rhs) = exactBinaryCheck f (boolType ()) pos And lhs rhs
 typeCheckExpr' f (EBinary pos Or lhs rhs) = exactBinaryCheck f (boolType ()) pos Or lhs rhs
@@ -289,15 +294,22 @@ typeCheckExpr' f (EUnary pos op lhs) = do
     let return_type = astType matched_lhs
     return $ EUnary (TypeCheckData pos return_type ssa) op matched_lhs
 typeCheckExpr' f (ESubscript pos base offset) = do
-    base'<-f base
-    offset'<-f offset
-    base''<-matchType [AnyList] base'
-    offset''<-matchType [Exact $ intType (), Exact $ Type () IntRange []] offset'
-    ssa<-nextId
+    base' <- f base
+    offset' <- f offset
+    base'' <- matchType [AnyList] base'
+    offset'' <- matchType [Exact $ intType (), Exact $ Type () IntRange []] offset'
+    ssa <- nextId
+    in_oracle <- gets inOracle
     let a = case astType base'' of
-            Type () (Array _) [ax] -> case astType offset'' of
-                    Type () IntRange [] -> Type () (Array 0) [ax]
-                    _ -> refType () ax
+            Type () (Array _) [ax] -> do
+                let offset_type = astType offset''
+                case in_oracle of
+                    True -> case offset_type of
+                        Type () Int [] -> ax
+                        _ -> undefined
+                    False -> case offset_type of
+                        Type () IntRange [] -> Type () (Array 0) [ax]
+                        _ -> refType () ax
             _ -> undefined
     return $ ESubscript (TypeCheckData pos a ssa) base'' offset''
 typeCheckExpr' f (ECall pos callee callArgs) = do
@@ -546,7 +558,7 @@ typeCheckAST' f (NDefvar pos defs) = do
                                         rid <- defineSym sym pos ty
                                         return (ty, rid, Nothing)
                                     other -> throwError $ UnsupportedType pos other
-                            other -> throwError $ UnsupportedLeftSide pos
+                            _ -> throwError $ UnsupportedLeftSide pos
                 False -> do
                     (i', ty') <- case initializer of
                         Just r -> do
@@ -594,7 +606,12 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
                             setSym sym lpos $ annotationExpr rhs''
                             return $ NAssign (okStmt pos) rhs'' rhs'' AssignEq
                         other -> throwError $ UnsupportedType pos other
-                other -> throwError $ UnsupportedLeftSide $ annotationExpr lhs
+                ESubscript _ _ _ -> do
+                    lhs' <- typeCheckExpr lhs
+                    lhs'' <- matchType [Exact $ boolType()] lhs'
+                    rhs'' <- matchType [Exact $ boolType()] rhs'
+                    return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
+                _ -> throwError $ UnsupportedLeftSide $ annotationExpr lhs
         False -> do
             lhs'<-typeCheckExpr lhs
             let doAssign lhs' rhs' = do
@@ -615,7 +632,7 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
                             callee <- typeCheckExpr $ EIdent pos "__add"
                             let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
                             return $ NCall (okStmt pos) ecall
-                        other -> do
+                        _ -> do
                             eadd <- buildBinaryExpr pos Add lhs' rhs'
                             doAssign lhs' eadd
                 SubEq -> do
@@ -628,7 +645,7 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
                             callee <- typeCheckExpr $ EIdent pos "__sub"
                             let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
                             return $ NCall (okStmt pos) ecall
-                        other -> do
+                        _ -> do
                             esub <- buildBinaryExpr pos Sub lhs' rhs'
                             doAssign lhs' esub
 typeCheckAST' f (NGatedef pos lhs rhs _) = error "unreachable"

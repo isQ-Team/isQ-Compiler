@@ -131,7 +131,8 @@ data MLIROp =
     | MCast {location::MLIRPos, value :: SSA, unaryOperand :: SSA, uopType :: MLIRUnaryOp}
     | MLoad {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
     | MStore {location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA}
-    | MTakeRef {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), arrayOffset :: SSA}
+    | MStoreOffset { location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA, arrayOffset :: SSA }
+    | MTakeRef { location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), arrayOffset :: SSA, isLogic :: Bool }
     | MArrayLen {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
     | MListCast { location :: MLIRPos, value :: SSA, rhs :: SSA, to_zero :: Bool, listType :: MLIRType }
     | MLitInt {location :: MLIRPos, value :: SSA, litInt :: Int}
@@ -293,15 +294,18 @@ emitOpStep f env (MLBinary loc (ty, value) lhs rhs op) = indented env $ printf "
 emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
 emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
 emitOpStep f env (MLoad loc value (arr_type, arr_val)) = intercalate "\n" $
-  [indented env $ printf "%s_load_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
-  indented env $ printf "%s = affine.load %s[%s_load_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)]
-
+  [
+    indented env $ printf "%s_load_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
+    indented env $ printf "%s = affine.load %s[%s_load_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)
+  ]
 emitOpStep f env (MStore loc (arr_type, arr_val) value) = intercalate "\n" $
   [
     indented env $ printf "%s_store_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
     indented env $ printf "affine.store %s, %s[%s_store_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)
   ]
-emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset) = intercalate "\n" $
+emitOpStep f env (MStoreOffset loc (arr_type, arr_val) value offset) = indented env $ printf "memref.store %s, %s[%s] : %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_type) (mlirPos loc)
+emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset True) = indented env $ printf "%s = memref.load %s[%s] : %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirPos loc)
+emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset False) = intercalate "\n" $
   [
     indented env $ printf "%s_zero = arith.constant 0 : index %s" (unSsa value) (mlirPos loc),
     indented env $ printf "%s_length = memref.dim %s, %s_zero : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_ty) (mlirPos loc),
@@ -311,7 +315,7 @@ emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset
     indented env $ printf "isq.assert %s_both : i1, 2 %s" (unSsa value) (mlirPos loc),
     indented env $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirType $ BorrowedRef elem_ty) (mlirPos loc)
   ]
-emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset) = error "wtf?"
+emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset _) = error "wtf?"
 emitOpStep f env (MArrayLen loc value (arr_ty@(Memref _ elem_ty), arr_val)) = intercalate "\n" $
   [
     indented env $ printf "%s_zero = arith.constant 0 : index %s" (unSsa value) (mlirPos loc),

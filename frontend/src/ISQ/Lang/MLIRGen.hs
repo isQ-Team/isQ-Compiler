@@ -198,7 +198,8 @@ emitExpr' f (ESubscript ann base offset) = do
     offset'<-f offset
     pos<-mpos ann
     let i = ssa ann
-    pushOp $ MTakeRef pos i (astMType base, base') offset'
+    in_logic <- use inLogic
+    pushOp $ MTakeRef pos i (astMType base, base') offset' in_logic
     return i
 emitExpr' f (EArrayLen ann base) = do
     base' <- f base
@@ -329,11 +330,15 @@ emitStatement' f (NDefvar ann defs) = error "unreachable"
 emitStatement' f (NAssign ann lhs rhs op) = do
     rhs' <- emitExpr rhs
     in_logic <- use inLogic
+    pos <- mpos ann
     case in_logic of
-        True -> return ()
+        True -> case lhs of
+            ESubscript ann base offset -> do
+                offset' <- emitExpr offset
+                pushOp $ MStoreOffset pos (astMType base, ssa $ annotationExpr base) rhs' offset'
+            _ -> return ()
         False -> do
             lhs' <- emitExpr lhs
-            pos <- mpos ann
             pushOp $ MStore pos (astMType lhs, lhs') rhs'
 emitStatement' f NGatedef{} = error "unreachable"
 emitStatement' f (NReturn ann expr) = do
@@ -466,7 +471,7 @@ emitStatement' f (NResolvedDefvar ann defs) = do
                     index_ssa <- nextSsaId
                     pushOp $ MLitInt pos (fromSSA index_ssa) index
                     ref_ssa <- nextSsaId
-                    pushOp $ MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) (fromSSA index_ssa)
+                    pushOp $ MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) (fromSSA index_ssa) in_logic
                     initialized_val <- emitExpr right
                     pushOp $ MStore pos (mapType $ refType () sub_ty, fromSSA ref_ssa) initialized_val
             mapM_ (one_assign ssa) $ zip [0..rlen-1] lis
@@ -577,7 +582,7 @@ emitTop file (NGlobalDefvar ann defs) = do
                                         index_ssa <- nextCurrentSsa
                                         let mint = MLitInt pos (fromSSA index_ssa) index
                                         ref_ssa <- nextCurrentSsa
-                                        let mref = MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) (fromSSA index_ssa)
+                                        let mref = MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) (fromSSA index_ssa) False
                                         curSsa <- use currentSsa
                                         let (right_ops, ssa') = unscopedStatement' file (emitExpr right) curSsa
                                         currentSsa .= ssa'
