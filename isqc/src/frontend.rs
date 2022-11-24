@@ -203,7 +203,7 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                         }
                         "UnsupportedLeftSide"=>{
                             let (src,pos) = parsePos(&content["pos"])?;
-                            return Err(SyntaxError{reason: "unsupported left side: ".to_string(), src, pos: pos})?;
+                            return Err(SyntaxError{reason: "unsupported left side".to_string(), src, pos: pos})?;
                         }
                         "ViolateNonCloningTheorem"=>{
                             let (src,pos) = parsePos(&content["pos"])?;

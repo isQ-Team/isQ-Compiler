@@ -85,6 +85,22 @@ public:
             else if (logic::ir::XorvOp binop = llvm::dyn_cast<logic::ir::XorvOp>(it)) {
                 vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xor);
             }
+            else if (mlir::memref::LoadOp load = llvm::dyn_cast<mlir::memref::LoadOp>(it)) {
+                mlir::Value voffset = *load.indices().begin();
+                mlir::arith::ConstantOp ooffset = voffset.getDefiningOp<mlir::arith::ConstantOp>();
+                int ioffset = ooffset.getValue().dyn_cast<mlir::IntegerAttr>().getInt();
+                std::string res = value2str(load.result());
+                std::string memref = value2str(load.memref());
+                symbol_table[{res, -1}] = symbol_table[{memref, ioffset}];
+            }
+            else if (mlir::memref::StoreOp store = llvm::dyn_cast<mlir::memref::StoreOp>(it)) {
+                mlir::Value voffset = *store.indices().begin();
+                mlir::arith::ConstantOp ooffset = voffset.getDefiningOp<mlir::arith::ConstantOp>();
+                int ioffset = ooffset.getValue().dyn_cast<mlir::IntegerAttr>().getInt();
+                std::string val = value2str(store.value());
+                std::string memref = value2str(store.memref());
+                symbol_table[{memref, ioffset}] = symbol_table[{val, -1}];
+            }
             else if (logic::ir::ReturnOp ret = llvm::dyn_cast<logic::ir::ReturnOp>(it)) {
                 mlir::Value oprand = ret.getOperand(0);
                 std::string str = value2str(oprand);
@@ -93,12 +109,6 @@ public:
                     mockturtle::xag_network::signal sig = symbol_table[{str, i}];
                     xag.create_po(sig);
                 }
-            } else {
-                std::string str;
-                llvm::raw_string_ostream output(str);
-                it.getName().print(output);
-                std::cout << str << std::endl;
-                assert(0 && "unrecognized operation");
             }
         }
         //mockturtle::xag_network::signal res = xag.create_and(pi, pi2);
