@@ -93,6 +93,23 @@ def Logic_XorvOp : Logic_VecBinaryOp<"xorv"> {
     let summary = "bit-wise XOR operation for bit array";
 }
 
+class Logic_BitBinaryOp<string mnemonic, list<Trait> traits = []>:
+    Logic_BinaryOp<mnemonic, traits>,
+    Arguments<(ins BoolLike: $lhs, BoolLike: $rhs)>,
+    Results<(outs BoolLike: $result)>;
+
+def Logic_AndOp : Logic_BitBinaryOp<"and"> {
+    let summary = "AND operation between two bool values";
+}
+
+def Logic_OrOp : Logic_BitBinaryOp<"or"> {
+    let summary = "OR operation between two bool values";
+}
+
+def Logic_XorOp : Logic_BitBinaryOp<"xor"> {
+    let summary = "XOR operation between two bool values";
+}
+
 def Logic_CallOp : Logic_Op<"call"> {
     let summary = "call operation";
     let arguments = (ins

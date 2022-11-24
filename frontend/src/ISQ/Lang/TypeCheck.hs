@@ -224,9 +224,14 @@ buildBinaryExpr pos op ref_lhs ref_rhs = do
     logic <- gets inOracle
     case logic of
         True -> do
-            lhs <- matchType [ArrayType $ Exact $ boolType ()] ref_lhs
-            rhs <- matchType [ArrayType $ Exact $ boolType ()] ref_rhs
-            return $ EBinary (TypeCheckData pos (astType lhs) ssa) op lhs rhs
+            let ty = astType ref_lhs
+            case ty of
+                Type () Bool [] -> do
+                    rhs <- matchType [Exact ty] ref_rhs
+                    return $ EBinary (TypeCheckData pos ty ssa) op ref_lhs rhs
+                Type () (Array _) [Type () Bool []] -> do
+                    rhs <- matchType [Exact ty] ref_rhs
+                    return $ EBinary (TypeCheckData pos ty ssa) op ref_lhs rhs
         False -> do
             lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
             rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs

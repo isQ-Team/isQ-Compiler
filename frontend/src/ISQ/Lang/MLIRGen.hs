@@ -154,6 +154,10 @@ logicOpTranslate :: BinaryOperator -> String
 logicOpTranslate Andi = "andv"
 logicOpTranslate Ori = "orv"
 logicOpTranslate Xori = "xorv"
+logicOpTranslate And = "and"
+logicOpTranslate Or = "or"
+logicOpTranslate (Cmp NEqual) = "xor"
+logicOpTranslate _ = undefined
 
 emitExpr' :: (Expr TypeCheckData->State RegionBuilder SSA)->Expr TypeCheckData->State RegionBuilder SSA
 emitExpr' f (EIdent ann name) = error "unreachable"
