@@ -156,6 +156,7 @@ logicOpTranslate Ori = "orv"
 logicOpTranslate Xori = "xorv"
 logicOpTranslate And = "and"
 logicOpTranslate Or = "or"
+logicOpTranslate (Cmp Equal) = "xnor"
 logicOpTranslate (Cmp NEqual) = "xor"
 logicOpTranslate _ = undefined
 

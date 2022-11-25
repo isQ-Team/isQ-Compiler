@@ -109,6 +109,9 @@ public:
             else if (logic::ir::XorOp binop = llvm::dyn_cast<logic::ir::XorOp>(it)) {
                 binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xor);
             }
+            else if (logic::ir::XnorOp binop = llvm::dyn_cast<logic::ir::XnorOp>(it)) {
+                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xnor_no_const);
+            }
             else if (logic::ir::AndvOp binop = llvm::dyn_cast<logic::ir::AndvOp>(it)) {
                 vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_and);
             }
@@ -151,14 +154,14 @@ public:
                 }
             }
         }
-        //mockturtle::xag_network::signal res = xag.create_and(pi, pi2);
-        std::vector<bool> results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>(6, false)));
+
+        // Validate the generated XAG. Remove them after debugging
+        /*std::vector<bool> results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>(3, false)));
         std::cout << results << std::endl;
-        results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>{true, true, true, false, false, false}));
+        results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>{true, false, false}));
         std::cout << results << std::endl;
-        results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>(6, true)));
-        std::cout << results << std::endl;
-        //mockturtle::write_dot(xag, std::cout);
+        results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>(3, true)));
+        std::cout << results << std::endl;*/
 
 
         // Convert XAG to quantum circuit

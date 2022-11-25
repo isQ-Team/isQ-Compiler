@@ -323,7 +323,7 @@ public:
 
   signal create_or_no_const( signal a, signal b )
   {
-    return !create_and( !a, !b );
+    return create_or( a, b );
   }
 
   signal create_nor( signal const& a, signal const& b )
@@ -362,6 +362,11 @@ public:
     }
 
     return _create_node( a, b ) ^ f_compl;
+  }
+
+  signal create_xnor_no_const( signal a, signal b )
+  {
+    return create_xnor( a, b );
   }
 
   signal create_xnor( signal const& a, signal const& b )

@@ -1,0 +1,17 @@
+import std;
+
+oracle bool[3] name(bool a[3]) {
+	bool c[3];
+	c[0] = true;
+	c[1] = a[0] == a[1];
+	c[2] = a[0] && a[2];
+	return ~c;
+}
+
+procedure main()
+{
+	qbit p[3], q[3];
+	name(p, q);
+	print M(p);
+	print M(q);
+}
