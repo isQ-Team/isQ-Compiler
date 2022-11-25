@@ -93,6 +93,10 @@ def Logic_XorOp : Logic_BitBinaryOp<"xor"> {
     let summary = "XOR operation between two bool values";
 }
 
+def Logic_XnorOp : Logic_BitBinaryOp<"xnor"> {
+    let summary = "XNOR operation between two bool values";
+}
+
 class Logic_VecBinaryOp<string mnemonic, list<Trait> traits = []>:
     Logic_BinaryOp<mnemonic, traits>,
     Arguments<(ins AnyType: $lhs, AnyType: $rhs)>,
