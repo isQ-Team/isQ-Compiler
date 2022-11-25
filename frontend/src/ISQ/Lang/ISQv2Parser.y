@@ -75,6 +75,7 @@ import Control.Monad (void)
     '&' { TokenReservedOp $$ "&" }
     '|' { TokenReservedOp $$ "|" }
     '^' { TokenReservedOp $$ "^" }
+    '~' { TokenReservedOp $$ "~" }
     '<<' { TokenReservedOp $$ "<<" }
     '>>' { TokenReservedOp $$ ">>" }
     ',' { TokenReservedOp $$ "," }
@@ -188,6 +189,7 @@ Expr1 : Expr1Left { $1 }
      | '+' Expr1 %prec POS { EUnary $1 Positive $2 }
      | '!' Expr1 { EUnary $1 Not $2 }
      | not Expr1 { EUnary $1 Not $2 }
+     | '~' Expr1 { EUnary $1 Noti $2 }
      | Expr1Left '.length' { EArrayLen $2 $1 }
      | NATURAL{ EIntLit (annotation $1) (tokenNaturalV $1) }
      | FLOAT { EFloatingLit (annotation $1) (tokenFloatV $1) }

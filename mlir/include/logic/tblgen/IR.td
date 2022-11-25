@@ -76,6 +76,23 @@ class Logic_BinaryOp<string mnemonic, list<Trait> traits = []>:
     let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
 }
 
+class Logic_BitBinaryOp<string mnemonic, list<Trait> traits = []>:
+    Logic_BinaryOp<mnemonic, traits>,
+    Arguments<(ins BoolLike: $lhs, BoolLike: $rhs)>,
+    Results<(outs BoolLike: $result)>;
+
+def Logic_AndOp : Logic_BitBinaryOp<"and"> {
+    let summary = "AND operation between two bool values";
+}
+
+def Logic_OrOp : Logic_BitBinaryOp<"or"> {
+    let summary = "OR operation between two bool values";
+}
+
+def Logic_XorOp : Logic_BitBinaryOp<"xor"> {
+    let summary = "XOR operation between two bool values";
+}
+
 class Logic_VecBinaryOp<string mnemonic, list<Trait> traits = []>:
     Logic_BinaryOp<mnemonic, traits>,
     Arguments<(ins AnyType: $lhs, AnyType: $rhs)>,
@@ -93,21 +110,16 @@ def Logic_XorvOp : Logic_VecBinaryOp<"xorv"> {
     let summary = "bit-wise XOR operation for bit array";
 }
 
-class Logic_BitBinaryOp<string mnemonic, list<Trait> traits = []>:
-    Logic_BinaryOp<mnemonic, traits>,
-    Arguments<(ins BoolLike: $lhs, BoolLike: $rhs)>,
-    Results<(outs BoolLike: $result)>;
-
-def Logic_AndOp : Logic_BitBinaryOp<"and"> {
-    let summary = "AND operation between two bool values";
+def Logic_NotOp : Logic_LogicalOp<"not"> {
+    let arguments = (ins BoolLike: $operand);
+    let results = (outs BoolLike: $result);
+    let assemblyFormat = "$operand attr-dict `:` type($result)";
 }
 
-def Logic_OrOp : Logic_BitBinaryOp<"or"> {
-    let summary = "OR operation between two bool values";
-}
-
-def Logic_XorOp : Logic_BitBinaryOp<"xor"> {
-    let summary = "XOR operation between two bool values";
+def Logic_NotvOp : Logic_LogicalOp<"notv"> {
+    let arguments = (ins I1MemRef: $operand);
+    let results = (outs I1MemRef: $result);
+    let assemblyFormat = "$operand attr-dict `:` type($result)";
 }
 
 def Logic_CallOp : Logic_Op<"call"> {
