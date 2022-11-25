@@ -124,6 +124,7 @@ data MLIROp =
     | MBinary {location :: MLIRPos, value :: SSA, lhs :: SSA, rhs :: SSA, bopType :: MLIRBinaryOp}
     | MLBinary { location :: MLIRPos, returnVal :: TypedSSA, lhs :: SSA, rhs :: SSA, logicOp :: String}
     | MUnary {location :: MLIRPos, value :: SSA, unaryOperand :: SSA, uopType :: MLIRUnaryOp}
+    | MLUnary {location :: MLIRPos, returnVal :: TypedSSA, unaryOperand :: SSA, logicOp :: String}
     | MCast {location::MLIRPos, value :: SSA, unaryOperand :: SSA, uopType :: MLIRUnaryOp}
     | MLoad {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
     | MStore {location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA}
@@ -253,6 +254,7 @@ emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp "arith.divf" lt rt res
 emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = %s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
 emitOpStep f env (MLBinary loc (ty, value) lhs rhs op) = indented env $ printf "%s = logic.%s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
+emitOpStep f env (MLUnary loc (ty, value) operand op) = indented env $ printf "%s = logic.%s %s : %s %s" (unSsa value) op (unSsa operand) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
 emitOpStep f env (MLoad loc value (arr_type, arr_val)) = intercalate "\n" $
   [

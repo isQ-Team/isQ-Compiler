@@ -175,28 +175,34 @@ emitExpr' f x@(EBinary ann binop lhs rhs) = do
 emitExpr' f (EUnary ann uop lhs) = do
     lhs'<-f lhs
     pos<-mpos ann
+    let i = ssa ann
     let lhsTy = astMType lhs
     case uop of
         Positive -> return lhs' -- Positive x is x
         Neg -> do
             case lhsTy of
                 Index -> do
-                    let i = ssa ann
                     let zero = SSA (unSsa i ++ "_zero")
                     pushOp $ MLitInt pos zero 0
                     pushOp $ MBinary pos i zero lhs' (binopTranslate Sub lhsTy)
                     return i
                 M.Double -> do
-                    let i = ssa ann
                     pushOp $ MUnary pos i lhs' (unaryopTranslate uop lhsTy)
                     return i
                 _->error "bad neg type"
         Not -> do
-            let i = ssa ann
-            let zero = SSA (unSsa i ++ "_false")
-            pushOp $ MLitBool pos zero False
-            pushOp $ MBinary pos i zero lhs' (binopTranslate (Cmp Equal) lhsTy)
+            in_logic <- use inLogic
+            case in_logic of
+                True -> pushOp $ MLUnary pos (lhsTy, i) lhs' "not"
+                False -> do
+                    let zero = SSA (unSsa i ++ "_false")
+                    pushOp $ MLitBool pos zero False
+                    pushOp $ MBinary pos i zero lhs' (binopTranslate (Cmp Equal) lhsTy)
             return i
+        Noti -> do
+            pushOp $ MLUnary pos (lhsTy, i) lhs' "notv"
+            return i
+
 emitExpr' f (ESubscript ann base offset) = do
     base'<-f base
     offset'<-f offset

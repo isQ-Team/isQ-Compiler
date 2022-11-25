@@ -86,7 +86,21 @@ public:
 
         // Process each statement in the funciton body.
         for (mlir::Operation &it : op.getRegion().getOps()) {
-            if (logic::ir::AndOp binop = llvm::dyn_cast<logic::ir::AndOp>(it)) {
+            if (logic::ir::NotOp notop = llvm::dyn_cast<logic::ir::NotOp>(it)) {
+                std::string operand = value2str(notop.operand());
+                std::string res = value2str(notop.result());
+                symbol_table[{res, -1}] = xag.create_not(symbol_table[{operand, -1}]);
+            }
+            else if (logic::ir::NotvOp notvop = llvm::dyn_cast<logic::ir::NotvOp>(it)) {
+                std::string operand = value2str(notvop.operand());
+                mlir::Value result = notvop.result();
+                std::string res = value2str(result);
+                int width = getBitWidth(result);
+                for (int i=0; i<width; i++) {
+                    symbol_table[{res, i}] = xag.create_not(symbol_table[{operand, i}]);
+                }
+            }
+            else if (logic::ir::AndOp binop = llvm::dyn_cast<logic::ir::AndOp>(it)) {
                 binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_and);
             }
             else if (logic::ir::OrOp binop = llvm::dyn_cast<logic::ir::OrOp>(it)) {
@@ -103,6 +117,13 @@ public:
             }
             else if (logic::ir::XorvOp binop = llvm::dyn_cast<logic::ir::XorvOp>(it)) {
                 vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xor);
+            }
+            // Only process boolean values (with type `i1`), leaving other arith.constant (array index) untouched.
+            else if (mlir::arith::ConstantOp con = llvm::dyn_cast<mlir::arith::ConstantOp>(it)) {
+                mlir::BoolAttr attr = con.getValue().dyn_cast_or_null<mlir::BoolAttr>();
+                if (attr) {
+                    symbol_table[{value2str(con.getResult()), -1}] = xag.get_constant(attr.getValue());
+                }
             }
             else if (mlir::memref::LoadOp load = llvm::dyn_cast<mlir::memref::LoadOp>(it)) {
                 mlir::Value voffset = *load.indices().begin();

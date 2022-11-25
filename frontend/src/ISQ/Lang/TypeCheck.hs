@@ -286,15 +286,12 @@ typeCheckExpr' f (EBinary pos op lhs rhs) = do
     ref_lhs<-f lhs
     ref_rhs<-f rhs
     buildBinaryExpr pos op ref_lhs ref_rhs
-typeCheckExpr' f (EUnary pos Not lhs) = do
-    lhs'<-f lhs
-    matched_lhs <- matchType (map Exact [boolType ()]) lhs'
-    ssa<-nextId
-    let return_type = boolType ()
-    return $ EUnary (TypeCheckData pos return_type ssa) Not matched_lhs
 typeCheckExpr' f (EUnary pos op lhs) = do
     lhs'<-f lhs
-    matched_lhs <- matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
+    matched_lhs <- case op of
+        Not -> matchType [Exact $ boolType ()] lhs'
+        Noti -> matchType [ArrayType $ Exact $ boolType ()] lhs'
+        _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
     ssa<-nextId
     let return_type = astType matched_lhs
     return $ EUnary (TypeCheckData pos return_type ssa) op matched_lhs
