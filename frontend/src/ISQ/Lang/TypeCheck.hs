@@ -367,7 +367,8 @@ typeCheckExpr' f (EList pos lis) = do
     let ele_type = intToType min_level
     lis'' <- mapM (matchType [Exact ele_type]) lis'
     let ty = Type () (Array $ length lis) [ele_type]
-    return $ EList (TypeCheckData pos ty (-1)) lis''
+    ssa <- nextId
+    return $ EList (TypeCheckData pos ty ssa) lis''
 typeCheckExpr' f x@EDeref{} = error "Unreachable."
 typeCheckExpr' f x@EImplicitCast{} = error "Unreachable."
 typeCheckExpr' f (ETempVar pos ident) = do
