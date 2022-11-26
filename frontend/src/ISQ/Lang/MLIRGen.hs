@@ -479,12 +479,16 @@ emitStatement' f (NResolvedDefvar ann defs) = do
             let mlir_ty = mapType $ Type () (Array rlen) [sub_ty]
             pushAllocFree pos (mlir_ty, fromSSA ssa)
             let one_assign base (index, right) = do
-                    index_ssa <- nextSsaId
-                    pushOp $ MLitInt pos (fromSSA index_ssa) index
+                    index_id <- nextSsaId
+                    let index_ssa = fromSSA index_id
+                    pushOp $ MLitInt pos index_ssa index
                     ref_ssa <- nextSsaId
-                    pushOp $ MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) (fromSSA index_ssa) in_logic
                     initialized_val <- emitExpr right
-                    pushOp $ MStore pos (mapType $ refType () sub_ty, fromSSA ref_ssa) initialized_val
+                    case in_logic of
+                        True -> pushOp $ MStoreOffset pos (mlir_ty, fromSSA base) initialized_val index_ssa
+                        False -> do
+                            pushOp $ MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) index_ssa in_logic
+                            pushOp $ MStore pos (mapType $ refType () sub_ty, fromSSA ref_ssa) initialized_val
             mapM_ (one_assign ssa) $ zip [0..rlen-1] lis
 
         -- isQ source: sub_ty arr[elen];
