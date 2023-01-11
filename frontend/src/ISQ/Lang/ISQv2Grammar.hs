@@ -21,8 +21,8 @@ refType ann s = Type ann Ref [s]
 
 
 data CmpType = Equal | NEqual | Greater | Less | GreaterEq | LessEq deriving (Eq, Show)
-data BinaryOperator = Add | Sub | Mul | Div | Mod | Cmp CmpType | Pow deriving (Eq, Show)
-data UnaryOperator = Neg | Positive deriving (Eq, Show)
+data BinaryOperator = Add | Sub | Mul | Div | Mod | And | Or | Andi | Ori | Xori | Cmp CmpType | Pow | Shl | Shr deriving (Eq, Show)
+data UnaryOperator = Neg | Positive | Not deriving (Eq, Show)
 data Expr ann = 
        EIdent { annotationExpr :: ann, identName :: String}
      | EBinary { annotationExpr :: ann, binaryOp :: BinaryOperator, binaryLhs :: Expr ann, binaryRhs :: Expr ann}
@@ -56,8 +56,10 @@ instance Annotated Type where
 data DerivingType = DeriveGate | DeriveOracle Int deriving (Eq, Show)
 
 data AST ann = 
-       NIf { annotationAST :: ann, condition :: Expr ann, thenBlock :: [AST ann], elseBlock :: [AST ann]}
+       NBlock { annotationAST :: ann, statementList :: ASTBlock ann}
+     | NIf { annotationAST :: ann, condition :: Expr ann, ifStat :: ASTBlock ann, elseStat :: ASTBlock ann}
      | NFor { annotationAST :: ann, forVar :: Ident, forRange :: Expr ann, body :: ASTBlock ann}
+     | NEmpty { annotationAST :: ann }
      | NPass { annotationAST :: ann }
      | NBp { annotationAST :: ann }
      | NWhile { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann}
@@ -107,6 +109,7 @@ data AST ann =
      | NResolvedDefvar { annotationAST :: ann, resolvedDefinitions :: [(Type (), Int, Maybe (Expr ann))]}
      | NGlobalDefvar {annotationAST :: ann, globalDefinitions :: [(Type (), Int, String, Maybe (Expr ann))]}
      | NOracle { annotationAST :: ann, oracleName :: String, oracleN :: Int, oracleM :: Int, oracleMap :: [Expr ann] }
+     | NOracleFunc { annotationAST :: ann, gateName :: String, oracleN :: Int, oracleM :: Int, inVar :: String, procBody :: [AST ann] }
      deriving (Eq, Show, Functor)
 
 data GateModifier = Inv | Ctrl Bool Int deriving (Show, Eq)

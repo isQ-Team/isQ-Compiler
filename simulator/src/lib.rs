@@ -12,6 +12,7 @@ extern crate alloc;
 extern crate core;
 pub mod devices;
 pub mod facades;
+pub mod sim;
 pub use devices::qdevice;
 #[macro_use]
 extern crate log;
