@@ -6,6 +6,28 @@ use std::{process::Command, path::PathBuf}; // Run programs
 use std::path::Path;
 use test_case::test_case;
 
+#[cfg(windows)]
+pub const LINE_ENDING: &'static str = "\r\n";
+#[cfg(not(windows))]
+pub const LINE_ENDING: &'static str = "\n";
+
+#[test_case("classic_add_sub", &("7".to_string()+LINE_ENDING+"-1"))]
+#[test_case("classic_and_or", &("0".to_string()+LINE_ENDING+"2"))]
+#[test_case("classic_bitwise_logic", &("8".to_string()+LINE_ENDING+"13"+LINE_ENDING+"5"))]
+#[test_case("classic_bool_to_int", "3")]
+#[test_case("classic_comment", "10")]
+#[test_case("classic_divide0", "inf")]
+#[test_case("classic_double", &("4".to_string()+LINE_ENDING+"6.283185"))]
+#[test_case("classic_empty_statement", "0")]
+#[test_case("classic_equal", &("0".to_string()+LINE_ENDING+"1"))]
+#[test_case("classic_local", &("789".to_string()+LINE_ENDING+"123"+LINE_ENDING+"456"))]
+#[test_case("classic_mod_pow", &("1".to_string()+LINE_ENDING+"49"))]
+#[test_case("classic_mul_div", &("32".to_string()+LINE_ENDING+"2"))]
+#[test_case("classic_nested_comment", "114514")]
+#[test_case("classic_nested_region", "2")]
+#[test_case("classic_recursion", "3628800")]
+#[test_case("classic_shift", &("12".to_string()+LINE_ENDING+"2"))]
+#[test_case("classic_unitary", &("2".to_string()+LINE_ENDING+"-114514"+LINE_ENDING+"1"))]
 #[test_case("derive", "1")]
 #[test_case("extreme_long_code", "8820")]
 #[test_case("extreme_long_code_reset", "500")]
@@ -17,6 +39,23 @@ use test_case::test_case;
 #[test_case("matrix_decimal", "0")]
 #[test_case("measure_twice", "0")]
 #[test_case("reset_twice", "0")]
+#[test_case("scf_block", "0")]
+#[test_case("scf_break", "2")]
+#[test_case("scf_break_for", "2")]
+#[test_case("scf_continue", "4")]
+#[test_case("scf_continue_for", "7")]
+#[test_case("scf_else_if", "2")]
+#[test_case("scf_empty_block", "0")]
+#[test_case("scf_for", "10")]
+#[test_case("scf_for_if", "4")]
+#[test_case("scf_for_step", "4")]
+#[test_case("scf_if", "2")]
+#[test_case("scf_if_break", "2")]
+#[test_case("scf_if_break_block", "2")]
+#[test_case("scf_if_break_for", "2")]
+#[test_case("scf_if_no_else", "3")]
+#[test_case("scf_while", "6")]
+#[test_case("scf_while_no_brace", "16")]
 #[test_case("teleport_diff_line", "0")]
 #[test_case("teleport_one_line", "0")]
 fn tests_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -51,6 +90,33 @@ fn fixed_output(path: PathBuf, res: &str) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
+#[test_case("empty_gate", "Syntax Error: unexpected token")]
+#[test_case("keyword_as_identifier", "Syntax Error: unexpected token")]
+#[test_case("mat_not_square", "bad matrix shape")]
+#[test_case("mat_not_2_pow", "Syntax Error: unexpected token")]
+#[test_case("not_utf8", "invalid byte sequence")]
+#[test_case("other_lang", "Syntax Error: tokenizing failed")]
+#[test_case("repeated_names", "isqv2::frontend::redefined_symbol")]
+#[test_case("type_mismatch", "Type mismatch")]
+#[test_case("undefined_symbol", "Undefined symbol")]
+#[test_case("unknown_token", "Syntax Error: tokenizing failed")]
+#[test_case("wrong_brackets", "Syntax Error: unexpected token")]
+#[test_case("wrong_break", "Unexpected statement outside a loop")]
+#[test_case("wrong_continue", "Unexpected statement outside a loop")]
+#[test_case("wrong_for", "Syntax Error: unexpected token")]
+#[test_case("wrong_ctrl_size", "Argument number mismatch")]
+#[test_case("wrong_inv", "Syntax Error: unexpected token")]
+#[test_case("wrong_size", "Argument number mismatch")]
+fn syntax_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let file_name = "syntax_".to_string() + name + ".isq";
+    let path = Path::new("tests").join("input").join(file_name);
+    let mut cmd = Command::cargo_bin("isqc")?;
+    cmd.arg("compile").arg(path.to_str().to_owned().unwrap());
+    cmd.assert().failure().stderr(predicate::str::contains(syndrome));
+    Ok(())
+}
+
+#[test_case("out_of_range", "does not exist")]
 #[test_case("same_qubit", "is used twice")]
 fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Error>> {
     let file_name = "runtime_".to_string() + name + ".isq";

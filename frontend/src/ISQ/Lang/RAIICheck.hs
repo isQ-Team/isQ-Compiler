@@ -133,24 +133,6 @@ eliminateNonAffineForStmts' f (NIf a b c d) = do
 eliminateNonAffineForStmts' f (NWhile a b c) = do
     c' <- mapM f c;
     return [NWhile (snd a) (eraseSafe b) (concat c')]
-eliminateNonAffineForStmts' f (NFor (s1, ann) v eident@(EIdent (s2, eann) ident) body) = do
-    i <- nextId
-    let var_name = show i
-    let sub = ESubscript (Safe, eann) eident $ EIdent (s2, eann) var_name
-    let def = NDefvar (Safe, ann) [(Type (Safe, ann) Int [], v, Just sub, Nothing)]
-    let lo = EIntLit (Safe, ann) 0
-    let hi = EArrayLen (Safe, ann) eident
-    let inc = EIntLit (Safe, ann) 1
-    let range = ERange (Safe, ann) (Just lo) (Just hi) (Just inc)
-    f $ NFor (s1, ann) var_name range $ def : body
-eliminateNonAffineForStmts' f (NFor (s1, ann) v elist@(EList (s2, eann) lis) body) = do
-    i <- nextId
-    let array_name = show i
-    let len = length lis
-    let lis' = map eraseSafe lis
-    let def = NDefvar ann [(Type ann (Array len) [Type ann Int []], array_name, Just $ EList eann lis', Nothing)]
-    for <- f $NFor (s1, ann) v (EIdent (Safe, eann) array_name) body
-    return [NBlock ann $ def : for]
 eliminateNonAffineForStmts' f (NFor (Safe, ann) v expr body) = do
     b' <- mapM f body;
     return [NFor ann v (eraseSafe expr) (concat b')]
@@ -164,14 +146,12 @@ eliminateNonAffineForStmts' f (NFor (_, ann) vn (ERange (_, ann2) (Just a) (Just
         lo = ETempVar ann2 idlo
         hi = ETempVar ann2 idhi
         step = ETempVar ann2 idstep
-        left = EBinary ann2 Mul v step
-        right = EBinary ann2 Mul hi step
         in return [
             NTempvar ann (intType (), idlo, Just $ eraseSafe a),
             NTempvar ann (intType (), idhi, Just $ eraseSafe b),
             NTempvar ann (intType (), idstep, Just $ eraseSafe c),
-            NDefvar ann [(intType ann, vn, Just lo, Nothing)],
-            NWhile ann (EBinary ann2 (Cmp Less) left right) ((concat b') ++ [NAssign ann v (EBinary ann2 Add v step) AssignEq])
+            NDefvar ann [(intType ann, vn, Just lo)],
+            NWhile ann (EBinary ann2 (Cmp Less) v hi) ((concat b') ++ [NAssign ann v (EBinary ann2 Add v step)])
         ]
 eliminateNonAffineForStmts' f NFor{} = error "For-statement with non-standard range indices not supported."
 eliminateNonAffineForStmts' f (NProcedure a b c d e) = do

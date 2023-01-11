@@ -204,28 +204,6 @@ exactBinaryCheck f etype pos op lhs rhs = do
     ssa <- nextId
     return $ EBinary (TypeCheckData pos etype ssa) op lhs' rhs'
 
-buildBinaryExpr :: Pos -> BinaryOperator -> Expr TypeCheckData -> Expr TypeCheckData -> TypeCheck (Expr TypeCheckData)
-buildBinaryExpr pos op ref_lhs ref_rhs = do
-    lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
-    rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
-    ssa<-nextId
-    let lty = astType lhs'
-    let rty = astType rhs'
-    --traceM $ show rty
-    matched_lhs <- case ty rty of
-            Double -> matchType [Exact (doubleType ())] lhs'
-            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
-    matched_rhs <- case ty lty of
-            Double -> matchType [Exact (doubleType ())] rhs'
-            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
-    --traceM $ show matched_lhs
-    let return_type = case op of
-            Cmp _ -> boolType ()
-            _ -> astType matched_lhs
-    case op of
-        Mod -> if (return_type /= intType ()) then throwError $ TypeMismatch pos [Exact (intType ())] return_type else return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
-        _ -> return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
-
 -- By now we only support bottom-up type checking.
 -- All leaf nodes have their own type, and intermediate types are calculated.
 typeCheckExpr' :: (Expr Pos->TypeCheck (Expr TypeCheckData))->Expr Pos->TypeCheck (Expr TypeCheckData)
@@ -253,7 +231,26 @@ typeCheckExpr' f (EBinary pos Pow lhs rhs) = do
 typeCheckExpr' f (EBinary pos op lhs rhs) = do
     ref_lhs<-f lhs
     ref_rhs<-f rhs
-    buildBinaryExpr pos op ref_lhs ref_rhs
+    lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
+    rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
+    ssa<-nextId
+    let lty = astType lhs'
+    let rty = astType rhs'
+    --traceM $ show rty
+    matched_lhs <- case ty rty of
+            Double -> matchType [Exact (doubleType ())] lhs'
+            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
+    matched_rhs <- case ty lty of
+            Double -> matchType [Exact (doubleType ())] rhs'
+            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
+    --traceM $ show matched_lhs
+    let return_type = case op of
+            Cmp _ -> boolType ()
+            _ -> astType matched_lhs
+    case op of
+        Mod -> if (return_type /= intType ()) then throwError $ TypeMismatch pos [Exact (intType ())] return_type else return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+        _ -> return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+
 typeCheckExpr' f (EUnary pos Not lhs) = do
     lhs'<-f lhs
     matched_lhs <- matchType (map Exact [boolType ()]) lhs'

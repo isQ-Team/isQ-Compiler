@@ -23,12 +23,6 @@ data RegionBuilder = RegionBuilder{
 
 makeLenses ''RegionBuilder
 
-nextSsaId :: State RegionBuilder Int
-nextSsaId = do
-    id <- use ssaId
-    ssaId %= (+1)
-    return id
-
 mapType :: EType->MLIRType
 mapType (Type () Bool []) = M.Bool
 mapType (Type () Ref [x]) = BorrowedRef (mapType x)
@@ -285,17 +279,14 @@ emitExpr = fix emitExpr'
 emitStatement' :: (AST TypeCheckData-> State RegionBuilder ())->(AST TypeCheckData->State RegionBuilder ())
 emitStatement' f (NBlock ann lis) = do
     pos<-mpos ann
-    curSsa <- use ssaId
-    lis' <- scopedStatement [] [MSCFYield pos] (mapM f lis) curSsa
+    lis' <- scopedStatement [] [MSCFYield pos] (mapM f lis)
     pushOp $ MSCFExecRegion pos lis'
 -- Generic if.
 emitStatement' f (NIf ann cond bthen belse) = do
     pos<-mpos ann
     cond'<-emitExpr cond
-    curSsa <- use ssaId
-    then_block <- scopedStatement [] [MSCFYield pos] (mapM f bthen) curSsa
-    curSsa <- use ssaId
-    else_block <- scopedStatement [] [MSCFYield pos] (mapM f belse) curSsa
+    then_block <- scopedStatement [] [MSCFYield pos] (mapM f bthen)
+    else_block <- scopedStatement [] [MSCFYield pos] (mapM f belse)
     pushOp $ MSCFIf pos cond' (MSCFExecRegion pos then_block) (MSCFExecRegion pos else_block)
 emitStatement' f NFor{} = error "unreachable"
 emitStatement' f NEmpty{} = return ()

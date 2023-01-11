@@ -39,10 +39,12 @@ syntaxError file x =
     in SyntaxError (Pos {line = read l, column = read c, filename = file} )
 
 data ImportEnv = ImportEnv {
-    globalTable :: SymbolTableLayer,
     symbolTable :: Map.Map String SymbolTableLayer,
     ssaId :: Int
 }
+
+emptyImportEnv :: ImportEnv
+emptyImportEnv = ImportEnv Map.empty 0
 
 type PassMonad = ExceptT CompileError (StateT ImportEnv IO)
 
@@ -114,9 +116,7 @@ getImportedTcasts froms incPath impList = do
     files <- getImportedFiles froms incPath impList
     tupList <- mapM (fileToTcast incPath froms) files
     let tcast = concat $ map fst tupList
-    gtable <- gets globalTable
-    let tables = gtable : map snd tupList
-    let table = MultiMap.fromList $ concat $ map MultiMap.toList tables
+    let table = MultiMap.fromList $ concat $ map (MultiMap.toList . snd) tupList
     return (tcast, table)
 
 doImport :: [FilePath] -> [FilePath] -> FilePath -> LAST -> PassMonad ([TCAST], SymbolTableLayer)
@@ -207,8 +207,7 @@ generateTcast incPathStr inputFileName qcis = do
     absolutPath <- canonicalizePath inputFileName
     let splitedPath = splitOn ":" incPathStr
     incPath <- mapM canonicalizePath splitedPath
-    let env = ImportEnv globalTable Map.empty ssaId
-    (errOrTuple, (ImportEnv _ _ ssa)) <- runStateT (runExceptT $ fileToTcast incPath [] absolutPath) env
+    errOrTuple <- evalStateT (runExceptT $ fileToTcast incPath [] absolutPath) emptyImportEnv
     case errOrTuple of
         Left x -> return $ Left x
         Right tuple -> return $ Right (globalTcasts ++ fst tuple, ssa)

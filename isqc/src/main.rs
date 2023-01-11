@@ -101,9 +101,7 @@ pub enum Commands{
         #[clap(long)]
         shots: Option<i64>,
         #[clap(long)]
-        debug: bool,
-        #[clap(long, short, default_value = "1")]
-        np: i64
+        debug: bool
     }
 }
 
@@ -149,7 +147,7 @@ fn main()->miette::Result<()> {
     let root = std::env::var("ISQV2_ROOT").map_err(|_| NoISQv2RootError)?;
     
     match cli.command{
-        Commands::Run{input, shots, debug, np}=>{
+        Commands::Run{input, shots, debug}=>{
             let (input_path, default_output_path) = resolve_input_path(&input, "so")?;
             exec::system_exec_command(&root, "isqc", 
             &[OsStr::new("compile"), input_path.as_os_str(), OsStr::new("-o"), default_output_path.as_os_str()]
@@ -167,9 +165,6 @@ fn main()->miette::Result<()> {
             if debug{
                 v.push(OsStr::new("--debug"))
             }
-            v.push(OsStr::new("--np"));
-            let mut np_str = format!("{}", np);
-            v.push(OsStr::new(np_str.as_str()));
             v.push(default_output_path.as_os_str());
 
             exec::system_exec_command(&root, "isqc", 
@@ -315,7 +310,7 @@ fn main()->miette::Result<()> {
             }
 
         }
-        Commands::Simulate{qir_object, cuda, qcis, shots, debug, int_par, double_par, np}=>{
+        Commands::Simulate{qir_object, cuda, qcis, shots, debug, int_par, double_par}=>{
 
             let qir_object = if qir_object.starts_with("/"){
                 qir_object

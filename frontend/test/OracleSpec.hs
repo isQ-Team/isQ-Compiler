@@ -6,12 +6,11 @@ import ISQ.Lang.OraclePass
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.Map.Lazy as Map
-import qualified Data.MultiMap as MultiMap
 import Test.Hspec
 
 oracleTestTemplate :: String -> Int -> IO (Either OracleError Int)
 oracleTestTemplate input val = do
-    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) $ ImportEnv MultiMap.empty Map.empty 0
+    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) emptyImportEnv
     case errorOrAst of
         Left x -> error "input file error"
         Right ast -> do
@@ -130,14 +129,6 @@ oracleSpec = do
         let str = "oracle o(2, 2) : x { int y; y = 3; return y;}"
         evaluateExpect str 2 3
 
-    it "evaluates correctly with plus and assign" $ do
-        let str = "oracle o(2, 2) : x { int y = 2; y += x; return y;}"
-        evaluateExpect str 1 3
-
-    it "evaluates correctly with minus and assign" $ do
-        let str = "oracle o(2, 2) : x { int y = 2; y -= x; return y;}"
-        evaluateExpect str 1 1
-
     it "evaluates correctly with scoped assigned variables" $ do
         let str = "oracle o(2, 1) : x { { x = 3; } return x;}"
         evaluateExpect str 2 3
@@ -224,13 +215,13 @@ oracleSpec = do
     it "evaluates correctly with for and break statements" $ do
         let str = "oracle o(2, 3) : x {\
             \int sum = 0;\
-            \for i in 4:0:-1 {\
+            \for i in 1:4 {\
                 \if (i == 2) break;\
                 \sum = sum + i;\
             \}\
             \return sum;\
         \}"
-        evaluateExpect str 3 7
+        evaluateExpect str 3 1
 
     it "evaluates correctly with for and continue statement" $ do
         let str = "oracle o(2, 3) : x {\

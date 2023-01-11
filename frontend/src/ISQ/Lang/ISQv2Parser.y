@@ -106,7 +106,6 @@ import Control.Exception (throw, Exception)
 %left '*' '/' '%' -- Level 3
 %left '**'  -- Level 2
 %right NEG POS '!' not -- Level 2
-%left '.length'
 %left SUBSCRIPT CALL '[' '(' -- Level 1
 
 %%
@@ -226,7 +225,7 @@ IdentListNonEmpty : IDENTIFIER { [$1] }
 BlockStatement :: {LAST}
 BlockStatement : '{' StatementList '}' { NBlock $1 $2 }
 ForStatement :: {LAST}
-ForStatement : for IDENTIFIER in Expr Statement { NFor $1 (tokenIdentV $2) $4 [$5] }
+ForStatement : for IDENTIFIER in RangeExpr Statement { NFor $1 (tokenIdentV $2) $4 [$5] }
 WhileStatement :: {LAST}
 WhileStatement : while Expr Statement { NWhile $1 $2 [$3] }
 IfStatement :: {LAST}
