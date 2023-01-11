@@ -55,6 +55,11 @@ mlirMuli = mlirBinaryOp ("muli", Index, Index, Index)
 mlirDivsi = mlirBinaryOp ("divsi", Index, Index, Index)
 mlirRemsi = mlirBinaryOp ("remsi", Index, Index, Index)
 mlirFloorDivsi = mlirBinaryOp ("floordivsi", Index, Index, Index) -- Use this by default
+mlirAnd = mlirBinaryOp ("andi", Bool, Bool, Bool)
+mlirOr = mlirBinaryOp ("ori", Bool, Bool, Bool)
+mlirAndi = mlirBinaryOp ("andi", Index, Index, Index)
+mlirOri = mlirBinaryOp ("ori", Index, Index, Index)
+mlirXori = mlirBinaryOp ("xori", Index, Index, Index)
 mlirAddf = mlirBinaryOp ("addf", Double, Double, Double)
 mlirSubf = mlirBinaryOp ("subf", Double, Double, Double)
 mlirMulf = mlirBinaryOp ("mulf", Double, Double, Double)
@@ -66,14 +71,16 @@ mlirSleI = mlirBinaryOp ("cmpi \"sle\",", Index, Index, Bool)
 mlirSgeI = mlirBinaryOp ("cmpi \"sge\",", Index, Index, Bool)
 mlirEqI = mlirBinaryOp ("cmpi \"eq\",", Index, Index, Bool)
 mlirNeI = mlirBinaryOp ("cmpi \"ne\",", Index, Index, Bool)
-mlirSltF = mlirBinaryOp ("cmpf \"slt\",", Index, Index, Bool)
-mlirSgtF = mlirBinaryOp ("cmpf \"sgt\",", Index, Index, Bool)
-mlirSleF = mlirBinaryOp ("cmpf \"sle\",", Index, Index, Bool)
-mlirSgeF = mlirBinaryOp ("cmpf \"sge\",", Index, Index, Bool)
-mlirEqF = mlirBinaryOp ("cmpf \"eq\",", Index, Index, Bool)
-mlirNeF = mlirBinaryOp ("cmpf \"ne\",", Index, Index, Bool)
+mlirSltF = mlirBinaryOp ("cmpf \"ult\",", Double, Double, Bool)
+mlirSgtF = mlirBinaryOp ("cmpf \"ugt\",", Double, Double, Bool)
+mlirSleF = mlirBinaryOp ("cmpf \"ule\",", Double, Double, Bool)
+mlirSgeF = mlirBinaryOp ("cmpf \"uge\",", Double, Double, Bool)
+mlirEqF = mlirBinaryOp ("cmpf \"ueq\",", Double, Double, Bool)
+mlirNeF = mlirBinaryOp ("cmpf \"une\",", Double, Double, Bool)
 mlirEqB = mlirBinaryOp ("cmpi \"eq\",", Bool, Bool, Bool)
 mlirNeB = mlirBinaryOp ("cmpi \"ne\",", Bool, Bool, Bool)
+mlirShl = mlirBinaryOp ("shli", Index, Index, Index)
+mlirShr = mlirBinaryOp ("shrui", Index, Index, Index)
 
 data MLIRUnaryOp = MLIRUnaryOp {unaryOpType :: String, argType :: MLIRType, unaryResultType :: MLIRType} deriving Show
 
@@ -127,9 +134,7 @@ data MLIROp =
     | MBranch {location :: MLIRPos, value :: SSA, branches :: (BlockName, BlockName)}
     | MModule {location :: MLIRPos, topOps :: [MLIROp]}
     | MCall {location :: MLIRPos, callRet :: Maybe (MLIRType, SSA), funcName :: FuncName, operands :: [(MLIRType, SSA)]}
-    -- Affine control flows.
-    | MAffineIf {location :: MLIRPos, affineIfCondition :: (AffineSet, SSA, SSA), thenRegion ::[MLIROp], elseRegion :: [MLIROp]}
-    | MSCFIf {location :: MLIRPos, ifCondition :: SSA, thenRegion :: [MLIROp], elseRegion :: [MLIROp]}
+    | MSCFIf {location :: MLIRPos, ifCondition :: SSA, thenRegion :: MLIROp, elseRegion :: MLIROp}
     | MSCFWhile {location :: MLIRPos, breakBlock :: [MLIROp], condBlock :: [MLIROp], condExpr :: SSA, breakCond :: SSA, whileBody :: [MLIROp]}
     | MAffineFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
     | MSCFFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
@@ -196,12 +201,6 @@ emitOpStep :: (MLIREmitEnv->MLIROp->String)->(MLIREmitEnv->MLIROp->String)
 emitOpStep f env (MModule _ ops) =
   let s = fmap (f (incrIndent env)) ops in intercalate "\n" $
   ([indented env "module{"] ++ [
-      -- indented env $ "    module @isq_builtin {",
-      -- indented env $ "        isq.declare_qop @measure : [1]()->i1",
-      -- indented env $ "        isq.declare_qop @reset : [1]()->()",
-      -- indented env $ "        isq.declare_qop @print_int : [0](index)->()",
-      -- indented env $ "        isq.declare_qop @print_double : [0](f64)->()",
-      -- indented env $ "    }"
       indented env $ "    isq.declare_qop @__isq__builtin__measure : [1]()->i1",
       indented env $ "    isq.declare_qop @__isq__builtin__reset : [1]()->()",
       indented env $ "    isq.declare_qop @__isq__builtin__bp : [0](index)->()",
@@ -259,17 +258,11 @@ emitOpStep f env (MJmp loc blk) = indented env $ printf "br %s %s" (unBlockName 
 emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "cond_br %s, %s, %s %s" (unSsa val) (unBlockName trueDst) (unBlockName falseDst) (mlirPos loc)
 emitOpStep f env (MCall loc Nothing fn args) = indented env $ printf "call %s(%s) : (%s)->() %s" (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
 emitOpStep f env (MCall loc (Just (retty, retval)) fn args) = indented env $ printf "%s = call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
-emitOpStep f env (MAffineIf loc (cond, lhs, rhs) then' else') = intercalate "\n" $ [
-  indented env $ printf "affine.if affine_set<%s>(%s, %s) {" (affineSet cond)  (unSsa lhs)  (unSsa rhs)]
-  ++fmap (f (incrIndent env{isTopLevel=False})) then'
-  ++[indented env $ "} else {"]
-  ++fmap (f (incrIndent env{isTopLevel=False})) else'
-  ++[indented env $ "}"]
 emitOpStep f env (MSCFIf loc cond then' else') = intercalate "\n" $ [
   indented env $ printf "scf.if %s {" $ unSsa cond]
-  ++fmap (f (incrIndent env{isTopLevel=False})) then'
+  ++[f (incrIndent env{isTopLevel=False}) then']
   ++[indented env $ "} else {"]
-  ++fmap (f (incrIndent env{isTopLevel=False})) else'
+  ++[f (incrIndent env{isTopLevel=False}) else']
   ++[indented env $ "}"]
 emitOpStep f env (MSCFWhile loc breakb condb cond break body) = intercalate "\n" $
   [indented env $ "scf.while : ()->() {"]

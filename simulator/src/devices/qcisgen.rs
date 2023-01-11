@@ -107,8 +107,8 @@ impl QDevice for QCISCodegen{
             return;
         }
         if let Rz = op_type{
-            let op = format!("Rz");
-            let args_separated = qubits.iter().map(|x| format!("Q{}", x)).join(" ");
+            let op = format!("RZ");
+            let args_separated = qubits.iter().map(|x| format!("Q{}", **x+1)).join(" ");
             self.generated_code.push(format!("{} {} {}", op, args_separated, parameters[0]));
             return;
         }

@@ -235,7 +235,7 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                     match content["tag"].as_str().unwrap(){
                         "UnmatchedScopeError"=>{
                             let (src,pos) = parsePos(&content["unmatchedPos"])?;
-                            let rtype = content["wantedRegionType"]["tag"].as_str().unwrap();
+                            let rtype = content["wantedRegionType"].as_str().unwrap();
                             let r = match rtype{
                                 "RFunc"=>"function",
                                 "RLoop"=>"loop",
@@ -252,16 +252,44 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                     let (src,pos) = parsePos(content)?;
                     return Err(SyntaxError{reason: "tokenizing failed.".into(), src, pos: pos})?;
                 }else if tag=="OracleError"{
-                    let (src, pos) = parsePos(&content["contents"])?;
                     match content["tag"].as_str().unwrap() {
-                        "BadOracleShape" => {
-                            return Err(OracleShapeError{src, pos})?;
+                        "MultipleDefined"=>{
+                            let (src,pos) = parsePos(&content["sourcePos"])?;
+                            let symbolName = content["varName"].as_str().unwrap();
+                            return Err(SyntaxError{reason: "Multiple defined symbol: ".to_string() + symbolName, src, pos})?;
                         }
-                        "BadOracleValue" => {
-                            return Err(OracleValueError{src, pos})?;
+                        "NoReturnValue"=>{
+                            let (src,pos) = parsePos(&content["sourcePos"])?;
+                            let value = content["varName"].as_i64().unwrap();
+                            return Err(SyntaxError{reason: format!("No return value for input {}.", value), src, pos})?;
                         }
-                        _ =>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
-                    };
+                        "UnDefinedSymbol"=>{
+                            let (src,pos) = parsePos(&content["sourcePos"])?;
+                            let symbolName = content["varName"].as_str().unwrap();
+                            return Err(SyntaxError{reason: "Undefined symbol: ".to_string() + symbolName, src, pos})?;
+                        }
+                        _ => {
+                            let (src, pos) = parsePos(&content["contents"])?;
+                            match content["tag"].as_str().unwrap() {
+                                "BadOracleShape" => {
+                                    return Err(OracleShapeError{src, pos})?;
+                                }
+                                "BadOracleValue" => {
+                                    return Err(OracleValueError{src, pos})?;
+                                }
+                                "IllegalExpression"=>{
+                                    return Err(SyntaxError{reason: "Illegal expression.".into(), src, pos})?;
+                                }
+                                "UnmatchedType"=>{
+                                    return Err(SyntaxError{reason: "This type is not expected.".into(), src, pos})?;
+                                }
+                                "UnsupportedType"=>{
+                                    return Err(SyntaxError{reason: "This type is not supported.".into(), src, pos})?;
+                                }
+                                _ =>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
+                            };
+                        }
+                    }
                 }
                 else if tag=="DeriveError"{
                     let (src, pos) = parsePos(&content["contents"])?;

@@ -12,15 +12,15 @@ Module for transforming AST tree into RAII form, eliminating intermediate return
 Instead, intermediate control flow statements will be replaced by flag registers and conditionally-jump-to-end. Return values will also be replaced by return value register.
 -}
 
-data Region = Func {value :: Int, flag :: Int} | While {headFlag :: Int, flag :: Int} | For {flag :: Int} | If {flag :: Int}  deriving (Show, Eq)
+data Region = Func {value :: Int, flag :: Int} | While {headFlag :: Int, flag :: Int} | For {flag :: Int} | Block {flag :: Int}  deriving (Show, Eq)
 
-data RegionType = RFunc | RLoop | RIf deriving (Show, Eq)
+data RegionType = RFunc | RLoop | RBlock deriving (Show, Eq)
 
 regionType :: Region->RegionType
 regionType Func{} = RFunc
 regionType While{} = RLoop
 regionType For{} = RLoop
-regionType If{} = RIf
+regionType Block{} = RBlock
 
 data RAIICheckEnv = RAIICheckEnv{
     flagCounter :: Int,
@@ -62,6 +62,7 @@ skippedRegions pos ty = do
 
 data RAIIError =
       UnmatchedScopeError {unmatchedPos :: Pos, wantedRegionType :: RegionType}
+    | PlaceHolder
     deriving (Eq, Show)
 
 
@@ -105,7 +106,11 @@ bodyEffect NWhile{annotationAST=(ContainsBreak,_)}=Safe
 bodyEffect x = checkSafe x
 
 isStatementAffineSafe' :: (AST ann->AST (AffineSafe, ann))->(AST ann->AST (AffineSafe, ann))
-isStatementAffineSafe' f (NIf ann cond b1 b2) = let b1'=fmap f b1; b2' = fmap f b2 in NIf (mconcat $ fmap bodyEffect $ b1'++b2', ann) (isExprSafe cond) b1' b2'
+isStatementAffineSafe' f (NBlock ann lis) = let lis' = fmap f lis in NBlock (mconcat $ fmap bodyEffect lis', ann) lis'
+isStatementAffineSafe' f (NIf ann cond b1 b2) = let
+        b1' = fmap f b1;
+        b2' = fmap f b2 
+    in NIf (mconcat $ fmap bodyEffect $ b1' ++ b2', ann) (isExprSafe cond) b1' b2'
 isStatementAffineSafe' f (NFor ann v range body) = let b' = fmap f body; r' = isExprSafe range in NFor (mconcat $ checkSafe r':fmap bodyEffect b', ann) v r' b'
 isStatementAffineSafe' _ x@(NBreak _) = fmap (ContainsBreak,) x
 isStatementAffineSafe' _ x@(NReturn _ _) = fmap (ContainsReturn,) x
@@ -118,28 +123,39 @@ isStatementAffineSafe = fix isStatementAffineSafe'
 eraseSafe :: (Functor p)=>p (a, b) -> p b
 eraseSafe = fmap snd
 eliminateNonAffineForStmts' :: (AST (AffineSafe, ann)->RAIICheck [AST ann])->AST (AffineSafe, ann)->RAIICheck [AST ann]
-eliminateNonAffineForStmts' f (NIf a b c d) = do {c'<-mapM f c; d'<-mapM f d; return [NIf (snd a) (eraseSafe b) (concat c') (concat d')]}
-eliminateNonAffineForStmts' f (NWhile a b c) = do {c'<-mapM f c; return [NWhile (snd a) (eraseSafe b) (concat c')]}
-eliminateNonAffineForStmts' f (NFor (Safe, ann) v expr body) = do {b'<-mapM f body; return [NFor ann v (eraseSafe expr) (concat b')]}
+eliminateNonAffineForStmts' f (NBlock a lis) = do
+    lis' <- mapM f lis;
+    return [NBlock (snd a) $ concat lis']
+eliminateNonAffineForStmts' f (NIf a b c d) = do
+    c' <- mapM f c;
+    d' <- mapM f d; 
+    return [NIf (snd a) (eraseSafe b) (concat c') (concat d')]
+eliminateNonAffineForStmts' f (NWhile a b c) = do
+    c' <- mapM f c;
+    return [NWhile (snd a) (eraseSafe b) (concat c')]
+eliminateNonAffineForStmts' f (NFor (Safe, ann) v expr body) = do
+    b' <- mapM f body;
+    return [NFor ann v (eraseSafe expr) (concat b')]
 eliminateNonAffineForStmts' f (NFor (s1, ann) v (ERange (s2, ann2) (Just a) (Just b) Nothing) body) = eliminateNonAffineForStmts' f (NFor (s1, ann) v (ERange (s2, ann2) (Just a) (Just b) (Just (EIntLit (Safe, ann) 1))) body)
-eliminateNonAffineForStmts' f (NFor (_, ann) vn (ERange (_, ann2) (Just a) (Just b) (Just c)) body) = do {
-    idlo<-nextId; idhi<-nextId;idstep<-nextId;
-    b'<-mapM f body;
+eliminateNonAffineForStmts' f (NFor (_, ann) vn (ERange (_, ann2) (Just a) (Just b) (Just c)) body) = do
+    idlo <- nextId;
+    idhi <- nextId;
+    idstep <- nextId;
+    b' <- mapM f body;
     let v = EIdent ann vn
         lo = ETempVar ann2 idlo
         hi = ETempVar ann2 idhi
         step = ETempVar ann2 idstep
-    in return [
-        NTempvar ann (intType (), idlo, Just $ eraseSafe a),
-        NTempvar ann (intType (), idhi, Just $ eraseSafe b),
-        NTempvar ann (intType (), idstep, Just $ eraseSafe c),
-        NDefvar ann [(intType ann, vn, Just lo)],
-        NWhile ann (EBinary ann2 (Cmp Less) v hi)
-        (concat b' ++ [NAssign ann v (EBinary ann2 Add v step)])]
-    }
+        in return [
+            NTempvar ann (intType (), idlo, Just $ eraseSafe a),
+            NTempvar ann (intType (), idhi, Just $ eraseSafe b),
+            NTempvar ann (intType (), idstep, Just $ eraseSafe c),
+            NDefvar ann [(intType ann, vn, Just lo)],
+            NWhile ann (EBinary ann2 (Cmp Less) v hi) ((concat b') ++ [NAssign ann v (EBinary ann2 Add v step)])
+        ]
 eliminateNonAffineForStmts' f NFor{} = error "For-statement with non-standard range indices not supported."
 eliminateNonAffineForStmts' f (NProcedure a b c d e) = do
-    e'<-mapM f e
+    e' <- mapM f e
     return [NProcedure (snd a) (eraseSafe b) c (fmap (first eraseSafe) d) (concat e')]
 
 eliminateNonAffineForStmts' _ x = return [eraseSafe x]
@@ -157,11 +173,18 @@ tempBool :: ann->Int->AST ann
 tempBool ann i = NTempvar ann (boolType (), i, Just (EBoolLit ann False))
 
 raiiTransform' :: (LAST->RAIICheck [LAST])->(LAST->RAIICheck [LAST])
+raiiTransform' f (NBlock ann stmnLis) = do
+    i <- nextId
+    pushRegion (Block i)
+    lis' <- mapM f stmnLis
+    popRegion
+    finalize <- checkCurrentScope ann
+    return [tempBool ann i, NBlock ann (concat lis'), finalize]
 raiiTransform' f (NIf ann cond t e) = do
     i<-nextId
-    pushRegion (If i)
-    t'<-mapM f t
-    e'<-mapM f e
+    pushRegion (Block i)
+    t' <- mapM f t
+    e' <- mapM f e
     popRegion
     finalize<-checkCurrentScope ann
     return [tempBool ann i, NIf ann cond (concat t') (concat e'), finalize]
@@ -171,15 +194,15 @@ raiiTransform' f (NFor ann var range b) = do
     b'<-mapM f b
     popRegion
     finalize<-checkCurrentScope ann
-    return [tempBool ann i, NFor ann var range (concat b'), finalize]
+    return [NFor ann var range ([tempBool ann i] ++ concat b'), finalize]
 raiiTransform' f (NWhile ann cond body) = do
     ihead<-nextId
     ibody<-nextId
     pushRegion (While ihead ibody)
-    b'<-mapM f body
+    b' <- mapM f body
     popRegion
     finalize<-checkCurrentScope ann
-    return [tempBool ann ihead, tempBool ann ibody, NWhileWithGuard ann cond (concat b') (ETempVar ann ihead)]
+    return [tempBool ann ihead, NWhileWithGuard ann cond ([tempBool ann ibody] ++ concat b') (ETempVar ann ihead)]
 raiiTransform' f (NProcedure a b c d e) = do
     procRet<-nextId
     procFlag<-nextId
@@ -195,16 +218,13 @@ raiiTransform' f (NBreak ann) = do
     let break_all_loops  = concatMap (\x->case x of
             While h f-> [setFlag ann h]
             _ -> []) regions
-    let break_passing_bodies = fmap (\x->setFlag ann (flag x)) $ tail regions
+    let break_passing_bodies = fmap (\x->setFlag ann (flag x)) $ regions
     return $ break_all_loops ++ break_passing_bodies ++ [NJumpToEnd ann]
 
 raiiTransform' f (NContinue ann) = do
     regions<-skippedRegions ann RLoop
-    let break_all_loops  = concatMap (\x->case x of
-            While h f-> [setFlag ann h]
-            _ -> []) $ init regions
     let break_passing_bodies = fmap (\x->setFlag ann (flag x)) $ tail regions
-    return $ break_all_loops ++ break_passing_bodies ++ [NJumpToEnd ann]
+    return $ break_passing_bodies ++ [NJumpToEnd ann]
 
 raiiTransform' f (NReturn ann val) = do
     regions<-skippedRegions ann RFunc
@@ -218,7 +238,6 @@ raiiTransform' f (NReturn ann val) = do
         _ -> return $ break_all_loops ++ break_passing_bodies ++ [setReturnVal ann v val, NJumpToEnd ann]
 
 raiiTransform' _ ast = return [ast]
-
 
 
 setFlag :: ann->Int->AST ann

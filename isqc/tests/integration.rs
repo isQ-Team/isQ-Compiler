@@ -1,35 +1,31 @@
 use assert_cmd::prelude::*; // Add methods on commands
-use assert_cmd::assert::Assert;
-use miette::Diagnostic;
 use predicates::prelude::*; // Used for writing assertions
 use std::{process::Command, path::PathBuf}; // Run programs
 use std::path::Path;
 use test_case::test_case;
-use thiserror::Error;
-
-#[derive(Error, Debug, Diagnostic)]
-#[error("ISQ_ROOT undefined.")]
-#[diagnostic(
-    code(isqv2::no_isqv2_root),
-    help("This means something is wrong if you are calling from isqc entry.")
-)]
-pub struct NoISQv2RootError;
 
 #[cfg(windows)]
 pub const LINE_ENDING: &'static str = "\r\n";
 #[cfg(not(windows))]
 pub const LINE_ENDING: &'static str = "\n";
 
-
-#[test_case("classic_add", "7")]
+#[test_case("classic_add_sub", &("7".to_string()+LINE_ENDING+"-1"))]
+#[test_case("classic_and_or", &("0".to_string()+LINE_ENDING+"2"))]
+#[test_case("classic_bitwise_logic", &("8".to_string()+LINE_ENDING+"13"+LINE_ENDING+"5"))]
+#[test_case("classic_bool_to_int", "3")]
 #[test_case("classic_comment", "10")]
 #[test_case("classic_divide0", "inf")]
 #[test_case("classic_double", &("4".to_string()+LINE_ENDING+"6.283185"))]
-#[test_case("classic_if", "2")]
+#[test_case("classic_empty_statement", "0")]
+#[test_case("classic_equal", &("0".to_string()+LINE_ENDING+"1"))]
 #[test_case("classic_local", &("789".to_string()+LINE_ENDING+"123"+LINE_ENDING+"456"))]
-#[test_case("classic_neg", "-114514")]
+#[test_case("classic_mod_pow", &("1".to_string()+LINE_ENDING+"49"))]
+#[test_case("classic_mul_div", &("32".to_string()+LINE_ENDING+"2"))]
 #[test_case("classic_nested_comment", "114514")]
+#[test_case("classic_nested_region", "2")]
 #[test_case("classic_recursion", "3628800")]
+#[test_case("classic_shift", &("12".to_string()+LINE_ENDING+"2"))]
+#[test_case("classic_unitary", &("2".to_string()+LINE_ENDING+"-114514"+LINE_ENDING+"1"))]
 #[test_case("derive", "1")]
 #[test_case("extreme_long_code", "8820")]
 #[test_case("extreme_long_code_reset", "500")]
@@ -41,10 +37,27 @@ pub const LINE_ENDING: &'static str = "\n";
 #[test_case("matrix_decimal", "0")]
 #[test_case("measure_twice", "0")]
 #[test_case("reset_twice", "0")]
+#[test_case("scf_block", "0")]
+#[test_case("scf_break", "2")]
+#[test_case("scf_break_for", "2")]
+#[test_case("scf_continue", "4")]
+#[test_case("scf_continue_for", "7")]
+#[test_case("scf_else_if", "2")]
+#[test_case("scf_empty_block", "0")]
+#[test_case("scf_for", "10")]
+#[test_case("scf_for_if", "4")]
+#[test_case("scf_for_step", "4")]
+#[test_case("scf_if", "2")]
+#[test_case("scf_if_break", "2")]
+#[test_case("scf_if_break_block", "2")]
+#[test_case("scf_if_break_for", "2")]
+#[test_case("scf_if_no_else", "3")]
+#[test_case("scf_while", "6")]
+#[test_case("scf_while_no_brace", "16")]
 #[test_case("teleport_diff_line", "0")]
 #[test_case("teleport_one_line", "0")]
 fn tests_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let path = Path::new("isqc").join("tests").join("input").join(name.to_string() + ".isq");
+    let path = Path::new("tests").join("input").join(name.to_string() + ".isq");
     fixed_output(path, res)
 }
 
@@ -54,7 +67,7 @@ fn tests_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
 #[test_case("preserve_gphase", &("1".to_string()+LINE_ENDING+"0"))]
 #[test_case("teleport", "1")]
 fn examples_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let path = Path::new("examples").join(name.to_string() + ".isq");
+    let path = Path::new("..").join("examples").join(name.to_string() + ".isq");
     fixed_output(path, res)
 }
 
@@ -63,36 +76,40 @@ fn examples_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error
 #[test_case("shadow_imported_var", "2")]
 #[test_case("qualified_name", "1")]
 fn import_test(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let path = Path::new("frontend").join("test").join("input").join(name.to_string() + ".isq");
+    let path = Path::new("..").join("frontend").join("test").join("input").join(name.to_string() + ".isq");
     fixed_output(path, res)
 }
 
 fn fixed_output(path: PathBuf, res: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let cmd = integration_test_template(path, "run").unwrap();
-    cmd.success().stdout(predicate::str::contains(res));
+    let mut cmd = Command::cargo_bin("isqc")?;
+    cmd.arg("run").arg("--debug").arg(path.to_str().to_owned().unwrap());
+    cmd.assert().success().stderr(predicate::str::contains(res));
     Ok(())
 }
 
-#[test_case("unknown_token", "Syntax Error: tokenizing failed")]
+#[test_case("empty_gate", "Syntax Error: unexpected token")]
 #[test_case("keyword_as_identifier", "Syntax Error: unexpected token")]
+#[test_case("mat_not_square", "bad matrix shape")]
+#[test_case("mat_not_2_pow", "Syntax Error: unexpected token")]
+#[test_case("not_utf8", "invalid byte sequence")]
+#[test_case("other_lang", "Syntax Error: tokenizing failed")]
 #[test_case("repeated_names", "isqv2::frontend::redefined_symbol")]
+#[test_case("type_mismatch", "Type mismatch")]
+#[test_case("undefined_symbol", "Undefined symbol")]
+#[test_case("unknown_token", "Syntax Error: tokenizing failed")]
+#[test_case("wrong_brackets", "Syntax Error: unexpected token")]
+#[test_case("wrong_break", "Unexpected statement outside a loop")]
+#[test_case("wrong_continue", "Unexpected statement outside a loop")]
 #[test_case("wrong_for", "Syntax Error: unexpected token")]
 #[test_case("wrong_ctrl_size", "Argument number mismatch")]
 #[test_case("wrong_inv", "Syntax Error: unexpected token")]
 #[test_case("wrong_size", "Argument number mismatch")]
-#[test_case("other_lang", "Syntax Error: tokenizing failed")]
-#[test_case("not_utf8", "invalid byte sequence")]
-#[test_case("empty_gate", "Syntax Error: unexpected token")]
-#[test_case("wrong_brackets", "Syntax Error: unexpected token")]
-#[test_case("type_mismatch", "Type mismatch")]
-#[test_case("undefined_symbol", "Undefined symbol")]
-#[test_case("mat_not_square", "bad matrix shape")]
-#[test_case("mat_not_2_pow", "Syntax Error: unexpected token")]
 fn syntax_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Error>> {
     let file_name = "syntax_".to_string() + name + ".isq";
-    let path = Path::new("isqc").join("tests").join("input").join(file_name);
-    let cmd = integration_test_template(path, "compile").unwrap();
-    cmd.failure().stderr(predicate::str::contains(syndrome));
+    let path = Path::new("tests").join("input").join(file_name);
+    let mut cmd = Command::cargo_bin("isqc")?;
+    cmd.arg("compile").arg(path.to_str().to_owned().unwrap());
+    cmd.assert().failure().stderr(predicate::str::contains(syndrome));
     Ok(())
 }
 
@@ -100,9 +117,10 @@ fn syntax_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Err
 #[test_case("same_qubit", "is used twice")]
 fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Error>> {
     let file_name = "runtime_".to_string() + name + ".isq";
-    let path = Path::new("isqc").join("tests").join("input").join(file_name);
-    let cmd = integration_test_template(path, "run").unwrap();
-    cmd.success().stderr(predicate::str::contains(syndrome));
+    let path = Path::new("tests").join("input").join(file_name);
+    let mut cmd = Command::cargo_bin("isqc")?;
+    cmd.arg("run").arg("--debug").arg(path.to_str().to_owned().unwrap());
+    cmd.assert().success().stderr(predicate::str::contains(syndrome));
     Ok(())
 }
 
@@ -112,17 +130,9 @@ fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Er
 #[test_case("repeat_until_success")]
 #[test_case("rfs")]
 fn expect_no_error(name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let path = Path::new("examples").join(name.to_string() + ".isq");
-    let cmd = integration_test_template(path, "run").unwrap();
-    cmd.success().stderr(predicate::str::is_empty());
+    let path = Path::new("..").join("examples").join(name.to_string() + ".isq");
+    let mut cmd = Command::cargo_bin("isqc")?;
+    cmd.arg("run").arg(path.to_str().to_owned().unwrap());
+    cmd.assert().success().stderr(predicate::str::is_empty());
     Ok(())
-}
-
-fn integration_test_template(file_path: PathBuf, option: &str) -> Result<Assert, Box<dyn std::error::Error>> {
-    let root = std::env::var("ISQ_ROOT").map_err(|_| NoISQv2RootError)?;
-    let root_path = Path::new(&root);
-    let isqc = root_path.join("bin").join("isqc");
-    let mut cmd = Command::cargo_bin(isqc.to_str().to_owned().unwrap())?;
-    cmd.arg(option).arg(root_path.join(file_path).to_str().to_owned().unwrap());
-    Ok(cmd.assert())
 }

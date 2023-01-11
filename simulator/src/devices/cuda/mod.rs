@@ -16,6 +16,8 @@ pub struct QSimKernel{
     qubit_map_p2l: Vec<usize>,
     // id alloc
     next_id: usize,
+    // measure res
+    measure_res: String,
 }
 
 impl QSimKernel{
@@ -28,7 +30,7 @@ impl QSimKernel{
             for _ in 0..capacity{
                 qubit_map_inv.push(0);
             }
-            QSimKernel { state: mem , capacity, qubit_map_l2p: qubit_map, qubit_map_p2l: qubit_map_inv, next_id: 0}
+            QSimKernel { state: mem , capacity, qubit_map_l2p: qubit_map, qubit_map_p2l: qubit_map_inv, next_id: 0, measure_res: String::new("")}
         }
     }
     pub fn size(&self)->usize{
@@ -223,7 +225,16 @@ impl QDevice for QSimKernelSimulator{
             prob_one,
             result
         );
+
+        match result {
+            true => self.0.measure_res += "1",
+            false => self.0.measure_res += "0"
+        };
         //self.0.dump();
         result
+    }
+
+    fn get_measure_res(&mut self) -> String {
+        return self.0.measure_res.clone();
     }
 }

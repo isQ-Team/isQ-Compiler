@@ -49,9 +49,9 @@ public:
         if(!defgate) return mlir::failure();
         auto ctx = rewriter.getContext();
         if(isFamousGate(defgate, "u3")){
-            auto lambda = usegate->getOperand(0);
-            auto theta = usegate->getOperand(1);
-            auto phi = usegate->getOperand(2);
+            auto lambda = usegate->getOperand(2);
+            auto theta = usegate->getOperand(0);
+            auto phi = usegate->getOperand(1);
             mlir::Value v1 = apply->getOperand(1);
             emitBuiltinGate(rewriter, "Rz", {&v1}, {lambda});
             emitBuiltinGate(rewriter, "X2P", {&v1});

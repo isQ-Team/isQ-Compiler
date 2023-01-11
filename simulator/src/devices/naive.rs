@@ -3,13 +3,18 @@
 
 use crate::qdevice::QDevice;
 use alloc::collections::BTreeMap;
+use alloc::string::String;
 use alloc::vec::Vec;
 use num_complex::Complex64;
+
+#[derive(Clone)]
 pub struct NaiveSimulator {
     state: Vec<Complex64>,
     qubit_map: BTreeMap<usize, usize>,
     qubit_map_inv: Vec<usize>,
     allocated_qubit_counter: usize,
+    measure_res: String,
+    reset_flag: bool,
 }
 
 impl NaiveSimulator {
@@ -21,6 +26,8 @@ impl NaiveSimulator {
             qubit_map: BTreeMap::new(),
             qubit_map_inv: Vec::new(),
             allocated_qubit_counter: 0,
+            measure_res: "".into(),
+            reset_flag: false,
         }
     }
     fn qubit_to_state_id(&self, q: &<NaiveSimulator as QDevice>::Qubit) -> usize {
@@ -259,12 +266,14 @@ impl QDevice for NaiveSimulator {
                 if controllers.len() != 0 {
                     panic!("Reset is not allowed to have control qubits");
                 }
+                self.reset_flag = true;
                 let ret = self.measure(qubits[0]);
                 self.validate();
                 if ret {
                     self.zeroing_msb();
                 }
                 self.validate();
+                self.reset_flag = false;
             }
             Swap => {
                 self.two_qubit_gate(
@@ -331,7 +340,25 @@ impl QDevice for NaiveSimulator {
             prob_one,
             result
         );
+        if !self.reset_flag{
+            match result{
+                true => self.measure_res += "1",
+                false => self.measure_res += "0"
+            }
+        }
         result
+    }
+
+    fn get_measure_res(&mut self) -> String {
+        return self.measure_res.clone();
+    }
+    fn print_state(&self) {
+        extern crate std;
+        use std::println;
+        println!("Qubit states:");
+        for (count, v) in self.state.iter().enumerate() {
+            println!("{}: {}", count, v);
+        }
     }
 }
 

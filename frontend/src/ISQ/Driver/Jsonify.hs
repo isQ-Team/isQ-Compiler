@@ -13,7 +13,6 @@ import ISQ.Lang.TypeCheck (TypeCheckData(TypeCheckData))
 import Control.DeepSeq
 import ISQ.Lang.DeriveGate 
 import ISQ.Lang.OraclePass
---import ISQ.Lang.FlatInc
 
 deriving instance Generic CompileError
 instance ToJSON CompileError
@@ -25,8 +24,6 @@ deriving instance Generic DeriveError
 instance ToJSON DeriveError
 deriving instance Generic OracleError
 instance ToJSON OracleError
---deriving instance Generic IncFileError
---instance ToJSON IncFileError
 deriving instance Generic RegionType
 instance ToJSON RegionType
 deriving instance Generic Pos

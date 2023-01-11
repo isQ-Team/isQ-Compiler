@@ -22,6 +22,6 @@ simulator: check-env
 	cd simulator &&	cargo build && cp target/debug/simulator ${ISQ_ROOT}/bin/
 
 isq-simulator.bc: check-env
-	export PATH=${ISQ_ROOT}/bin:${PATH} && cd simulator \
-	llvm-link src/facades/qir/shim/qir_builtin/shim.ll src/facades/qir/shim/qsharp_core/shim.ll \
+	linker=`which llvm-link` && if [ $$linker == "" ]; then linker=$(ISQ_ROOT)/bin/llvm-link; fi \
+	&& cd simulator && eval $$linker src/facades/qir/shim/qir_builtin/shim.ll src/facades/qir/shim/qsharp_core/shim.ll \
 	src/facades/qir/shim/qsharp_foundation/shim.ll src/facades/qir/shim/isq/shim.ll -o ${ISQ_ROOT}/bin/isq-simulator.bc

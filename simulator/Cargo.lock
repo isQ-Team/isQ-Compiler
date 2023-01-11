@@ -166,6 +166,7 @@ dependencies = [
  "num-bigint",
  "num-complex",
  "rand",
+ "regex",
  "serde_json",
 ]
 
