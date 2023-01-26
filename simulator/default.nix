@@ -1,4 +1,3 @@
-#{pkgs? import ../buildscript/pkgs.nix, build_cuda_plugin? true, build_qcis_plugin? true }:
 {rust-bin, llvmPackages, makeRustPlatform, gitignoreSource,
 plugins? [], lib}:
 let

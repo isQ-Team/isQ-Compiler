@@ -1,5 +1,5 @@
 {
-  description = "isQ-IR Simulator";
+  description = "isQ Simulator";
   inputs = {
     isqc-base.url = "path:../base";
     gitignore.url = "github:hercules-ci/gitignore.nix";

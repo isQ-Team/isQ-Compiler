@@ -15,7 +15,7 @@
       };
     in
     {
-        #overlays.default = overlay;
+        overlays.default = base-overlay;
         #packages.mlir = pkgs.isqc.mlir;
         lib.isqc-override = f: final: prev: {
           isqc = prev.isqc.overrideScope' (f final);
@@ -30,10 +30,11 @@
            shell? null,
            components? [],
            defaultComponent? null,
-           extra? {}}:
+           extra? {},
+           skipBaseOverlay? false}:
           (flake-utils.lib.eachSystem systems (system':
             let pkgs = import nixpkgs {
-              overlays = preOverlays ++ [base-overlay] ++ depComponentOverlays ++ [overlay];
+              overlays = preOverlays ++ (if skipBaseOverlay then [] else [base-overlay]) ++ depComponentOverlays ++ [overlay];
               system = system';
             };
             packages = pkgs.lib.listToAttrs (map (component: {name=component; value=pkgs.isqc.${component}; }) components);
