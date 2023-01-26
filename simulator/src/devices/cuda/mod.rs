@@ -3,7 +3,7 @@ use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use num_complex::Complex32;
 use qsim_kernel::qstate;
-
+use alloc::string::String;
 use crate::{devices::cuda::qsim_kernel::qstate_cnot, qdevice::QDevice};
 
 use self::qsim_kernel::{qstate_struct_size, qint_t, qstate_init, qstate_deinit, qstate_align_size, qamph_t, qstate_u3, qstate_measure, qstate_swap_to_msb_and_free, qstate_alloc, qstate_debug_amps};
@@ -30,7 +30,7 @@ impl QSimKernel{
             for _ in 0..capacity{
                 qubit_map_inv.push(0);
             }
-            QSimKernel { state: mem , capacity, qubit_map_l2p: qubit_map, qubit_map_p2l: qubit_map_inv, next_id: 0, measure_res: String::new("")}
+            QSimKernel { state: mem , capacity, qubit_map_l2p: qubit_map, qubit_map_p2l: qubit_map_inv, next_id: 0, measure_res: String::new()}
         }
     }
     pub fn size(&self)->usize{

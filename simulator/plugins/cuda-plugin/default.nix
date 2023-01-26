@@ -1,11 +1,10 @@
-{pkgs? import ../../../buildscript/pkgs.nix}:
-pkgs.stdenv.mkDerivation{
-    name = "isqv2-simulator-cuda-plugin";
-    buildInputs = with pkgs; [cudaPackages.cudatoolkit_11_5 linuxPackages.nvidia_x11 addOpenGLRunpath makeWrapper];
+{stdenv, cudaPackages_11_5, linuxPackages, addOpenGLRunpath, makeWrapper}:
+stdenv.mkDerivation{
+    name = "isq-simulator-plugin-cuda";
+    buildInputs = [cudaPackages_11_5.cudatoolkit linuxPackages.nvidia_x11 addOpenGLRunpath makeWrapper];
     shellHook = ''
-       export CUDA_PATH=${pkgs.cudaPackages.cudatoolkit_11_5}
-       # export LD_LIBRARY_PATH=${pkgs.linuxPackages.nvidia_x11}/lib:${pkgs.ncurses5}/lib
-       export EXTRA_LDFLAGS="-L/lib -L${pkgs.linuxPackages.nvidia_x11}/lib"
+       export CUDA_PATH=${cudaPackages_11_5.cudatoolkit}
+       export EXTRA_LDFLAGS="-L/lib -L${linuxPackages.nvidia_x11}/lib"
        export EXTRA_CCFLAGS="-I/usr/include"
     '';
     src = ./.;
