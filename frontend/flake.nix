@@ -14,7 +14,7 @@
     overlay = isqc-base.lib.isqc-override (pkgs: final: prev: {
         isqc1 = pkgs.haskellPackages.callCabal2nix "isqc1" src {};
     });
-    shell = pkgs: 
+    shell = {pkgs}: 
       let hs_shell = pkgs.haskellPackages.shellFor{
         nativeBuildInputs = with pkgs; [
           haskellPackages.hpack 

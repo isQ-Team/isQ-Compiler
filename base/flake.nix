@@ -8,8 +8,21 @@
     };
   outputs = { self, nixpkgs, flake-utils }: 
     let
-      base-overlay = final: prev: {
+      base-overlay = final: prev: let pkgs = final; in {
           isqc = prev.lib.makeScope prev.newScope (self: {
+            buildISQCEnv = {
+              isqc1? self.isqc1,
+              isq-opt? self.isq-opt,
+              isqc-driver? self.isqc-driver,
+              isq-simulator? self.isq-simulator
+            } : pkgs.buildEnv {
+              name = "isqc";
+              paths = [isqc1 isq-opt isqc-driver isq-simulator isq-opt.mlir];
+              nativeBuildInputs = [ pkgs.makeWrapper ];
+              postBuild = ''
+                wrapProgram $out/bin/isqc --set ISQ_ROOT $out
+              '';
+            };
             #mlir = self.callPackage ./mlir.nix {};
           });
       };
@@ -20,7 +33,6 @@
         lib.isqc-override = f: final: prev: {
           isqc = prev.isqc.overrideScope' (f final);
         };
-        lib.debug-nixpkgs = {}: import nixpkgs {};
         lib.isqc-components-flake = 
           {self, 
            overlay, 
@@ -36,6 +48,7 @@
             let pkgs = import nixpkgs {
               overlays = preOverlays ++ (if skipBaseOverlay then [] else [base-overlay]) ++ depComponentOverlays ++ [overlay];
               system = system';
+              config.allowUnfree = true; # TODO: Remove the CUDA specific part.
             };
             packages = pkgs.lib.listToAttrs (map (component: {name=component; value=pkgs.isqc.${component}; }) components);
             
@@ -43,8 +56,10 @@
               legacyPackages = packages;
             }) // (if defaultComponent==null then {} else {
               defaultPackage = pkgs.isqc.${defaultComponent};
-            }) // (if shell == null then {} else {
-              devShell = shell {inherit pkgs;};
+            }) // (if shell == null then {
+              devShell = if defaultComponent==null then pkgs.mkShell {} else pkgs.isqc.${defaultComponent};
+            } else {
+              devShell = shell (builtins.intersectAttrs (builtins.functionArgs shell) {inherit pkgs; system = system';});
             }) // extra;
             in outputs
 
