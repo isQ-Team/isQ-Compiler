@@ -1,38 +1,30 @@
 {
-  description = "isQ Compiler.";
+  description = "isQ Compiler Frontend";
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
-    flake-utils.url  = "github:numtide/flake-utils";    
-    gitignore = {
-      url = "github:hercules-ci/gitignore.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    isqc-base.url = "path:../base";
+    gitignore.url = "github:hercules-ci/gitignore.nix";
   };
-  outputs = { self, nixpkgs, flake-utils, gitignore, ... }: flake-utils.lib.eachDefaultSystem (system:
-    let
-    inherit (gitignore.lib) gitignoreSource;
-    src = gitignoreSource ./.;
-    overlay = final: prev: {
-      isqc = prev.lib.makeScope prev.newScope (self: with self; {
-        isqc1 = prev.haskellPackages.callCabal2nix "isqc1" src {};
-      });
-    };
-    shell = pkgs.haskellPackages.shellFor{
+  outputs = { self, gitignore, isqc-base, ... }: 
+  let
+  inherit (gitignore.lib) gitignoreSource;
+  src = gitignoreSource ./.;
+  in
+  isqc-base.lib.isqc-components-flake {
+    inherit self;
+    overlay = isqc-base.lib.isqc-override (pkgs: final: prev: {
+        isqc1 = pkgs.haskellPackages.callCabal2nix "isqc1" src {};
+    });
+    shell = pkgs: 
+      let hs_shell = pkgs.haskellPackages.shellFor{
         nativeBuildInputs = with pkgs; [
           haskellPackages.hpack 
           haskellPackages.haskell-language-server 
           haskellPackages.cabal-install];
-        packages = p:  [ pkgs.isqc.isqc1];
+        packages = p:  [ pkgs.isqc.isqc1 ];
+      }; in pkgs.mkShell{
+        inputsFrom = [ hs_shell ];
       };
-    pkgs = import nixpkgs {inherit system; overlays = [overlay]; };
-    in rec {
-      packages.isqc1 = pkgs.isqc.isqc1;
-      defaultPackage = packages.isqc1;
-      overlays.default = overlay;
-      #devShell = pkgs.isqc.isqc1.env;
-      devShell = pkgs.mkShell{
-        inputsFrom = [ shell];
-      };
-    }
-  );
+    components = ["isqc1"];
+    defaultComponent = "isqc1";
+  };
 }

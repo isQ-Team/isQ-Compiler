@@ -1,12 +1,11 @@
-{pkgs? import ../../../buildscript/pkgs.nix}:
-with pkgs;
+{python3, stdenv, bash}:
 let
-  python-deps = pypi: with pypi; [ numpy networkx vmprof ];
+  python-deps = pypi: with pypi; [ numpy networkx ];
   # use pypy for performance.
-  python = pypy3.withPackages python-deps;
+  python = python3.withPackages python-deps;
 in
-pkgs.stdenv.mkDerivation rec {
-    name = "isqv2-simulator-python-routing-plugin";
+stdenv.mkDerivation rec {
+    name = "isq-simulator-plugin-qcis";
     buildInputs = [ python bash ];
     PYTHONPATH = "${python}/${python.sitePackages}";
     src = ./.;
@@ -16,7 +15,7 @@ pkgs.stdenv.mkDerivation rec {
     runHook preInstall
     mkdir -p $out/bin
     mkdir -p $out/lib
-    cp -r $src/src $out/lib/isqv2-simulator-python-routing-plugin
+    cp -r $src/src $out/lib/isq-simulator-plugin-qcis
     cp $src/bin/qcis-routing $out/bin/
     substituteAllInPlace $out/bin/qcis-routing
     runHook postInstall
