@@ -1,8 +1,10 @@
 use isq_simulator::{
     devices::{checked::CheckedDevice, naive::NaiveSimulator, sq2u3::SQ2U3Device, noop::NoopDevice},
     facades::qir::{context::{get_current_context, make_context_current, QIRContext}, types::QIRQubit, string}, qdevice::QDevice,
-    sim::qcis,
 };
+
+#[cfg(feature = "qcis")]
+use isq_simulator::sim::qcis;
 
 use libloading::*;
 
@@ -86,12 +88,20 @@ fn main() -> std::io::Result<()> {
     };
 
     if args.qcis{
-        let input_path = Path::new(&args.qir_shared_library);
-        let mut f = File::open(input_path)?;
-        let mut buf = String::new();
-        f.read_to_string(&mut buf).unwrap();
-        qcis::sim(buf, shots);
-        return Ok(());
+        #[cfg(feature = "qcis")]
+        {
+            let input_path = Path::new(&args.qir_shared_library);
+            let mut f = File::open(input_path)?;
+            let mut buf = String::new();
+            f.read_to_string(&mut buf).unwrap();
+            qcis::sim(buf, shots);
+            return Ok(());
+        }
+        #[cfg(not(feature = "qcis"))]
+        {
+            panic!("QCIS plugin not compiled!")
+        }
+
     }
 
     let par_int = match args.int_par {

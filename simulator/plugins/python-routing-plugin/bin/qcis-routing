@@ -1,4 +1,4 @@
 #! @bash@/bin/bash
 PATH=@python@/bin
 export PYTHONPATH=@pythonpath@
-pypy3 @out@/lib/isqv2-simulator-python-routing-plugin/test_sahs_qct.py
+pypy3 @out@/lib/isq-simulator-plugin-qcis/test_sahs_qct.py

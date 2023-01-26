@@ -1,1 +1,4 @@
-nightly-2022-03-03
+[toolchain]
+channel = "nightly-2022-03-03"
+components = [ "rust-analyzer-preview" ]
+profile = "default"
