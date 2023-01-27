@@ -206,7 +206,7 @@
       },
       "locked": {
         "lastModified": 1,
-        "narHash": "sha256-i6m+mrd1Wb8kc63gVZLhHVG/vszvSJx3JS5ozSMQDpE=",
+        "narHash": "sha256-EPczEWYLkaTSyqRnS8QRTn5tUF96cpotGeNrrQqX2JM=",
         "path": "./simulator",
         "type": "path"
       },
