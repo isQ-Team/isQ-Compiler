@@ -1,9 +1,9 @@
-{pkgs? import ../buildscript/pkgs.nix}:
+{ pkgs ? import ../buildscript/pkgs.nix }:
 with pkgs;
 let
-  isq = import ../. {inherit pkgs;};
+  isq = import ../. { inherit pkgs; };
 in
-stdenv.mkDerivation{
+stdenv.mkDerivation {
   name = "isq-tests";
   buildInputs = [ isq coreutils bash ];
   src = ./.;
