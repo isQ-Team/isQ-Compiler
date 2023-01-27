@@ -1,6 +1,6 @@
 all: frontend mlir isqc simulator isq-simulator.bc
 
-.PHONY: check-env frontend mlir isqc simulator isq-simulator.bc all lock develop run clean
+.PHONY: check-env frontend mlir isqc simulator isq-simulator.bc all lock develop run clean upload
 
 check-env:
 ifndef ISQ_ROOT
@@ -37,6 +37,14 @@ isq-simulator.bc: check-env
 	linker=`which llvm-link` && if [ $$linker == "" ]; then linker=$(ISQ_ROOT)/bin/llvm-link; fi \
 	&& cd simulator && eval $$linker src/facades/qir/shim/qir_builtin/shim.ll src/facades/qir/shim/qsharp_core/shim.ll \
 	src/facades/qir/shim/qsharp_foundation/shim.ll src/facades/qir/shim/isq/shim.ll -o ${ISQ_ROOT}/share/isq-simulator/isq-simulator.bc
+
+upload:
+	nix flake archive --json \
+	| jq -r '.path,(.inputs|to_entries[].value.path)' \
+	| cachix push arclight-quantum
+	nix build --json \
+	| jq -r '.[].outputs | to_entries[].value' \
+	| cachix push arclight-quantum
 
 clean: check-env
 	rm .build -r
