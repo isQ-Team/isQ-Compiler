@@ -33,13 +33,17 @@
       url = "path:./frontend";
       inputs.isqc-base.follows = "isqc-base";
     };
+    flake-compat = {
+      url = "github:edolstra/flake-compat";
+      flake = false;
+    };
     pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
   };
   nixConfig = {
     bash-prompt-prefix = "(nix-isqc:$ISQC_DEV_ENV)";
 
   };
-  outputs = { self, nixpkgs, flake-utils, isqc-base, isqc-driver, isq-simulator, isq-opt, isqc1, rust-overlay, mlir, pre-commit-hooks }:
+  outputs = { self, nixpkgs, flake-utils, isqc-base, isqc-driver, isq-simulator, isq-opt, isqc1, rust-overlay, mlir, pre-commit-hooks, flake-compat }:
     let lib = nixpkgs.lib; in
     isqc-base.lib.isqc-components-flake rec {
       inherit self;
@@ -67,7 +71,10 @@
         # https://github.com/NixOS/nix/issues/6982
         nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt ];
         ISQC_DEV_ENV = "dev";
-        inherit (self.checks.${system}.pre-commit-check) shellHook;
+        shellHook = self.checks.${system}.pre-commit-check.shellHook + ''
+          mkdir -p $PWD/.build
+          export ISQ_ROOT=$PWD/.build
+        '';
       };
       extraShells = { pkgs, system }:
         let defaultShell = shell { inherit pkgs; inherit system; };
