@@ -1,6 +1,6 @@
 all: frontend mlir isqc simulator isq-simulator.bc
 
-.PHONY: check-env frontend mlir isqc simulator isq-simulator.bc all
+.PHONY: check-env frontend mlir isqc simulator isq-simulator.bc all lock develop
 
 check-env:
 ifndef ISQ_ROOT
@@ -25,3 +25,13 @@ isq-simulator.bc: check-env
 	linker=`which llvm-link` && if [ $$linker == "" ]; then linker=$(ISQ_ROOT)/bin/llvm-link; fi \
 	&& cd simulator && eval $$linker src/facades/qir/shim/qir_builtin/shim.ll src/facades/qir/shim/qsharp_core/shim.ll \
 	src/facades/qir/shim/qsharp_foundation/shim.ll src/facades/qir/shim/isq/shim.ll -o ${ISQ_ROOT}/bin/isq-simulator.bc
+
+develop:
+	@exec nix develop
+lock:
+	cd vendor/mlir && nix flake lock --update-input isqc-base
+	cd simulator && nix flake lock --update-input isqc-base --update-input mlir
+	cd isqc && nix flake lock --update-input isqc-base
+	cd mlir && nix flake lock --update-input isqc-base --update-input mlir
+	cd frontend && nix flake lock --update-input isqc-base
+	nix flake lock --update-input isqc-base --update-input mlir --update-input isqc1 --update-input isq-opt --update-input isqc-driver --update-input isq-simulator
