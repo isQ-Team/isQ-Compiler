@@ -10,17 +10,17 @@
     isqc-base.lib.isqc-components-flake {
       inherit self;
       overlay = isqc-base.lib.isqc-override (pkgs: final: prev: {
-        isq-simulator-plugin-cuda = (final.callPackage ./plugins/cuda-plugin { });
+        #isq-simulator-plugin-cuda = (final.callPackage ./plugins/cuda-plugin { });
         isq-simulator-plugin-qcis = (final.callPackage ./plugins/python-routing-plugin { });
         isq-simulator = (final.callPackage ./default.nix {
           gitignoreSource = gitignore.lib.gitignoreSource;
           plugins = [
-            { feature = "cuda"; derivation = final.isq-simulator-plugin-cuda; }
+            #{ feature = "cuda"; derivation = final.isq-simulator-plugin-cuda; }
             { feature = "qcis"; derivation = final.isq-simulator-plugin-qcis; exports = { QCIS_ROUTE_BIN_PATH = "${final.isq-simulator-plugin-qcis}/bin/qcis-routing"; }; }
           ];
         });
       });
-      components = [ "isq-simulator-plugin-cuda" "isq-simulator-plugin-qcis" "isq-simulator" ];
+      components = [ "isq-simulator-plugin-qcis" "isq-simulator" ];
       defaultComponent = "isq-simulator";
       preOverlays = [ rust-overlay.overlays.default ];
       depComponentOverlays = [ mlir.overlays.default ];
