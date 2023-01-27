@@ -52,7 +52,7 @@
           pkgs = import nixpkgs {
             overlays = preOverlays ++ (if skipBaseOverlay then [ ] else [ base-overlay ]) ++ depComponentOverlays ++ [ overlay ];
             system = system';
-            config.allowUnfree = true; # TODO: Remove the CUDA specific part.
+            # config.allowUnfree = true; # TODO: Remove the CUDA specific part.
           };
           packages = pkgs.lib.listToAttrs (map (component: { name = component; value = pkgs.isqc.${component}; }) components);
           evalShell = shell: shell (builtins.intersectAttrs (builtins.functionArgs shell) { inherit pkgs; system = system'; });
