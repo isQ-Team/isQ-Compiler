@@ -40,6 +40,7 @@
            depComponentOverlays? [],
            systems? flake-utils.lib.defaultSystems,
            shell? null,
+           extraShells? obj: {},
            components? [],
            defaultComponent? null,
            extra? {},
@@ -51,15 +52,20 @@
               config.allowUnfree = true; # TODO: Remove the CUDA specific part.
             };
             packages = pkgs.lib.listToAttrs (map (component: {name=component; value=pkgs.isqc.${component}; }) components);
-            
+            evalShell = shell: shell (builtins.intersectAttrs (builtins.functionArgs shell) {inherit pkgs; system = system';});
+            devShellDefault = (if shell == null then {
+              default = if defaultComponent==null then pkgs.mkShell {} else pkgs.isqc.${defaultComponent};
+            } else {
+              default = evalShell shell;
+            });
+            devShellExtra = builtins.mapAttrs (name: value: value) (evalShell extraShells);
             outputs = ({
               legacyPackages = packages;
             }) // (if defaultComponent==null then {} else {
               defaultPackage = pkgs.isqc.${defaultComponent};
-            }) // (if shell == null then {
-              devShell = if defaultComponent==null then pkgs.mkShell {} else pkgs.isqc.${defaultComponent};
-            } else {
-              devShell = shell (builtins.intersectAttrs (builtins.functionArgs shell) {inherit pkgs; system = system';});
+            }) // (rec {
+              devShells = devShellDefault // devShellExtra;
+              devShell = devShells.default;
             }) // extra;
             in outputs
 
