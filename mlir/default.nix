@@ -5,11 +5,5 @@ llvmPackages.stdenv.mkDerivation {
   buildInputs = [ eigen mlir ];
   src = gitignoreSource ./.;
   cmakeFlags = [ "-DISQ_OPT_ENABLE_ASSERTIONS=1" ];
-  propagatedBuildInputs = [ mlir ];
-  postInstall = ''
-    ls
-    mkdir $out/build
-    tar -czvf $out/build.tar.gz ./* 
-  '';
   inherit mlir;
 }

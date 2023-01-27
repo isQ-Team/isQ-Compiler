@@ -16,6 +16,22 @@
         "type": "github"
       }
     },
+    "flake-compat_2": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1673956053,
+        "narHash": "sha256-4gtG9iQuiKITOjNQQeQIpoIB6b16fm+504Ch3sNKLd8=",
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "35bb57c0c8d8b62bbfd284272c928ceb64ddbde9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "locked": {
         "lastModified": 1667395993,
@@ -166,7 +182,7 @@
       },
       "locked": {
         "lastModified": 1,
-        "narHash": "sha256-DThv8kFaHcL9UoK2YFmw60vK2hvDquh6qemjL3cqhCk=",
+        "narHash": "sha256-pOuEBMBIfr6Mvx/+g9tcCGNqs3dUWsE3onY/RKi9HTI=",
         "path": "./mlir",
         "type": "path"
       },
@@ -397,7 +413,7 @@
     },
     "pre-commit-hooks": {
       "inputs": {
-        "flake-compat": "flake-compat",
+        "flake-compat": "flake-compat_2",
         "flake-utils": "flake-utils_2",
         "gitignore": "gitignore_5",
         "nixpkgs": "nixpkgs_6",
@@ -419,6 +435,7 @@
     },
     "root": {
       "inputs": {
+        "flake-compat": "flake-compat",
         "flake-utils": "flake-utils",
         "isq-opt": "isq-opt",
         "isq-simulator": "isq-simulator",
