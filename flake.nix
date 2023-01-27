@@ -32,9 +32,13 @@
       inputs.isqc-base.follows = "isqc-base";
     };
   };
+  nixConfig = {
+    bash-prompt-prefix = "(nix-isqc:$ISQC_DEV_ENV)";
+
+  };
   outputs = { self, nixpkgs, flake-utils, isqc-base, isqc-driver, isq-simulator, isq-opt, isqc1, rust-overlay, mlir}:
   let lib = nixpkgs.lib; in
-  isqc-base.lib.isqc-components-flake {
+  isqc-base.lib.isqc-components-flake rec {
     inherit self;
     skipBaseOverlay = true;
     
@@ -55,7 +59,17 @@
     preOverlays = [rust-overlay.overlays.default];
     shell = {pkgs, system}: pkgs.mkShell.override {stdenv = pkgs.llvmPackages.stdenv;} {
       inputsFrom = map (flake: flake.devShell.${system}) [isqc1 isq-opt isqc-driver isq-simulator];
-      buildInputs = [];
+      # https://github.com/NixOS/nix/issues/6982
+      nativeBuildInputs = [ pkgs.bashInteractive ];
+      ISQC_DEV_ENV = "dev";
     };
+    extraShells = {pkgs, system}: 
+      let defaultShell = shell {inherit pkgs; inherit system;};
+      in {
+        codium = defaultShell.overrideAttrs (finalAttrs: previousAttrs: {
+          nativeBuildInputs = previousAttrs.nativeBuildInputs ++ [pkgs.vscodium];
+          ISQC_DEV_ENV = "codium";
+        });
+      };
   };
 }
