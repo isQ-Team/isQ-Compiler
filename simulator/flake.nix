@@ -4,7 +4,7 @@
     isqc-base.url = "path:../base";
     gitignore.url = "github:hercules-ci/gitignore.nix";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    mlir.url = "path:../base/vendor/mlir";
+    mlir.url = "path:../vendor/mlir";
   };
   outputs = { self, isqc-base, gitignore, rust-overlay, mlir, ... }:
     isqc-base.lib.isqc-components-flake {
