@@ -1,6 +1,6 @@
-{pkgs? import ./pkgs.nix }:
-let 
-  source_files = (pkgs.nix-gitignore.gitignoreSource [] ../.);
+{ pkgs ? import ./pkgs.nix }:
+let
+  source_files = (pkgs.nix-gitignore.gitignoreSource [ ] ../.);
 in
 {
   source_pkg = pkgs.buildEnv rec {

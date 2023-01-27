@@ -78,6 +78,7 @@
           });
         };
       extra = { pkgs, system }: {
+        formatter = pkgs.nixpkgs-fmt;
         checks = {
           pre-commit-check = pre-commit-hooks.lib.${system}.run {
             src = ./.;
