@@ -3,7 +3,7 @@
   inputs = {
     isqc-base.url = "path:../base";
     gitignore.url = "github:hercules-ci/gitignore.nix";
-    mlir.url = "path:../base/vendor/mlir";
+    mlir.url = "path:../vendor/mlir";
   };
   outputs = { self, isqc-base, gitignore, mlir, ... }:
     isqc-base.lib.isqc-components-flake {

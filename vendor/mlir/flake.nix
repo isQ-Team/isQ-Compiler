@@ -1,7 +1,7 @@
 {
   description = "MLIR";
   inputs = {
-    isqc-base.url = "path:../../";
+    isqc-base.url = "path:../../base";
   };
   outputs = { self, isqc-base }: isqc-base.lib.isqc-components-flake {
     inherit self;

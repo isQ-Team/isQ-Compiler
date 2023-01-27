@@ -5,7 +5,7 @@
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
     mlir = {
-      url = "path:./base/vendor/mlir";
+      url = "path:./vendor/mlir";
       inputs.isqc-base.follows = "isqc-base";
     };
     isqc-base = {
@@ -87,7 +87,7 @@
               update-flake-lock = {
                 enable = true;
                 name = "Update local flake locks.";
-                entry = "nix flake lock --update-input isqc-base --update-input mlir --update-input isqc1 --update-input isq-opt --update-input isqc-driver --update-input isq-simulator";
+                entry = "make lock";
                 language = "system";
                 pass_filenames = false;
 
