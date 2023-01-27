@@ -22,10 +22,12 @@
       url = "path:./simulator";
       inputs.isqc-base.follows = "isqc-base";
       inputs.rust-overlay.follows = "rust-overlay";
+      inputs.mlir.follows = "mlir";
     };
     isq-opt = {
       url = "path:./mlir";
       inputs.isqc-base.follows = "isqc-base";
+      inputs.mlir.follows = "mlir";
     };
     isqc1 = {
       url = "path:./frontend";

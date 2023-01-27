@@ -1,4 +1,4 @@
-all: build
+all: configure build
 configure: isqc1.cabal
 	runhaskell Setup.hs configure
 build: isqc1.cabal
