@@ -1,7 +1,4 @@
-{ pkgs ? import ./buildscript/pkgs.nix }:
-let buildenv = (import ./buildscript/devDependencies.nix { });
+let
+  flake = (builtins.getFlake (builtins.toString ./.));
 in
-pkgs.mkShell ({
-  buildInputs = [ buildenv ];
-
-} // buildenv.passthru.environmentVars)
+flake.devShell.${builtins.currentSystem}
