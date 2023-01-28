@@ -1,4 +1,3 @@
 [toolchain]
 channel = "nightly-2022-03-03"
-components = [ "rust-analyzer-preview", "rust-src"]
 profile = "default"
