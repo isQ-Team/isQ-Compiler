@@ -33,6 +33,10 @@
       url = "path:./frontend";
       inputs.isqc-base.follows = "isqc-base";
     };
+    isqc-docs = {
+      url = "path:./docs";
+      inputs.isqc-base.follows = "isqc-base";
+    };
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
@@ -43,7 +47,7 @@
     bash-prompt-prefix = "(nix-isqc:$ISQC_DEV_ENV)";
 
   };
-  outputs = { self, nixpkgs, flake-utils, isqc-base, isqc-driver, isq-simulator, isq-opt, isqc1, rust-overlay, mlir, pre-commit-hooks, flake-compat }:
+  outputs = { self, nixpkgs, flake-utils, isqc-base, isqc-driver, isq-simulator, isq-opt, isqc1, rust-overlay, mlir, pre-commit-hooks, flake-compat, isqc-docs }:
     let lib = nixpkgs.lib; in
     isqc-base.lib.isqc-components-flake rec {
       inherit self;
@@ -56,6 +60,7 @@
         isq-opt
         isqc-driver
         isq-simulator
+        isqc-docs
       ]) ++ [
         (isqc-base.lib.isqc-override (pkgs: final: prev: {
           isqc = (final.buildISQCEnv { });
@@ -73,7 +78,7 @@
       ]);
       #overlay = isqc-base.overlays.default;
       #overlay = final: prev: prev;
-      components = [ "isqc1" "isq-opt" "isqc-driver" "isq-simulator" "isqc" ];
+      components = [ "isqc1" "isq-opt" "isqc-driver" "isq-simulator" "isqc" "isqc-docs" ];
       defaultComponent = "isqc";
       preOverlays = [ rust-overlay.overlays.default ];
       shell = { pkgs, system }: pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {

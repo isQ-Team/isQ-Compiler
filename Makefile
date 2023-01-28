@@ -57,4 +57,5 @@ lock:
 	cd isqc && nix flake lock --update-input isqc-base
 	cd mlir && nix flake lock --update-input isqc-base --update-input mlir
 	cd frontend && nix flake lock --update-input isqc-base
-	nix flake lock --update-input isqc-base --update-input mlir --update-input isqc1 --update-input isq-opt --update-input isqc-driver --update-input isq-simulator
+	cd docs && nix flake lock --update-input isqc-base
+	nix flake lock --update-input isqc-base --update-input mlir --update-input isqc1 --update-input isq-opt --update-input isqc-driver --update-input isq-simulator --update-input isqc-docs
