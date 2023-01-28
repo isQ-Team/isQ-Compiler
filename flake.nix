@@ -82,7 +82,7 @@
       defaultComponent = "isqc";
       preOverlays = [ rust-overlay.overlays.default ];
       shell = { pkgs, system }: pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
-        inputsFrom = map (flake: flake.devShell.${system}) [ isqc1 isq-opt isqc-driver isq-simulator ];
+        inputsFrom = map (flake: flake.devShell.${system}) [ isqc1 isq-opt isqc-driver isq-simulator isqc-docs ];
         # https://github.com/NixOS/nix/issues/6982
         nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp ];
         ISQC_DEV_ENV = "dev";
