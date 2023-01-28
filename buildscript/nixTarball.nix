@@ -1,18 +1,18 @@
-{pkgs? import ./pkgs.nix, target? import ./default.nix {inherit pkgs;} }:
+{ pkgs ? import ./pkgs.nix, target ? import ./default.nix { inherit pkgs; } }:
 with pkgs;
 let
-nix-user-chroot = ./nix-user-chroot;
-target_path = (builtins.toString target);
-startup_script = writeScript "startup" ''
+  nix-user-chroot = ./nix-user-chroot;
+  target_path = (builtins.toString target);
+  startup_script = writeScript "startup" ''
     #!/bin/sh
     ISQ_PATH=$(dirname "$0")
     $ISQ_PATH/${nix-user-chroot} $ISQ_PATH/nix ${target_path}/bin/isqc "$@"
   '';
-maketar = { targets }:
+  maketar = { targets }:
     stdenv.mkDerivation {
       name = "maketar";
       buildInputs = [ perl ];
-      exportReferencesGraph = map (x: [("closure-" + baseNameOf x) x]) targets;
+      exportReferencesGraph = map (x: [ ("closure-" + baseNameOf x) x ]) targets;
       buildCommand = ''
         storePaths=$(perl ${pathsFromGraph} ./closure-*)
         cp ${startup_script} /build/isqc
@@ -24,5 +24,5 @@ maketar = { targets }:
         cat /build/temp.tar | gzip -9 > $out
       '';
     };
-in 
-maketar {targets = [ target_path nix-user-chroot ];}
+in
+maketar { targets = [ target_path nix-user-chroot ]; }

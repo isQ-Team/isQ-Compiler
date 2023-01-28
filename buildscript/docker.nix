@@ -1,8 +1,8 @@
-{pkgs? import ./pkgs.nix}:
-let 
-isqv2 = import ./. {inherit pkgs;};
+{ pkgs ? import ./pkgs.nix }:
+let
+  isqv2 = import ./. { inherit pkgs; };
 in
 pkgs.dockerTools.buildLayeredImage {
-  contents =  [isqv2];
+  contents = [ isqv2 ];
   name = "isqv2";
 }

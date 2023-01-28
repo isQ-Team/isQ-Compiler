@@ -1,17 +1,17 @@
-{pkgs? import ../buildscript/pkgs.nix }:
+{ rust-bin, makeRustPlatform, gitignoreSource }:
 let
-rustChannel = (pkgs.rustChannelOf { rustToolchain = ./rust-toolchain; });
-rustPlatform = pkgs.makeRustPlatform {
-  cargo = rustChannel.rust;
-  rustc = rustChannel.rust;
-};
+  rust = rust-bin.fromRustupToolchainFile ./rust-toolchain;
+  rustPlatform = makeRustPlatform {
+    cargo = rust;
+    rustc = rust;
+  };
 in
-with pkgs;
 rustPlatform.buildRustPackage rec {
-  pname = "isqc";
+  pname = "isqc-driver";
   version = "0.1.0";
-  src = nix-gitignore.gitignoreSource [] ./.;
+  src = gitignoreSource ./.;
   cargoLock = {
     lockFile = ./Cargo.lock;
   };
+  doCheck = false; # TODO: move tests out of the crate.
 }
