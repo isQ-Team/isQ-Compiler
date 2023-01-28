@@ -1,14 +1,9 @@
-{pkgs? import ../buildscript/pkgs.nix }:
-let 
-  lib = pkgs.lib;
-  callPackage = lib.callPackageWith pkgs;
-  mlir = pkgs.callPackage ./vendor/mlir.nix {};
-in
-with pkgs;
-llvmPackages_13.stdenv.mkDerivation {
-  name = "isq-qir";
-  nativeBuildInputs = [ cmake ninja doxygen graphviz python3 which git lld_13 ];
+{ mlir, cmake, ninja, doxygen, graphviz, python3, which, git, lld, eigen, gitignoreSource, llvmPackages }:
+llvmPackages.stdenv.mkDerivation {
+  name = "isq-opt";
+  nativeBuildInputs = [ cmake ninja doxygen graphviz python3 which git lld ];
   buildInputs = [ eigen mlir ];
-  src = nix-gitignore.gitignoreSource [] ./.;
+  src = gitignoreSource ./.;
   cmakeFlags = [ "-DISQ_OPT_ENABLE_ASSERTIONS=1" ];
+  inherit mlir;
 }

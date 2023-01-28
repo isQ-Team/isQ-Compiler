@@ -238,14 +238,14 @@ fn main()->miette::Result<()> {
             // linking with stub. This step we use byte output.
             let linked_llvm = exec::exec_command("", "llvm-link", &[
                 format!("-"),
-                format!("{}/bin/isq-simulator.bc", &root)
+                format!("{}/share/isq-simulator/isq-simulator.bc", &root)
             ], llvm.as_bytes()).map_err(ioErrorWhen("Calling llvm-link"))?;
             let mut opt_args: Vec<String> = Vec::new();
             if let Some(o) = opt_level{
                 opt_args.push(format!("-O{}", o));
             }
             let optimized_llvm = exec::exec_command("", "opt", &opt_args, &linked_llvm).map_err(ioErrorWhen("Calling opt"))?;
-            let compiled_obj = exec::exec_command("", "llc", &["-filetype=obj"], &optimized_llvm).map_err(ioErrorWhen("Calling llc"))?;
+            let compiled_obj = exec::exec_command("", "llc", &["-filetype=obj", "--relocation-model=pic"], &optimized_llvm).map_err(ioErrorWhen("Calling llc"))?;
             // create obj file.
             let mut tmpfile = tempfile::NamedTempFile::new().map_err(ioErrorWhen("Creating tempfile"))?;
             tmpfile.write_all(&compiled_obj).map_err(IoError)?;
