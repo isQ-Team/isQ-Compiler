@@ -16,4 +16,3 @@ jobs:
     - run: nix --version
     - run: make lock
     - run: nix build --print-build-logs
-    - run: nix-shell shell-codium.nix --run "echo Build dev shell OK."
