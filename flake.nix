@@ -59,6 +59,16 @@
       ]) ++ [
         (isqc-base.lib.isqc-override (pkgs: final: prev: {
           isqc = (final.buildISQCEnv { });
+          devEnvCodium = pkgs.vscode-with-extensions.override {
+            vscodeExtensions = with pkgs.vscode-extensions; [
+              llvm-vs-code-extensions.vscode-clangd # clangd
+              haskell.haskell # haskell
+              rust-lang.rust-analyzer # rust
+              arrterian.nix-env-selector # nix env
+              jnoortheen.nix-ide # nix
+            ];
+            vscode = pkgs.vscodium;
+          };
         }))
       ]);
       #overlay = isqc-base.overlays.default;
@@ -69,7 +79,7 @@
       shell = { pkgs, system }: pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
         inputsFrom = map (flake: flake.devShell.${system}) [ isqc1 isq-opt isqc-driver isq-simulator ];
         # https://github.com/NixOS/nix/issues/6982
-        nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt ];
+        nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp ];
         ISQC_DEV_ENV = "dev";
         shellHook = self.checks.${system}.pre-commit-check.shellHook + ''
           mkdir -p $PWD/.build
@@ -80,7 +90,7 @@
         let defaultShell = shell { inherit pkgs; inherit system; };
         in {
           codium = defaultShell.overrideAttrs (finalAttrs: previousAttrs: {
-            nativeBuildInputs = previousAttrs.nativeBuildInputs ++ [ pkgs.vscodium ];
+            nativeBuildInputs = previousAttrs.nativeBuildInputs ++ [ pkgs.isqc.devEnvCodium ];
             ISQC_DEV_ENV = "codium";
           });
         };
