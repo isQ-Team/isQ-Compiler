@@ -19,7 +19,7 @@ jobs:
     - name: Build docs
       run: |
         nix build .#isqc-docs
-        cp -r ./result/share/doc /tmp/isq-doc
+        cp --recursive --dereference --no-preserve=mode,ownership ./result/share/doc /tmp/isq-doc
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v1
       with:
@@ -37,6 +37,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+    - name: Setup GitHub Pages
+      uses: actions/configure-pages@v1
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v1
