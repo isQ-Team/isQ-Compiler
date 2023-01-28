@@ -1,0 +1,13 @@
+site_name: isQ Docs
+theme:
+  name: 'readthedocs'
+
+nav:
+  - Content:
+    - Home: index.md
+    - Installation: install.md
+    - isQ Programming Language: grammar.md
+    - Examples: example.md
+
+markdown_extentions:
+  - admonition
