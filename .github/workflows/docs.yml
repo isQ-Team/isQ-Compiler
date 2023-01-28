@@ -32,10 +32,10 @@ jobs:
     - run: make lock
     - run: nix build .#isqc-docs
     - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
-        with:
-          # Upload entire repository
-          path: './result/share/'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v1
+      uses: actions/upload-pages-artifact@v1
+      with:
+        # Upload entire repository
+        path: './result/share/'
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v1
