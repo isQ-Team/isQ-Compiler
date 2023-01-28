@@ -151,6 +151,24 @@
     },
     "gitignore_5": {
       "inputs": {
+        "nixpkgs": "nixpkgs_5"
+      },
+      "locked": {
+        "lastModified": 1660459072,
+        "narHash": "sha256-8DFJjXG8zqoONA1vXtgeKXy68KdJL5UaXR8NtVMUbx8=",
+        "owner": "hercules-ci",
+        "repo": "gitignore.nix",
+        "rev": "a20de23b925fd8264fd7fad6454652e142fd7f73",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "gitignore.nix",
+        "type": "github"
+      }
+    },
+    "gitignore_6": {
+      "inputs": {
         "nixpkgs": [
           "pre-commit-hooks",
           "nixpkgs"
@@ -235,9 +253,27 @@
         "type": "path"
       }
     },
-    "isqc-driver": {
+    "isqc-docs": {
       "inputs": {
         "gitignore": "gitignore_3",
+        "isqc-base": [
+          "isqc-base"
+        ]
+      },
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-iNFvCMPpLmJmw3fFG9P0Satb5Pg3fX5gGlIs7pz2EKI=",
+        "path": "./docs",
+        "type": "path"
+      },
+      "original": {
+        "path": "./docs",
+        "type": "path"
+      }
+    },
+    "isqc-driver": {
+      "inputs": {
+        "gitignore": "gitignore_4",
         "isqc-base": [
           "isqc-base"
         ],
@@ -258,7 +294,7 @@
     },
     "isqc1": {
       "inputs": {
-        "gitignore": "gitignore_4",
+        "gitignore": "gitignore_5",
         "isqc-base": [
           "isqc-base"
         ]
@@ -351,6 +387,20 @@
     },
     "nixpkgs_4": {
       "locked": {
+        "lastModified": 1632846328,
+        "narHash": "sha256-sFi6YtlGK30TBB9o6CW7LG9mYHkgtKeWbSLAjjrNTX0=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "2b71ddd869ad592510553d09fe89c9709fa26b2b",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "type": "indirect"
+      }
+    },
+    "nixpkgs_5": {
+      "locked": {
         "lastModified": 1674487464,
         "narHash": "sha256-Jgq50e4S4JVCYpWLqrabBzDp/1mfaxHCh8/OOorHTy0=",
         "owner": "NixOS",
@@ -363,7 +413,7 @@
         "type": "indirect"
       }
     },
-    "nixpkgs_5": {
+    "nixpkgs_6": {
       "locked": {
         "lastModified": 1674692158,
         "narHash": "sha256-oqGpwVg4D+eMSgF7Th5Ve1ysCiH3H3g85vGJ3nvJsZQ=",
@@ -379,7 +429,7 @@
         "type": "github"
       }
     },
-    "nixpkgs_6": {
+    "nixpkgs_7": {
       "locked": {
         "lastModified": 1671271357,
         "narHash": "sha256-xRJdLbWK4v2SewmSStYrcLa0YGJpleufl44A19XSW8k=",
@@ -395,7 +445,7 @@
         "type": "github"
       }
     },
-    "nixpkgs_7": {
+    "nixpkgs_8": {
       "locked": {
         "lastModified": 1665296151,
         "narHash": "sha256-uOB0oxqxN9K7XGF1hcnY+PQnlQJ+3bP2vCn/+Ru/bbc=",
@@ -415,8 +465,8 @@
       "inputs": {
         "flake-compat": "flake-compat_2",
         "flake-utils": "flake-utils_2",
-        "gitignore": "gitignore_5",
-        "nixpkgs": "nixpkgs_6",
+        "gitignore": "gitignore_6",
+        "nixpkgs": "nixpkgs_7",
         "nixpkgs-stable": "nixpkgs-stable"
       },
       "locked": {
@@ -440,10 +490,11 @@
         "isq-opt": "isq-opt",
         "isq-simulator": "isq-simulator",
         "isqc-base": "isqc-base",
+        "isqc-docs": "isqc-docs",
         "isqc-driver": "isqc-driver",
         "isqc1": "isqc1",
         "mlir": "mlir",
-        "nixpkgs": "nixpkgs_5",
+        "nixpkgs": "nixpkgs_6",
         "pre-commit-hooks": "pre-commit-hooks",
         "rust-overlay": "rust-overlay"
       }
@@ -451,7 +502,7 @@
     "rust-overlay": {
       "inputs": {
         "flake-utils": "flake-utils_3",
-        "nixpkgs": "nixpkgs_7"
+        "nixpkgs": "nixpkgs_8"
       },
       "locked": {
         "lastModified": 1674786480,
