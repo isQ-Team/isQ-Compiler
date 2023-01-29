@@ -49,7 +49,7 @@
   };
   outputs = { self, nixpkgs, flake-utils, isqc-base, isqc-driver, isq-simulator, isq-opt, isqc1, rust-overlay, mlir, pre-commit-hooks, flake-compat, isqc-docs }:
     let lib = nixpkgs.lib; in
-    isqc-base.lib.isqc-components-flake rec {
+    (isqc-base.lib.isqc-components-flake rec {
       inherit self;
       skipBaseOverlay = true;
 
@@ -119,5 +119,13 @@
           };
         };
       };
+    }) // {
+      templates = {
+        trivial = {
+          path = ./templates/trivial;
+          description = "Basic flake with isQ.";
+        };
+      };
+      defaultTemplate = self.templates.trivial;
     };
 }

@@ -6,6 +6,7 @@ nav:
   - Content:
     - Home: index.md
     - Installation: install.md
+    - Usage: usage.md
     - isQ Programming Language: grammar.md
     - Examples: example.md
 
