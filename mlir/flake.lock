@@ -72,26 +72,11 @@
       "locked": {
         "lastModified": 1,
         "narHash": "sha256-AA+oaz8lGy/pyUWXBU6gO+in5ZbBzFZJxz2dg7msFkQ=",
-        "path": "../../base",
+        "path": "../base",
         "type": "path"
       },
       "original": {
-        "path": "../../base",
-        "type": "path"
-      }
-    },
-    "mlir": {
-      "inputs": {
-        "isqc-base": "isqc-base_2"
-      },
-      "locked": {
-        "lastModified": 1,
-        "narHash": "sha256-dvJ4SDunl8B2b9yMW31w4LjSiDNr3EeLlp6fAtTdoec=",
-        "path": "../vendor/mlir",
-        "type": "path"
-      },
-      "original": {
-        "path": "../vendor/mlir",
+        "path": "../base",
         "type": "path"
       }
     },
@@ -145,7 +130,22 @@
       "inputs": {
         "gitignore": "gitignore",
         "isqc-base": "isqc-base",
-        "mlir": "mlir"
+        "vendor": "vendor"
+      }
+    },
+    "vendor": {
+      "inputs": {
+        "isqc-base": "isqc-base_2"
+      },
+      "locked": {
+        "lastModified": 1,
+        "narHash": "sha256-/ic4cd3J+Lv0z+7BxEcmaYjdOXsVXza1Zye+3rSF7Uc=",
+        "path": "../vendor",
+        "type": "path"
+      },
+      "original": {
+        "path": "../vendor",
+        "type": "path"
       }
     }
   },

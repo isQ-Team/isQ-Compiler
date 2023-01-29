@@ -4,8 +4,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    mlir = {
-      url = "path:./vendor/mlir";
+    vendor = {
+      url = "path:./vendor";
       inputs.isqc-base.follows = "isqc-base";
     };
     isqc-base = {
@@ -22,12 +22,12 @@
       url = "path:./simulator";
       inputs.isqc-base.follows = "isqc-base";
       inputs.rust-overlay.follows = "rust-overlay";
-      inputs.mlir.follows = "mlir";
+      inputs.vendor.follows = "vendor";
     };
     isq-opt = {
       url = "path:./mlir";
       inputs.isqc-base.follows = "isqc-base";
-      inputs.mlir.follows = "mlir";
+      inputs.vendor.follows = "vendor";
     };
     isqc1 = {
       url = "path:./frontend";
@@ -47,7 +47,7 @@
     bash-prompt-prefix = "(nix-isqc:$ISQC_DEV_ENV)";
 
   };
-  outputs = { self, nixpkgs, flake-utils, isqc-base, isqc-driver, isq-simulator, isq-opt, isqc1, rust-overlay, mlir, pre-commit-hooks, flake-compat, isqc-docs }:
+  outputs = { self, nixpkgs, flake-utils, isqc-base, isqc-driver, isq-simulator, isq-opt, isqc1, rust-overlay, vendor, pre-commit-hooks, flake-compat, isqc-docs }:
     let lib = nixpkgs.lib; in
     (isqc-base.lib.isqc-components-flake rec {
       inherit self;
@@ -55,15 +55,20 @@
 
       overlay = lib.composeManyExtensions ((map (component: component.overlays.default) [
         isqc-base
-        mlir
+        vendor
         isqc1
         isq-opt
         isqc-driver
         isq-simulator
         isqc-docs
       ]) ++ [
-        (isqc-base.lib.isqc-override (pkgs: final: prev: {
+        (isqc-base.lib.isqc-override (pkgs: final: prev: rec {
           isqc = (final.buildISQCEnv { });
+          isqcTarball = final.vendor.buildTarball {
+            name = "isqc";
+            drv = isqc;
+            entry = "${isqc}/bin/isqc";
+          };
           devEnvCodium = pkgs.vscode-with-extensions.override {
             vscodeExtensions = with pkgs.vscode-extensions; [
               llvm-vs-code-extensions.vscode-clangd # clangd
@@ -78,13 +83,13 @@
       ]);
       #overlay = isqc-base.overlays.default;
       #overlay = final: prev: prev;
-      components = [ "isqc1" "isq-opt" "isqc-driver" "isq-simulator" "isqc" "isqc-docs" ];
+      components = [ "isqc1" "isq-opt" "isqc-driver" "isq-simulator" "isqc" "isqc-docs" "isqcTarball" ];
       defaultComponent = "isqc";
       preOverlays = [ rust-overlay.overlays.default ];
       shell = { pkgs, system }: pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
         inputsFrom = map (flake: flake.devShell.${system}) [ isqc1 isq-opt isqc-driver isq-simulator isqc-docs ];
         # https://github.com/NixOS/nix/issues/6982
-        nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp ];
+        nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp pkgs.rust-analyzer ];
         ISQC_DEV_ENV = "dev";
         shellHook = self.checks.${system}.pre-commit-check.shellHook + ''
           mkdir -p $PWD/.build

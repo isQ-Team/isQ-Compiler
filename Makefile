@@ -52,10 +52,10 @@ clean: check-env
 develop:
 	@exec nix develop
 lock:
-	cd vendor/mlir && nix flake lock --update-input isqc-base
+	cd vendor && nix flake lock --update-input isqc-base
 	cd simulator && nix flake lock --update-input isqc-base --update-input mlir
 	cd isqc && nix flake lock --update-input isqc-base
 	cd mlir && nix flake lock --update-input isqc-base --update-input mlir
 	cd frontend && nix flake lock --update-input isqc-base
 	cd docs && nix flake lock --update-input isqc-base
-	nix flake lock --update-input isqc-base --update-input mlir --update-input isqc1 --update-input isq-opt --update-input isqc-driver --update-input isq-simulator --update-input isqc-docs
+	nix flake lock --update-input isqc-base --update-input vendor --update-input isqc1 --update-input isq-opt --update-input isqc-driver --update-input isq-simulator --update-input isqc-docs
