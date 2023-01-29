@@ -16,6 +16,12 @@ nix shell github:arclight-quantum/isQ-Compiler
 isqc --version
 ```
 
+Or you may create a project folder pinned to a compiler version.
+
+```bash
+nix flake new --template github:arclight-quantum/isQ-Compiler hello-quantum
+cd hello-quantum && nix develop
+```
 
 
 Binary Tarball

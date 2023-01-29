@@ -11,9 +11,14 @@
     in
     isqc-base.lib.isqc-components-flake {
       inherit self;
-      overlay = isqc-base.lib.isqc-override (pkgs: final: prev: {
-        isqc1 = pkgs.haskellPackages.callCabal2nix "isqc1" src { };
-      });
+      overlay = isqc-base.lib.isqc-override (pkgs: final: prev:
+        let
+          isqc1 = (pkgs.haskellPackages.callCabal2nix "isqc1" src { });
+          inherit (pkgs.haskell.lib) justStaticExecutables;
+        in
+        {
+          isqc1 = justStaticExecutables isqc1;
+        });
       shell = { pkgs }:
         let
           hs_shell = pkgs.haskellPackages.shellFor {
