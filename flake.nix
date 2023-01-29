@@ -69,6 +69,31 @@
             drv = isqc;
             entry = "${isqc}/bin/isqc";
           };
+          isqcImage = pkgs.dockerTools.streamLayeredImage {
+            contents = [ isqc ];
+            name = "isqc-image";
+          };
+          isqcImageWithUbuntu = pkgs.dockerTools.streamLayeredImage {
+            contents = [
+              (isqc.override {
+                extraPrefix = "/opt/isqc";
+                postBuild = ''
+                  wrapProgram $out/opt/isqc/bin/isqc --set ISQ_ROOT $out/opt/isqc/
+                '';
+              })
+            ];
+            fromImage = pkgs.dockerTools.pullImage {
+              imageName = "ubuntu";
+              imageDigest = "sha256:965fbcae990b0467ed5657caceaec165018ef44a4d2d46c7cdea80a9dff0d1ea";
+              sha256 = "P7EulEvNgOyUcHH3fbXRAIAA3afHXx5WELJX7eNeUuM=";
+              finalImageName = "ubuntu";
+              finalImageTag = "latest";
+            };
+            config = {
+              Env = [ "PATH=/opt/isqc/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" ];
+            };
+            name = "isqc-ubuntu-image";
+          };
           devEnvCodium = pkgs.vscode-with-extensions.override {
             vscodeExtensions = with pkgs.vscode-extensions; [
               llvm-vs-code-extensions.vscode-clangd # clangd
@@ -83,7 +108,17 @@
       ]);
       #overlay = isqc-base.overlays.default;
       #overlay = final: prev: prev;
-      components = [ "isqc1" "isq-opt" "isqc-driver" "isq-simulator" "isqc" "isqc-docs" "isqcTarball" ];
+      components = [
+        "isqc1"
+        "isq-opt"
+        "isqc-driver"
+        "isq-simulator"
+        "isqc"
+        "isqc-docs"
+        "isqcTarball"
+        "isqcImage"
+        "isqcImageWithUbuntu"
+      ];
       defaultComponent = "isqc";
       preOverlays = [ rust-overlay.overlays.default ];
       shell = { pkgs, system }: pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
@@ -117,8 +152,6 @@
                 entry = "make lock";
                 language = "system";
                 pass_filenames = false;
-
-
               };
             };
           };
