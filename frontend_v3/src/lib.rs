@@ -17,6 +17,7 @@ pub mod mlir;
  */
 pub mod resolve;
 pub mod error;
+pub mod diagnostic;
 #[cfg(test)]
 mod tests {
     #[test]
