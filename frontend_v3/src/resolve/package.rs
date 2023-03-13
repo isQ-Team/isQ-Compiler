@@ -11,13 +11,17 @@ use std::collections::HashMap;
 
 use nom::{InputIter};
 
+use crate::lang::location::Span;
+
 /* 
  * Path relative to the module root.
  */
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ModulePath(Vec<Arc<String>>);
 
-#[derive(Clone, Hash, Eq, PartialEq)]
+
+
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct PackageMetadata{
     pub name: String,
     pub hash: u256
@@ -36,22 +40,35 @@ impl PackageMetadata{
         base_62::encode(&bytes)
     }
 }
+#[derive(Debug)]
 pub struct Symbol{
     package: Arc<PackageMetadata>,
     path: Arc<ModulePath>,
     leaf: String,
     mangled: String,
-    hidden: bool
+    hidden: bool,
+    location: Span,
 }
 
 
 
 impl Symbol{
-    pub fn new(package: Arc<PackageMetadata>, path: Arc<ModulePath>, leaf: String, hidden: bool)->Self{
+    pub fn qualified_name(&self)->String{
+        let mut parts: Vec<&str> = vec![];
+        parts.push(&self.package.name);
+        for part in self.path.0.iter(){
+            parts.push(&**part);
+        }
+        parts.join("::")
+    }
+    pub fn new(package: Arc<PackageMetadata>, path: Arc<ModulePath>, leaf: String, hidden: bool, location: Span)->Self{
         let mangled = Self::mangle(&package, &path, &leaf);
         Symbol{
-            package, path, leaf, mangled, hidden
+            package, path, leaf, mangled, hidden, location
         }
+    }
+    pub fn definition_location(&self)->Span{
+        self.location
     }
     pub fn mangled_name(&self)->&str{
         &self.mangled
@@ -90,6 +107,7 @@ impl Symbol{
     }
 }
 
+#[derive(Debug)]
 pub enum ModuleEntry{
     Module(Module),
     Symbol(Symbol)
@@ -127,6 +145,7 @@ impl ModuleEntry{
     }
 }
 
+#[derive(Debug)]
 pub struct Module{
     package: Arc<PackageMetadata>,
     module_path: Arc<ModulePath>,
@@ -134,6 +153,14 @@ pub struct Module{
 }
 
 impl Module{
+    pub fn qualified_name(&self)->String{
+        let mut parts: Vec<&str> = vec![];
+        parts.push(&self.package.name);
+        for part in self.module_path.0.iter(){
+            parts.push(&**part);
+        }
+        parts.join("::")
+    }
     pub fn path(&self)->&ModulePath{
         &self.module_path
     }
@@ -156,13 +183,13 @@ impl Module{
         }
         self.get_entry_mut(name).and_then(|x| x.as_module_mut())
     }
-    pub fn insert_symbol(&mut self, name: &str, hidden: bool)->Option<&mut Symbol>{
+    pub fn insert_symbol(&mut self, name: &str, hidden: bool, location: Span)->Result<&mut Symbol, &ModuleEntry>{
         if self.symbols.contains_key(name){
-            return None;
+            return Err(self.symbols.get(name).unwrap());
         }
-        let sym = Symbol::new(Arc::clone(&self.package), Arc::clone(&self.module_path), name.to_owned(), hidden);
+        let sym = Symbol::new(Arc::clone(&self.package), Arc::clone(&self.module_path), name.to_owned(), hidden, location);
         self.symbols.insert(name.to_owned(), ModuleEntry::new_symbol(sym));
-        self.get_entry_mut(name).and_then(|x| x.as_symbol_mut())
+        Ok(self.get_entry_mut(name).and_then(|x| x.as_symbol_mut()).unwrap())
     }
 }
 
@@ -282,10 +309,10 @@ mod tests{
     #[test]
     fn test_moduletree(){
         let mut package = PackageSymbolTable::new("testPackage", u256::new(114514));
-        let sym = package.root_module_mut().insert_symbol("foo", false).unwrap();
+        let sym = package.root_module_mut().insert_symbol("foo", false, Span::empty()).unwrap();
         println!("{}", sym.mangled_name());
         let module = package.root_module_mut().entry_module("foobar").unwrap();
-        let sym2 = module.insert_symbol("bar", false).unwrap();
+        let sym2 = module.insert_symbol("bar", false, Span::empty()).unwrap();
         println!("{}", sym2.mangled_name());
     }
 }
