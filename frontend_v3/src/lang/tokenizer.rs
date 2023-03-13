@@ -1,6 +1,8 @@
+use crate::error::TokenizerError;
+
 // isQ tokenizer written in Nom.
 use super::{tokens::*, location::Span};
-use nom::{combinator::*, IResult, bytes::complete::{tag}, branch::alt, character::complete::{char, anychar, u64,  newline, multispace0, satisfy}, error::{ErrorKind, Error}, number::complete::double, sequence::pair, multi::{many_till, many0}, AsChar};
+use nom::{combinator::*, IResult, bytes::complete::{tag}, branch::alt, character::complete::{char, anychar, u64,  newline, multispace0, satisfy}, error::{ErrorKind, Error}, number::complete::double, sequence::pair, multi::{many_till, many0}, AsChar, Finish};
 use std::cell::Cell;
 use nom_locate::{LocatedSpan, position};
 
@@ -338,6 +340,13 @@ pub fn tokenizer<'a>(s: &'a str)->IResult<NomSpan<'a>, Vec<TokenLoc<'a>>>{
 pub fn tokenizer_all<'a>(s: &'a str)->IResult<NomSpan<'a>, Vec<TokenLoc<'a>>>{
     let s2 = NomSpan::new(s);
     all_consuming(tokenize_lexeme)(s2).map(|(s, x)| (s, x.into_iter().filter(|y| if let Token::Comment = y.0 {false} else {true}).collect()))
+}
+
+pub fn tokenizer_entry<'a>(s: &'a str)->Result<Vec<TokenLoc<'a>>, TokenizerError>{
+    match tokenizer_all(s).finish(){
+        Ok(output) => Ok(output.1),
+        Err(error) => Err(TokenizerError(Span { byte_offset: error.input.location_offset(), byte_len: 0 })),
+    }
 }
 
 

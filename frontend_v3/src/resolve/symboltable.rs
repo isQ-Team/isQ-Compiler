@@ -106,7 +106,7 @@ impl<'a> SymbolTableLayer<'a>{
                     let sym = ent.as_symbol().unwrap();
                     self.add_global_symbol(&name.0, sym, name.1.span()).map_err(|sym| {
                         ISQFrontendError::redefined_symbol_error(&name.0, name.1.loc, &sym)
-                    });
+                    })?;
                 },
                 crate::lang::ast::ASTNode::Import(imp) => {
                     let imported_entries = imp.imports();

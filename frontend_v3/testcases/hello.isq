@@ -6,8 +6,9 @@ procedure first_sum(x: int)->int{
         sum = sum + i;
     }
     return sum;
+    ctrl<1> a();
 }
-fn main(){
+fn main()->i8{
     //print a;
     return 0;
 }
