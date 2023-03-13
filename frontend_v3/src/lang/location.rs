@@ -10,4 +10,7 @@ impl Span{
             byte_len: rhs.byte_offset + rhs.byte_len - self.byte_offset
         }
     }
+    pub fn empty()->Self{
+        Span { byte_offset: 0, byte_len: 0 }
+    }
 }
