@@ -278,6 +278,27 @@ impl<T> VarLexicalTy<T>{
     }
 }
 
+pub type IdentWithLoc<'a> = (&'a str, Span);
+pub enum ImportPartLast<'a>{
+    All(Span),
+    Single{
+        entry: IdentWithLoc<'a>,
+        import_as: Option<IdentWithLoc<'a>>
+    }
+}
+pub struct ExpandedImportEntry<'a>{
+    pub prefix: Vec<IdentWithLoc<'a>>,
+    pub last: ImportPartLast<'a>
+}
+impl<'a> ExpandedImportEntry<'a>{
+    pub fn single(prefix: Vec<IdentWithLoc<'a>>, last: IdentWithLoc<'a>, renamed: Option<IdentWithLoc<'a>>)->Self{
+        Self { prefix, last: ImportPartLast::Single { entry: last, import_as: renamed } }
+    }
+    pub fn all(prefix: Vec<IdentWithLoc<'a>>, span: Span)->Self{
+        Self { prefix, last: ImportPartLast::All(span) }
+    }
+}
+
 impl<T> ImportEntry<T>{
     pub fn lift<U, F: Fn(T)->U>(self, f: &F)->ImportEntry<U>{
         ImportEntry(match self.0{
@@ -286,21 +307,24 @@ impl<T> ImportEntry<T>{
             ImportEntryType::All(q) => ImportEntryType::All(q.map(|x| x.lift(f))),
         }, f(self.1))
     }
-    fn traverse_import<'a>(&'a self, prefix: &[&'a str], collector: &mut Vec<(Vec<&'a str>, Option<(&'a str, Option<&'a str>)>)>) {
+}
+
+impl<T: HasSpan> ImportEntry<T>{
+    fn traverse_import<'a>(&'a self, prefix: &[IdentWithLoc<'a>], collector: &mut Vec<ExpandedImportEntry<'a>>) {
         match &self.0{
             ImportEntryType::Single(q, rename) => {
                 let mut prefix = prefix.to_vec();
                 for part in q.0.iter(){
-                    prefix.push(&part.0);
+                    prefix.push((&part.0, part.1.span()));
                 }
                 let last_name = prefix.pop().unwrap();
-                collector.push((prefix, Some((last_name, rename.as_ref().map(|x| &*x.0)))))
+                collector.push(ExpandedImportEntry::single(prefix, last_name, rename.map(|x| (&*x.0, x.1.span()))))
 
             },
             ImportEntryType::Tree(q, subtree) => {
                 let mut prefix = prefix.to_vec();
                 for part in q.iter().flat_map(|x| x.0.iter()){
-                    prefix.push(&part.0);
+                    prefix.push((&part.0, part.1.span()));
                 }
                 for tree in subtree{
                     tree.traverse_import(&prefix, collector);
@@ -309,20 +333,19 @@ impl<T> ImportEntry<T>{
             ImportEntryType::All(q) => {
                 let mut prefix = prefix.to_vec();
                 for part in q.iter().flat_map(|x| x.0.iter()){
-                    prefix.push(&part.0);
+                    prefix.push((&part.0, part.1.span()));
                 }
-                collector.push((prefix, None));
+                collector.push(ExpandedImportEntry::all(prefix, self.1.span()));
             },
         }
     }
-    pub fn imports<'a> (&'a self)->Vec<(Vec<&'a str>, Option<(&'a str, Option<&'a str>)>)>{
+    pub fn imports<'a> (&'a self)->Vec<ExpandedImportEntry<'a>>{
         let mut all_imports = vec![];
         self.traverse_import(&[], &mut all_imports);
         all_imports
 
     }
 }
-
 impl<E, T> AST<E, T>{
     pub fn lift<E2, T2, F: Fn(E)->E2, G: Fn(T)->T2>(self, f: &F, g: &G)->AST<E2, T2>{
         AST(Box::new(match *self.0{
@@ -353,3 +376,13 @@ impl<E, T> AST<E, T>{
 pub type LExpr = Expr<Span>;
 pub type LAST = AST<Span, Span>;
 pub type LASTBlock = ASTBlock<Span, Span>;
+
+pub trait HasSpan{
+    fn span(&self)->Span;
+}
+
+impl HasSpan for Span{
+    fn span(&self)->Span{
+        *self
+    }
+}
