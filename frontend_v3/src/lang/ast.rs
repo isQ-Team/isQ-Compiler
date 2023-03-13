@@ -318,7 +318,7 @@ impl<T: HasSpan> ImportEntry<T>{
                     prefix.push((&part.0, part.1.span()));
                 }
                 let last_name = prefix.pop().unwrap();
-                collector.push(ExpandedImportEntry::single(prefix, last_name, rename.map(|x| (&*x.0, x.1.span()))))
+                collector.push(ExpandedImportEntry::single(prefix, last_name, rename.as_ref().map(|x| (&*x.0, x.1.span()))))
 
             },
             ImportEntryType::Tree(q, subtree) => {

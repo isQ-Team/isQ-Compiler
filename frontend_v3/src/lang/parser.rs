@@ -4,7 +4,10 @@ mod expr;
 mod types;
 mod statement;
 
-use nom::{IResult, combinator::*, error::ErrorKind, multi::*, sequence::*, branch::*};
+use miette::Diagnostic;
+use nom::{IResult, combinator::*, error::ErrorKind, multi::*, sequence::*, branch::*, Finish};
+use thiserror::Error;
+
 
 use self::types::{parse_base_type, parse_full_type};
 
@@ -17,14 +20,60 @@ use ReservedId::*;
 
 use expr::parse_expr;
 use std::ops::Fn;
+
+impl<'a> Into<miette::SourceSpan> for TokenLoc<'a>{
+    fn into(self) -> miette::SourceSpan {
+        self.1.into()
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum ParseError<'s, 'a>{
     // TODO: merge unexpected token for better error hint.
-    UnexpectedToken(TokenLoc<'a>),
+    UnexpectedToken(
+        TokenLoc<'a>
+    ),
     UnexpectedEOF,
-    UnitaryOpExpectCallExpr(Span),
+    UnitaryOpExpectCallExpr(
+        Span
+    ),
     // TODO: map the error to the errors above.
     NomError(nom::error::ErrorKind, TokenStream<'s, 'a>)
+}
+
+#[derive(Diagnostic, Debug, Clone, Error)]
+pub enum ParseErrorDiagnostic{
+    // TODO: merge unexpected token for better error hint.
+    #[error("unexpected token `{token}`")]
+    UnexpectedToken{
+        token: String,
+        #[label("here")]
+        loc: Span
+    },
+    #[error("unexpected EOF")]
+    UnexpectedEOF,
+    #[error("unitary gate modifiers should only be placed before calling statements")]
+    UnitaryOpExpectCallExpr(
+        #[label("for this statement")]
+        Span
+    ),
+    // TODO: map the error to the errors above.
+    #[error("nom error: {0}")]
+    NomError(String, 
+        #[label("when handling token here")]
+        Option<Span>)
+}
+
+impl<'s, 'a> Into<ParseErrorDiagnostic> for ParseError<'s, 'a>{
+    fn into(self) -> ParseErrorDiagnostic {
+        match self{
+            ParseError::UnexpectedToken(tok) => ParseErrorDiagnostic::UnexpectedToken { token: format!("{:?}"
+            , tok.0), loc: tok.1 },
+            ParseError::UnexpectedEOF => ParseErrorDiagnostic::UnexpectedEOF,
+            ParseError::UnitaryOpExpectCallExpr(s) => ParseErrorDiagnostic::UnitaryOpExpectCallExpr(s),
+            ParseError::NomError(e, r) => ParseErrorDiagnostic::NomError(format!("{:?}", e), r.get(0).map(|x| x.1)),
+        }
+    }
 }
 
 impl<'s, 'a> nom::error::ParseError<TokenStream<'s, 'a>> for ParseError<'s, 'a>{
@@ -52,6 +101,18 @@ impl<'s, 'a> nom::error::ParseError<TokenStream<'s, 'a>> for ParseError<'s, 'a>{
 
 type TokenStream<'s, 'a> = &'s [TokenLoc<'a>];
 type ParseResult<'s, 'a, T> = IResult<TokenStream<'s, 'a>, T, ParseError<'s, 'a>>;
+
+fn err_to_failure<'s, 'a, T>(s: ParseResult<'s, 'a, T>)->ParseResult<'s, 'a, T>{
+    match s{
+        Ok(x) => Ok(x),
+        Err(e) => match e{
+            nom::Err::Incomplete(i) => Err(e),
+            nom::Err::Error(e) => Err(nom::Err::Failure(e)),
+            nom::Err::Failure(f) => Err(e),
+        },
+    }
+}
+
 
 fn next<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, 'a, TokenLoc<'a>>{
     if s.len()==0{
@@ -142,6 +203,13 @@ pub use statement::parse_toplevel_statement;
 
 pub fn parse_program<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, 'a, Vec<LAST>>{
     all_consuming(parse_toplevel_statement)(s)
+}
+
+pub fn parse_entry<'s, 'a>(s: TokenStream<'s, 'a>)->Result<Vec<LAST>, ParseError<'s, 'a>>{
+    match parse_program(s).finish(){
+        Ok(vec) => Ok(vec.1),
+        Err(err) => Err(err),
+    }
 }
 
 #[cfg(test)]

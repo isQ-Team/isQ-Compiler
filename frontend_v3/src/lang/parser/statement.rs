@@ -165,11 +165,11 @@ let arr3 = [1,2,3,4,5];
 
 fn parse_let_defvar_type<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, 'a, VarLexicalTy<Span>>{
     let (s, _tok) = reserved_op(Colon)(s)?;
-    parse_full_type(s)
+    cut(parse_full_type)(s)
 }
 fn parse_let_initval<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, 'a, Expr<Span>>{
     let (s, _tok) = reserved_op(Assign)(s)?;
-    parse_expr(s)
+    cut(parse_expr)(s)
 }
 
 fn parse_statement_let_defvar<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, 'a, LAST>{
@@ -177,7 +177,7 @@ fn parse_statement_let_defvar<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, '
     let (s, ident) = parse_ident(s)?;
     let (s, type_annotation) = opt(parse_let_defvar_type)(s)?;
     let (s, initval) = opt(parse_let_initval)(s)?;
-    let (s, tok_semicolon) = reserved_op(Semicolon)(s)?;
+    let (s, tok_semicolon) = cut(reserved_op(Semicolon))(s)?;
     Ok((s, ok_ast(ASTNode::Defvar { definitions: vec![
         (VarDef{var: ident, ty: type_annotation}, initval)
     ] }, tok.1.span_over(tok_semicolon.1))))
@@ -210,7 +210,7 @@ fn parse_statement_gate_decoration<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<
 
 fn parse_statement_unitary<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, 'a, LAST>{
     let (s, decor) = parse_statement_gate_decoration(s)?;
-    let (s, call_expr) = parse_expr(s)?;
+    let (s, call_expr) = cut(parse_expr)(s)?;
     let (s, tok_semicolon) = reserved_op(Semicolon)(s)?;
     let mut span = call_expr.1;
     if let Some(x) = decor.first(){
@@ -223,7 +223,7 @@ fn parse_statement_unitary<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, 'a, 
             call: call_expr 
         }, span)));
     }else{
-        return unitary_op_expect_call_expr(span);
+        return err_to_failure(unitary_op_expect_call_expr(span));
     }
 }
 fn parse_statement_package<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, 'a, LAST>{

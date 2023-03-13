@@ -1,33 +1,68 @@
-// TODO: better error.
+use miette::{Diagnostic, SourceSpan};
+use thiserror::Error;
+
 
 use crate::{lang::location::Span, resolve::{symboltable::SymbolInfo, package::{Module, Symbol}}};
 
+impl Into<SourceSpan> for Span{
+    fn into(self) -> SourceSpan {
+        SourceSpan::new(self.byte_offset.into() , self.byte_len.into())
+    }
+}
+
+#[derive(Diagnostic, Debug, Error)]
+#[error("syntax error")]
+pub struct TokenizerError(
+    #[label("tokenizer failed here")]
+    pub Span
+);
+
+
+#[derive(Diagnostic, Debug, Error)]
 pub enum ISQFrontendError{
-    GeneralError(&'static str, Span),
+    #[error("opaque error: {0}")]
+    #[diagnostic(code(isq::opaque))]
+    GeneralError(
+        &'static str, 
+        #[label("here")]
+        Span),
+    #[diagnostic(code(isq::redefined_symbol))]
+    #[error("redefined symbol `{symbol_name}`")]
     RedefinedSymbol{
         symbol_name: String,
+        #[label("redefinition of symbol")]
         defined_here: Span,
+        #[label("first defined here")]
         first_defined_here: Span
     },
+    #[error("symbol `{symbol_name}` conflict with submodule `{module_path}`")]
     NameClashWithModule{
         symbol_name: String,
+        #[label("redefinition of symbol")]
         defined_here: Span,
         module_path: String,
     },
+    #[error("undefined symbol `{symbol_name}`")]
     UndefinedSymbol{
         symbol_name: String,
+        #[label("undefined symbol here")]
         used_here: Span,
     },
+    #[error("identifier `{usage_name}` refers to module `{qualified_name}`")]
     NameIsModule{
         usage_name: String,
         qualified_name: String,
+        #[label("symbol here")]
         used_here: Span,
     },
+    #[error("`{qualified_name}` is not a module")]
     NotAModule{
         qualified_name: String,
+        #[label("here")]
         used_here: Span,
+        #[label("the symbol is defined here")]
         defined_here: Span
-    }
+    },
 }
 impl ISQFrontendError{
     pub fn undefined_symbol_error(symbol_name: &str, used_here: Span)->Self{
