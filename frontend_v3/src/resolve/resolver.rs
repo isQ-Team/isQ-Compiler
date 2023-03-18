@@ -38,7 +38,7 @@ impl<'a> Resolver<'a>{
     }
     fn visit_block_noscope(&mut self, block: &mut ASTBlock<SymbolInfoAnnotation<'a>, SymbolInfoAnnotation<'a>>)->FResult<()>{
         for stmt in block.0.iter_mut(){
-            self.resolve_symbols(stmt)?;
+            self.visit_statement(stmt)?;
         }
         return Ok(())
     }
@@ -135,7 +135,7 @@ impl<'a> Resolver<'a>{
         vardef.var.1.symbol_info = Some(id);
         Ok(())
     }
-    pub fn resolve_symbols(&mut self, ast: &mut SymAST<'a>)->FResult<()>{
+    fn visit_statement(&mut self, ast: &mut SymAST<'a>)->FResult<()>{
         match &mut *ast.0{
             crate::lang::ast::ASTNode::Block(block) => {
                 self.visit_block_scoped(block)?;
@@ -187,7 +187,7 @@ impl<'a> Resolver<'a>{
                 
             },
             crate::lang::ast::ASTNode::Import(_) => {},
-            crate::lang::ast::ASTNode::Procedure { name, args, body, deriving_clauses } => {
+            crate::lang::ast::ASTNode::Procedure { name, args, body, deriving_clauses, return_type } => {
                 self.visit_block_scoped_init(body, |self_| {
                     for arg in args.iter_mut(){
                         self_.visit_vardef(arg)?;
@@ -212,6 +212,12 @@ impl<'a> Resolver<'a>{
             crate::lang::ast::ASTNode::Empty => {
 
             },
+        }
+        Ok(())
+    }
+    pub fn resolve_program<'b, 'c>(&'b mut self, program: &'c mut Vec<SymAST<'a>>)->FResult<()>{
+        for stmt in program.iter_mut(){
+            self.visit_statement(stmt)?;
         }
         Ok(())
     }

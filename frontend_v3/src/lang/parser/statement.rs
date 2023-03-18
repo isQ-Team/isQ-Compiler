@@ -332,7 +332,7 @@ fn parse_statement_procedure<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, 'a
     let signature_span = tok_procedure.1.span_over(return_type.1);
     let (s, body) = parse_statement_block(s)?;
     let (s, deriving_clause) = opt(parse_procedure_deriving)(s)?;
-    Ok((s, ok_ast(ASTNode::Procedure { name: name, args: vec![], body, deriving_clauses: deriving_clause.unwrap_or(vec![]) }, signature_span)))
+    Ok((s, ok_ast(ASTNode::Procedure { name: name, args: vec![], body, deriving_clauses: deriving_clause.unwrap_or(vec![]), return_type }, signature_span)))
 }
 
 fn parse_statement_return<'s, 'a>(s: TokenStream<'s, 'a>)->ParseResult<'s, 'a, LAST>{

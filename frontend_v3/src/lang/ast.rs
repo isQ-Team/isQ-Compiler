@@ -191,7 +191,8 @@ pub enum ASTNode<E, T>{
         name: Ident<T>,
         args: Vec<VarDef<T>>,
         body: ASTBlock<E, T>,
-        deriving_clauses: Vec<DerivingClause<T>>
+        deriving_clauses: Vec<DerivingClause<T>>,
+        return_type: VarLexicalTy<T>
     },
     Pass, Return(Option<Expr<E>>), Continue, Break, Empty
 }
@@ -362,7 +363,7 @@ impl<E, T> AST<E, T>{
             ASTNode::Unitary { modifiers, call } => ASTNode::Unitary { modifiers: modifiers.into_iter().map(|x| x.lift(g)).collect(), call: call.lift(f) },
             ASTNode::Package(pkg) => ASTNode::Package(pkg.lift(g)),
             ASTNode::Import(imp) => ASTNode::Import(imp.lift(g)),
-            ASTNode::Procedure { name, args, body, deriving_clauses } => ASTNode::Procedure { name: name.lift(g), args: args.into_iter().map(|x| x.lift(g)).collect(), body: body.lift(f, g), deriving_clauses: deriving_clauses.into_iter().map(|x| x.lift(g)).collect() },
+            ASTNode::Procedure { name, args, body, deriving_clauses, return_type } => ASTNode::Procedure { name: name.lift(g), args: args.into_iter().map(|x| x.lift(g)).collect(), body: body.lift(f, g), deriving_clauses: deriving_clauses.into_iter().map(|x| x.lift(g)).collect() , return_type: return_type.lift(g)},
             ASTNode::Pass => ASTNode::Pass,
             ASTNode::Return(x) => ASTNode::Return(x.map(|y| y.lift(f))),
             ASTNode::Continue => ASTNode::Continue,
