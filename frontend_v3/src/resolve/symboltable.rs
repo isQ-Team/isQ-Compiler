@@ -98,7 +98,7 @@ impl<'a> SymbolTableLayer<'a>{
         self.local_info_map.get(&local)
     }
     // pull top-level declarations (procedure definitions, gate definitions, global imports) into symbol table.
-    pub fn pull_declarations(&mut self, global: &'a PackageClosure, current_module: &'a Module, body: &mut Vec<SymAST<'a>>)->FResult<()>{
+    pub fn pull_declarations<'b, 'c>(&mut self, global: &'a PackageClosure, current_module: &'a Module, body: &'b mut Vec<SymAST<'c>>)->FResult<()>{
         for item in body.iter(){
             match &*item.0{
                 crate::lang::ast::ASTNode::Gatedef { name, definition } => {
@@ -175,7 +175,7 @@ impl<'a> SymbolTableLayer<'a>{
                         })?;
                     }
                 }
-                crate::lang::ast::ASTNode::Procedure { name, args, body, deriving_clauses } => {
+                crate::lang::ast::ASTNode::Procedure { name, args, body, deriving_clauses, return_type } => {
                     let sym = current_module.get_entry(&name.0).unwrap().as_symbol().unwrap();
                     self.add_global_symbol(&name.0, sym, name.1.span()).map_err(|sym| {
                         ISQFrontendError::redefined_symbol_error(&name.0, name.1.span(), &sym)
@@ -232,22 +232,22 @@ impl<'a> SymbolTable<'a>{
     /**
         Create a new symbol table and import all modules into the symbol table root.
     */
-    pub fn new(package: &'a PackageClosure, module_path: Arc<ModulePath>)->Self{
+    pub fn new<'b, 'c>(package: &'a PackageClosure, module_path: Arc<ModulePath>, body: &'b mut Vec<SymAST<'c>>)->FResult<Self>{
         let mut package_layer = SymbolTableLayer::new();
-        let module_layer = SymbolTableLayer::new();
+        let mut module_layer = SymbolTableLayer::new();
         for external_package in package.visible_dependency_packages(){
             // must be successful.
             package_layer.add_global_module(external_package.0, external_package.2.root_module(), Span::empty()).unwrap();
         }
         // pull all top level declarations to table.
-
+        module_layer.pull_declarations(package, package.me().root_module(), body)?;
 
         let table = SymbolTable{
             layers: vec![package_layer, module_layer],
             package
         };
         
-        table
+        Ok(table)
     }
     pub fn push_scope(&mut self){
         self.layers.push(SymbolTableLayer::new())
