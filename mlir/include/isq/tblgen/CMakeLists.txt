@@ -27,9 +27,21 @@ mlir_tablegen(ISQASTAttrs.cpp.inc -gen-attrdef-defs -attrdefs-dialect isqast)
 #mlir_tablegen(ISQASTStructAttrs.cpp.inc -gen-struct-attr-defs -attrdefs-dialect isqast)
 
 
-# mlir_tablegen(IRAttr.md -gen-attrdef-doc --attrdefs-dialect isq)
-#add_custom_command(OUTPUT IR.md 
-#    COMMAND python3 ${PROJECT_SOURCE_DIR}/scripts/fix_dialect_doc.py __tmp_IR.md IR.md
-#    DEPENDS __tmp_IR.md)
+set(LLVM_TARGET_DEFINITIONS Extra.td)
+mlir_tablegen(ISQExtraOps.h.inc -gen-op-decls -dialect isqextra)
+mlir_tablegen(ISQExtraOPs.cpp.inc -gen-op-defs -dialect isqextra)
+mlir_tablegen(ISQExtraDialect.h.inc -gen-dialect-decls -dialect isqextra)
+mlir_tablegen(ISQExtraDialect.cpp.inc -gen-dialect-defs -dialect isqextra)
+#mlir_tablegen(ISQExtraEnums.h.inc -gen-enum-decls -dialect isqextra)
+#mlir_tablegen(ISQExtraEnums.cpp.inc -gen-enum-defs -dialect isqextra)
+mlir_tablegen(ISQExtraTypes.h.inc -gen-typedef-decls -dialect isqextra)
+mlir_tablegen(ISQExtraTypes.cpp.inc -gen-typedef-defs -dialect isqextra)
+mlir_tablegen(ISQExtraAttrs.h.inc -gen-attrdef-decls -attrdefs-dialect isqextra)
+mlir_tablegen(ISQExtraAttrs.cpp.inc -gen-attrdef-defs -attrdefs-dialect isqextra)
+
+mlir_tablegen(IRAttr.md -gen-attrdef-doc --attrdefs-dialect isq)
+add_custom_command(OUTPUT IR.md 
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/scripts/fix_dialect_doc.py __tmp_IR.md IR.md
+    DEPENDS __tmp_IR.md)
 #add_custom_target(mlir-dialect-doc ALL DEPENDS IR.md)
 add_public_tablegen_target(MLIRTablegen)
