@@ -7,6 +7,7 @@ use self::package::{PackageClosure, Module, ModulePath};
 use crate::error::Result;
 pub mod package;
 pub mod symboltable;
+pub mod resolver;
 
 /*
  * isQ Symbol resolution steps:
