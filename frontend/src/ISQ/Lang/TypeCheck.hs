@@ -551,9 +551,18 @@ typeCheckAST' f (NDefvar pos defs) = do
                                     r'' <- matchType [ArrayType $ Exact $ boolType ()] r'
                                     rid <- setSym sym pos $ annotationExpr r''
                                     return (left_type, rid, Just r'')
+                                Type () Bool [] -> do
+                                    r''<-matchType [Exact left_type] r'
+                                    rid <- setSym sym pos $ annotationExpr r''
+                                    return (left_type, rid, Just r'')
                                 other -> throwError $ UnsupportedType pos other
                         Nothing -> case length of
-                            Nothing -> throwError $ UnsupportedType pos left_type
+                            Nothing -> do
+                                case left_type of
+                                    Type () Bool [] -> do
+                                        rid <- defineSym sym pos left_type
+                                        return (left_type, rid, Nothing)
+                                    _ -> throwError $ UnsupportedType pos left_type
                             Just (EIntLit _ len) -> do
                                 case left_type of
                                     Type () (Array 0) [Type () Bool []] -> do
@@ -596,27 +605,26 @@ typeCheckAST' f (NDefvar pos defs) = do
 typeCheckAST' f (NAssign pos lhs rhs op) = do
     rhs'<-typeCheckExpr rhs
     in_oracle <- gets inOracle
+    lhs' <- typeCheckExpr lhs
     case in_oracle of
         True -> do
+            lhs'' <- matchType [Exact $ boolType()] lhs'
             case lhs of
                 EIdent lpos ident -> do
                     let sym = SymVar ident
                     sym_data <- getSym lpos sym
                     let lhs_ty = definedType sym_data
                     case lhs_ty of
-                        Type () (Array llen) [Type () Bool []] -> do
+                        Type () Bool [] -> do
                             rhs'' <- matchType [Exact lhs_ty] rhs'
                             setSym sym lpos $ annotationExpr rhs''
-                            return $ NAssign (okStmt pos) rhs'' rhs'' AssignEq
+                            return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
                         other -> throwError $ UnsupportedType pos other
                 ESubscript _ _ _ -> do
-                    lhs' <- typeCheckExpr lhs
-                    lhs'' <- matchType [Exact $ boolType()] lhs'
                     rhs'' <- matchType [Exact $ boolType()] rhs'
                     return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
                 _ -> throwError $ UnsupportedLeftSide $ annotationExpr lhs
         False -> do
-            lhs'<-typeCheckExpr lhs
             let doAssign lhs' rhs' = do
                     lhs'' <- matchType [AnyRef] lhs'
                     let Type () Ref [lhs_ty] = astType lhs''
