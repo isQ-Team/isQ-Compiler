@@ -502,10 +502,16 @@ emitStatement' f (NResolvedDefvar ann defs) = do
                     pushRAII [MFreeMemref pos (fromSSA ssa) mlir_ty]
         one_def (ty, ssa, Just initializer) = do
             initialized_val <- emitExpr initializer
-            pushAllocFree pos (mapType ty, fromSSA ssa)
-            pushOp $ MStore pos (mapType ty, fromSSA ssa) initialized_val
+            case in_logic of
+                True -> return ()
+                False -> do
+                    pushAllocFree pos (mapType ty, fromSSA ssa)
+                    pushOp $ MStore pos (mapType ty, fromSSA ssa) initialized_val
         one_def (ty, ssa, Nothing) = do
-            pushAllocFree pos (mapType ty, fromSSA ssa)
+            case in_logic of
+                True -> return ()
+                False -> do
+                    pushAllocFree pos (mapType ty, fromSSA ssa)
     mapM_ one_def defs
 emitStatement' f NExternGate{} = error "unreachable"
 emitStatement' f NProcedureWithDerive{} = error "unreachable"
