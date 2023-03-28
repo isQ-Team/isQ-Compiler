@@ -9,13 +9,13 @@ use libloading::*;
 use clap::{Parser, ArgEnum, PossibleValue};
 
 extern crate env_logger;
-use std::env::set_var;
+use std::{env::set_var, sync::mpsc, os::unix::prelude::OsStrExt};
 use log::debug;
 
 #[macro_use]
 extern crate std;
 use std::{io::{Read, Write}, path::{Path, PathBuf}, fs::File, collections::HashMap};
-use std::{cell::RefCell, ffi::OsString, rc::Rc};
+use std::{cell::RefCell, ffi::OsString, rc::Rc, thread};
 extern crate isq_simulator;
 
 use clap::ArgGroup;
@@ -48,12 +48,15 @@ struct SimulatorArgs {
     #[clap(long, short)]
     int_par: Option<Vec<i64>>,
     #[clap(long, short)]
-    double_par: Option<Vec<f64>>
+    double_par: Option<Vec<f64>>,
+    #[clap(long, short, default_value = "1")]
+    np: i64
 }
 
 
 type SimulatorEntry = extern "C" fn(x_alloc_ptr: *const i64, x_align_ptr: *const i64, x_offset: i64, x_size: i64, x_strides: i64,
-                                    y_alloc_ptr: *const f64, y_align_ptr: *const f64, y_offset: i64, y_size: i64, y_strides: i64) -> ();
+                                    y_alloc_ptr: *const f64, y_align_ptr: *const f64, y_offset: i64, y_size: i64, y_strides: i64,
+                                    rank: i64) -> ();
 fn main() -> std::io::Result<()> {
     /*env_logger::Builder::new()
     .format(|buf, record| {
@@ -97,12 +100,10 @@ fn main() -> std::io::Result<()> {
         Some(x) => x,
         None => vec![]
     };
-    let par_int_ptr = par_int.as_ptr();
     let par_double = match args.double_par{
         Some(x) => x,
         None => vec![]
     };
-    let par_double_ptr = par_double.as_ptr();
 
     let mut res_map: HashMap<String, i32> = HashMap::new();
     for i in 0..shots{
@@ -144,12 +145,46 @@ fn main() -> std::io::Result<()> {
         
         make_context_current(Rc::new(RefCell::new(context)));
 
-        let library = unsafe { Library::new(args.qir_shared_library.clone()) }.unwrap();
         unsafe {
-            let proc = library
-                .get::<SimulatorEntry>(args.entrypoint.as_bytes())
-                .unwrap();
-            (proc)(par_int_ptr, par_int_ptr, 0, 0, 0, par_double_ptr, par_double_ptr, 0, 0, 0);
+            let mut handles = vec![];
+            for rank in 0..args.np {
+                let (tx_int, rx_int) = mpsc::channel();
+                let (tx_double, rx_double) = mpsc::channel();
+                let (tx_osstring, rx_osstring) = mpsc::channel::<OsString>();
+                let (tx_string, rx_string) = mpsc::channel::<String>();
+                let handle = thread::spawn(move || {
+                    let mut par_int = vec![];
+                    for received in rx_int {
+                        par_int.push(received);
+                    }
+                    let par_int_ptr = par_int.as_ptr();
+
+                    let mut par_double = vec![];
+                    for received in rx_double {
+                        par_double.push(received);
+                    }
+                    let par_double_ptr = par_double.as_ptr();
+
+                    let osstring = rx_osstring.recv().unwrap();
+                    let library = Library::new(osstring).unwrap();
+
+                    let entrypoint = rx_string.recv().unwrap();
+                    let proc = library.get::<SimulatorEntry>(entrypoint.as_bytes()).unwrap();
+                    (proc)(par_int_ptr, par_int_ptr, 0, 0, 0, par_double_ptr, par_double_ptr, 0, 0, 0, rank);
+                });
+                for v in &par_int {
+                    tx_int.send(*v).unwrap();
+                }
+                for v in &par_double {
+                    tx_double.send(*v).unwrap();
+                }
+                tx_osstring.send(args.qir_shared_library.clone()).unwrap();
+                tx_string.send(args.entrypoint.clone()).unwrap();
+                handles.push(handle);
+            }
+            for handle in handles {
+                handle.join().unwrap();
+            }
         }
         
         let ctx_ = get_current_context();
