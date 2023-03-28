@@ -12,6 +12,6 @@
 
 
 void bell_main();
-DLLEXPORT void isq_simulator_entry(){
+DLLEXPORT void __isq__entry(){
   bell_main();
 }

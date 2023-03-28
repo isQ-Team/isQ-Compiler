@@ -56,7 +56,7 @@ impl QIRContext {
     }
 }
 
-#[thread_local]
+//#[thread_local]
 static mut QIR_CURRENT_CONTEXT: Option<Rc<RefCell<QIRContext>>> = None;
 
 pub fn make_context_current(a: Rc<RefCell<QIRContext>>) {
