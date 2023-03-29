@@ -1,5 +1,6 @@
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <mlir/IR/AsmState.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -11,6 +12,13 @@
 
 #include "mockturtle/algorithms/simulation.hpp"
 #include "mockturtle/networks/xag.hpp"
+#include "caterpiller/synthesis/lhrs.hpp"
+#include "caterpiller/synthesis/strategies/bennett_mapping_strategy.hpp"
+#include "caterpiller/synthesis/strategies/eager_mapping_strategy.hpp"
+#include "mockturtle/algorithms/lut_mapping.hpp"
+#include "mockturtle/algorithms/collapse_mapped.hpp"
+#include "mockturtle/networks/klut.hpp"
+#include "mockturtle/views/mapping_view.hpp"
 
 #include "logic/IR.h"
 #include "isq/IR.h"
@@ -30,7 +38,64 @@ std::ostream& operator<<(std::ostream& os, const std::vector<Ty>& v) {
     os << ']';
     return os;
 }
+/*
+void debugOutput(std::string info = "debug info here...", std::string path = "/mnt/d/isqv2/debugoutput.txt") {
+    std::ofstream fout(path);
+    std::streambuf *oldcout;
+    oldcout = std::cout.rdbuf(fout.rdbuf());
+    std::cout << info << std::endl;
+    std::cout.rdbuf(oldcout);
+    fout.close();
+}
 
+class ReversibleSynthesizer {
+public:
+    enum PebbleStrategy : uint8_t {
+        Bennett, 
+        EagerCleanup, 
+        BreakoutLocalSearch
+    } _strategy;
+
+    struct Move {
+        enum Action { compute, uncompute } action;
+        mockturtle::klut_network::node target;
+    };
+    std::vector<Move> _reversiblePebbling;
+
+    ReversibleSynthesizer(mockturtle::xag_network xag) : _xag(xag), _strategy(PebbleStrategy::EagerCleanup) {}
+
+    void setQMMStrategy(PebbleStrategy s) { _strategy = s; }
+
+    void doLHRSynthesis() {
+        // LUT mapping
+        collapse2Klut(_xag);
+
+        // Quantum memory management
+        computeReversiblePebbling();
+    }
+private:
+    void collapse2Klut(mockturtle::xag_network const& xagTarget) {
+        mockturtle::lut_mapping_params mappingParams;
+        mappingParams.cut_enumeration_ps.cut_size = 4;
+        mockturtle::mapping_view<mockturtle::xag_network, true> mappedXag(xagTarget);
+        mockturtle::lut_mapping<mockturtle::mapping_view<mockturtle::xag_network, true>, true>(mappedXag, mappingParams);
+        _klut = *mockturtle::collapse_mapped_network<mockturtle::klut_network>(mappedXag);
+    }
+
+    void computeReversiblePebbling() {
+        _reversiblePebbling.clear();
+        if (_strategy == PebbleStrategy::EagerCleanup) {
+            // TODO
+        } else if (_strategy == PebbleStrategy::BreakoutLocalSearch) {
+            // TODO
+        } else { // Bennett
+            
+        }
+    }
+    mockturtle::xag_network _xag;
+    mockturtle::klut_network _klut;
+};
+*/
 class RuleReplaceLogicFunc : public mlir::OpRewritePattern<logic::ir::FuncOp> {
 public:
     RuleReplaceLogicFunc(mlir::MLIRContext *ctx): mlir::OpRewritePattern<logic::ir::FuncOp>(ctx, 1) {}
@@ -84,7 +149,7 @@ public:
             }
         };
 
-        // Process each statement in the funciton body.
+        // Process each statement qubits the funciton body.
         for (mlir::Operation &it : op.getRegion().getOps()) {
             if (logic::ir::NotOp notop = llvm::dyn_cast<logic::ir::NotOp>(it)) {
                 std::string operand = value2str(notop.operand());
@@ -155,76 +220,177 @@ public:
             }
         }
 
-        // Validate the generated XAG. Remove them after debugging
-        /*std::vector<bool> results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>(3, false)));
-        std::cout << results << std::endl;
-        results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>{true, false, false}));
-        std::cout << results << std::endl;
-        results = mockturtle::simulate<bool>(xag, mockturtle::default_simulator<bool>(std::vector<bool>(3, true)));
-        std::cout << results << std::endl;*/
-
-
-        // Convert XAG to quantum circuit
-        // To be added...
-
-
-        // Below is a demonstration of creating a quantum circuit with isQ dialect.
-        // The circuit is
-        // in0[0] ---X--*--X---
-        // in0[1] ------|------
-        //    .   ------|------
-        //    .   ------|------
-        //    .   ------|------
-        // out[0] ------X------
-        // out[1] -------------
-        //    .   -------------
-        //    .   -------------
-        //    .   -------------
-        // i.e., X(in0[0]); CNOT(in0[0], out[0]); X(in0[0]);
-
+        // Convert XAG to quantum circuit. 
+        caterpillar::bennett_mapping_strategy<mockturtle::xag_network> strategy;
+        tweedledum::netlist<caterpillar::stg_gate> circ;
+        caterpillar::logic_network_synthesis_stats stats;
+        caterpillar::detail::logic_network_synthesis_impl<tweedledum::netlist<caterpillar::stg_gate>, 
+            mockturtle::xag_network, tweedledum::stg_from_pprm> impl( circ, xag, strategy, {}, {}, stats );
+        impl.run();
+        
+        // Construct MLIR-style circuit. 
         mlir::MLIRContext *ctx = op.getContext();
-        mlir::Location loc = op.getLoc(); // The location of the oracle function in the source code.
+        mlir::Location loc = op.getLoc(); // The location of the oracle function qubits the source code.
 
         // Construct function signature.
         mlir::SmallVector<::mlir::Type> argtypes;
         mlir::SmallVector<::mlir::Type> returntypes;
         isq::ir::QStateType qstate = isq::ir::QStateType::get(ctx);
-        mlir::MemRefType memref_3_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{3}, qstate);
-        for(int i=0; i<=input_num; i++){
-            argtypes.push_back(memref_3_qstate);
+        for (int i=0; i<input_num; i++) {
+            mlir::Value arg = op.getArgument(i);
+            int width = getBitWidth(arg);
+            mlir::MemRefType memref_i_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{width}, qstate);
+            argtypes.push_back(memref_i_qstate);
         }
+        auto po_num = xag.num_pos();
+        mlir::MemRefType memref_o_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{po_num}, qstate);
+        argtypes.push_back(memref_o_qstate);
         mlir::FunctionType functype = mlir::FunctionType::get(ctx, argtypes, returntypes);
 
+        // Debug infomation. 
+        /*
+        std::ofstream fout("/mnt/d/isqv2/debugoutput.txt");
+        std::streambuf *oldcout;
+        oldcout = std::cout.rdbuf(fout.rdbuf());
+        std::cout << "******xag description*******" << std::endl;
+        xag.foreach_node( [&]( auto node ) {
+            std::cout << "index: " << xag.node_to_index(node) << std::endl;
+            xag.foreach_fanin(node, [&]( auto child ) {
+                std::cout << "  child: " << child.index << std::endl;
+                std::cout << "  complemented: " << (child.complement ? "y" : "n") << std::endl;
+            });
+        } );
+        xag.foreach_po( [&]( auto node, auto index ) {
+            std::cout << "po: " << index << (((mockturtle::xag_network::signal)node.data).complement ? " complemented" : "") << std::endl;
+            xag.foreach_fanin(index, [&]( auto child ) {
+                std::cout << "  child: " << child.index << std::endl;
+                std::cout << "  complemented: " << (child.complement ? "y" : "n") << std::endl;
+            });
+        } );
+        std::cout << "******circuit description*******" << std::endl;
+        std::cout << "num_gates: " << circ.num_gates() << std::endl;
+        circ.foreach_cgate( [&]( auto n ) {
+            std::cout << n.gate << std::endl;
+            n.gate.foreach_control( [&]( auto c ) {
+                std::cout << "  control: " << c << " " << (c.is_complemented() ? "complemented" : "") << std::endl;
+            } );
+            n.gate.foreach_target( [&]( auto t ) {
+                std::cout << "  target: " << t << " " << (t.is_complemented() ? "complemented" : "") << std::endl;
+            } );
+        } );
+        std::cout << "num_qubits: " << circ.num_qubits() << std::endl;
+        */
         // Create a FuncOp that represent the quantum circuit.
         mlir::FuncOp funcop = rewriter.create<mlir::FuncOp>(loc, op.sym_name(), functype);
         mlir::Block *entry_block = funcop.addEntryBlock(); // Arguments are automatically created based on the function signature.
         mlir::OpBuilder builder(entry_block, entry_block->begin());
-        mlir::BlockArgument in0 = entry_block->getArgument(0);
-        mlir::BlockArgument out = entry_block->getArgument(input_num);
+        
+        // Load arguments. 
+        std::vector<mlir::Value> wires;
+        std::unordered_map<uint32_t, int> qubit_to_wire;
+        for (int i = 0; i <= input_num; i++) {
+            mlir::BlockArgument arg = entry_block->getArgument(i);
+            int width = getBitWidth(arg);
+            std::string str = (i == input_num ? "" : value2str(op.getArgument(i)));
+            for (int j = 0; j < width; j++) {
+                mlir::arith::ConstantIndexOp index = builder.create<mlir::arith::ConstantIndexOp>(loc, j);
+                mlir::memref::LoadOp load = builder.create<mlir::memref::LoadOp>(loc, qstate, arg, mlir::ValueRange{index});
+                wires.push_back(load);
+                // Construct qubit-to-wire mapping. 
+                auto xagnode = symbol_table[{str, j}];
+                uint32_t qubit = (i == input_num ? stats.o_indexes[j] : stats.i_indexes[xag.pi_index(xagnode.index)]);
+                qubit_to_wire[qubit] = wires.size() - 1;
+                // std::cout << (i == input_num ? "  output: " : "  input: ") << qubit << " to " << wires.size() - 1 << std::endl;
+            }
+        }
 
-        // Fetch the original qstates.
-        mlir::arith::ConstantIndexOp const0 = builder.create<mlir::arith::ConstantIndexOp>(loc, 0);
-        mlir::memref::LoadOp in00 = builder.create<mlir::memref::LoadOp>(loc, qstate, in0, mlir::ValueRange{const0});
-        mlir::memref::LoadOp out0 = builder.create<mlir::memref::LoadOp>(loc, qstate, out, mlir::ValueRange{const0});
-
+        // Ancilla allocation. 
+        int ancilla_num = circ.num_qubits() - wires.size();
+        int lowest_wire = wires.size();
+        mlir::MemRefType memref_ancilla_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{ancilla_num}, qstate);
+        mlir::memref::AllocOp ancillas = builder.create<mlir::memref::AllocOp>(loc, memref_ancilla_qstate);
+        auto memrefTy = ancillas.getType();
+        if (!memrefTy.getElementType().isa<QStateType>()) return mlir::failure();
+        for (int i = 0; i < ancilla_num; i++) {
+            mlir::arith::ConstantIndexOp index = builder.create<mlir::arith::ConstantIndexOp>(loc, i);
+            mlir::memref::LoadOp ancilla = builder.create<mlir::memref::LoadOp>(loc, qstate, ancillas, mlir::ValueRange{index});
+            wires.push_back(ancilla);
+        }
+        circ.foreach_cqubit( [&] ( tweedledum::qubit_id qubit_id ) {
+            uint32_t qubit = qubit_id.index();
+            if (qubit_to_wire.find(qubit) == qubit_to_wire.end()) {
+                qubit_to_wire[qubit] = lowest_wire++;
+                // std::cout << "  ancilla: " << qubit << " to " << lowest_wire - 1 << std::endl;
+            }
+        } );
+        
         // Load the quantum gates. The last argument is the parameters of the gate, e.g., `theta` for Rz(theta, q);
         mlir::Value x_gate = builder.create<isq::ir::UseGateOp>(loc, isq::ir::GateType::get(ctx, 1, GateTrait::General),
             mlir::FlatSymbolRefAttr::get(ctx, "X"), mlir::ValueRange{}).getResult();
         mlir::Value cnot_gate = builder.create<isq::ir::UseGateOp>(loc, isq::ir::GateType::get(ctx, 2, GateTrait::General),
             mlir::FlatSymbolRefAttr::get(ctx, "CNOT"), mlir::ValueRange{}).getResult();
+        mlir::Value toffoli_gate = builder.create<isq::ir::UseGateOp>(loc, isq::ir::GateType::get(ctx, 3, GateTrait::General),
+            mlir::FlatSymbolRefAttr::get(ctx, "Toffoli"), mlir::ValueRange{}).getResult();
+
+        // Gates application template
+        auto apply_x = [&](tweedledum::qubit_id index) {
+            isq::ir::ApplyGateOp applied_x = builder.create<isq::ir::ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate},
+                x_gate, mlir::ArrayRef<mlir::Value>({wires[qubit_to_wire[index.index()]]}));
+            wires[qubit_to_wire[index.index()]] = applied_x.getResult(0);
+        };
+
+        auto apply_cnot = [&](tweedledum::qubit_id cindex, tweedledum::qubit_id tindex) {
+            if (cindex.is_complemented()) apply_x(cindex);
+            isq::ir::ApplyGateOp applied_cnot = builder.create<isq::ir::ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate, qstate},
+                cnot_gate, mlir::ArrayRef<mlir::Value>({wires[qubit_to_wire[cindex.index()]], wires[qubit_to_wire[tindex.index()]]}));
+            wires[qubit_to_wire[cindex.index()]] = applied_cnot.getResult(0);
+            wires[qubit_to_wire[tindex.index()]] = applied_cnot.getResult(1);
+            if (cindex.is_complemented()) apply_x(cindex);
+        };
+
+        auto apply_toffoli = [&](tweedledum::qubit_id cindex_1, tweedledum::qubit_id cindex_2, tweedledum::qubit_id tindex) {
+            if (cindex_1.is_complemented()) apply_x(cindex_1);
+            if (cindex_2.is_complemented()) apply_x(cindex_2);
+            isq::ir::ApplyGateOp applied_toffoli = builder.create<isq::ir::ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate, qstate, qstate},
+                toffoli_gate, mlir::ArrayRef<mlir::Value>({wires[qubit_to_wire[cindex_1.index()]], wires[qubit_to_wire[cindex_2.index()]], wires[qubit_to_wire[tindex.index()]]}));
+            wires[qubit_to_wire[cindex_1.index()]] = applied_toffoli.getResult(0);
+            wires[qubit_to_wire[cindex_2.index()]] = applied_toffoli.getResult(1);
+            wires[qubit_to_wire[tindex.index()]] = applied_toffoli.getResult(2);
+            if (cindex_1.is_complemented()) apply_x(cindex_1);
+            if (cindex_2.is_complemented()) apply_x(cindex_2);
+        };
 
         // Apply gates to qstates. The last argument is the qstates to be applied on.
-        isq::ir::ApplyGateOp applied_x = builder.create<isq::ir::ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate},
-            x_gate, mlir::ArrayRef<mlir::Value>({in00}));
-        isq::ir::ApplyGateOp applied_cnot = builder.create<isq::ir::ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate, qstate},
-            cnot_gate, mlir::ArrayRef<mlir::Value>({applied_x.getResult(0), out0}));
-        isq::ir::ApplyGateOp applied_x2 = builder.create<isq::ir::ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate},
-            x_gate, mlir::ArrayRef<mlir::Value>({applied_cnot.getResult(0)}));
+        circ.foreach_cgate( [&]( auto n ) {
+            if (n.gate.is(tweedledum::gate_set::pauli_x)) {
+                // std::cout << "apply x gate on " << n.gate.targets()[0] << std::endl;
+                apply_x(n.gate.targets()[0]);
+            } else if (n.gate.is(tweedledum::gate_set::cx)) {
+                // std::cout << "apply cnot gate from " << n.gate.controls()[0] << " to " << n.gate.targets()[0] << std::endl;
+                apply_cnot(n.gate.controls()[0], n.gate.targets()[0]);
+            } else if (n.gate.is(tweedledum::gate_set::mcx)) {
+                // std::cout << "apply toffoli gate from " << n.gate.controls()[0] << ", " <<  n.gate.controls()[1] << " to " << n.gate.targets()[0] << std::endl;
+                apply_toffoli(n.gate.controls()[0], n.gate.controls()[1], n.gate.targets()[0]);
+            } else {
+                // return mlir::failure();
+            }
+        } );
 
         // Store qstates back to registers (i.e., the Memref<!isq.qstate> struct).
-        builder.create<mlir::memref::StoreOp>(loc, applied_x2.getResult(0), in0, mlir::ValueRange{const0});
-        builder.create<mlir::memref::StoreOp>(loc, applied_cnot.getResult(1), out, mlir::ValueRange{const0});
+        int in_index = 0;
+        for (int i = 0; i <= input_num; i++) {
+            mlir::BlockArgument arg = entry_block->getArgument(i);
+            int width = getBitWidth(arg);
+            for (int j = 0; j < width; j++) {
+                mlir::arith::ConstantIndexOp index = builder.create<mlir::arith::ConstantIndexOp>(loc, j);
+                builder.create<mlir::memref::StoreOp>(loc, wires[in_index++], arg, mlir::ValueRange{index});
+            }
+        }
+        builder.create<mlir::memref::DeallocOp>(loc, ancillas);
         builder.create<mlir::ReturnOp>(loc); // dummy terminator
+
+        // std::cout.rdbuf(oldcout);
+        // fout.close();
 
         rewriter.eraseOp(op); // Remove original logic.func op
         return mlir::success();
