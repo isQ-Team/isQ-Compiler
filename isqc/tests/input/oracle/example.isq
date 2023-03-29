@@ -2,7 +2,7 @@ import std;
 
 oracle bool[3] name(bool a[3]) {
 	bool e;
-	e = a[0] == a[1];
+	e = a[0] != a[1];
 	bool d = e;
 	e = a[0] && a[2];
 	bool c[] = {true, e, d};
