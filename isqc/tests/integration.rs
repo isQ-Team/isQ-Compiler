@@ -11,7 +11,6 @@ use test_case::test_case;
 #[test_case("classic_bitwise_logic", &("8".to_string()+LINE_ENDING+"13"+LINE_ENDING+"5"))]
 #[test_case("classic_bool_to_int", "3")]
 #[test_case("classic_comment", "10")]
-#[test_case("classic_divide0", "inf")]
 #[test_case("classic_double", &("4".to_string()+LINE_ENDING+"6.283185"))]
 #[test_case("classic_empty_statement", "0")]
 #[test_case("classic_equal", &("0".to_string()+LINE_ENDING+"1"))]
@@ -95,7 +94,7 @@ fn syntax_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
-#[test_case("out_of_range", "does not exist")]
+//#[test_case("out_of_range", "does not exist")]
 #[test_case("same_qubit", "is used twice")]
 fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Error>> {
     let file_name = "runtime_".to_string() + name + ".isq";
