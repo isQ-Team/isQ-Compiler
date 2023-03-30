@@ -52,7 +52,7 @@ mlirMathBinaryOp (a,b,c,d) = MLIRBinaryOp ("math."++a) b c d
 mlirAddi = mlirBinaryOp ("addi", Index, Index, Index)
 mlirSubi = mlirBinaryOp ("subi", Index, Index, Index)
 mlirMuli = mlirBinaryOp ("muli", Index, Index, Index)
-mlirDivsi = mlirBinaryOp ("divsi", Index, Index, Index)
+--mlirDivsi = mlirBinaryOp ("divsi", Index, Index, Index)
 mlirRemsi = mlirBinaryOp ("remsi", Index, Index, Index)
 mlirFloorDivsi = mlirBinaryOp ("floordivsi", Index, Index, Index) -- Use this by default
 mlirAnd = mlirBinaryOp ("andi", Bool, Bool, Bool)
@@ -224,6 +224,20 @@ emitOpStep f env (MBp loc arg) = indented env $ printf "isq.call_qop @__isq__bui
 emitOpStep f env (MQPrint loc (Index, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_int(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Double, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_double(%s): [0](f64)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (t, arg)) = error $ "unsupported "++ show t
+emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp "arith.floordivsi" lt rt rest)) =  intercalate "\n" $
+  [
+    indented env $ printf "%s_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
+    indented env $ printf "%s_unequal = arith.cmpi \"ne\", %s, %s_zero : index %s" (unSsa value) (unSsa rhs) (unSsa value) (mlirPos loc),
+    indented env $ printf "isq.assert %s_unequal : i1, 1 %s" (unSsa value) (mlirPos loc),
+    indented env $ printf "%s = arith.floordivsi %s, %s : %s %s" (unSsa value) (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
+  ]
+emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp "arith.divf" lt rt rest)) =  intercalate "\n" $
+  [
+    indented env $ printf "%s_zero = arith.constant 0.0: f64 %s" (unSsa value) (mlirPos loc),
+    indented env $ printf "%s_unequal = arith.cmpf \"one\", %s, %s_zero : f64 %s" (unSsa value) (unSsa rhs) (unSsa value) (mlirPos loc),
+    indented env $ printf "isq.assert %s_unequal : i1, 1 %s" (unSsa value) (mlirPos loc),
+    indented env $ printf "%s = arith.divf %s, %s : %s %s" (unSsa value) (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
+  ]
 emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = %s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
 emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
 emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
@@ -236,7 +250,16 @@ emitOpStep f env (MStore loc (arr_type, arr_val) value) = intercalate "\n" $
     indented env $ printf "%s_store_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
     indented env $ printf "affine.store %s, %s[%s_store_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)
   ]
-emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset) = indented env $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirType $ BorrowedRef elem_ty) (mlirPos loc)
+emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset) = intercalate "\n" $
+  [
+    indented env $ printf "%s_zero = arith.constant 0 : index %s" (unSsa value) (mlirPos loc),
+    indented env $ printf "%s_length = memref.dim %s, %s_zero : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_ty) (mlirPos loc),
+    indented env $ printf "%s_less = arith.cmpi \"slt\", %s, %s_length : index %s" (unSsa value) (unSsa offset) (unSsa value) (mlirPos loc),
+    indented env $ printf "%s_non_neg = arith.cmpi \"sge\", %s, %s_zero : index %s" (unSsa value) (unSsa offset) (unSsa value) (mlirPos loc),
+    indented env $ printf "%s_both = arith.andi %s_less, %s_non_neg : i1 %s" (unSsa value) (unSsa value) (unSsa value) (mlirPos loc),
+    indented env $ printf "isq.assert %s_both : i1, 2 %s" (unSsa value) (mlirPos loc),
+    indented env $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirType $ BorrowedRef elem_ty) (mlirPos loc)
+  ]
 emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset) = error "wtf?"
 emitOpStep f env (MEraseMemref loc value (arr_ty@(Memref (Just x) elem_ty), arr_val)) = indented env $ printf "%s = memref.cast %s : %s to %s %s" (unSsa value) (unSsa arr_val) (mlirType arr_ty) (mlirType $ Memref Nothing elem_ty) (mlirPos loc)
 emitOpStep f env (MEraseMemref loc value (arr_ty, arr_val)) = error "wtf?"

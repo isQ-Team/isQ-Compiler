@@ -557,17 +557,23 @@ def ISQ_DecorateOp: ISQ_Op<"decorate", [NoSideEffect]>{
     let hasCanonicalizer = 1;
 }
 
-
-def ISQ_PrintOp : ISQ_Op<"print"> {
-    let arguments = (ins AnyType:$input);
-
-    let assemblyFormat = [{
-        $input `:` qualified(type($input))  attr-dict
-    }];
-}
-
 def ISQ_PassOp :ISQ_Op<"pass"> {
     let assemblyFormat = [{
         attr-dict
+    }];
+}
+
+def ISQ_AssertOp: ISQ_Op<"assert">{
+    let summary = "Validate dynamic execution conditions.";
+    let description = [{
+        If the condition is false, report an error and abort the program execution.
+    }];
+    let arguments = (ins
+        BoolLike: $cond,
+        UI64Attr : $error_num
+    );
+    let results = (outs);
+    let assemblyFormat = [{
+        $cond `:` qualified(type($cond)) `,` $error_num attr-dict
     }];
 }
