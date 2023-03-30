@@ -1,0 +1,20 @@
+procedure foo(int b[])
+{
+    int len = b.length;
+    print len;
+    qbit c[len];
+    print c.length;
+}
+
+procedure bar(int b[5])
+{
+    print b.length;
+}
+
+procedure main()
+{
+    int a[5];
+    print a.length;
+    foo(a);
+    bar(a);
+}

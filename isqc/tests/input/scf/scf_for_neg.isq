@@ -1,0 +1,8 @@
+procedure main()
+{
+    int res = 0;
+    for i in 4:0:-1 {
+        res = res + i;
+    }
+    print res;
+}

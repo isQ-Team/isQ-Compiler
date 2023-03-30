@@ -1,0 +1,9 @@
+import std;
+procedure main()
+{
+    qbit q[3];
+    X(q[0:2]);
+    print M(q);
+    X(q[2]);
+    print M(q);
+}

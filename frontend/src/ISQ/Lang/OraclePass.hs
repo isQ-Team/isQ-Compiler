@@ -170,8 +170,8 @@ unscope = do
     symbolTables <- get
     put $ tail symbolTables
 
-defineVariable :: Pos -> (LType, String, Maybe LExpr) -> OracleEvaluate ()
-defineVariable pos (ltype, identifier, maybeExpr) = do
+defineVariable :: Pos -> (LType, String, Maybe LExpr, Maybe LExpr) -> OracleEvaluate ()
+defineVariable pos (ltype, identifier, maybeExpr, _) = do
     symbolTables <- get
     let currentTable = head symbolTables
     let maybe = Map.lookup identifier currentTable
@@ -195,7 +195,7 @@ evaluateStatement (NDefvar ann defs) = do
 
 evaluateStatement (NReturn ann exp) = evaluateExpression exp
 
-evaluateStatement (NAssign ann lexpr rexpr) = do
+evaluateStatement (NAssign ann lexpr rexpr op) = do
     case lexpr of
         EIdent eann ident -> do
             let findIdent :: [Map.Map String Obj] -> [Map.Map String Obj] -> OracleEvaluate [Map.Map String Obj]
@@ -204,8 +204,12 @@ evaluateStatement (NAssign ann lexpr rexpr) = do
                     let maybe = Map.lookup ident x
                     case maybe of
                         Nothing -> findIdent (pre ++ [x]) xs
-                        Just _ -> do
-                            obj <- evaluateExpression rexpr
+                        Just lobj -> do
+                            robj <- evaluateExpression rexpr
+                            obj <- case op of
+                                AssignEq -> return robj
+                                AddEq -> binaryIntOperation ann (+) lobj robj
+                                SubEq -> binaryIntOperation ann (-) lobj robj
                             let newx = Map.insert ident obj x
                             return $ pre ++ [newx] ++ xs
             symbolTables <- get
@@ -243,12 +247,15 @@ evaluateStatement (NWhile ann cond body) = do
 
 evaluateStatement (NFor ann forVar range@(ERange eann lo hi step) body) = do
     let evar = EIdent ann forVar
-    let econd = case hi of
-            Nothing -> EBoolLit eann True
-            Just x -> EBinary eann (Cmp Less) evar x
     let estep = case step of
             Nothing -> EIntLit eann 1
             Just x -> x
+    let econd = case hi of
+            Nothing -> EBoolLit eann True
+            Just x -> do
+                let left = EBinary eann Mul evar estep
+                let right = EBinary eann Mul x estep
+                EBinary eann (Cmp Less) left right
     let eadd = EBinary eann Add evar estep
     let executeFor :: OracleEvaluate Obj
         executeFor = do
@@ -257,13 +264,13 @@ evaluateStatement (NFor ann forVar range@(ERange eann lo hi step) body) = do
             case bcond of
                 True -> do
                     res <- evaluateStatement $ head body
-                    evaluateStatement $ NAssign eann evar eadd
+                    evaluateStatement $ NAssign eann evar eadd AssignEq
                     case res of
                         OBreak -> return OUnit
                         _ -> executeFor
                 False -> return OUnit
     scope
-    evaluateStatement $ NDefvar ann [(intType ann, forVar, lo)]
+    evaluateStatement $ NDefvar ann [(intType ann, forVar, lo, Nothing)]
     res <- executeFor
     unscope
     return res
@@ -287,7 +294,7 @@ evaluateStatements (x:xs) = do
 
 evaluateFunc :: [LAST] -> Pos -> String -> Int -> Either OracleError Int
 evaluateFunc body pos var val = do
-    let defVar = NDefvar pos [(intType pos, var, Just $ EIntLit pos val)]
+    let defVar = NDefvar pos [(intType pos, var, Just $ EIntLit pos val, Nothing)]
     obj <- evalState (runExceptT $ evaluateStatements $ [defVar] ++ body) [Map.empty]
     case obj of
         OInt val -> Right val

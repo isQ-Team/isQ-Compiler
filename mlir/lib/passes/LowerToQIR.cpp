@@ -70,9 +70,6 @@ public:
         auto shape = memrefty.getShape();
         // One-dim known arrays supported only.
         if(shape.size()!=1) return mlir::failure();
-        if(memrefty.isDynamicDim(0)){
-            return mlir::failure();
-        }
         if(op->hasAttr(ISQ_INITIALIZED)) return mlir::failure();
         
         rewriter.updateRootInPlace(op, [&]{
@@ -83,7 +80,13 @@ public:
         auto loc = op.getLoc();
         // Create an `scf.for` op. 
         auto lo = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 0);
-        auto hi = rewriter.create<mlir::arith::ConstantIndexOp>(loc, memrefty.getDimSize(0));
+        mlir::Value hi;
+        if (memrefty.isDynamicDim(0)) {
+            hi = *op.getDynamicSizes().begin();
+        }
+        else {
+            hi = rewriter.create<mlir::arith::ConstantIndexOp>(loc, memrefty.getDimSize(0));
+        }
         auto step = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 1);
         auto loop =
           rewriter.create<mlir::scf::ForOp>(loc, lo, hi, step, mlir::ValueRange{}, [&](mlir::OpBuilder& b, mlir::Location loc, mlir::Value iv, mlir::ValueRange iterArgs){
@@ -484,6 +487,17 @@ public:
         return mlir::success();
     }
 };
+class LowerDim : public TypeReplacer<mlir::memref::DimOp>{
+public:
+    LowerDim(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::DimOp>(ctx, converter){}
+    mlir::LogicalResult matchAndRewrite(mlir::memref::DimOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
+        rewriter.startRootUpdate(op);
+        auto new_value = this->legalize(op->getLoc(), rewriter, adaptor.source());
+        op.sourceMutable().assign(new_value.getResult(0));
+        rewriter.finalizeRootUpdate(op);
+        return mlir::success();
+    }
+};
 struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::OperationPass<mlir::ModuleOp>>{
     void populateUsefulPatternSets(mlir::RewritePatternSet& patterns, mlir::TypeConverter& converter ){
         mlir::populateFunctionOpInterfaceTypeConversionPattern<mlir::FuncOp>(patterns, converter);
@@ -556,6 +570,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
             rps.add<LowerSubView>(ctx, converter);
             rps.add<LowerGlobal>(ctx, converter);
             rps.add<LowerGetGlobal>(ctx, converter);
+            rps.add<LowerDim>(ctx, converter);
             populateUsefulPatternSets(rps, converter);
             mlir::ConversionTarget target(*ctx);
             target.addIllegalDialect<ISQDialect>();

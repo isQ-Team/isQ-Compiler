@@ -123,9 +123,9 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                             let (src, mat_pos) = parsePos(&content["badMatrix"]["annotationAST"])?;
                             return Err(SyntaxError{reason: "bad matrix shape.".into(), src, pos: mat_pos})?;
                         }
-                        "MissingGlobalVarSize"=>{
+                        "BadGlobalVarSize"=>{
                             let (src,pos) = parsePos(&content["badDefPos"])?;
-                            return Err(SyntaxError{reason: format!("missing size for global array `{}`.", content["badDefName"].as_str().unwrap()), src, pos: pos})?;
+                            return Err(SyntaxError{reason: format!("global array with non-integer length: `{}`.", content["badDefName"].as_str().unwrap()), src, pos: pos})?;
                         }
                         "UnexpectedToken"=>{
                             let (src,pos) = parsePos(&content["token"]["annotationToken"])?;

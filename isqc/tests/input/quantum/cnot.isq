@@ -1,0 +1,10 @@
+import std;
+procedure main()
+{
+    qbit q[2];
+    CNOT(q[0], q[1]);
+    print M(q);
+    X(q[0]);
+    CNOT(q[0], q[1]);
+    print M(q);
+}

@@ -16,3 +16,31 @@ extern defgate Y2M() : gate(1) = "__quantum__qis__y2m";
 extern defgate Y2P() : gate(1) = "__quantum__qis__y2p";
 extern defgate CZ() : gate(2) = "__quantum__qis__cz";
 extern defgate GPhase(double) : gate(0) = "__quantum__qis__gphase";
+
+procedure __add(qbit a[], qbit b[])
+{
+    int len = a.length;
+    CNOT(a[1:len], b[1:]);
+    CNOT(a[len-2:0:-1], a[len-1::-1]);
+    Toffoli(a[0:], b, a[1:len]);
+    for i in len-1:0:-1 {
+        CNOT(a[i], b[i]);
+        Toffoli(a[i - 1], b[i - 1], a[i]);
+    }
+    CNOT(a[1:], a[2:len]);
+    CNOT(a, b);
+}
+
+procedure __sub(qbit a[], qbit b[])
+{
+    int len = a.length;
+    CNOT(a, b);
+    CNOT(a[len-2:0:-1], a[len-1::-1]);
+    for i in 1 : len {
+        Toffoli(a[i - 1], b[i - 1], a[i]);
+        CNOT(a[i], b[i]);
+    }
+    Toffoli(a[len-2::-1], b[len-2::-1], a[len-1:0:-1]);
+    CNOT(a[1:], a[2:len]);
+    CNOT(a[1:len], b[1:]);
+}
