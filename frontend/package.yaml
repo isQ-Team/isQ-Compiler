@@ -13,23 +13,24 @@ github:              "arclight-quantum/isQ-Compiler"
 description:         isQ compiler frontend.
 
 dependencies:
-- base >= 4.7 && < 5
-- split
-- directory
-- lens
-- mtl
-- parsec
-- containers
-- extra
-- math-functions
-- array
-- pretty-simple
-- text
 - aeson
+- array
+- base >= 4.7 && < 5
 - bytestring
+- containers
 - deepseq
+- directory
+- extra
 - filepath
+- ilist
+- lens
+- math-functions
+- mtl
 - multimap
+- parsec
+- pretty-simple
+- split
+- text
 
 build-tools:
 - happy
