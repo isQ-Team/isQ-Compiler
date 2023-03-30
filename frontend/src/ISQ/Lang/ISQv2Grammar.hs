@@ -45,7 +45,7 @@ data Expr ann =
      | EUnitLit {annotationExpr :: ann}
      | EResolvedIdent {annotationExpr :: ann, resolvedId :: Int}
      | EGlobalName {annotationExpr :: ann, globalName :: String}
-     | EListCast {annotationExpr :: ann, subList :: Expr ann}
+     | EEraselist {annotationExpr :: ann, subList :: Expr ann}
      | EArrayLen {annotationExpr :: ann, subList :: Expr ann}
      deriving (Eq, Show, Functor)
 instance Annotated Expr where
@@ -182,9 +182,6 @@ passVerifyDefgate = mapM go where
 checkTopLevelVardef :: [LAST]->Either GrammarError [LAST]
 checkTopLevelVardef = mapM go where
   go v@(NDefvar pos defs) = NDefvar pos <$> mapM go' defs where
-    go' (Type ann (Array 0) [sub], b, Nothing, Just len) = do
-      case len of
-        EIntLit _ val -> Right (Type ann (Array val) [sub], b, Nothing, Nothing)
-        other -> Left $ BadGlobalVarSize pos b
-    go' (a, b, c, d) = Right (a, b, c, d)
+    go' (Type _ (Array 0) _,b,c) = Left $ MissingGlobalVarSize pos b
+    go' (a,b,c) = Right (a,b,c)
   go v = return v

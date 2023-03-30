@@ -3,7 +3,6 @@ import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.ISQv2Tokenizer
 import qualified Data.MultiMap as MultiMap
 import Data.List.Extra (firstJust)
-import Data.List.Index (imapM)
 import Data.Maybe
 import Control.Monad (join)
 import Control.Monad.Except
@@ -140,7 +139,7 @@ intToType _ = error "Unreachable."
 type TCExpr = Expr TypeCheckData
 
 data MatchRule = Exact EType | AnyUnknownList | AnyKnownList Int | AnyList | AnyFunc | AnyGate | AnyRef
-    | FixedArrayRule MatchRule
+    | ArrayType MatchRule
     deriving (Show, Eq)
 
 checkRule :: MatchRule->EType->Bool
@@ -151,7 +150,7 @@ checkRule AnyList (Type () (Array _) [_]) = True
 checkRule AnyFunc (Type () FuncTy _) = True
 checkRule AnyGate (Type () (Gate _) _) = True
 checkRule AnyRef (Type () Ref [_]) = True
-checkRule (FixedArrayRule subRule) (Type () (FixedArray _) [subType]) = checkRule subRule subType
+checkRule (ArrayType subRule) (Type () (Array _) [subType]) = checkRule subRule subType
 checkRule _ _ = False
 
 -- try to match two types, using auto dereference and int-to-bool implicit conversion.
@@ -185,9 +184,10 @@ matchType' wanted e = do
                         matchType' wanted (EListCast (TypeCheckData pos (Type () (Array x) [y]) id) e)
                     other -> return Nothing
             -- Auto list erasure
+            Type () (Array 0) [y] -> return Nothing
             Type () (Array x) [y] -> do
                 id<-nextId
-                matchType' wanted (EListCast (TypeCheckData pos (Type () (Array 0) [y]) id) e)
+                matchType' wanted (EEraselist (TypeCheckData pos (Type () (Array 0) [y]) id) e)
             _ -> return Nothing
 matchType :: [MatchRule]->TCExpr->TypeCheck TCExpr
 matchType wanted e = do
@@ -271,11 +271,8 @@ typeCheckExpr' f (ESubscript pos base offset) = do
     offset''<-matchType [Exact $ intType (), Exact $ Type () IntRange []] offset'
     ssa<-nextId
     let a = case astType base'' of
-            Type () UnknownArray [ax] -> case astType offset'' of
-                    Type () IntRange [] -> Type () (FixedArray 0) [ax]
-                    _ -> refType () ax
-            Type () (FixedArray _) [ax] -> case astType offset'' of
-                    Type () IntRange [] -> Type () (FixedArray 0) [ax]
+            Type () (Array _) [ax] -> case astType offset'' of
+                    Type () IntRange [] -> Type () (Array 0) [ax]
                     _ -> refType () ax
             _ -> undefined
     return $ ESubscript (TypeCheckData pos a ssa) base'' offset''
@@ -315,13 +312,7 @@ typeCheckExpr' f (ERange pos lo hi step) = do
 typeCheckExpr' f (ECoreMeasure pos qubit) = do
     qubit'<-f qubit
     ssa<-nextId
-    is_qubit <- matchType' [Exact (refType () (qbitType ()))] qubit'
-    case is_qubit of
-        Just qubit'' -> return $ ECoreMeasure (TypeCheckData pos (boolType ()) ssa) qubit''
-        Nothing -> do
-            qubit'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] qubit'
-            fun <- f (EIdent pos ".__measure_bundle")
-            return $ ECall (TypeCheckData pos (intType ()) ssa) fun [qubit'']
+    return $ ECoreMeasure (TypeCheckData pos (boolType ()) ssa) qubit''
 typeCheckExpr' f (EList pos lis) = do
     lis' <- mapM f lis
     let levels = map (typeToInt . termType . annotationExpr) lis'
@@ -346,13 +337,12 @@ typeCheckExpr' f (ETempArg pos ident) = do
 typeCheckExpr' f (EUnitLit pos) = EUnitLit . TypeCheckData pos (unitType ()) <$> nextId
 typeCheckExpr' f x@EResolvedIdent{} = error "Unreachable."
 typeCheckExpr' f x@EGlobalName{} = error "Unreachable."
-typeCheckExpr' f x@EListCast{} = error "Unreachable."
+typeCheckExpr' f x@EEraselist{} = error "Unreachable."
 typeCheckExpr' f (EArrayLen pos array) = do
     array' <- f array
     ssa <- nextId
     let ty = termType $ annotationExpr array'
     case ty of
-        Type () (Array 0) [_] -> return $ EArrayLen (TypeCheckData pos (intType()) ssa) array'
         Type () (Array x) [_] -> return $ EIntLit (TypeCheckData pos (intType()) ssa) x
         _ -> throwError $ TypeMismatch pos [AnyList] ty
 typeCheckExpr :: Expr Pos -> TypeCheck (Expr TypeCheckData)
@@ -379,11 +369,13 @@ getRangeFromArray (EResolvedIdent ann _) = do
     init_id <- nextId
     let init = EIntLit (TypeCheckData pos (intType ()) init_id) 0
     let length = case termType ann of
-            Type () (FixedArray x) [Type () Qbit []] -> x
+            Type () (Array x) [Type () Qbit []] -> x
             _ -> undefined
     hi_id <- nextId
     let hi = EIntLit (TypeCheckData pos (intType ()) hi_id) length
-    return $ ERange ann (Just init) (Just hi) Nothing
+    step_id <- nextId
+    let step = EIntLit (TypeCheckData pos (intType ()) step_id) 1
+    return $ ERange ann (Just init) (Just hi) (Just step)
 getRangeFromArray (ESubscript ann _ subscript) = return $ subscript
 getRangeFromArray x = error "Unreachable."
 
@@ -395,9 +387,7 @@ generateIteratorDef (ERange ann lo hi step) = do
             Just _ -> nextId
     let hi_def = NResolvedDefvar ann [(refIntType (), hi_id, hi)]
     estep <- case step of
-            Nothing -> do
-                lit_id <- nextId
-                return $ Just $ EIntLit (TypeCheckData (sourcePos ann) (refIntType ()) lit_id) 1
+            Nothing -> error "Unreachable."
             Just x -> return $ Just $ x
     step_id <- nextId
     let step_def = NResolvedDefvar ann [(refIntType (), step_id, estep)]
@@ -446,7 +436,7 @@ andRangeCondition pos in_id (it_id, hi_id) = do
 getItemFromArray :: Pos -> (TCExpr, TCExpr) -> TypeCheck TCExpr
 getItemFromArray pos (base, it) = do
     let subtype = case astType base of
-            Type () (FixedArray _) [ax] -> ax
+            Type () (Array _) [ax] -> ax
             _ -> error "Unreachable."
     ssa <- nextId
     return $ ESubscript (TypeCheckData pos subtype ssa) base it
@@ -494,7 +484,7 @@ typeCheckAST' f (NCall pos c@(ECall _ callee args)) = do
         _ -> undefined
 typeCheckAST' f (NCall pos c) = error "unreachable"
 typeCheckAST' f (NDefvar pos defs) = do
-    let def_one (ty, name, initializer, length) = do
+    let def_one (ty, name, initializer) = do
             let left_type = void ty
             (i', ty')<-case initializer of
                 Just r->do
@@ -516,12 +506,7 @@ typeCheckAST' f (NDefvar pos defs) = do
                         _ -> do
                             r''<-matchType [Exact left_type] r'
                             return (Just r'', definedRefType left_type)
-                Nothing -> case length of
-                    Nothing -> return (Nothing, definedRefType left_type)
-                    Just len -> do
-                        len' <- typeCheckExpr len
-                        len'' <- matchType [Exact $ intType ()] len'
-                        return (Just len'', left_type)
+                Nothing -> return (Nothing, definedRefType left_type)
             s <- defineSym (SymVar name) pos ty'
             return (ty', s, i')
     defs'<-mapM def_one defs
@@ -586,7 +571,7 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     let operands'' = op_extra' ++ op_qubits'
                     return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers
                 Nothing -> do
-                    op_qubits' <- mapM (matchType [FixedArrayRule $ Exact $ qbitType ()]) op_qubits
+                    op_qubits' <- mapM (matchType [ArrayType $ Exact $ qbitType ()]) op_qubits
                     ranges <- mapM getRangeFromArray op_qubits'
                     var_defs <- mapM generateIteratorDef ranges
                     let get_second (a, b, c) = b

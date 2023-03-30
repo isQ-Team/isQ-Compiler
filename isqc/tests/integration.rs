@@ -1,15 +1,10 @@
 mod util;
-use util::merge;
+use util::LINE_ENDING;
 use assert_cmd::prelude::*; // Add methods on commands
 use predicates::prelude::*; // Used for writing assertions
 use std::{process::Command, path::PathBuf}; // Run programs
 use std::path::Path;
 use test_case::test_case;
-
-#[cfg(windows)]
-pub const LINE_ENDING: &'static str = "\r\n";
-#[cfg(not(windows))]
-pub const LINE_ENDING: &'static str = "\n";
 
 #[test_case("classic_add_sub", &("7".to_string()+LINE_ENDING+"-1"))]
 #[test_case("classic_and_or", &("0".to_string()+LINE_ENDING+"2"))]
@@ -39,23 +34,6 @@ pub const LINE_ENDING: &'static str = "\n";
 #[test_case("matrix_decimal", "0")]
 #[test_case("measure_twice", "0")]
 #[test_case("reset_twice", "0")]
-#[test_case("scf_block", "0")]
-#[test_case("scf_break", "2")]
-#[test_case("scf_break_for", "2")]
-#[test_case("scf_continue", "4")]
-#[test_case("scf_continue_for", "7")]
-#[test_case("scf_else_if", "2")]
-#[test_case("scf_empty_block", "0")]
-#[test_case("scf_for", "10")]
-#[test_case("scf_for_if", "4")]
-#[test_case("scf_for_step", "4")]
-#[test_case("scf_if", "2")]
-#[test_case("scf_if_break", "2")]
-#[test_case("scf_if_break_block", "2")]
-#[test_case("scf_if_break_for", "2")]
-#[test_case("scf_if_no_else", "3")]
-#[test_case("scf_while", "6")]
-#[test_case("scf_while_no_brace", "16")]
 #[test_case("teleport_diff_line", "0")]
 #[test_case("teleport_one_line", "0")]
 fn tests_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {

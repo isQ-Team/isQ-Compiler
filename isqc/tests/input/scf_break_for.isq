@@ -1,9 +1,0 @@
-procedure main()
-{
-    int j = 0;
-    for i in 0:3  {
-        j = j + 2;
-        break;
-    }
-    print j;
-}

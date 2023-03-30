@@ -177,40 +177,15 @@ fileToTcast incPath froms file = do
                     modify' (\x->x{symbolTable = newStl})
                     return $ tuple
 
-globalSource :: String
-globalSource = "int __measure_bundle(qbit q[])\
-\{\
-\    int res = 0;\
-\    int i = q.length - 1;\
-\    while (i >= 0) {\
-\        res = res * 2 + M(q[i]);\
-\        i = i - 1;\
-\    }\
-\    return res;\
-\}"
-
-globalSourceQcis :: String
-globalSourceQcis = "int __measure_bundle(qbit q[])\
-\{\
-\    for i in 0 : q.length {\
-\        M(q[i]);\
-\    }\
-\    return 0;\
-\}"
-
-generateTcast :: String -> FilePath -> Bool -> IO (Either CompileError ([TCAST], Int))
-generateTcast incPathStr inputFileName qcis = do
-    let gc = case qcis of
-            True -> globalSourceQcis
-            False -> globalSource
-    let (globalTcasts, globalTable, ssaId) = processGlobal gc
+generateTcast :: String -> FilePath -> IO (Either CompileError ([TCAST], Int))
+generateTcast incPathStr inputFileName = do
     absolutPath <- canonicalizePath inputFileName
     let splitedPath = splitOn ":" incPathStr
     incPath <- mapM canonicalizePath splitedPath
-    errOrTuple <- evalStateT (runExceptT $ fileToTcast incPath [] absolutPath) emptyImportEnv
+    (errOrTuple, (ImportEnv _ ssa)) <- runStateT (runExceptT $ fileToTcast incPath [] absolutPath) emptyImportEnv
     case errOrTuple of
         Left x -> return $ Left x
-        Right tuple -> return $ Right (globalTcasts ++ fst tuple, ssa)
+        Right tuple -> return $ Right (fst tuple, ssa)
 
 compile :: String -> ([TCAST], Int) -> Either CompileError String
 compile s ast_tc = runExcept $ do

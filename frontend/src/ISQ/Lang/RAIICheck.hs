@@ -133,6 +133,24 @@ eliminateNonAffineForStmts' f (NIf a b c d) = do
 eliminateNonAffineForStmts' f (NWhile a b c) = do
     c' <- mapM f c;
     return [NWhile (snd a) (eraseSafe b) (concat c')]
+eliminateNonAffineForStmts' f (NFor (s1, ann) v eident@(EIdent (s2, eann) ident) body) = do
+    i <- nextId
+    let var_name = show i
+    let sub = ESubscript (Safe, eann) eident $ EIdent (s2, eann) var_name
+    let def = NDefvar (Safe, ann) [(Type (Safe, ann) Int [], v, Just sub)]
+    let lo = EIntLit (Safe, ann) 0
+    let hi = EArrayLen (Safe, ann) eident
+    let inc = EIntLit (Safe, ann) 1
+    let range = ERange (Safe, ann) (Just lo) (Just hi) (Just inc)
+    f $ NFor (s1, ann) var_name range $ def : body
+eliminateNonAffineForStmts' f (NFor (s1, ann) v elist@(EList (s2, eann) lis) body) = do
+    i <- nextId
+    let array_name = show i
+    let len = length lis
+    let lis' = map eraseSafe lis
+    let def = NDefvar ann [(Type ann (Array len) [Type ann Int []], array_name, Just $ EList eann lis')]
+    for <- f $NFor (s1, ann) v (EIdent (Safe, eann) array_name) body
+    return [NBlock ann $ def : for]
 eliminateNonAffineForStmts' f (NFor (Safe, ann) v expr body) = do
     b' <- mapM f body;
     return [NFor ann v (eraseSafe expr) (concat b')]

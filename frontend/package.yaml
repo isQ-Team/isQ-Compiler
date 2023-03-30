@@ -22,7 +22,6 @@ dependencies:
 - directory
 - extra
 - filepath
-- ilist
 - lens
 - math-functions
 - mtl

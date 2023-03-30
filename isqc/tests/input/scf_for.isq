@@ -1,8 +1,0 @@
-procedure main()
-{
-    int res = 0;
-    for i in 1:5 {
-        res = res + i;
-    }
-    print res;
-}

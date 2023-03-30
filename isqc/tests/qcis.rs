@@ -1,6 +1,6 @@
 use assert_cmd::prelude::*; // Add methods on commands
 use predicates::prelude::*; // Used for writing assertions
-use std::{process::Command, path::PathBuf}; // Run programs
+use std::{process::Command}; // Run programs
 use std::path::Path;
 use test_case::test_case;
 

@@ -1,9 +1,0 @@
-procedure main()
-{
-    int res = 0;
-    for i in 1:5 {
-        if (i == 3) {continue;}
-        res = res + i;
-    }
-    print res;
-}

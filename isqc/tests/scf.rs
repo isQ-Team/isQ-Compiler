@@ -14,7 +14,6 @@ use test_case::test_case;
 #[test_case("scf_else_if", "2")]
 #[test_case("scf_empty_block", "0")]
 #[test_case("scf_for", "10")]
-#[test_case("scf_for_neg", "10")]
 #[test_case("scf_for_array", &("2".to_string()+LINE_ENDING+"3"+LINE_ENDING+"4"))]
 #[test_case("scf_for_raw_array", &("2".to_string()+LINE_ENDING+"3"+LINE_ENDING+"4"))]
 #[test_case("scf_for_array_zero", &("2".to_string()+LINE_ENDING+"3"+LINE_ENDING+"4"))]

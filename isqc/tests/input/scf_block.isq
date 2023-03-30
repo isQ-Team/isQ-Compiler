@@ -1,6 +1,0 @@
-procedure main()
-{
-    {
-        print 0;
-    }
-}

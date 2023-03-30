@@ -56,3 +56,19 @@ typeSpec = do
         it "returns an error when measuring an integer" $ do
             let str = "bool fun(){ int a; return M<a>; }"
             typeTestTemplate str "TypeMismatch"
+
+        it "returns an error when a qubit appears in an array" $ do
+            let str = "bool fun(){ qbit q; int a[] = {2, q}; }"
+            typeTestTemplate str "UnsupportedType"
+
+        it "returns an error when assigning a scalar to an array" $ do
+            let str = "bool fun(){ int a[] = 2; }"
+            typeTestTemplate str "TypeMismatch"
+
+        it "returns an error when assigning a double to an int array" $ do
+            let str = "bool fun(){ int a[] = {2, 3.4}; }"
+            typeTestTemplate str "TypeMismatch"
+
+        it "returns an error when using for over an int" $ do
+            let str = "bool fun(){ for i in 4 {}; }"
+            typeTestTemplate str "TypeMismatch"
