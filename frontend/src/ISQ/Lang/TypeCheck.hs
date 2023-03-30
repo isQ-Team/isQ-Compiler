@@ -3,6 +3,7 @@ import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.ISQv2Tokenizer
 import qualified Data.MultiMap as MultiMap
 import Data.List.Extra (firstJust)
+import Data.List.Index (imapM)
 import Data.Maybe
 import Control.Monad (join)
 import Control.Monad.Except
@@ -139,7 +140,7 @@ intToType _ = error "Unreachable."
 type TCExpr = Expr TypeCheckData
 
 data MatchRule = Exact EType | AnyUnknownList | AnyKnownList Int | AnyList | AnyFunc | AnyGate | AnyRef
-    | ArrayType MatchRule
+    | FixedArrayRule MatchRule
     deriving (Show, Eq)
 
 checkRule :: MatchRule->EType->Bool
@@ -150,7 +151,7 @@ checkRule AnyList (Type () (Array _) [_]) = True
 checkRule AnyFunc (Type () FuncTy _) = True
 checkRule AnyGate (Type () (Gate _) _) = True
 checkRule AnyRef (Type () Ref [_]) = True
-checkRule (ArrayType subRule) (Type () (Array _) [subType]) = checkRule subRule subType
+checkRule (FixedArrayRule subRule) (Type () (FixedArray _) [subType]) = checkRule subRule subType
 checkRule _ _ = False
 
 -- try to match two types, using auto dereference and int-to-bool implicit conversion.
@@ -270,8 +271,11 @@ typeCheckExpr' f (ESubscript pos base offset) = do
     offset''<-matchType [Exact $ intType (), Exact $ Type () IntRange []] offset'
     ssa<-nextId
     let a = case astType base'' of
-            Type () (Array _) [ax] -> case astType offset'' of
-                    Type () IntRange [] -> Type () (Array 0) [ax]
+            Type () UnknownArray [ax] -> case astType offset'' of
+                    Type () IntRange [] -> Type () (FixedArray 0) [ax]
+                    _ -> refType () ax
+            Type () (FixedArray _) [ax] -> case astType offset'' of
+                    Type () IntRange [] -> Type () (FixedArray 0) [ax]
                     _ -> refType () ax
             _ -> undefined
     return $ ESubscript (TypeCheckData pos a ssa) base'' offset''
@@ -370,31 +374,33 @@ getBaseFromArray (ESubscript ann base _) = base
 getBaseFromArray _ = error "Unreachable."
 
 getRangeFromArray :: TCExpr -> TypeCheck TCExpr
-getRangeFromArray array@(EResolvedIdent ann _) = do
+getRangeFromArray (EResolvedIdent ann _) = do
     let pos = sourcePos ann
     init_id <- nextId
     let init = EIntLit (TypeCheckData pos (intType ()) init_id) 0
+    let length = case termType ann of
+            Type () (FixedArray x) [Type () Qbit []] -> x
+            _ -> undefined
     hi_id <- nextId
-    let hi = EArrayLen (TypeCheckData pos (intType ()) hi_id) array
-    step_id <- nextId
-    let step = EIntLit (TypeCheckData pos (intType ()) step_id) 1
-    return $ ERange ann (Just init) (Just hi) (Just step)
+    let hi = EIntLit (TypeCheckData pos (intType ()) hi_id) length
+    return $ ERange ann (Just init) (Just hi) Nothing
 getRangeFromArray (ESubscript ann _ subscript) = return $ subscript
 getRangeFromArray x = error "Unreachable."
 
-generateIteratorDef :: TCExpr -> TypeCheck [Maybe TCAST]
+generateIteratorDef :: TCExpr -> TypeCheck [TCAST]
 generateIteratorDef (ERange ann lo hi step) = do
-    let it_def = Just $ NResolvedDefvar ann [(refIntType (), termId ann, lo)]
-    hi_def <- case hi of
-            Nothing -> return $ Nothing
-            Just _ -> do
-                hi_id <- nextId
-                return $ Just $ NResolvedDefvar ann [(refIntType (), hi_id, hi)]
+    let it_def = NResolvedDefvar ann [(refIntType (), termId ann, lo)]
+    hi_id <- case hi of
+            Nothing -> return (-1)
+            Just _ -> nextId
+    let hi_def = NResolvedDefvar ann [(refIntType (), hi_id, hi)]
     estep <- case step of
-            Nothing -> error "Unreachable."
+            Nothing -> do
+                lit_id <- nextId
+                return $ Just $ EIntLit (TypeCheckData (sourcePos ann) (refIntType ()) lit_id) 1
             Just x -> return $ Just $ x
     step_id <- nextId
-    let step_def = Just $ NResolvedDefvar ann [(refIntType (), step_id, estep)]
+    let step_def = NResolvedDefvar ann [(refIntType (), step_id, estep)]
     return [it_def, hi_def, step_def]
 
 getVariableRef :: Pos -> Type () -> Int -> TypeCheck TCExpr
@@ -418,37 +424,29 @@ increaseIterator pos (it_id, step_id) = do
     let add_ann = TypeCheckData pos (intType ()) add_id
     let add = EBinary add_ann Add it step
     left <- getVariableRef pos (intType ()) it_id
-    return $ NAssign (okStmt pos) left add AssignEq
+    return $ NAssign (okStmt pos) left add
 
-andRangeCondition :: Pos -> Int -> (Int, Int, Int) -> TypeCheck TCAST
-andRangeCondition pos in_id (it_id, hi_id, step_id) = do
+andRangeCondition :: Pos -> Int -> (Int, Int) -> TypeCheck TCAST
+andRangeCondition pos in_id (it_id, hi_id) = do
     cond_id <- nextId
     let cond_ann = TypeCheckData pos (boolType ()) cond_id
+    ident <- getVariableDeref pos (intType ()) it_id
     cond <- case hi_id of
             -1 -> return $ EBoolLit cond_ann True
             x -> do
-                -- the condtion is: ident * step < hi * step
-                -- it handles both cases that step is positive or negative
-                ident <- getVariableDeref pos (intType ()) it_id
-                step1 <- getVariableDeref pos (intType ()) step_id
-                ip_id <- nextId
-                let ip = EBinary (TypeCheckData pos (intType ()) ip_id) Mul ident step1
                 hi <- getVariableDeref pos (intType ()) hi_id
-                hp_id <- nextId
-                step2 <- getVariableDeref pos (intType ()) step_id
-                let hp = EBinary (TypeCheckData pos (intType ()) hp_id) Mul hi step2
-                return $ EBinary cond_ann (Cmp Less) ip hp
+                return $ EBinary cond_ann (Cmp Less) ident hi
     cond_in <- getVariableDeref pos (boolType ()) in_id
     and_id <- nextId
     let and_ann = TypeCheckData pos (boolType ()) and_id
     let and = EBinary and_ann And cond_in cond
     left <- getVariableRef pos (boolType ()) in_id
-    return $ NAssign (okStmt pos) left and AssignEq
+    return $ NAssign (okStmt pos) left and
 
 getItemFromArray :: Pos -> (TCExpr, TCExpr) -> TypeCheck TCExpr
 getItemFromArray pos (base, it) = do
     let subtype = case astType base of
-            Type () (Array _) [ax] -> ax
+            Type () (FixedArray _) [ax] -> ax
             _ -> error "Unreachable."
     ssa <- nextId
     return $ ESubscript (TypeCheckData pos subtype ssa) base it
@@ -588,12 +586,11 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     let operands'' = op_extra' ++ op_qubits'
                     return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers
                 Nothing -> do
-                    op_qubits' <- mapM (matchType [ArrayType $ Exact $ qbitType ()]) op_qubits
+                    op_qubits' <- mapM (matchType [FixedArrayRule $ Exact $ qbitType ()]) op_qubits
                     ranges <- mapM getRangeFromArray op_qubits'
                     var_defs <- mapM generateIteratorDef ranges
                     let get_second (a, b, c) = b
-                    let getIdFromDefvar Nothing = -1
-                        getIdFromDefvar (Just x) = get_second $ head $ resolvedDefinitions x
+                    let getIdFromDefvar = get_second . head . resolvedDefinitions
                     let it_ids = map (getIdFromDefvar . head) var_defs
                     let hi_ids = map (getIdFromDefvar . head . tail) var_defs
                     let step_ids = map (getIdFromDefvar . last) var_defs
@@ -605,14 +602,14 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     cond_id <- nextId
                     let cond_def = NResolvedDefvar (okStmt pos) [(refBoolType (), cond_id, true_lit)]
 
-                    apply_cond <- mapM (andRangeCondition pos cond_id) $ zip3 it_ids hi_ids step_ids
+                    apply_cond <- mapM (andRangeCondition pos cond_id) $ zip it_ids hi_ids
                     econd <- getVariableDeref pos (boolType ()) cond_id
                     current_ids <- mapM (getVariableDeref pos (intType ())) it_ids
                     let bases = map getBaseFromArray op_qubits'
                     qubits <- mapM (getItemFromArray pos) $ zip bases current_ids
                     let apply_unitary = NCoreUnitary (okStmt pos) gate'' qubits modifiers
                     inc_its <- mapM (increaseIterator pos) $ zip it_ids step_ids
-                    apply_cond2 <- mapM (andRangeCondition pos cond_id) $ zip3 it_ids hi_ids step_ids
+                    apply_cond2 <- mapM (andRangeCondition pos cond_id) $ zip it_ids hi_ids
                     let while_body = apply_unitary : inc_its ++ apply_cond2
                     ntemp_id <- nextId
                     flag <- getVariableDeref pos (boolType ()) ntemp_id
@@ -622,7 +619,7 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     let false_ann = TypeCheckData pos (boolType ()) false_id
                     let false_lit = Just $ EBoolLit false_ann False
                     let temp_def = NResolvedDefvar (okStmt pos) [(refBoolType (), ntemp_id, false_lit)]
-                    let block_body = (catMaybes $ concat var_defs) ++ cond_def:apply_cond ++ [temp_def, nwhile]
+                    let block_body = concat var_defs ++ cond_def:apply_cond ++ [temp_def, nwhile]
                     let block = NBlock (okStmt pos) block_body 
                     return block
 typeCheckAST' f (NCoreReset pos qubit) = do
