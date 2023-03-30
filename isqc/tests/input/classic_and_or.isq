@@ -1,5 +1,0 @@
-procedure main()
-{
-    print (true && false) + (true and false);
-    print (true || false) + (true or false);
-}

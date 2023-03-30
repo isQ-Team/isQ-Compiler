@@ -106,6 +106,7 @@ import Control.Exception (throw, Exception)
 %left '*' '/' '%' -- Level 3
 %left '**'  -- Level 2
 %right NEG POS '!' not -- Level 2
+%left '.length'
 %left SUBSCRIPT CALL '[' '(' -- Level 1
 
 %%

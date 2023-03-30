@@ -1,6 +1,0 @@
-procedure main()
-{
-    print 9 & 12;
-    print 9 | 12;
-    print 9 ^ 12;
-}

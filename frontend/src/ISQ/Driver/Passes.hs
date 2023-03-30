@@ -39,12 +39,10 @@ syntaxError file x =
     in SyntaxError (Pos {line = read l, column = read c, filename = file} )
 
 data ImportEnv = ImportEnv {
+    globalTable :: SymbolTableLayer,
     symbolTable :: Map.Map String SymbolTableLayer,
     ssaId :: Int
 }
-
-emptyImportEnv :: ImportEnv
-emptyImportEnv = ImportEnv Map.empty 0
 
 type PassMonad = ExceptT CompileError (StateT ImportEnv IO)
 
@@ -116,7 +114,9 @@ getImportedTcasts froms incPath impList = do
     files <- getImportedFiles froms incPath impList
     tupList <- mapM (fileToTcast incPath froms) files
     let tcast = concat $ map fst tupList
-    let table = MultiMap.fromList $ concat $ map (MultiMap.toList . snd) tupList
+    gtable <- gets globalTable
+    let tables = gtable : map snd tupList
+    let table = MultiMap.fromList $ concat $ map MultiMap.toList tables
     return (tcast, table)
 
 doImport :: [FilePath] -> [FilePath] -> FilePath -> LAST -> PassMonad ([TCAST], SymbolTableLayer)
@@ -177,15 +177,41 @@ fileToTcast incPath froms file = do
                     modify' (\x->x{symbolTable = newStl})
                     return $ tuple
 
-generateTcast :: String -> FilePath -> IO (Either CompileError ([TCAST], Int))
-generateTcast incPathStr inputFileName = do
+globalSource :: String
+globalSource = "int __measure_bundle(qbit q[])\
+\{\
+\    int res = 0;\
+\    int i = q.length - 1;\
+\    while (i >= 0) {\
+\        res = res * 2 + M(q[i]);\
+\        i = i - 1;\
+\    }\
+\    return res;\
+\}"
+
+globalSourceQcis :: String
+globalSourceQcis = "int __measure_bundle(qbit q[])\
+\{\
+\    for i in 0 : q.length {\
+\        M(q[i]);\
+\    }\
+\    return 0;\
+\}"
+
+generateTcast :: String -> FilePath -> Bool -> IO (Either CompileError ([TCAST], Int))
+generateTcast incPathStr inputFileName qcis = do
+    let gc = case qcis of
+            True -> globalSourceQcis
+            False -> globalSource
+    let (globalTcasts, globalTable, ssaId) = processGlobal gc
     absolutPath <- canonicalizePath inputFileName
     let splitedPath = splitOn ":" incPathStr
     incPath <- mapM canonicalizePath splitedPath
-    (errOrTuple, (ImportEnv _ ssa)) <- runStateT (runExceptT $ fileToTcast incPath [] absolutPath) emptyImportEnv
+    let env = ImportEnv globalTable Map.empty ssaId
+    (errOrTuple, (ImportEnv _ _ ssa)) <- runStateT (runExceptT $ fileToTcast incPath [] absolutPath) env
     case errOrTuple of
         Left x -> return $ Left x
-        Right tuple -> return $ Right (fst tuple, ssa)
+        Right tuple -> return $ Right (globalTcasts ++ fst tuple, ssa)
 
 compile :: String -> ([TCAST], Int) -> Either CompileError String
 compile s ast_tc = runExcept $ do

@@ -7,6 +7,7 @@ import Control.Monad.Except
 import Control.Monad.State
 import Data.Aeson
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.Map.Lazy as Map
 import qualified Data.MultiMap as MultiMap
 import System.IO (stdout)
 import Test.Hspec
@@ -16,7 +17,7 @@ getTypeCheckError = head . words . show
 
 typeTestTemplate :: String -> String -> IO ()
 typeTestTemplate input expect = do
-    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) emptyImportEnv
+    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) $ ImportEnv MultiMap.empty Map.empty 0
     case errorOrAst of
         Left _ -> error "input file error"
         Right ast -> do
@@ -53,6 +54,14 @@ typeSpec = do
             let str = "int fun(){ return 1.2 << 3; }"
             typeTestTemplate str "TypeMismatch"
 
+        it "returns an error when adding an int and a qbit" $ do
+            let str = "int fun(){ qbit q; return 1 + q; }"
+            typeTestTemplate str "TypeMismatch"
+
+        it "returns an error when increasing a qbit" $ do
+            let str = "procedure fun(){ qbit q; q += 1; }"
+            typeTestTemplate str "TypeMismatch"
+
         it "returns an error when measuring an integer" $ do
             let str = "bool fun(){ int a; return M<a>; }"
             typeTestTemplate str "TypeMismatch"
@@ -71,4 +80,8 @@ typeSpec = do
 
         it "returns an error when using for over an int" $ do
             let str = "bool fun(){ for i in 4 {}; }"
+            typeTestTemplate str "TypeMismatch"
+
+        it "returns an error when getting the length of an int" $ do
+            let str = "bool fun(){ int a; print a.length; }"
             typeTestTemplate str "TypeMismatch"

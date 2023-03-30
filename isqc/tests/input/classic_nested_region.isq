@@ -1,8 +1,0 @@
-procedure main()
-{
-    int x = 2;
-    {
-        int x = 3;
-    }
-    print x;
-}
