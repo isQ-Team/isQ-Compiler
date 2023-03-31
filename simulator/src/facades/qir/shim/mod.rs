@@ -38,7 +38,7 @@ use itertools::Itertools;
 use shim_prelude::types::*;
 pub(crate) fn sq_op(controls: Option<K<QIRArray>>, op: QuantumOp, arg: &[f64], qubit: usize) {
     let rctx = context();
-    let mut ctx = RefCell::borrow_mut(&rctx);
+    let mut ctx = rctx.lock().unwrap();
     let controls: Vec<usize> = if let Some(x0) = controls {
         x0.get(&ctx)
             .get_1d_data_of::<usize>()

@@ -185,16 +185,16 @@ pub extern "C" fn __isq__qir__shim__rt__callable_copy(x0: *mut i8, x1: bool)->*m
     use core::mem::transmute as t;
     unsafe { t(isq_qir_shim_rt_callable_copy(t::<_, K<QIRCallable>>(x0), t::<_, bool>(x1)))}
 }
-#[no_mangle]
-pub extern "C" fn __isq__qir__shim__rt__callable_create(x0: *mut i8, x1: *mut i8, x2: *mut i8, x3: *mut i8, x4: *mut i8, x5: *mut i8, x6: *mut i8)->*mut i8 {
-    use core::mem::transmute as t;
-    unsafe { t(isq_qir_shim_rt_callable_create(t::<_, *mut i8>(x0), t::<_, *mut i8>(x1), t::<_, *mut i8>(x2), t::<_, *mut i8>(x3), t::<_, *mut i8>(x4), t::<_, *mut i8>(x5), t::<_, TupleBodyPtr>(x6)))}
-}
-#[no_mangle]
-pub extern "C" fn __isq__qir__shim__rt__callable_invoke(x0: *mut i8, x1: *mut i8, x2: *mut i8)->() {
-    use core::mem::transmute as t;
-    unsafe { t(isq_qir_shim_rt_callable_invoke(t::<_, K<QIRCallable>>(x0), t::<_, TupleBodyPtr>(x1), t::<_, TupleBodyPtr>(x2)))}
-}
+// #[no_mangle]
+// pub extern "C" fn __isq__qir__shim__rt__callable_create(x0: *mut i8, x1: *mut i8, x2: *mut i8, x3: *mut i8, x4: *mut i8, x5: *mut i8, x6: *mut i8)->*mut i8 {
+//     use core::mem::transmute as t;
+//     unsafe { t(isq_qir_shim_rt_callable_create(t::<_, *mut i8>(x0), t::<_, *mut i8>(x1), t::<_, *mut i8>(x2), t::<_, *mut i8>(x3), t::<_, *mut i8>(x4), t::<_, *mut i8>(x5), t::<_, TupleBodyPtr>(x6)))}
+// }
+// #[no_mangle]
+// pub extern "C" fn __isq__qir__shim__rt__callable_invoke(x0: *mut i8, x1: *mut i8, x2: *mut i8)->() {
+//     use core::mem::transmute as t;
+//     unsafe { t(isq_qir_shim_rt_callable_invoke(t::<_, K<QIRCallable>>(x0), t::<_, TupleBodyPtr>(x1), t::<_, TupleBodyPtr>(x2)))}
+// }
 #[no_mangle]
 pub extern "C" fn __isq__qir__shim__rt__callable_make_adjoint(x0: *mut i8)->() {
     use core::mem::transmute as t;

@@ -9,7 +9,7 @@ use libloading::*;
 use clap::{Parser, ArgEnum, PossibleValue};
 
 extern crate env_logger;
-use std::{env::set_var, sync::mpsc, os::unix::prelude::OsStrExt};
+use std::{env::set_var, sync::{mpsc, Mutex, Arc}, os::unix::prelude::OsStrExt};
 use log::debug;
 
 #[macro_use]
@@ -143,7 +143,7 @@ fn main() -> std::io::Result<()> {
             }),
         );
         
-        make_context_current(Rc::new(RefCell::new(context)));
+        make_context_current(Arc::new(Mutex::new(context)));
 
         unsafe {
             let mut handles = vec![];
@@ -188,7 +188,7 @@ fn main() -> std::io::Result<()> {
         }
         
         let ctx_ = get_current_context();
-        let mut ctx = ctx_.borrow_mut();
+        let mut ctx = ctx_.lock().unwrap();
 
         let r = ctx.get_device_mut().get_measure_res();
         let count = res_map.entry(r).or_insert(0);
