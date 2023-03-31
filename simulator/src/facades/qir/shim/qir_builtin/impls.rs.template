@@ -113,9 +113,6 @@ pub fn isq_qir_shim_rt_callable_copy(x0: K<QIRCallable>, x1: bool)->K<QIRCallabl
 pub fn isq_qir_shim_rt_callable_create(x0: *mut i8, x1: *mut i8, x2: *mut i8, x3: *mut i8, x4: *mut i8, x5: *mut i8, x6: TupleBodyPtr)->K<QIRCallable> {
     todo!()
 }
-pub fn isq_qir_shim_rt_callable_invoke(x0: K<QIRCallable>, x1: TupleBodyPtr, x2: TupleBodyPtr)->() {
-    todo!()
-}
 pub fn isq_qir_shim_rt_callable_make_adjoint(x0: K<QIRCallable>)->() {
     todo!()
 }
