@@ -15,6 +15,7 @@
 #include "caterpiller/synthesis/lhrs.hpp"
 #include "caterpiller/synthesis/strategies/bennett_mapping_strategy.hpp"
 #include "caterpiller/synthesis/strategies/eager_mapping_strategy.hpp"
+#include "caterpiller/synthesis/strategies/greedy_pebbling_mapping_strategy.hpp"
 #include "mockturtle/algorithms/lut_mapping.hpp"
 #include "mockturtle/algorithms/collapse_mapped.hpp"
 #include "mockturtle/networks/klut.hpp"
@@ -149,7 +150,7 @@ public:
             }
         };
 
-        // Process each statement qubits the funciton body.
+        // Process each statement in the funciton body.
         for (mlir::Operation &it : op.getRegion().getOps()) {
             if (logic::ir::NotOp notop = llvm::dyn_cast<logic::ir::NotOp>(it)) {
                 std::string operand = value2str(notop.operand());
@@ -221,7 +222,8 @@ public:
         }
 
         // Convert XAG to quantum circuit. 
-        caterpillar::bennett_mapping_strategy<mockturtle::xag_network> strategy;
+        // caterpillar::eager_mapping_strategy<mockturtle::xag_network> strategy;
+        caterpillar::greedy_pebbling_mapping_strategy<mockturtle::xag_network> strategy;
         tweedledum::netlist<caterpillar::stg_gate> circ;
         caterpillar::logic_network_synthesis_stats stats;
         caterpillar::detail::logic_network_synthesis_impl<tweedledum::netlist<caterpillar::stg_gate>, 
@@ -230,7 +232,7 @@ public:
         
         // Construct MLIR-style circuit. 
         mlir::MLIRContext *ctx = op.getContext();
-        mlir::Location loc = op.getLoc(); // The location of the oracle function qubits the source code.
+        mlir::Location loc = op.getLoc(); // The location of the oracle function in the source code.
 
         // Construct function signature.
         mlir::SmallVector<::mlir::Type> argtypes;
@@ -260,13 +262,28 @@ public:
                 std::cout << "  complemented: " << (child.complement ? "y" : "n") << std::endl;
             });
         } );
+        xag.foreach_pi( [&]( auto pi ) {
+            std::cout << "pi: " << pi << std::endl;
+        } );
         xag.foreach_po( [&]( auto node, auto index ) {
-            std::cout << "po: " << index << (((mockturtle::xag_network::signal)node.data).complement ? " complemented" : "") << std::endl;
+            std::cout << "po: " << xag.get_node(node) << (((mockturtle::xag_network::signal)node.data).complement ? " complemented" : "") << std::endl;
             xag.foreach_fanin(index, [&]( auto child ) {
                 std::cout << "  child: " << child.index << std::endl;
                 std::cout << "  complemented: " << (child.complement ? "y" : "n") << std::endl;
             });
         } );
+        
+        caterpillar::greedy_pebbling_mapping_strategy<mockturtle::xag_network> strategy_test;
+        tweedledum::netlist<caterpillar::stg_gate> circ_test;
+        caterpillar::logic_network_synthesis_stats stats_test;
+        auto result = strategy_test.compute_steps( xag );
+        strategy_test.print_connected_component(std::cout);
+
+        std::cout << "******mapping strategy*******" << std::endl;
+        caterpillar::print_mapping_strategy<caterpillar::eager_mapping_strategy<mockturtle::xag_network>>(strategy, std::cout);
+        std::cout << "******test strategy*******" << std::endl;
+        caterpillar::print_mapping_strategy<caterpillar::greedy_pebbling_mapping_strategy<mockturtle::xag_network>>(strategy_test, std::cout);
+        
         std::cout << "******circuit description*******" << std::endl;
         std::cout << "num_gates: " << circ.num_gates() << std::endl;
         circ.foreach_cgate( [&]( auto n ) {
