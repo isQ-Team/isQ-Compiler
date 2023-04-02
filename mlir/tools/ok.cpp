@@ -15,7 +15,8 @@ int main(int argc, char **argv) {
         for(auto& label: pattern->getDebugLabels()){
             llvm::outs()<<"    "<<label<<"\n";
         }
-        
+        mlir::AffineStoreOp s;
+        s.getIndices();
     }
     return 0;
 }

@@ -1,3 +1,4 @@
 file(GLOB_RECURSE SRC_FILES ./*.cpp)
 add_library(isqir STATIC ${SRC_FILES})
 add_dependencies(isqir MLIRTablegen)
+target_link_libraries(isqir PRIVATE nlohmann_json::nlohmann_json)

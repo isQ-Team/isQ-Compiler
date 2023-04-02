@@ -21,6 +21,7 @@
 #include "isq/QAttrs.h"
 #include <llvm/Support/Signals.h>
 #include <mlir/IR/TypeRange.h>
+#include "isq/dialects/Extra.h"
 using namespace isq::ir;
 
 // An example app that prints sample isQ-IR.
@@ -66,6 +67,7 @@ int main(int argc, char **argv) {
     
     q0 = (bld.create<ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate_type}, gate_h.result(), mlir::ValueRange{q0}))->getResult(0);
     bld.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{q0, q1});
+    bld.create<isq::extra::Schedule>(loc, mlir::TypeRange{});
     
     assert(mlir::succeeded(module.verify()));
     mlir::OpPrintingFlags flags;

@@ -733,7 +733,7 @@ def ISQ_QMPI_Blocking_AllToAll : ISQ_Op<"qmpi.blocking.alltoall">{
         ISQ_QState : $qout
     );
 }
-def ISQ_QMPI_Blocking_AllToAllMove : ISQ_Op<"qmpi.blocking.alltoall">{
+def ISQ_QMPI_Blocking_AllToAllMove : ISQ_Op<"qmpi.blocking.alltoall_move">{
     let arguments = (ins
         MemRefRankOf<[ISQ_QState], [1]> : $buffer,
         ISQ_QMPI_Comm: $comm

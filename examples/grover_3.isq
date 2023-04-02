@@ -1,0 +1,21 @@
+import std;
+
+procedure grover_mve(){
+    qbit ancilla[11];
+    qbit work[3];
+    for i in 0:10{
+        H(work[0]); H(work[1]); H(work[2]);
+        CZ(work[0], work[2]);
+        CZ(work[0], work[1]);
+        H(work[0]); H(work[1]); H(work[2]);
+        X(work[0]); X(work[1]); X(work[2]);
+        Toffoli(work[2], work[1], ancilla[i]);
+        CNOT(ancilla[i], work[0]);
+        Toffoli(work[2], work[1], ancilla[i]);
+        X(work[0]); X(work[1]); X(work[2]);
+        H(work[0]); H(work[1]); H(work[2]);
+    }
+}
+procedure main(){
+    
+} 
