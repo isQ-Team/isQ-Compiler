@@ -25,6 +25,16 @@ namespace ir{
 
 template<isq::ir::math::MatDouble Mat>
 static DenseComplexF64MatrixAttr fromMatrixImpl(mlir::MLIRContext* ctx, const Mat& mat){
+    mlir::SmallVector<mlir::SmallVector<std::complex<double>>> data;
+    for(auto& row: mat){
+        mlir::SmallVector<std::complex<double>> curr_row;
+        for(auto& value: row){
+            curr_row.push_back(value);
+        }
+        data.push_back(std::move(curr_row));
+    }
+    return DenseComplexF64MatrixAttr::get(ctx, data);
+    /*
     mlir::SmallVector<std::complex<llvm::APFloat>> data;
     for(auto& row: mat){
         for(auto& value: row){
@@ -34,6 +44,7 @@ static DenseComplexF64MatrixAttr fromMatrixImpl(mlir::MLIRContext* ctx, const Ma
     auto shape = mlir::RankedTensorType::get({2, 2}, mlir::ComplexType::get(mlir::Float64Type::get(ctx)));
     auto dense = mlir::DenseElementsAttr::get(shape, data);
     return DenseComplexF64MatrixAttr::get(ctx, dense);
+    */
 }
 
 

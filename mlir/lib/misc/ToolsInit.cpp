@@ -1,4 +1,5 @@
 #include "isq/contrib/Affine.h"
+#include "isq/dialects/Extra.h"
 #include <mlir/InitAllPasses.h>
 #include <mlir/InitAllDialects.h>
 #include <isq/IR.h>
@@ -22,9 +23,11 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerEliminateNegCtrl();
     passes::registerISQCanonicalizer();
     passes::registerOracleDecompose();
+    passes::registerAffineSWP();
     isq::contrib::mlir::registerAffineScalarReplacementPass();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
+    registry.insert<isq::extra::ISQExtraDialect>();
 }
 } // namespace ir
 } // namespace isq

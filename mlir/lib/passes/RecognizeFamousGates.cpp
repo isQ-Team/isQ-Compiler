@@ -169,7 +169,7 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
         mlir::SmallVector<mlir::Type> toffoliArgType;
         toffoliArgType.append(3, QStateType::get(ctx));
         auto funcType = mlir::FunctionType::get(ctx, toffoliArgType, toffoliArgType);
-        auto funcop = builder.create<mlir::func::FuncOp>(mlir::NameLoc::get(builder.getStringAttr("<builtin>")), BUILTIN_TOFFOLI_DECOMPOSITION, funcType, builder.getStringAttr("private"));
+        auto funcop = builder.create<mlir::func::FuncOp>(mlir::NameLoc::get(builder.getStringAttr("<builtin>")), BUILTIN_TOFFOLI_DECOMPOSITION, funcType, builder.getStringAttr("public"));
         auto body = funcop.addEntryBlock();
         builder.setInsertionPointToStart(body);
         mlir::SmallVector<mlir::Value> qubits;

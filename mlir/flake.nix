@@ -19,7 +19,7 @@
       depComponentOverlays = [ vendor.overlays.default ];
       shell = { pkgs }: pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
         inputsFrom = [ pkgs.isqc.isq-opt ];
-        nativeBuildInputs = [ pkgs.clang-tools ];
+        nativeBuildInputs = [ pkgs.clang-tools pkgs.nlohmann_json ];
       };
     };
 }
