@@ -67,6 +67,9 @@ set(MLIR_TABLEGEN_EXE ${MLIR_TABLEGEN_EXE_ABSOLUTE})
 # set(ENV{EIGEN3_ROOT} ${PROJECT_SOURCE_DIR}/vendor/eigen)
 find_package(Eigen3 REQUIRED 3.4.0)
 
+# JSON
+find_package(nlohmann_json 3.11.2 REQUIRED)
+
 include(TableGen)
 include(AddMLIR)
 

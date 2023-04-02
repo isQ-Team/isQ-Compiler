@@ -250,8 +250,8 @@ emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_crecv\"") _ _) = "\n\
 emitOpStep f env (MFunc loc name ret blocks) = let s = fmap (emitBlock f env) blocks in intercalate "\n" ([indented env $ funcHeader name ret (fmap fst $ blockArgs $ head blocks), indented env "{"] ++ s ++ [indented env $ printf "} %s" (mlirPos loc)])
 emitOpStep f env (MQDefGate loc name size extra reps) = indented env $ printf "isq.defgate %s%s {definition = [%s]}: !isq.gate<%d> %s" (unFuncName name) (case extra of {[]->""; xs-> "("++intercalate ", " (map mlirType extra)++")"}) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
 emitOpStep f env (MQOracleTable loc name size reps) = indented env $ printf "isq.defgate %s {definition=[%s]}: !isq.gate<%d> %s" (unFuncName name) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
-emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)
-emitOpStep f env (MExternFunc loc name (Just returns) args) = indented env $ printf "func private %s(%s)->%s %s"(unFuncName name) (intercalate ", " $ map mlirType args) (mlirType returns) (mlirPos loc)
+emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func.func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)
+emitOpStep f env (MExternFunc loc name (Just returns) args) = indented env $ printf "func.func private %s(%s)->%s %s"(unFuncName name) (intercalate ", " $ map mlirType args) (mlirType returns) (mlirPos loc)
 emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) []) = indented env $ printf "%s = isq.use %s : !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) sz (mlirPos loc)
 emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) xs) = indented env $ printf "%s = isq.use %s(%s) : (%s) -> !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) (intercalate ", " $ fmap (unSsa.snd) xs) (intercalate ", " $ fmap (mlirType.fst) xs) sz (mlirPos loc)
 emitOpStep f env (MQUseGate loc val usedgate usedtype _) = error "wtf?"
@@ -296,8 +296,8 @@ emitOpStep f env (MFreeMemref loc val ty) = intercalate "\n" $ [indented env $ p
   indented env $ printf "memref.dealloc %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)]
 emitOpStep f env (MJmp loc blk) = indented env $ printf "cf.br %s %s" (unBlockName blk) (mlirPos loc)
 emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "cf.cond_br %s, %s, %s %s" (unSsa val) (unBlockName trueDst) (unBlockName falseDst) (mlirPos loc)
-emitOpStep f env (MCall loc Nothing fn args) = indented env $ printf "call %s(%s) : (%s)->() %s" (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
-emitOpStep f env (MCall loc (Just (retty, retval)) fn args) = indented env $ printf "%s = call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
+emitOpStep f env (MCall loc Nothing fn args) = indented env $ printf "func.call %s(%s) : (%s)->() %s" (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
+emitOpStep f env (MCall loc (Just (retty, retval)) fn args) = indented env $ printf "%s = func.call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
 emitOpStep f env (MSCFIf loc cond then' else') = intercalate "\n" $ [
   indented env $ printf "scf.if %s {" $ unSsa cond]
   ++[f (incrIndent env{isTopLevel=False}) then']
