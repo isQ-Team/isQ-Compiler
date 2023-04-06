@@ -21,6 +21,7 @@ env_logger = "0.9.0"
 chrono = "0.4.19"
 regex = "1.5.4"
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] , optional = true}
+serde = { version = "1.0.115", features = ["derive"] }
 [dev-dependencies]
 
 [features]

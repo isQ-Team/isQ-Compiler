@@ -53,9 +53,14 @@ develop:
 	@exec nix develop
 lock:
 	cd vendor && nix flake lock --update-input isqc-base
-	cd simulator && nix flake lock --update-input isqc-base --update-input mlir
+	cd simulator && nix flake lock --update-input isqc-base --update-input mlir --update-input vendor
 	cd isqc && nix flake lock --update-input isqc-base
 	cd mlir && nix flake lock --update-input isqc-base --update-input vendor
 	cd frontend && nix flake lock --update-input isqc-base
 	cd docs && nix flake lock --update-input isqc-base
 	nix flake lock --update-input isqc-base --update-input vendor --update-input isqc1 --update-input isq-opt --update-input isqc-driver --update-input isq-simulator --update-input isqc-docs
+bin:
+	mkdir -p bin
+	cd bin && ln -s ../frontend/dist/build/isqc1/isqc1 ./isqc1
+	cd bin && ln -s ../mlir/build/tools/isq-opt ./isq-opt
+	cd bin && ln -s ../mlir/build/tools/isq-example ./isq-example
