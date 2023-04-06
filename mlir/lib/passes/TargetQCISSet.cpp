@@ -17,6 +17,27 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 namespace isq::ir::passes{
 
+struct SWAP2CX : mlir::OpRewritePattern<ApplyGateOp>{
+public:
+    SWAP2CX(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
+    mlir::LogicalResult matchAndRewrite(ApplyGateOp apply, mlir::PatternRewriter& rewriter) const override{
+        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.gate().getDefiningOp());
+        if(!usegate) return mlir::failure();
+        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+        if(!defgate) return mlir::failure();
+        auto ctx = rewriter.getContext();
+        if(isFamousGate(defgate, "swap")){
+            mlir::Value v1 = apply->getOperand(1);
+            mlir::Value v2 = apply->getOperand(2);
+            emitBuiltinGate(rewriter, "CNOT", {&v1, &v2});
+            emitBuiltinGate(rewriter, "CNOT", {&v2, &v1});
+            emitBuiltinGate(rewriter, "CNOT", {&v1, &v2});
+            rewriter.replaceOp(apply, mlir::ArrayRef<mlir::Value>{v1, v2});
+            return mlir::success();
+        }
+        return mlir::failure();
+    }
+};
 struct CX2HCZH : mlir::OpRewritePattern<ApplyGateOp>{
 public:
     CX2HCZH(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
@@ -168,6 +189,7 @@ class TargetQCISSetPass : public mlir::PassWrapper<TargetQCISSetPass, mlir::Oper
         }
         do{
             mlir::RewritePatternSet rps(ctx);
+            rps.add<SWAP2CX>(ctx);
             rps.add<CX2HCZH>(ctx);
             rps.add<RZRecog>(ctx);
             rps.add<U3ToZYZ>(ctx);

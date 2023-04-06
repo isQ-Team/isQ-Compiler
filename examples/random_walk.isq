@@ -1,4 +1,19 @@
 import std;
+
+procedure increment(qbit walk_0, qbit walk_1){
+    CNOT(walk_0, walk_1);
+    X(walk_0);
+} deriving gate
+procedure main(){
+    qbit coin;
+    qbit walk[2];
+    int n = 10;
+    for i in 0:n{
+        H(coin);
+        ctrl increment(coin, walk[0], walk[1]);
+        nctrl inv increment(coin, walk[0], walk[1]);
+    }
+}
 /*
 procedure grover_coin(qbit coin[]){
     H(coin[0]);
@@ -22,6 +37,7 @@ procedure walk(qbit coin[], qbit space[]){
     Toffoli(coin[0], coin[1], coin[3]);
 }
 */
+/*
 procedure main(){
     qbit coin[2];
     qbit space[4];
@@ -45,9 +61,8 @@ procedure main(){
         Toffoli(coin[0], coin[1], space[2]);
         X(coin[0]);
         Toffoli(coin[0], coin[1], coin[3]);
-        /*
-        grover_coin(coin);
-        walk(coin, space);
-        */
+        //grover_coin(coin);
+        //walk(coin, space);
     }
 }
+*/
