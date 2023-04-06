@@ -1,12 +1,12 @@
 use std::{sync::Arc, collections::BTreeMap};
 
-use crate::lang::{location::Span, ast::{AST, LAST}};
+use crate::lang::{location::Span, ast::{AST, LAST, Expr}};
 
 use super::package::*;
 
 
 pub type SymAST<'a> = AST<SymbolInfoAnnotation<'a>, SymbolInfoAnnotation<'a>>;  
-
+pub type SymExpr<'a> = Expr<SymbolInfoAnnotation<'a>>;
 pub fn last_to_symast<'a>(orig: Vec<LAST>)->Vec<SymAST<'a>>{
     orig.into_iter().map(|x| x.lift(&SymbolInfoAnnotation::empty, &SymbolInfoAnnotation::empty)).collect()
 }
@@ -34,8 +34,6 @@ pub enum SymbolInfo<'a>{
 }
 
 
-
-
 pub struct SymbolTableLayer<'a>{
     //global_modules: BTreeMap<String, SymbolInfo<'a>>,
 
@@ -45,7 +43,6 @@ pub struct SymbolTableLayer<'a>{
     global_symbols: BTreeMap<String, SymbolInfo<'a>>,
     /// Local identifiers.
     locals: BTreeMap<String, SymbolInfo<'a>>,
-    local_counter: usize,
 }
 impl<'a> SymbolTableLayer<'a>{
     pub fn new()->Self{
@@ -53,7 +50,6 @@ impl<'a> SymbolTableLayer<'a>{
             imported_glob_modules: Vec::new(), 
             global_symbols: BTreeMap::new(), 
             locals: Default::default(),
-            local_counter: 0
         }
     }
     pub fn add_global_module(&mut self, sym: &str, entry: &'a Module)->Result<(), ()>{
@@ -72,12 +68,10 @@ impl<'a> SymbolTableLayer<'a>{
             return Ok(());
         }
     }
-    pub fn define_local(&mut self, sym: &str)->Option<usize>{
+    pub fn define_local(&mut self, sym: &str, local: usize)->Option<usize>{
         if self.locals.contains_key(sym){
             return None;
         }else{
-            let local = self.local_counter;
-            self.local_counter+=1;
             self.locals.insert(sym.to_owned(), SymbolInfo::Local(local));
             return Some(local);
         }
@@ -213,5 +207,28 @@ impl<'a> SymbolTable<'a>{
         };
         
         table
+    }
+    pub fn push_scope(&mut self){
+        self.layers.push(SymbolTableLayer::new())
+    }
+    pub fn pop_scope(&mut self){
+        self.layers.pop();
+    }
+    pub fn peek_scope_mut(&mut self)->&mut SymbolTableLayer<'a>{
+        self.layers.last_mut().unwrap()
+    }
+    pub fn declare_local(&mut self, sym: &str, local: usize)->Result<(), ()>{
+        self.peek_scope_mut().define_local(sym, local).ok_or(())?;
+        Ok(())
+    }
+    // resolve a symbol recursively.
+    pub fn resolve_symbol(&mut self, sym: &str)->Result<SymbolInfo<'a>, ()>{
+        for layer in self.layers.iter().rev(){
+            let resolved = layer.resolve(sym);
+            if let Ok(sym) = resolved{
+                return Ok(sym);
+            }
+        }
+        Err(())
     }
 }
