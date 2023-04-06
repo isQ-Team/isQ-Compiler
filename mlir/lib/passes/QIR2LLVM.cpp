@@ -136,16 +136,16 @@ public:
             mlir::Value line = rewriter.create<mlir::LLVM::ConstantOp>(loc, mlir::IntegerType::get(context, 32), lineAttr);
             auto columnAttr = rewriter.getI32IntegerAttr(flc.getColumn());
             mlir::Value column = rewriter.create<mlir::LLVM::ConstantOp>(loc, mlir::IntegerType::get(context, 32), columnAttr);
-            rewriter.create<mlir::CallOp>(loc, printfRef, rewriter.getIntegerType(32),
+            rewriter.create<mlir::func::CallOp>(loc, printfRef, rewriter.getIntegerType(32),
                 llvm::ArrayRef<mlir::Value>({locStr, sourcePos, line, column}));
 
             // Print error message
             auto errorNum = op.error_num();
             mlir::Value messageCst = getErrorMessage(loc, rewriter, errorNum, parentModule);
-            rewriter.create<mlir::CallOp>(loc, printfRef, rewriter.getIntegerType(32), llvm::ArrayRef<mlir::Value>({messageCst}));
+            rewriter.create<mlir::func::CallOp>(loc, printfRef, rewriter.getIntegerType(32), llvm::ArrayRef<mlir::Value>({messageCst}));
             auto attr = rewriter.getIntegerAttr(rewriter.getIntegerType(32), errorNum);
             mlir::Value code = rewriter.create<mlir::LLVM::ConstantOp>(loc, mlir::IntegerType::get(context, 32), attr);
-            rewriter.create<mlir::CallOp>(loc, exitRef, llvm::ArrayRef<Type>({}), llvm::ArrayRef<mlir::Value>({code}));
+            rewriter.create<mlir::func::CallOp>(loc, exitRef, llvm::ArrayRef<Type>({}), llvm::ArrayRef<mlir::Value>({code}));
         });
         return mlir::success();
     }
