@@ -32,7 +32,7 @@ pub struct GateModifier<T>(pub GateModifierType, pub T);
 
 #[derive(Debug, Clone)]
 pub enum ExprNode<E>{
-    Ident(Ident<E>),
+    //Ident(Ident<E>),
     Qualified(Qualified<E>),
     Binary{
         op: BinaryOp,
@@ -208,7 +208,7 @@ impl<E, T> ASTBlock<E, T>{
 impl<E> Expr<E>{
     pub fn lift<E2, F: Fn(E)->E2>(self, f: &F)->Expr<E2>{
         Expr(Box::new(match *self.0{
-            ExprNode::Ident(id) => ExprNode::Ident(id.lift(f)),
+            //ExprNode::Ident(id) => ExprNode::Ident(id.lift(f)),
             ExprNode::Qualified(q) => ExprNode::Qualified(q.lift(f)),
             ExprNode::Binary { op, lhs, rhs } => ExprNode::Binary { op, lhs: lhs.lift(f), rhs: rhs.lift(f) },
             ExprNode::Paren(sub) => ExprNode::Paren(sub.lift(f)),
