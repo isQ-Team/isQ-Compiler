@@ -529,22 +529,25 @@ struct DecorateFoldingPass : public mlir::PassWrapper<DecorateFoldingPass, mlir:
         auto ctx = m->getContext();
         bool dirty = true;
         auto sq_adj = this->ignore_sq_adj.getValue();
+        mlir::GreedyRewriteConfig config;
+        config.maxIterations = mlir::GreedyRewriteConfig::kNoIterationLimit;
         while(dirty){
             dirty = false;
             do{
                 mlir::RewritePatternSet rps(ctx);
                 rps.add<DecorateFoldRewriteRule>(ctx, m, &dirty, sq_adj);
                 mlir::FrozenRewritePatternSet frps(std::move(rps));
-                (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+                
+                (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps, config);
             }while(0);
             do{
                 mlir::PassManager pm(ctx);
                 pm.addNestedPass<mlir::func::FuncOp>(std::make_unique<GenerateInvertedGate>());
+                pm.enableVerifier(false);
                 if(failed(pm.run(m))){
                     return signalPassFailure();
                 }
             }while(0);
-
             do{
                 m->walk([=](mlir::func::FuncOp fn){
                     if(!fn->hasAttr(ISQ_DECORATE_FOLDING_PROPAGATE_CTRL_BITS)){
@@ -556,14 +559,14 @@ struct DecorateFoldingPass : public mlir::PassWrapper<DecorateFoldingPass, mlir:
                     rps.add<InsertControllerBits>(ctx, controls, controlStartIndex, fn);
                     passes::addLegalizeTraitsRules(rps);
                     mlir::FrozenRewritePatternSet frps(std::move(rps));
-                    (void)mlir::applyPatternsAndFoldGreedily(fn, frps);
+                    (void)mlir::applyPatternsAndFoldGreedily(fn, frps, config);
                 });
             }while(0);
             do{
                 mlir::RewritePatternSet rps(ctx);
                 rps.add<FakeMem2Reg>(ctx);
                 mlir::FrozenRewritePatternSet frps(std::move(rps));
-                (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+                (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps, config);
             }while(0);
         }
         

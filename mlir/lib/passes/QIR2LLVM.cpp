@@ -27,6 +27,8 @@
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
 #include "llvm/Support/raw_ostream.h"
 #include <mlir/Dialect/Arithmetic/Transforms/Passes.h>
+#include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
+#include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
 namespace isq{
 namespace ir{
 namespace passes{
@@ -174,6 +176,7 @@ struct QIRRepToLLVMPass : public mlir::PassWrapper<QIRRepToLLVMPass, mlir::Opera
         arith::populateArithmeticExpandOpsPatterns(patterns);
         arith::populateArithmeticToLLVMConversionPatterns(typeConverter, patterns);
         cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
+        populateFuncToLLVMConversionPatterns(typeConverter, patterns);
         //populateStdToLLVMConversionPatterns(typeConverter, patterns);
 
         auto module = getOperation();

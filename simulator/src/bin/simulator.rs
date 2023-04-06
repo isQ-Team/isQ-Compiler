@@ -31,7 +31,7 @@ use clap::ArgGroup;
 struct SimulatorArgs {
     #[clap(index = 1, parse(from_os_str))]
     qir_shared_library: OsString,
-    #[clap(short, long, default_value = "isq_simulator_entry")]
+    #[clap(short, long, default_value = "__isq_simulator_entry")]
     entrypoint: String,
     #[clap(long)]
     naive: bool,

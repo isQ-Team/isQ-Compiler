@@ -1,0 +1,17 @@
+import std;
+procedure main(){
+    qbit q[5]; 
+    X(q[4]);
+    for i in 0:5{ 
+        H(q[i]);
+    }
+    CNOT(q[0], q[4]);
+    CNOT(q[1], q[4]);
+    CNOT(q[3], q[4]);
+    for i in 0:5{ 
+        H(q[i]); 
+    }
+    for i in 0:5{
+        M(q[i]); 
+    }
+}

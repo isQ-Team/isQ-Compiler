@@ -24,6 +24,8 @@
 #include "mlir/IR/IntegerSet.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "isq/contrib/Affine.h"
+#include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Value.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 
@@ -341,6 +343,18 @@ static void findUnusedStore(AffineWriteOpInterface writeA,
   }
 }
 
+static void findUnloadedAlloc(memref::AllocOp allocOp, SmallVectorImpl<Operation*>& opsToErase, SmallPtrSetImpl<Value> &memrefsToErase){
+  for(Operation* user : allocOp.getResult().getUsers()){
+    if(hasSingleEffect<MemoryEffects::Read>(user)) return;
+  }
+  for(Operation* user : allocOp.getResult().getUsers()){
+    if(hasSingleEffect<MemoryEffects::Write>(user)) {
+      opsToErase.push_back(user);
+    }
+  }
+  memrefsToErase.insert(allocOp.getResult());
+}
+
 // The load to load forwarding / redundant load elimination is similar to the
 // store to load forwarding.
 // loadA will be be replaced with loadB if:
@@ -483,6 +497,10 @@ void isq::contrib::mlir::affineScalarReplace(func::FuncOp f, DominanceInfo &domI
   // Walk all store's and perform unused store elimination
   f.walk([&](AffineWriteOpInterface storeOp) {
     findUnusedStore(storeOp, opsToErase, memrefsToErase, postDomInfo);
+  });
+  // Walk all allocs and purge store-only ones.
+  f.walk([&](memref::AllocOp allocOp){
+    findUnloadedAlloc(allocOp, opsToErase, memrefsToErase);
   });
   // Erase all store op's which don't impact the program
   for (auto *op : opsToErase)
