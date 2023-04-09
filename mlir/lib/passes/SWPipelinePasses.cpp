@@ -6,6 +6,7 @@
 #include <llvm/ADT/TypeSwitch.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
+#include <memory>
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
@@ -21,6 +22,7 @@
 #include <mlir/Rewrite/FrozenRewritePatternSet.h>
 #include <mlir/Support/LLVM.h>
 #include <mlir/Support/LogicalResult.h>
+#include <mutex>
 #include <nlohmann/json_fwd.hpp>
 #include <optional>
 #include <sstream>
@@ -273,6 +275,10 @@ namespace isq::ir::passes{
         }
     };
     struct SWPipelinePass : public mlir::PassWrapper<SWPipelinePass, mlir::OperationPass<mlir::func::FuncOp>>{
+        std::shared_ptr<std::mutex> mutex;
+        SWPipelinePass(): mutex(std::make_shared<std::mutex>()){
+
+        }
         void runOnOperation() override{
             auto func = this->getOperation();
             auto ctx = func->getContext();
@@ -291,7 +297,7 @@ namespace isq::ir::passes{
             // collect all allocate ops.
             // find and extract all loops
             
-            this->getOperation()->walk([](mlir::AffineForOp op){
+            this->getOperation()->walk([&](mlir::AffineForOp op){
                 bool all_apply_marked = true;
                 
                 op->walk([&](ApplyGateOp apply){
@@ -341,7 +347,11 @@ namespace isq::ir::passes{
                     exported_gates.push_back(std::move(exported.toJson()));
                 });
                 if(!all_apply_marked) return ;
-                llvm::outs()<<json(exported_gates).dump()<<"\n";
+                auto s = json(exported_gates);
+                std::string str = s.dump();
+                mutex->lock();
+                llvm::outs()<<"json:\n"<<str<<"\n";
+                mutex->unlock();
             });
             // export all loops to qswp and get the schedule back.
 

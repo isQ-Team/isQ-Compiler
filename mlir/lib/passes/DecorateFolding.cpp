@@ -102,7 +102,7 @@ struct DecorateFoldRewriteRule : public mlir::OpRewritePattern<isq::ir::ApplyGat
                     }
                     auto new_fn_name = "$__isq__decomposition__"+sym.getValue();
                     new_fn.setSymNameAttr(mlir::StringAttr::get(ctx, new_fn_name));
-                    new_fn.setSymVisibilityAttr(mlir::StringAttr::get(ctx, "private"));
+                    new_fn.setSymVisibilityAttr(mlir::StringAttr::get(ctx, "public"));
                     mlir::SmallVector<mlir::Attribute> ctrl_attr;
                     for(auto b: ctrl){
                         ctrl_attr.push_back(mlir::BoolAttr::get(ctx, b));
