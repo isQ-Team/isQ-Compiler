@@ -50,7 +50,7 @@ public:
         }
         auto funcop = mlir::func::FuncOp::create(::mlir::UnknownLoc::get(rewriter.getContext()), decomposed_name, mlir::FunctionType::get(rewriter.getContext(), qs, qs));
         auto ctx = rewriter.getContext();
-        funcop.setSymVisibilityAttr(mlir::StringAttr::get(ctx, "private"));
+        //funcop.setSymVisibilityAttr(mlir::StringAttr::get(ctx, "private"));
         rewriter.insert(funcop.getOperation());
         auto entry_block = funcop.addEntryBlock();
         rewriter.setInsertionPointToStart(entry_block);

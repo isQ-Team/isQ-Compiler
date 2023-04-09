@@ -44,6 +44,14 @@ struct CancelRemoteCZ : public mlir::OpRewritePattern<isq::ir::ApplyGateOp>{
     mlir::LogicalResult matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const override;
 };
 
+/** 
+ * Cancel out two CX gates across antidiagonal on controller bit.
+*/
+struct CancelRemoteCX : public mlir::OpRewritePattern<isq::ir::ApplyGateOp>{
+    CancelRemoteCX(mlir::MLIRContext* ctx);
+    mlir::LogicalResult matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const override;
+};
+
 }
 }
 }

@@ -144,7 +144,7 @@ CancelRemoteCZ::CancelRemoteCZ(mlir::MLIRContext* ctx): mlir::OpRewritePattern<i
 
 
 // 0 for CZ, 1 for other diagonal, 2 for nothing.
-int isCZGate(ApplyGateOp apply){
+static int isCZGate(ApplyGateOp apply){
     int fallback = 2;
     if((apply.gate().getType().cast<GateType>().getHints() & GateTrait::Diagonal) == GateTrait::Diagonal){
         fallback = 1;
@@ -158,8 +158,23 @@ int isCZGate(ApplyGateOp apply){
     }
     return fallback;
 }
+// 0 for CX, 1 for sq antidiagonal, 2 for nothing.
+static int isCXorADGate(ApplyGateOp apply){
+    int fallback = 2;
+    if((apply.gate().getType().cast<GateType>().getHints() & GateTrait::Antidiagonal) == GateTrait::Antidiagonal){
+        fallback = 1;
+    }
+    auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.gate().getDefiningOp());
+    if(!usegate) return fallback;
+    auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+    if(!defgate) return fallback;
+    if(isFamousGate(defgate, "cnot")){
+        return 0;
+    }
+    return fallback;
+}
 
-mlir::Value getCorrespondingResult(mlir::Value value, isq::ir::ApplyGateOp apply){
+static mlir::Value getCorrespondingResult(mlir::Value value, isq::ir::ApplyGateOp apply){
     for(auto i=0; i<apply.args().size(); i++){
         if(value==apply.args()[i]){
             return apply.getResult(i);
@@ -167,7 +182,7 @@ mlir::Value getCorrespondingResult(mlir::Value value, isq::ir::ApplyGateOp apply
     }
     assert(0 && "not operand!");
 }
-mlir::Value getCorrespondingArg(mlir::Value value, isq::ir::ApplyGateOp apply){
+static mlir::Value getCorrespondingArg(mlir::Value value, isq::ir::ApplyGateOp apply){
     for(auto i=0; i<apply.getNumResults(); i++){
         if(value==apply->getResult(i)){
             return apply.args()[i];
@@ -202,6 +217,67 @@ mlir::LogicalResult CancelRemoteCZ::matchAndRewrite(isq::ir::ApplyGateOp op, mli
         if(is_cz==IS_CZ){
             if(ops.contains(snd_def)){
                 // snd_def has an operand of both op's operands.
+                // erase both.
+                rewriter.replaceOp(op, op.args());
+                rewriter.replaceOp(snd_def, snd_def.args());
+                return mlir::success();
+            }
+        }
+        snd = getCorrespondingArg(snd, snd_def);
+    }
+    return mlir::failure();
+}
+
+CancelRemoteCX::CancelRemoteCX(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx){
+
+}
+
+mlir::LogicalResult CancelRemoteCX::matchAndRewrite(isq::ir::ApplyGateOp op, mlir::PatternRewriter &rewriter) const {
+    bool need_extra_x = false;
+    const int IS_CX = 0;
+    const int IS_AD = 1;
+    const int NEITHER = 2;
+    auto is_cx = isCXorADGate(op);
+    if(is_cx!=IS_CX) return mlir::failure();
+    mlir::Value controller = op.args()[0];
+    mlir::SmallPtrSet<mlir::Operation*, 16> ops;
+    while(true){
+        auto fst_def = mlir::dyn_cast_or_null<ApplyGateOp>(controller.getDefiningOp());
+        if(!fst_def) break;
+        auto is_cx = isCXorADGate(fst_def);
+        if(is_cx==NEITHER) break;
+        if(is_cx==IS_CX){
+            if(fst_def->getResult(0)==controller){
+                ops.insert(fst_def);
+            }else{
+                break;
+            }
+            
+        }
+        if(is_cx==IS_AD){
+            need_extra_x = !need_extra_x;
+        }
+        controller = getCorrespondingArg(controller, fst_def);
+    }
+    mlir::Value snd = op.args()[1];
+    while(true){
+        auto snd_def = mlir::dyn_cast_or_null<ApplyGateOp>(snd.getDefiningOp());
+        if(!snd_def) break;
+        auto is_cx = isCXorADGate(snd_def);
+        if(is_cx==NEITHER || is_cx==IS_AD) break;
+        if(is_cx==IS_CX){
+            if(ops.contains(snd_def)){
+                // snd_def has an operand of both op's operands, and sharing the controller bit.
+                // first, insert the X gate.
+                if(need_extra_x){
+                    rewriter.setInsertionPoint(snd_def);
+                    mlir::Value controllee = snd_def.args()[1];
+                    emitBuiltinGate(rewriter, "x", {&controllee});
+                    rewriter.startRootUpdate(snd_def);
+                    snd_def.argsMutable()[1] = controllee;
+                    rewriter.finalizeRootUpdate(snd_def);
+                }
+                
                 // erase both.
                 rewriter.replaceOp(op, op.args());
                 rewriter.replaceOp(snd_def, snd_def.args());
