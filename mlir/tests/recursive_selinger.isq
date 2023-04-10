@@ -1,0 +1,245 @@
+module{
+    isq.declare_qop @__isq__builtin__measure : [1]()->i1
+    isq.declare_qop @__isq__builtin__reset : [1]()->()
+    isq.declare_qop @__isq__builtin__bp : [0](index)->()
+    isq.declare_qop @__isq__builtin__print_int : [0](index)->()
+    isq.declare_qop @__isq__builtin__print_double : [0](f64)->()
+    isq.declare_qop @__isq__qmpiprim__me : [0]()->index
+    isq.declare_qop @__isq__qmpiprim__size : [0]()->index
+    isq.declare_qop @__isq__qmpiprim__epr : [1](index)->()
+    isq.declare_qop @__isq__qmpiprim__csend : [0](i1, index)->()
+    isq.declare_qop @__isq__qmpiprim__crecv : [0](index)->i1
+    func.func @"recursive_selinger.test"(memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>>, memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>>) 
+    {
+    ^entry(%ssa_21: memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>>, %ssa_22: memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>>):
+        %ssa_23 = arith.constant 0 : i1 loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":1:1)
+        %ssa_24_real = memref.alloc() : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":1:1)
+        %ssa_24_zero = arith.constant 0 : index
+        %ssa_24 = memref.subview %ssa_24_real[%ssa_24_zero][1][1] : memref<1xi1> to memref<1xi1, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":1:1)
+        %ssa_23_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":1:1)
+        affine.store %ssa_23, %ssa_24[%ssa_23_store_zero] : memref<1xi1, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":1:1)
+        %ssa_26_in_load_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:13)
+        %ssa_26_in = affine.load %ssa_21[%ssa_26_in_load_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:13)
+        %ssa_26_out, %ssa_26 = isq.call_qop @__isq__builtin__measure(%ssa_26_in): [1]()->i1 loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:13)
+        %ssa_26_out_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:13)
+        affine.store %ssa_26_out, %ssa_21[%ssa_26_out_store_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:13)
+        %ssa_27_i2 = arith.extui %ssa_26 : i1 to i2 loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:13)
+        %ssa_27 = arith.index_cast %ssa_27_i2 : i2 to index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:13)
+        %ssa_28_real = memref.alloc() : memref<1xindex> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:5)
+        %ssa_28_zero = arith.constant 0 : index
+        %ssa_28 = memref.subview %ssa_28_real[%ssa_28_zero][1][1] : memref<1xindex> to memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:5)
+        %ssa_27_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:5)
+        affine.store %ssa_27, %ssa_28[%ssa_27_store_zero] : memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:5)
+        %ssa_29 = arith.constant 0 : i1 loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        %ssa_30_real = memref.alloc() : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        %ssa_30_zero = arith.constant 0 : index
+        %ssa_30 = memref.subview %ssa_30_real[%ssa_30_zero][1][1] : memref<1xi1> to memref<1xi1, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        %ssa_29_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        affine.store %ssa_29, %ssa_30[%ssa_29_store_zero] : memref<1xi1, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        %ssa_33_load_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:9)
+        %ssa_33 = affine.load %ssa_28[%ssa_33_load_zero] : memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:9)
+        %ssa_32 = arith.constant 1 : index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:14)
+        %ssa_34 = arith.cmpi "eq", %ssa_33, %ssa_32 : index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:11)
+        scf.if %ssa_34 {
+            scf.execute_region {
+            ^entry:
+                %ssa_35 = arith.constant 0 : i1 loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                %ssa_36_real = memref.alloc() : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                %ssa_36_zero = arith.constant 0 : index
+                %ssa_36 = memref.subview %ssa_36_real[%ssa_36_zero][1][1] : memref<1xi1> to memref<1xi1, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                %ssa_35_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                affine.store %ssa_35, %ssa_36[%ssa_35_store_zero] : memref<1xi1, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                scf.execute_region {
+                ^entry:
+                    %ssa_37_real = memref.alloc() : memref<1x!isq.qstate> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":4:9)
+                    %ssa_37_zero = arith.constant 0 : index
+                    %ssa_37 = memref.subview %ssa_37_real[%ssa_37_zero][1][1] : memref<1x!isq.qstate> to memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":4:9)
+                    %ssa_38 = isq.use @"std.H" : !isq.gate<1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14) 
+                    %ssa_38_decorated = isq.decorate(%ssa_38: !isq.gate<1>) {ctrl = [true], adjoint = false} : !isq.gate<2> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14)
+                    %ssa_38_in_1_load_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14)
+                    %ssa_38_in_1 = affine.load %ssa_22[%ssa_38_in_1_load_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14)
+                    %ssa_38_in_2_load_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14)
+                    %ssa_38_in_2 = affine.load %ssa_37[%ssa_38_in_2_load_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14)
+                    %ssa_38_out_1, %ssa_38_out_2 = isq.apply %ssa_38_decorated(%ssa_38_in_1, %ssa_38_in_2) : !isq.gate<2> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14)
+                    %ssa_38_out_1_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14)
+                    affine.store %ssa_38_out_1, %ssa_22[%ssa_38_out_1_store_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14)
+                    %ssa_38_out_2_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14)
+                    affine.store %ssa_38_out_2, %ssa_37[%ssa_38_out_2_store_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":5:14)
+                    func.call @"recursive_selinger.test"(%ssa_22, %ssa_37) : (memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>>, memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>>)->() loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":6:9)
+                    %ssa_47 = isq.use @"std.CNOT" : !isq.gate<2> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":7:9) 
+                    %ssa_47_in_1_load_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":7:9)
+                    %ssa_47_in_1 = affine.load %ssa_37[%ssa_47_in_1_load_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":7:9)
+                    %ssa_47_in_2_load_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":7:9)
+                    %ssa_47_in_2 = affine.load %ssa_22[%ssa_47_in_2_load_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":7:9)
+                    %ssa_47_out_1, %ssa_47_out_2 = isq.apply %ssa_47(%ssa_47_in_1, %ssa_47_in_2) : !isq.gate<2> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":7:9)
+                    %ssa_47_out_1_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":7:9)
+                    affine.store %ssa_47_out_1, %ssa_37[%ssa_47_out_1_store_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":7:9)
+                    %ssa_47_out_2_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":7:9)
+                    affine.store %ssa_47_out_2, %ssa_22[%ssa_47_out_2_store_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":7:9)
+                    cf.br ^exit_1 
+                ^exit_1:
+                    isq.accumulate_gphase %ssa_37_real : memref<1x!isq.qstate> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":4:9)
+                    memref.dealloc %ssa_37_real : memref<1x!isq.qstate> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":4:9)
+                    cf.br ^exit 
+                ^exit:
+                    scf.yield loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                } loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                %ssa_51_load_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                %ssa_51 = affine.load %ssa_30[%ssa_51_load_zero] : memref<1xi1, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                cf.cond_br %ssa_51, ^exit_1, ^block1 loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+            ^block1:
+                cf.br ^exit_1 
+            ^exit_1:
+                isq.accumulate_gphase %ssa_36_real : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                memref.dealloc %ssa_36_real : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:16)
+                cf.br ^exit 
+            ^exit:
+                scf.yield loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+            } loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        } else {
+            scf.execute_region {
+            ^entry:
+                cf.br ^exit 
+            ^exit:
+                scf.yield loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+            } loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        }
+        %ssa_53_load_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        %ssa_53 = affine.load %ssa_24[%ssa_53_load_zero] : memref<1xi1, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        cf.cond_br %ssa_53, ^exit_3, ^block1 loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+    ^block1:
+        cf.br ^exit_3 loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":9:5)
+    ^block2:
+        cf.br ^exit_3 
+    ^exit_3:
+        isq.accumulate_gphase %ssa_30_real : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        memref.dealloc %ssa_30_real : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":3:5)
+        cf.br ^exit_2 
+    ^exit_2:
+        isq.accumulate_gphase %ssa_28_real : memref<1xindex> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:5)
+        memref.dealloc %ssa_28_real : memref<1xindex> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":2:5)
+        cf.br ^exit_1 
+    ^exit_1:
+        isq.accumulate_gphase %ssa_24_real : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":1:1)
+        memref.dealloc %ssa_24_real : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":1:1)
+        cf.br ^exit 
+    ^exit:
+        return loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":1:1)
+    } loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":1:1)
+    func.func @"__isq__main"(memref<?xindex>, memref<?xf64>) 
+    {
+    ^entry(%ssa_55: memref<?xindex>, %ssa_56: memref<?xf64>):
+        %ssa_57 = arith.constant 0 : i1 loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":11:1)
+        %ssa_58_real = memref.alloc() : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":11:1)
+        %ssa_58_zero = arith.constant 0 : index
+        %ssa_58 = memref.subview %ssa_58_real[%ssa_58_zero][1][1] : memref<1xi1> to memref<1xi1, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":11:1)
+        %ssa_57_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":11:1)
+        affine.store %ssa_57, %ssa_58[%ssa_57_store_zero] : memref<1xi1, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":11:1)
+        %ssa_59_real = memref.alloc() : memref<1x!isq.qstate> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":12:5)
+        %ssa_59_zero = arith.constant 0 : index
+        %ssa_59 = memref.subview %ssa_59_real[%ssa_59_zero][1][1] : memref<1x!isq.qstate> to memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":12:5)
+        %ssa_60_real = memref.alloc() : memref<1x!isq.qstate> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":12:5)
+        %ssa_60_zero = arith.constant 0 : index
+        %ssa_60 = memref.subview %ssa_60_real[%ssa_60_zero][1][1] : memref<1x!isq.qstate> to memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":12:5)
+        %ssa_62 = isq.use @"std.H" : !isq.gate<1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":13:5) 
+        %ssa_62_in_1_load_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":13:5)
+        %ssa_62_in_1 = affine.load %ssa_59[%ssa_62_in_1_load_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":13:5)
+        %ssa_62_out_1 = isq.apply %ssa_62(%ssa_62_in_1) : !isq.gate<1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":13:5)
+        %ssa_62_out_1_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":13:5)
+        affine.store %ssa_62_out_1, %ssa_59[%ssa_62_out_1_store_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":13:5)
+        %ssa_65 = isq.use @"std.H" : !isq.gate<1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":14:5) 
+        %ssa_65_in_1_load_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":14:5)
+        %ssa_65_in_1 = affine.load %ssa_60[%ssa_65_in_1_load_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":14:5)
+        %ssa_65_out_1 = isq.apply %ssa_65(%ssa_65_in_1) : !isq.gate<1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":14:5)
+        %ssa_65_out_1_store_zero = arith.constant 0: index loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":14:5)
+        affine.store %ssa_65_out_1, %ssa_60[%ssa_65_out_1_store_zero] : memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":14:5)
+        func.call @"recursive_selinger.test"(%ssa_59, %ssa_60) : (memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>>, memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>>)->() loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":15:5)
+        cf.br ^exit_3 
+    ^exit_3:
+        isq.accumulate_gphase %ssa_60_real : memref<1x!isq.qstate> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":12:5)
+        memref.dealloc %ssa_60_real : memref<1x!isq.qstate> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":12:5)
+        cf.br ^exit_2 
+    ^exit_2:
+        isq.accumulate_gphase %ssa_59_real : memref<1x!isq.qstate> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":12:5)
+        memref.dealloc %ssa_59_real : memref<1x!isq.qstate> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":12:5)
+        cf.br ^exit_1 
+    ^exit_1:
+        isq.accumulate_gphase %ssa_58_real : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":11:1)
+        memref.dealloc %ssa_58_real : memref<1xi1> loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":11:1)
+        cf.br ^exit 
+    ^exit:
+        return loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":11:1)
+    } loc("/home/gjz010/isQ-Compiler/examples/recursive_selinger.isq":11:1)
+    func.func private @"__quantum__qis__rz__body"(f64, !isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":0:1)
+    isq.defgate @"Rz"(f64) {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__rz__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":0:1)
+    isq.defgate @"std.Rz"(f64) {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__rz__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":0:1)
+    func.func private @"__quantum__qis__rx__body"(f64, !isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":1:1)
+    isq.defgate @"Rx"(f64) {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__rx__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":1:1)
+    isq.defgate @"std.Rx"(f64) {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__rx__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":1:1)
+    func.func private @"__quantum__qis__ry__body"(f64, !isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":2:1)
+    isq.defgate @"Ry"(f64) {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__ry__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":2:1)
+    isq.defgate @"std.Ry"(f64) {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__ry__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":2:1)
+    func.func private @"__quantum__qis__u3"(f64, f64, f64, !isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":3:1)
+    isq.defgate @"U3"(f64, f64, f64) {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__u3">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":3:1)
+    isq.defgate @"std.U3"(f64, f64, f64) {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__u3">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":3:1)
+    func.func private @"__quantum__qis__h__body"(!isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":4:1)
+    isq.defgate @"H" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__h__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":4:1)
+    isq.defgate @"std.H" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__h__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":4:1)
+    func.func private @"__quantum__qis__s__body"(!isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":5:1)
+    isq.defgate @"S" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__s__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":5:1)
+    isq.defgate @"std.S" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__s__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":5:1)
+    func.func private @"__quantum__qis__t__body"(!isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":6:1)
+    isq.defgate @"T" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__t__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":6:1)
+    isq.defgate @"std.T" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__t__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":6:1)
+    func.func private @"__quantum__qis__x__body"(!isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":7:1)
+    isq.defgate @"X" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__x__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":7:1)
+    isq.defgate @"std.X" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__x__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":7:1)
+    func.func private @"__quantum__qis__y__body"(!isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":8:1)
+    isq.defgate @"Y" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__y__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":8:1)
+    isq.defgate @"std.Y" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__y__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":8:1)
+    func.func private @"__quantum__qis__z__body"(!isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":9:1)
+    isq.defgate @"Z" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__z__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":9:1)
+    isq.defgate @"std.Z" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__z__body">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":9:1)
+    func.func private @"__quantum__qis__cnot"(!isq.qir.qubit, !isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":10:1)
+    isq.defgate @"CNOT" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__cnot">]}: !isq.gate<2> loc("/home/gjz010/isQ-Compiler/lib/std.isq":10:1)
+    isq.defgate @"std.CNOT" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__cnot">]}: !isq.gate<2> loc("/home/gjz010/isQ-Compiler/lib/std.isq":10:1)
+    func.func private @"__quantum__qis__toffoli"(!isq.qir.qubit, !isq.qir.qubit, !isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":11:1)
+    isq.defgate @"Toffoli" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__toffoli">]}: !isq.gate<3> loc("/home/gjz010/isQ-Compiler/lib/std.isq":11:1)
+    isq.defgate @"std.Toffoli" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__toffoli">]}: !isq.gate<3> loc("/home/gjz010/isQ-Compiler/lib/std.isq":11:1)
+    func.func private @"__quantum__qis__x2m"(!isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":12:1)
+    isq.defgate @"X2M" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__x2m">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":12:1)
+    isq.defgate @"std.X2M" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__x2m">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":12:1)
+    func.func private @"__quantum__qis__x2p"(!isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":13:1)
+    isq.defgate @"X2P" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__x2p">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":13:1)
+    isq.defgate @"std.X2P" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__x2p">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":13:1)
+    func.func private @"__quantum__qis__y2m"(!isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":14:1)
+    isq.defgate @"Y2M" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__y2m">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":14:1)
+    isq.defgate @"std.Y2M" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__y2m">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":14:1)
+    func.func private @"__quantum__qis__y2p"(!isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":15:1)
+    isq.defgate @"Y2P" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__y2p">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":15:1)
+    isq.defgate @"std.Y2P" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__y2p">]}: !isq.gate<1> loc("/home/gjz010/isQ-Compiler/lib/std.isq":15:1)
+    func.func private @"__quantum__qis__cz"(!isq.qir.qubit, !isq.qir.qubit) loc("/home/gjz010/isQ-Compiler/lib/std.isq":16:1)
+    isq.defgate @"CZ" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__cz">]}: !isq.gate<2> loc("/home/gjz010/isQ-Compiler/lib/std.isq":16:1)
+    isq.defgate @"std.CZ" {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__cz">]}: !isq.gate<2> loc("/home/gjz010/isQ-Compiler/lib/std.isq":16:1)
+    func.func private @"__quantum__qis__gphase"(f64) loc("/home/gjz010/isQ-Compiler/lib/std.isq":17:1)
+    isq.defgate @"GPhase"(f64) {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__gphase">]}: !isq.gate<0> loc("/home/gjz010/isQ-Compiler/lib/std.isq":17:1)
+    isq.defgate @"std.GPhase"(f64) {definition = [#isq.gatedef<type = "qir", value = @"__quantum__qis__gphase">]}: !isq.gate<0> loc("/home/gjz010/isQ-Compiler/lib/std.isq":17:1)
+    func.func @"__isq__global_initialize"() 
+    {
+    ^block1:
+        return 
+    } 
+    func.func @"__isq__global_finalize"() 
+    {
+    ^block1:
+        return 
+    } 
+    func.func @"__isq__entry"(memref<?xindex>, memref<?xf64>) 
+    {
+    ^block1(%ssa_1: memref<?xindex>, %ssa_2: memref<?xf64>):
+        func.call @"__isq__global_initialize"() : ()->() 
+        func.call @"__isq__main"(%ssa_1, %ssa_2) : (memref<?xindex>, memref<?xf64>)->() 
+        func.call @"__isq__global_finalize"() : ()->() 
+        return 
+    } 
+}

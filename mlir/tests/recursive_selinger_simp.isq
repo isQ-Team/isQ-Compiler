@@ -1,0 +1,199 @@
+#map = affine_map<(d0)[s0] -> (d0 + s0)>
+module {
+  isq.declare_qop @__isq__builtin__measure : [1] () -> i1
+  isq.declare_qop @__isq__builtin__reset : [1] () -> ()
+  isq.declare_qop @__isq__builtin__bp : [0] (index) -> ()
+  isq.declare_qop @__isq__builtin__print_int : [0] (index) -> ()
+  isq.declare_qop @__isq__builtin__print_double : [0] (f64) -> ()
+  isq.declare_qop @__isq__qmpiprim__me : [0] () -> index
+  isq.declare_qop @__isq__qmpiprim__size : [0] () -> index
+  isq.declare_qop @__isq__qmpiprim__epr : [1] (index) -> ()
+  isq.declare_qop @__isq__qmpiprim__csend : [0] (i1, index) -> ()
+  isq.declare_qop @__isq__qmpiprim__crecv : [0] (index) -> i1
+  func.func @recursive_selinger.test(%arg0: memref<1x!isq.qstate, #map>, %arg1: memref<1x!isq.qstate, #map>) {
+    %c1 = arith.constant 1 : index
+    %false = arith.constant false
+    %0 = memref.alloc() : memref<1xi1>
+    affine.store %false, %0[0] : memref<1xi1>
+    %1 = affine.load %arg0[0] : memref<1x!isq.qstate, #map>
+    %2:2 = isq.call_qop @__isq__builtin__measure(%1) : [1] () -> i1
+    affine.store %2#0, %arg0[0] : memref<1x!isq.qstate, #map>
+    %3 = arith.extui %2#1 : i1 to i2
+    %4 = arith.index_cast %3 : i2 to index
+    %5 = memref.alloc() : memref<1xindex>
+    affine.store %4, %5[0] : memref<1xindex>
+    %6 = memref.alloc() : memref<1xi1>
+    affine.store %false, %6[0] : memref<1xi1>
+    %7 = arith.cmpi eq, %4, %c1 : index
+    scf.if %7 {
+      %8 = memref.alloc() : memref<1xi1>
+      affine.store %false, %8[0] : memref<1xi1>
+      %9 = memref.alloc() : memref<1x!isq.qstate>
+      %10 = memref.cast %9 : memref<1x!isq.qstate> to memref<1x!isq.qstate, #map>
+      %11 = isq.use @"$__isq__builtin__h" : !isq.gate<1,symmetric,hermitian>
+      %12 = isq.decorate(%11 : !isq.gate<1,symmetric,hermitian>) {adjoint = false, ctrl = [true]} : !isq.gate<2,hermitian>
+      %13 = affine.load %arg1[0] : memref<1x!isq.qstate, #map>
+      %14 = affine.load %9[0] : memref<1x!isq.qstate>
+      %15:2 = isq.apply %12(%13, %14) : !isq.gate<2,hermitian>
+      affine.store %15#0, %arg1[0] : memref<1x!isq.qstate, #map>
+      affine.store %15#1, %9[0] : memref<1x!isq.qstate>
+      func.call @recursive_selinger.test(%arg1, %10) : (memref<1x!isq.qstate, #map>, memref<1x!isq.qstate, #map>) -> ()
+      %16 = isq.use @"$__isq__builtin__cnot" : !isq.gate<2,hermitian>
+      %17 = affine.load %9[0] : memref<1x!isq.qstate>
+      %18 = affine.load %arg1[0] : memref<1x!isq.qstate, #map>
+      %19:2 = isq.apply %16(%17, %18) : !isq.gate<2,hermitian>
+      affine.store %19#0, %9[0] : memref<1x!isq.qstate>
+      affine.store %19#1, %arg1[0] : memref<1x!isq.qstate, #map>
+      isq.accumulate_gphase %9 : memref<1x!isq.qstate>
+      memref.dealloc %9 : memref<1x!isq.qstate>
+      isq.accumulate_gphase %8 : memref<1xi1>
+      memref.dealloc %8 : memref<1xi1>
+    }
+    isq.accumulate_gphase %6 : memref<1xi1>
+    memref.dealloc %6 : memref<1xi1>
+    isq.accumulate_gphase %5 : memref<1xindex>
+    memref.dealloc %5 : memref<1xindex>
+    isq.accumulate_gphase %0 : memref<1xi1>
+    memref.dealloc %0 : memref<1xi1>
+    return
+  }
+  func.func @__isq__main(%arg0: memref<?xindex>, %arg1: memref<?xf64>) {
+    %false = arith.constant false
+    %0 = memref.alloc() : memref<1xi1>
+    affine.store %false, %0[0] : memref<1xi1>
+    %1 = memref.alloc() : memref<1x!isq.qstate>
+    %2 = memref.cast %1 : memref<1x!isq.qstate> to memref<1x!isq.qstate, #map>
+    %3 = memref.alloc() : memref<1x!isq.qstate>
+    %4 = memref.cast %3 : memref<1x!isq.qstate> to memref<1x!isq.qstate, #map>
+    %5 = isq.use @"$__isq__builtin__h" : !isq.gate<1,symmetric,hermitian>
+    %6 = affine.load %1[0] : memref<1x!isq.qstate>
+    %7 = isq.apply %5(%6) : !isq.gate<1,symmetric,hermitian>
+    affine.store %7, %1[0] : memref<1x!isq.qstate>
+    %8 = affine.load %3[0] : memref<1x!isq.qstate>
+    %9 = isq.apply %5(%8) : !isq.gate<1,symmetric,hermitian>
+    affine.store %9, %3[0] : memref<1x!isq.qstate>
+    call @recursive_selinger.test(%2, %4) : (memref<1x!isq.qstate, #map>, memref<1x!isq.qstate, #map>) -> ()
+    isq.accumulate_gphase %3 : memref<1x!isq.qstate>
+    memref.dealloc %3 : memref<1x!isq.qstate>
+    isq.accumulate_gphase %1 : memref<1x!isq.qstate>
+    memref.dealloc %1 : memref<1x!isq.qstate>
+    isq.accumulate_gphase %0 : memref<1xi1>
+    memref.dealloc %0 : memref<1xi1>
+    return
+  }
+  func.func private @__quantum__qis__rz__body(f64, !isq.qir.qubit)
+  isq.defgate @Rz(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__rz__body>]} : !isq.gate<1>
+  isq.defgate @std.Rz(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__rz__body>]} : !isq.gate<1>
+  func.func private @__quantum__qis__rx__body(f64, !isq.qir.qubit)
+  isq.defgate @Rx(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__rx__body>]} : !isq.gate<1>
+  isq.defgate @std.Rx(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__rx__body>]} : !isq.gate<1>
+  func.func private @__quantum__qis__ry__body(f64, !isq.qir.qubit)
+  isq.defgate @Ry(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__ry__body>]} : !isq.gate<1>
+  isq.defgate @std.Ry(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__ry__body>]} : !isq.gate<1>
+  func.func private @__quantum__qis__u3(f64, f64, f64, !isq.qir.qubit)
+  isq.defgate @U3(f64, f64, f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__u3>]} : !isq.gate<1>
+  isq.defgate @std.U3(f64, f64, f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__u3>]} : !isq.gate<1>
+  func.func private @__quantum__qis__h__body(!isq.qir.qubit)
+  isq.defgate @H {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__h__body>]} : !isq.gate<1>
+  isq.defgate @std.H {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__h__body>]} : !isq.gate<1>
+  func.func private @__quantum__qis__s__body(!isq.qir.qubit)
+  isq.defgate @S {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__s__body>]} : !isq.gate<1>
+  isq.defgate @std.S {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__s__body>]} : !isq.gate<1>
+  func.func private @__quantum__qis__t__body(!isq.qir.qubit)
+  isq.defgate @T {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__t__body>]} : !isq.gate<1>
+  isq.defgate @std.T {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__t__body>]} : !isq.gate<1>
+  func.func private @__quantum__qis__x__body(!isq.qir.qubit)
+  isq.defgate @X {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__x__body>]} : !isq.gate<1>
+  isq.defgate @std.X {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__x__body>]} : !isq.gate<1>
+  func.func private @__quantum__qis__y__body(!isq.qir.qubit)
+  isq.defgate @Y {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__y__body>]} : !isq.gate<1>
+  isq.defgate @std.Y {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__y__body>]} : !isq.gate<1>
+  func.func private @__quantum__qis__z__body(!isq.qir.qubit)
+  isq.defgate @Z {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__z__body>]} : !isq.gate<1>
+  isq.defgate @std.Z {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__z__body>]} : !isq.gate<1>
+  func.func private @__quantum__qis__cnot(!isq.qir.qubit, !isq.qir.qubit)
+  isq.defgate @CNOT {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__cnot>]} : !isq.gate<2>
+  isq.defgate @std.CNOT {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__cnot>]} : !isq.gate<2>
+  func.func private @__quantum__qis__toffoli(!isq.qir.qubit, !isq.qir.qubit, !isq.qir.qubit)
+  isq.defgate @Toffoli {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__toffoli>]} : !isq.gate<3>
+  isq.defgate @std.Toffoli {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__toffoli>]} : !isq.gate<3>
+  func.func private @__quantum__qis__x2m(!isq.qir.qubit)
+  isq.defgate @X2M {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__x2m>]} : !isq.gate<1>
+  isq.defgate @std.X2M {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__x2m>]} : !isq.gate<1>
+  func.func private @__quantum__qis__x2p(!isq.qir.qubit)
+  isq.defgate @X2P {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__x2p>]} : !isq.gate<1>
+  isq.defgate @std.X2P {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__x2p>]} : !isq.gate<1>
+  func.func private @__quantum__qis__y2m(!isq.qir.qubit)
+  isq.defgate @Y2M {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__y2m>]} : !isq.gate<1>
+  isq.defgate @std.Y2M {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__y2m>]} : !isq.gate<1>
+  func.func private @__quantum__qis__y2p(!isq.qir.qubit)
+  isq.defgate @Y2P {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__y2p>]} : !isq.gate<1>
+  isq.defgate @std.Y2P {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__y2p>]} : !isq.gate<1>
+  func.func private @__quantum__qis__cz(!isq.qir.qubit, !isq.qir.qubit)
+  isq.defgate @CZ {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__cz>]} : !isq.gate<2>
+  isq.defgate @std.CZ {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__cz>]} : !isq.gate<2>
+  func.func private @__quantum__qis__gphase(f64)
+  isq.defgate @GPhase(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__gphase>]} : !isq.gate<0>
+  isq.defgate @std.GPhase(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__gphase>]} : !isq.gate<0>
+  func.func @__isq__global_initialize() {
+    return
+  }
+  func.func @__isq__global_finalize() {
+    return
+  }
+  func.func @__isq__entry(%arg0: memref<?xindex>, %arg1: memref<?xf64>) {
+    call @__isq__global_initialize() : () -> ()
+    call @__isq__main(%arg0, %arg1) : (memref<?xindex>, memref<?xf64>) -> ()
+    call @__isq__global_finalize() : () -> ()
+    return
+  }
+  isq.defgate @"$__isq__builtin__cnot" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__cnot>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)]]> : tensor<4x4xcomplex<f64>>>>], isq_famous = "cnot"} : !isq.gate<2,hermitian>
+  isq.defgate @"$__isq__builtin__swap" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__swap>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00)]]> : tensor<4x4xcomplex<f64>>>>], isq_famous = "swap"} : !isq.gate<2,symmetric,hermitian>
+  func.func private @__quantum__qis__swap(!isq.qir.qubit, !isq.qir.qubit)
+  isq.defgate @"$__isq__builtin__cz" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__cz>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (-1.000000e+00,0.000000e+00)]]> : tensor<4x4xcomplex<f64>>>>], isq_famous = "cz"} : !isq.gate<2,diagonal,symmetric,hermitian,phase>
+  isq.defgate @"$__isq__builtin__toffoli" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__toffoli>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)]]> : tensor<8x8xcomplex<f64>>>>, #isq.gatedef<type = "decomposition", value = @"$__isq__builtin__toffoli__decomposition__famous">], isq_famous = "toffoli"} : !isq.gate<3,hermitian>
+  func.func public @"$__isq__builtin__toffoli__decomposition__famous"(%arg0: !isq.qstate, %arg1: !isq.qstate, %arg2: !isq.qstate) -> (!isq.qstate, !isq.qstate, !isq.qstate) {
+    %0 = isq.use @"$__isq__builtin__h" : !isq.gate<1,symmetric,hermitian>
+    %1 = isq.apply %0(%arg2) : !isq.gate<1,symmetric,hermitian>
+    %2 = isq.use @"$__isq__builtin__cnot" : !isq.gate<2,hermitian>
+    %3:2 = isq.apply %2(%arg1, %1) : !isq.gate<2,hermitian>
+    %4 = isq.use @"$__isq__builtin__t" : !isq.gate<1,diagonal,symmetric,phase>
+    %5 = isq.decorate(%4 : !isq.gate<1,diagonal,symmetric,phase>) {adjoint = true, ctrl = []} : !isq.gate<1,diagonal,symmetric,phase>
+    %6 = isq.apply %5(%3#1) : !isq.gate<1,diagonal,symmetric,phase>
+    %7:2 = isq.apply %2(%arg0, %6) : !isq.gate<2,hermitian>
+    %8 = isq.apply %4(%7#1) : !isq.gate<1,diagonal,symmetric,phase>
+    %9:2 = isq.apply %2(%3#0, %8) : !isq.gate<2,hermitian>
+    %10 = isq.apply %5(%9#1) : !isq.gate<1,diagonal,symmetric,phase>
+    %11:2 = isq.apply %2(%7#0, %10) : !isq.gate<2,hermitian>
+    %12 = isq.apply %4(%11#1) : !isq.gate<1,diagonal,symmetric,phase>
+    %13 = isq.apply %5(%9#0) : !isq.gate<1,diagonal,symmetric,phase>
+    %14 = isq.apply %0(%12) : !isq.gate<1,symmetric,hermitian>
+    %15:2 = isq.apply %2(%11#0, %13) : !isq.gate<2,hermitian>
+    %16 = isq.apply %5(%15#1) : !isq.gate<1,diagonal,symmetric,phase>
+    %17:2 = isq.apply %2(%15#0, %16) : !isq.gate<2,hermitian>
+    %18 = isq.apply %4(%17#0) : !isq.gate<1,diagonal,symmetric,phase>
+    %19 = isq.use @"$__isq__builtin__s" : !isq.gate<1,diagonal,symmetric,phase>
+    %20 = isq.apply %19(%17#1) : !isq.gate<1,diagonal,symmetric,phase>
+    return %18, %20, %14 : !isq.qstate, !isq.qstate, !isq.qstate
+  }
+  isq.defgate @"$__isq__builtin__h" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__h__body>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(0.70710678118654757,0.000000e+00), (0.70710678118654757,0.000000e+00)], [(0.70710678118654757,0.000000e+00), (-0.70710678118654757,0.000000e+00)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "h"} : !isq.gate<1,symmetric,hermitian>
+  isq.defgate @"$__isq__builtin__s" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__s__body>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,1.000000e+00)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "s"} : !isq.gate<1,diagonal,symmetric,phase>
+  isq.defgate @"$__isq__builtin__t" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__t__body>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.70710678118654757,0.70710678118654757)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "t"} : !isq.gate<1,diagonal,symmetric,phase>
+  isq.defgate @"$__isq__builtin__sinv" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__s__adj>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.000000e+00,-1.000000e+00)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "sinv"} : !isq.gate<1,diagonal,symmetric,phase>
+  func.func private @__quantum__qis__s__adj(!isq.qir.qubit)
+  isq.defgate @"$__isq__builtin__tinv" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__t__adj>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (0.70710678118654757,-0.70710678118654757)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "tinv"} : !isq.gate<1,diagonal,symmetric,phase>
+  func.func private @__quantum__qis__t__adj(!isq.qir.qubit)
+  isq.defgate @"$__isq__builtin__x" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__x__body>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(0.000000e+00,0.000000e+00), (1.000000e+00,0.000000e+00)], [(1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "x"} : !isq.gate<1,antidiagonal,symmetric,hermitian>
+  isq.defgate @"$__isq__builtin__y" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__y__body>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(0.000000e+00,0.000000e+00), (0.000000e+00,-1.000000e+00)], [(0.000000e+00,1.000000e+00), (0.000000e+00,0.000000e+00)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "y"} : !isq.gate<1,antidiagonal,symmetric,hermitian>
+  isq.defgate @"$__isq__builtin__z" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__z__body>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(1.000000e+00,0.000000e+00), (0.000000e+00,0.000000e+00)], [(0.000000e+00,0.000000e+00), (-1.000000e+00,0.000000e+00)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "z"} : !isq.gate<1,diagonal,symmetric,hermitian,phase>
+  isq.defgate @"$__isq__builtin__x2p" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__x2p>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(0.70710678118654757,0.000000e+00), (0.000000e+00,-0.70710678118654757)], [(0.000000e+00,-0.70710678118654757), (0.70710678118654757,0.000000e+00)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "x2p"} : !isq.gate<1,symmetric>
+  isq.defgate @"$__isq__builtin__x2m" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__x2m>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(0.70710678118654757,0.000000e+00), (0.000000e+00,0.70710678118654757)], [(0.000000e+00,0.70710678118654757), (0.70710678118654757,0.000000e+00)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "x2m"} : !isq.gate<1,symmetric>
+  isq.defgate @"$__isq__builtin__y2p" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__y2p>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(0.70710678118654757,0.000000e+00), (-0.70710678118654757,0.000000e+00)], [(0.70710678118654757,0.000000e+00), (0.70710678118654757,0.000000e+00)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "y2p"} : !isq.gate<1,symmetric>
+  isq.defgate @"$__isq__builtin__y2m" {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__y2m>, #isq.gatedef<type = "unitary", value = #isq.matrix<dense<[[(0.70710678118654757,0.000000e+00), (0.70710678118654757,0.000000e+00)], [(-0.70710678118654757,0.000000e+00), (0.70710678118654757,0.000000e+00)]]> : tensor<2x2xcomplex<f64>>>>], isq_famous = "y2m"} : !isq.gate<1,symmetric>
+  isq.defgate @"$__isq__builtin__rx"(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__rx__body>], isq_famous = "rx"} : !isq.gate<1,symmetric>
+  isq.defgate @"$__isq__builtin__ry"(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__ry__body>], isq_famous = "ry"} : !isq.gate<1,symmetric>
+  isq.defgate @"$__isq__builtin__rz"(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__rz__body>], isq_famous = "rz"} : !isq.gate<1,diagonal,symmetric>
+  isq.defgate @"$__isq__builtin__gphase"(f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__gphase>], isq_famous = "gphase"} : !isq.gate<0,diagonal,symmetric,phase>
+  isq.defgate @"$__isq__builtin__u3"(f64, f64, f64) {definition = [#isq.gatedef<type = "qir", value = @__quantum__qis__u3>], isq_famous = "u3"} : !isq.gate<1,symmetric>
+}
+

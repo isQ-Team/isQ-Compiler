@@ -23,6 +23,7 @@ void registerISQCanonicalizer();
 void registerOracleDecompose();
 void registerAffineSWP();
 void registerGlobalThreadLocal();
+void registerReuseQubit();
 
 void addLegalizeTraitsRules(mlir::RewritePatternSet& patterns);
 
@@ -31,9 +32,13 @@ bool isFamousGate(DefgateOp op, const char* famous_gate);
 mlir::Value emitUseBuiltinGate(mlir::OpBuilder& builder, int original_size, const char* famous_gate, mlir::ArrayRef<mlir::Value> params = {}, mlir::ArrayAttr ctrl = nullptr, bool adjoint = false);
 void emitBuiltinGate(mlir::OpBuilder& builder, const char* famous_gate, mlir::ArrayRef<mlir::Value*> qubits, mlir::ArrayRef<mlir::Value> params = {}, mlir::ArrayAttr ctrl = nullptr, bool adjoint = false);
 
+
 extern const char* ISQ_GPHASE_REMOVED;
 
 }
+
+mlir::Value traceForwardQState(mlir::Value val);
+mlir::Value traceBackwardQState(mlir::Value val);
 }
 }
 #endif
