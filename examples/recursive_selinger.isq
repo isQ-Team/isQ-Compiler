@@ -1,0 +1,17 @@
+import std;
+procedure test(qbit a, qbit b){
+    int x = M(a);
+    if (x == 1){
+        qbit anc;
+        ctrl H(b, anc);
+        test(b, anc);
+        CNOT(anc, b);
+    }
+    return;
+}
+procedure main(){
+    qbit p, q;
+    H(p);
+    H(q);
+    test(p, q);
+}
