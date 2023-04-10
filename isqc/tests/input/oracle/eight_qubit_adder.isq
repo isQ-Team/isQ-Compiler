@@ -1,0 +1,38 @@
+import std;
+
+oracle bool[4] eight_qubit_adder(bool a1[3], bool a2[3]) {
+    bool r0 = a1[0] != a2[0];
+    bool t1 = a1[0] && a2[0];
+    bool r1 = a1[1] != a2[1] != t1;
+    bool t2 = (a1[1] && a2[1]) || (a1[1] && t1) || (t1 && a2[1]);
+    bool r2 = a1[2] != a2[2] != t2;
+    bool t3 = (a1[2] && a2[2]) || (a1[2] && t2) || (t2 && a2[2]);
+    //bool r3 = a1[3] != a2[3] != t3;
+    //bool t4 = (a1[3] && a2[3]) || (a1[3] && t3) || (t3 && a2[3]);
+    //bool r4 = a1[4] != a2[4] != t4;
+    //bool t5 = (a1[4] && a2[4]) || (a1[4] && t4) || (t4 && a2[4]);
+    //bool r5 = a1[5] != a2[5] != t5;
+    //bool t6 = (a1[5] && a2[5]) || (a1[5] && t5) || (t5 && a2[5]);
+    //bool r6 = a1[6] != a2[6] != t6;
+    //bool t7 = (a1[6] && a2[6]) || (a1[6] && t6) || (t6 && a2[6]);
+    //bool r7 = a1[7] != a2[7] != t7;
+    //bool t8 = (a1[7] && a2[7]) || (a1[7] && t7) || (t7 && a2[7]);
+    //bool b[] = {r0, r1, r2, r3, r4, r5, r6, r7, t8};
+    bool b[] = {r0, r1, r2, t3};
+	return b;
+}
+
+procedure main()
+{
+	qbit a1[3], a2[3], b[4];
+    X(a1[0]);
+    X(a1[1]);
+    X(a1[2]);
+    X(a2[0]);
+    //X(a2[1]);
+    X(a2[2]);
+	eight_qubit_adder(a1, a2, b);
+	print M(a1);
+	print M(a2);
+	print M(b);
+}

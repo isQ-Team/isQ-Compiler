@@ -224,6 +224,7 @@ public:
         // Convert XAG to quantum circuit. 
         // caterpillar::eager_mapping_strategy<mockturtle::xag_network> strategy;
         caterpillar::greedy_pebbling_mapping_strategy<mockturtle::xag_network> strategy;
+        //caterpillar::eager_mapping_strategy<mockturtle::xag_network> strategy;
         tweedledum::netlist<caterpillar::stg_gate> circ;
         caterpillar::logic_network_synthesis_stats stats;
         caterpillar::detail::logic_network_synthesis_impl<tweedledum::netlist<caterpillar::stg_gate>, 
