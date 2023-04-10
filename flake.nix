@@ -127,10 +127,7 @@
         # https://github.com/NixOS/nix/issues/6982
         nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp pkgs.rust-analyzer ];
         ISQC_DEV_ENV = "dev";
-        shellHook = self.checks.${system}.pre-commit-check.shellHook + ''
-          mkdir -p $PWD/.build
-          export ISQ_ROOT=$PWD/.build
-        '';
+        shellHook = self.checks.${system}.pre-commit-check.shellHook;
       };
       extraShells = { pkgs, system }:
         let defaultShell = shell { inherit pkgs; inherit system; };
