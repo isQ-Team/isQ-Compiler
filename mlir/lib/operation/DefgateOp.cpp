@@ -191,16 +191,6 @@ mlir::LogicalResult verifyGateDefinition(DefgateOp op, int id,
     return mlir::success();
 }
 
-/*
-mlir::LogicalResult verify(DeclareOp op) {
-if (op.op_type() != op.getResult().getType()) {
-    op.emitOpError("operation signature mismatch.");
-    return mlir::failure();
-}
-return mlir::success();
-}
-*/
-
 ::mlir::ParseResult DefgateOp::parse(::mlir::OpAsmParser &parser, ::mlir::OperationState &result){
         return DefgateOp::parseIR(parser, result);
 }

@@ -8,7 +8,6 @@ procedure main(){
     ctrl X(q[0],q[1]);
     bp;
     int a = M(q[0]);
-    int b;
-    b = M(q[1]);
+    int b = M(q[1]);
     print a - b;
 }

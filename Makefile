@@ -12,25 +12,25 @@ frontend: check-env
 	cd frontend && make all
 	cd ${ISQ_ROOT}/bin && \
 	rm -f isqc1 && \
-	ln -s ../../frontend/dist/build/isqc1/isqc1 isqc1
+	ln -s ../frontend/dist/build/isqc1/isqc1 isqc1
 
 mlir: check-env
 	cd mlir && mkdir -p build && cd build && cmake ../ -GNinja && ninja
 	cd ${ISQ_ROOT}/bin && \
 	rm -f isq-opt && \
-	ln -s ../../mlir/build/tools/isq-opt isq-opt
+	ln -s ../mlir/build/tools/isq-opt isq-opt
 
 isqc: check-env
 	cd isqc && cargo build;
 	cd ${ISQ_ROOT}/bin && \
 	rm -f isqc && \
-	ln -s ../../isqc/target/debug/isqc isqc
+	ln -s ../isqc/target/debug/isqc isqc
 
 simulator: check-env
 	cd simulator &&	cargo build
 	cd ${ISQ_ROOT}/bin && \
 	rm -f simulator && \
-	ln -s ../../simulator/target/debug/simulator simulator
+	ln -s ../simulator/target/debug/simulator simulator
 
 isq-simulator.bc: check-env
 	mkdir -p ${ISQ_ROOT}/share/isq-simulator;
