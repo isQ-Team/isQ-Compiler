@@ -349,6 +349,44 @@ entry:
     ret %Callable* %x5
 }
 declare dllimport i8* @__isq__qir__shim__rt__callable_copy(i8*, i1)
+<<<<<<< HEAD
+=======
+define %Callable* @__quantum__rt__callable_create ([4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, [2 x void(%Tuple*, i32)*]* %x1, %Tuple* %x2) alwaysinline {
+entry:
+    %x3 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 0
+    %x7 = load void (%Tuple*, %Tuple*, %Tuple*)*, void (%Tuple*, %Tuple*, %Tuple*)** %x3
+    %x11 = bitcast void (%Tuple*, %Tuple*, %Tuple*)* %x7 to i8*
+    %x4 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 1
+    %x8 = load void (%Tuple*, %Tuple*, %Tuple*)*, void (%Tuple*, %Tuple*, %Tuple*)** %x4
+    %x12 = bitcast void (%Tuple*, %Tuple*, %Tuple*)* %x8 to i8*
+    %x5 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 2
+    %x9 = load void (%Tuple*, %Tuple*, %Tuple*)*, void (%Tuple*, %Tuple*, %Tuple*)** %x5
+    %x13 = bitcast void (%Tuple*, %Tuple*, %Tuple*)* %x9 to i8*
+    %x6 = getelementptr inbounds [4 x void (%Tuple*, %Tuple*, %Tuple*)*],[4 x void (%Tuple*, %Tuple*, %Tuple*)*]* %x0, i32 0, i32 3
+    %x10 = load void (%Tuple*, %Tuple*, %Tuple*)*, void (%Tuple*, %Tuple*, %Tuple*)** %x6
+    %x14 = bitcast void (%Tuple*, %Tuple*, %Tuple*)* %x10 to i8*
+    br label %label_0
+label_0:
+    %x15 = icmp eq [2 x void(%Tuple*, i32)*]* %x1, null
+    br i1 %x15, label %label_2, label %label_1
+label_1:
+    %x16 = getelementptr inbounds [2 x void(%Tuple*, i32)*], [2 x void(%Tuple*, i32)*]* %x1, i64 0, i64 0
+    %x17 = load void(%Tuple*, i32)*, void(%Tuple*, i32)**  %x16
+    %x18 = bitcast void(%Tuple*, i32)* %x17 to i8*
+    %x19 = getelementptr inbounds [2 x void(%Tuple*, i32)*], [2 x void(%Tuple*, i32)*]* %x1, i64 0, i64 1
+    %x20 = load void(%Tuple*, i32)*, void(%Tuple*, i32)** %x19
+    %x21 = bitcast void(%Tuple*, i32)* %x20 to i8*
+    br label %label_2
+label_2:
+    %x22 = phi i8* [null, %label_0], [%x18, %label_1]
+    %x23 = phi i8* [null, %label_0], [%x21, %label_1]
+    %x24 = bitcast %Tuple* %x2 to i8*
+    %x25 = call i8* @__isq__qir__shim__rt__callable_create(i8* %x11, i8* %x12, i8* %x13, i8* %x14, i8* %x22, i8* %x23, i8* %x24)
+    %x26 = bitcast i8* %x25 to %Callable*
+    ret %Callable* %x26
+}
+declare dllimport i8* @__isq__qir__shim__rt__callable_create(i8*, i8*, i8*, i8*, i8*, i8*, i8*)
+>>>>>>> merge
 define void @__quantum__rt__callable_invoke (%Callable* %x0, %Tuple* %x1, %Tuple* %x2) alwaysinline {
 entry:
     %x3 = bitcast %Callable* %x0 to i8*

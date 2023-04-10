@@ -1,6 +1,10 @@
 #include "./Dialect.h"
 #include "./QTypes.h"
+<<<<<<< HEAD
 #include "./QStructs.h"
+=======
+//#include "./QStructs.h"
+>>>>>>> merge
 #include "./QAttrs.h"
 #include "./Operations.h"
 #include "./OpVerifier.h"

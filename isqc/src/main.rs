@@ -88,9 +88,13 @@ pub enum Commands{
         #[clap(long, short, multiple_occurrences(true))]
         int_par: Option<Vec<i64>>,
         #[clap(long, short, multiple_occurrences(true))]
+<<<<<<< HEAD
         double_par: Option<Vec<f64>>,
         #[clap(long, short, default_value = "1")]
         np: i64
+=======
+        double_par: Option<Vec<f64>>
+>>>>>>> merge
     },
     Exec{
         #[clap(multiple_occurrences(true), required(true))]
@@ -101,9 +105,13 @@ pub enum Commands{
         #[clap(long)]
         shots: Option<i64>,
         #[clap(long)]
+<<<<<<< HEAD
         debug: bool,
         #[clap(long, short, default_value = "1")]
         np: i64
+=======
+        debug: bool
+>>>>>>> merge
     }
 }
 
@@ -149,7 +157,11 @@ fn main()->miette::Result<()> {
     let root = std::env::var("ISQ_ROOT").map_err(|_| NoISQv2RootError)?;
     
     match cli.command{
+<<<<<<< HEAD
         Commands::Run{input, shots, debug, np}=>{
+=======
+        Commands::Run{input, shots, debug}=>{
+>>>>>>> merge
             let (input_path, default_output_path) = resolve_input_path(&input, "so")?;
             exec::system_exec_command(&root, "isqc", 
             &[OsStr::new("compile"), input_path.as_os_str(), OsStr::new("-o"), default_output_path.as_os_str()]
@@ -167,9 +179,12 @@ fn main()->miette::Result<()> {
             if debug{
                 v.push(OsStr::new("--debug"))
             }
+<<<<<<< HEAD
             v.push(OsStr::new("--np"));
             let mut np_str = format!("{}", np);
             v.push(OsStr::new(np_str.as_str()));
+=======
+>>>>>>> merge
             v.push(default_output_path.as_os_str());
 
             exec::system_exec_command(&root, "isqc", 
@@ -227,7 +242,13 @@ fn main()->miette::Result<()> {
                 break 'command;
             }
             let llvm_mlir = exec::exec_command_text(&root, "isq-opt", &[
+<<<<<<< HEAD
                 "-pass-pipeline=symbol-dce,cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,builtin.func(convert-math-to-llvm),isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
+=======
+                // Todo: add symbol-dce pass back
+                //"-pass-pipeline=symbol-dce,cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,builtin.func(convert-math-to-llvm),isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
+                "-pass-pipeline=cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,func.func(convert-math-to-llvm),isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
+>>>>>>> merge
                 "--mlir-print-debuginfo"
             ], &optimized_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
             if llvm_mlir.trim().is_empty(){
@@ -247,14 +268,22 @@ fn main()->miette::Result<()> {
             // linking with stub. This step we use byte output.
             let linked_llvm = exec::exec_command("", "llvm-link", &[
                 format!("-"),
+<<<<<<< HEAD
                 format!("{}/bin/isq-simulator.bc", &root)
+=======
+                format!("{}/share/isq-simulator/isq-simulator.bc", &root)
+>>>>>>> merge
             ], llvm.as_bytes()).map_err(ioErrorWhen("Calling llvm-link"))?;
             let mut opt_args: Vec<String> = Vec::new();
             if let Some(o) = opt_level{
                 opt_args.push(format!("-O{}", o));
             }
             let optimized_llvm = exec::exec_command("", "opt", &opt_args, &linked_llvm).map_err(ioErrorWhen("Calling opt"))?;
+<<<<<<< HEAD
             let compiled_obj = exec::exec_command("", "llc", &["-filetype=obj"], &optimized_llvm).map_err(ioErrorWhen("Calling llc"))?;
+=======
+            let compiled_obj = exec::exec_command("", "llc", &["-filetype=obj", "--relocation-model=pic"], &optimized_llvm).map_err(ioErrorWhen("Calling llc"))?;
+>>>>>>> merge
             // create obj file.
             let mut tmpfile = tempfile::NamedTempFile::new().map_err(ioErrorWhen("Creating tempfile"))?;
             tmpfile.write_all(&compiled_obj).map_err(IoError)?;
@@ -315,7 +344,11 @@ fn main()->miette::Result<()> {
             }
 
         }
+<<<<<<< HEAD
         Commands::Simulate{qir_object, cuda, qcis, shots, debug, int_par, double_par, np}=>{
+=======
+        Commands::Simulate{qir_object, cuda, qcis, shots, debug, int_par, double_par}=>{
+>>>>>>> merge
 
             let qir_object = if qir_object.starts_with("/"){
                 qir_object
@@ -360,8 +393,11 @@ fn main()->miette::Result<()> {
                 v.push("-d".into());
                 v.push(format!("{}", val))
             }
+<<<<<<< HEAD
             v.push("--np".into());
             v.push(format!("{}", np));
+=======
+>>>>>>> merge
 
             exec::raw_exec_command(&root, "simulator", &v).map_err(IoError)?;
         }

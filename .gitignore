@@ -8,10 +8,14 @@ build/
 /simulator/examples/*/bin
 /simulator/examples/*/obj
 /frontend/.stack-work
-result
 /frontend/dist-newstyle
 *.o
 *.so
 /examples/*.mlir
 /examples/*.ll
 /examples/*.qcis
+/result
+/.direnv
+/.vscode
+/.pre-commit-config.yaml
+/.build

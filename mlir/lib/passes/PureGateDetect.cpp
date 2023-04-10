@@ -4,8 +4,12 @@
 #include <llvm/Support/raw_ostream.h>
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
+<<<<<<< HEAD
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
+=======
+#include <mlir/Dialect/SCF/IR/SCF.h>
+>>>>>>> merge
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -15,7 +19,10 @@
 #include <mlir/Pass/PassRegistry.h>
 #include <mlir/Support/LLVM.h>
 #include "isq/Operations.h"
+<<<<<<< HEAD
 #include "isq/QStructs.h"
+=======
+>>>>>>> merge
 #include "isq/QTypes.h"
 #include "isq/passes/Passes.h"
 #include "mlir/IR/OperationSupport.h"
@@ -74,7 +81,11 @@ public:
             auto d = AllGateDefs::parseGateDefinition(op, id, op.type(), def);
             if(d==std::nullopt) return mlir::failure();
             if(auto def = llvm::dyn_cast_or_null<DecompositionRawDefinition>(&**d)){
+<<<<<<< HEAD
                 pureSymbols.insert(def->getDecomposedFunc().sym_nameAttr());
+=======
+                pureSymbols.insert(def->getDecomposedFunc().getSymNameAttr());
+>>>>>>> merge
             }
             id++;
         }
@@ -83,6 +94,7 @@ public:
     }
 };
 
+<<<<<<< HEAD
 class TagPureGates : public mlir::OpRewritePattern<mlir::FuncOp>{
     mlir::ModuleOp rootModule;
     StringSmallPtrSet& pureSymbols;
@@ -91,11 +103,25 @@ public:
 
     }
     mlir::LogicalResult matchAndRewrite(mlir::FuncOp op, mlir::PatternRewriter& rewriter) const override{
+=======
+class TagPureGates : public mlir::OpRewritePattern<mlir::func::FuncOp>{
+    mlir::ModuleOp rootModule;
+    StringSmallPtrSet& pureSymbols;
+public:
+    TagPureGates (mlir::MLIRContext* ctx, mlir::ModuleOp module, StringSmallPtrSet& pureSymbols): mlir::OpRewritePattern<mlir::func::FuncOp>(ctx, 1), rootModule(module), pureSymbols(pureSymbols){
+
+    }
+    mlir::LogicalResult matchAndRewrite(mlir::func::FuncOp op, mlir::PatternRewriter& rewriter) const override{
+>>>>>>> merge
         auto ctx = op->getContext();
         if(op->hasAttr(ISQ_PURE_GATE)){
             return mlir::failure();
         }
+<<<<<<< HEAD
         if(pureSymbols.find(op.sym_nameAttr())!=pureSymbols.end()){
+=======
+        if(pureSymbols.find(op.getSymNameAttr())!=pureSymbols.end()){
+>>>>>>> merge
             rewriter.startRootUpdate(op);
             op->setAttr(mlir::StringAttr::get(ctx, ISQ_PURE_GATE), mlir::UnitAttr::get(ctx));
             rewriter.finalizeRootUpdate(op);
@@ -124,8 +150,13 @@ public:
             for(auto def: defs){
                 
                 auto gatedef = def.cast<GateDefinition>();
+<<<<<<< HEAD
                 if(gatedef.type()=="decomposition_raw"){
                     attrs.push_back(GateDefinition::get(mlir::StringAttr::get(ctx, "decomposition"), gatedef.value(), ctx));
+=======
+                if(gatedef.getType()=="decomposition_raw"){
+                    attrs.push_back(GateDefinition::get(ctx, mlir::StringAttr::get(ctx, "decomposition"), gatedef.getValue()));
+>>>>>>> merge
                 }else{
                     attrs.push_back(gatedef);
                 }
@@ -138,10 +169,17 @@ public:
     }
 };
 
+<<<<<<< HEAD
 class PureGateRewrite : public mlir::OpRewritePattern<mlir::FuncOp>{
     mlir::ModuleOp rootModule;
 public:
     PureGateRewrite(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<mlir::FuncOp>(ctx, 1), rootModule(module){
+=======
+class PureGateRewrite : public mlir::OpRewritePattern<mlir::func::FuncOp>{
+    mlir::ModuleOp rootModule;
+public:
+    PureGateRewrite(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<mlir::func::FuncOp>(ctx, 1), rootModule(module){
+>>>>>>> merge
 
     }
 
@@ -149,7 +187,11 @@ public:
 
     
     
+<<<<<<< HEAD
     mlir::LogicalResult matchAndRewrite(mlir::FuncOp op, mlir::PatternRewriter& rewriter) const override{
+=======
+    mlir::LogicalResult matchAndRewrite(mlir::func::FuncOp op, mlir::PatternRewriter& rewriter) const override{
+>>>>>>> merge
         auto ctx = op->getContext();
         // Check for pure-gate notation.
         if(!op->hasAttr(ISQ_PURE_GATE)){
@@ -160,7 +202,11 @@ public:
         rewriter.startRootUpdate(op);
         op->removeAttr(ISQ_PURE_GATE);
         // Transform all parameters.
+<<<<<<< HEAD
         auto func_type = op.getType();
+=======
+        auto func_type = op.getFunctionType();
+>>>>>>> merge
         ::mlir::SmallVector<::mlir::Type> args;
         ::mlir::SmallVector<::mlir::Type> results;
         ::mlir::SmallVector<::mlir::Type> extra_args;

@@ -26,6 +26,12 @@ void DowngradeGateOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patte
     patterns.add<passes::canonicalize::MergeDowngrade>(context);
 }
 
+<<<<<<< HEAD
+=======
+::mlir::LogicalResult DowngradeGateOp::verify(){
+    return ::isq::ir::verify(*this);
+}
+>>>>>>> merge
 
 } // namespace ir
 } // namespace isq

@@ -101,6 +101,7 @@ pub extern "C" fn __isq__qir__shim__qis__drawrandomdouble__body(x0: f64, x1: f64
     unsafe { t(isq_qir_shim_qis_drawrandomdouble_body(t::<_, f64>(x0), t::<_, f64>(x1)))}
 }
 #[no_mangle]
+<<<<<<< HEAD
 // pub extern "C" fn __isq__qir__shim__qis__applyifelseintrinsic__body(x0: *mut i8, x1: *mut i8, x2: *mut i8)->() {
 //     use core::mem::transmute as t;
 //     unsafe { t(isq_qir_shim_qis_applyifelseintrinsic_body(t::<_, QIRResult>(x0), t::<_, K<QIRCallable>>(x1), t::<_, K<QIRCallable>>(x2)))}
@@ -110,6 +111,17 @@ pub extern "C" fn __isq__qir__shim__qis__drawrandomdouble__body(x0: f64, x1: f64
 //     use core::mem::transmute as t;
 //     unsafe { t(isq_qir_shim_qis_applyconditionallyinstrinsic_body(t::<_, K<QIRArray>>(x0), t::<_, K<QIRArray>>(x1), t::<_, K<QIRCallable>>(x2), t::<_, K<QIRCallable>>(x3)))}
 // }
+=======
+pub extern "C" fn __isq__qir__shim__qis__applyifelseintrinsic__body(x0: *mut i8, x1: *mut i8, x2: *mut i8)->() {
+    use core::mem::transmute as t;
+    unsafe { t(isq_qir_shim_qis_applyifelseintrinsic_body(t::<_, QIRResult>(x0), t::<_, K<QIRCallable>>(x1), t::<_, K<QIRCallable>>(x2)))}
+}
+#[no_mangle]
+pub extern "C" fn __isq__qir__shim__qis__applyconditionallyinstrinsic__body(x0: *mut i8, x1: *mut i8, x2: *mut i8, x3: *mut i8)->() {
+    use core::mem::transmute as t;
+    unsafe { t(isq_qir_shim_qis_applyconditionallyinstrinsic_body(t::<_, K<QIRArray>>(x0), t::<_, K<QIRArray>>(x1), t::<_, K<QIRCallable>>(x2), t::<_, K<QIRCallable>>(x3)))}
+}
+>>>>>>> merge
 #[no_mangle]
 pub extern "C" fn __isq__qir__shim__qis__assertmeasurementprobability__body(x0: *mut i8, x1: *mut i8, x2: *mut i8, x3: f64, x4: *mut i8, x5: f64)->() {
     use core::mem::transmute as t;

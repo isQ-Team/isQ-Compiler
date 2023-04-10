@@ -1,5 +1,10 @@
 #include <iostream>
 #include <map> 
+<<<<<<< HEAD
+=======
+#include <mlir/AsmParser/AsmParser.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
+>>>>>>> merge
 #include <set>
 #include <vector>
 #include <algorithm>
@@ -10,9 +15,16 @@
 
 #include "isq/Operations.h"
 #include "isq/QAttrs.h"
+<<<<<<< HEAD
 #include "isq/QStructs.h"
 #include "isq/utils/Decomposition.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+=======
+#include "isq/utils/Decomposition.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+>>>>>>> merge
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -25,8 +37,12 @@
 
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+<<<<<<< HEAD
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
+=======
+#include "mlir/Dialect/SCF/IR/SCF.h"
+>>>>>>> merge
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Pass/Pass.h"
@@ -65,16 +81,28 @@ using namespace mlir;
 using namespace mlir::arith;
 using namespace mlir::memref;
 using namespace mlir::scf;
+<<<<<<< HEAD
 using CodegenOpVisitor = OpVisitor<
     FuncOp, scf::IfOp, AffineForOp, scf::ExecuteRegionOp,
+=======
+using namespace mlir::cf;
+using CodegenOpVisitor = OpVisitor<
+    func::FuncOp, scf::IfOp, AffineForOp, scf::ExecuteRegionOp,
+>>>>>>> merge
     GetGlobalOp, GlobalOp,
     mlir::arith::ConstantOp, mlir::arith::ExtUIOp, mlir::arith::IndexCastOp, mlir::arith::SIToFPOp,
     AllocOp, DeallocOp, memref::LoadOp, memref::StoreOp, SubViewOp, memref::CastOp, CmpIOp,
     AddIOp, SubIOp, MulIOp, DivSIOp, RemSIOp, AddFOp, SubFOp, MulFOp, DivFOp, NegFOp,
     UseGateOp, DecorateOp, ApplyGateOp, CallQOpOp, AccumulateGPhase, DeclareQOpOp,
+<<<<<<< HEAD
     CallOp, ReturnOp, DefgateOp, scf::WhileOp, ConditionOp,
     ModuleOp, PassOp, AffineYieldOp, scf::YieldOp,
     CondBranchOp, BranchOp
+=======
+    func::CallOp, func::ReturnOp, DefgateOp, scf::WhileOp, ConditionOp,
+    ModuleOp, PassOp, AffineYieldOp, scf::YieldOp,
+    mlir::cf::CondBranchOp, BranchOp
+>>>>>>> merge
     >;
 }
 
@@ -138,7 +166,12 @@ public:
         if (printast) printOperation(theModule->getOperation());
         initGate();
         initializeIntegerSets();
+<<<<<<< HEAD
         visitOperation(theModule->getOperation());
+=======
+        auto val = visitOperation(theModule->getOperation());
+        if(mlir::failed(val)) return mlir::failure();
+>>>>>>> merge
         // find main function, and visit it's body
         auto iter = funcMap.find("__isq__main");
         if (iter != funcMap.end()){
@@ -174,7 +207,11 @@ private:
     map<string, string> gateMap; //decomposition_raw gate
     map<string, map<int, varValue>> symbolTable;
     set<int> measured;
+<<<<<<< HEAD
     map<string, mlir::FuncOp> funcMap;
+=======
+    map<string, mlir::func::FuncOp> funcMap;
+>>>>>>> merge
     set<string> visitFunc;
     map<string, int> funcArgs;
 
@@ -289,9 +326,15 @@ private:
         if(!block) return mlir::success();
         for(auto& child: block->getOperations()){
             // save all functions in funcMap
+<<<<<<< HEAD
             auto fop = mlir::dyn_cast_or_null<mlir::FuncOp>(&child);
             if (fop != nullptr){
                 funcMap.insert(make_pair(fop.sym_name().str(), fop));
+=======
+            auto fop = mlir::dyn_cast_or_null<mlir::func::FuncOp>(&child);
+            if (fop != nullptr){
+                funcMap.insert(make_pair(fop.getSymName().str(), fop));
+>>>>>>> merge
                 continue;
             }
             //child.getName().dump();
@@ -301,7 +344,11 @@ private:
     }
 
     mlir::LogicalResult visitOp(mlir::ModuleOp curr_module) override{
+<<<<<<< HEAD
         auto mod_name = curr_module.sym_name();
+=======
+        auto mod_name = curr_module.getSymName();
+>>>>>>> merge
         if(mod_name){
             if(*mod_name == "isq_builtin"){
                 // Just ignore it.
@@ -312,7 +359,11 @@ private:
         return mlir::success();
     }
 
+<<<<<<< HEAD
     mlir::LogicalResult visitOp(mlir::CondBranchOp op) override{
+=======
+    mlir::LogicalResult visitOp(mlir::cf::CondBranchOp op) override{
+>>>>>>> merge
         
         auto code = size_t(mlir::hash_value(op.getCondition()));
         auto b_i = getValue(code);
@@ -324,7 +375,11 @@ private:
         }
     }
 
+<<<<<<< HEAD
     mlir::LogicalResult visitOp(mlir::BranchOp op) override{
+=======
+    mlir::LogicalResult visitOp(mlir::cf::BranchOp op) override{
+>>>>>>> merge
         return visitBlock(op.getDest());
     }
 
@@ -355,20 +410,38 @@ private:
         if (op.definition()){
             for(auto& def_ : *op.definition()){
                 auto def = def_.cast<GateDefinition>();
+<<<<<<< HEAD
                 if(def.type()=="unitary") return error(op.getLoc(), "sorry, qcis can not define gate.");
                 if (def.type() == "decomposition_raw"){
                     gateMap[gate_name] = def.value().dyn_cast<mlir::SymbolRefAttr>().getLeafReference().str();
+=======
+                if(def.getType()=="unitary") return error(op.getLoc(), "sorry, qcis can not define gate.");
+                if (def.getType() == "decomposition_raw"){
+                    gateMap[gate_name] = def.getValue().dyn_cast<mlir::SymbolRefAttr>().getLeafReference().str();
+>>>>>>> merge
                 }
             }
         }
         return mlir::success();
     }
 
+<<<<<<< HEAD
     mlir::LogicalResult visitOp(mlir::FuncOp func_op) override{
         // visit func body
         auto func_name = func_op.sym_name().str();
         auto visibility = func_op.sym_visibility();
         if (visibility.getValueOr<llvm::StringRef>("public").str() == "private") return mlir::success();
+=======
+    mlir::LogicalResult visitOp(mlir::func::FuncOp func_op) override{
+        // visit func body
+        auto func_name = func_op.getSymName().str();
+        auto visibility = func_op.getSymVisibility();
+        llvm::StringRef s = "public";
+        if(visibility.hasValue()){
+            s = visibility.getValue();
+        }
+        if (s == "private") return mlir::success();
+>>>>>>> merge
         auto func_block = func_op.getBody().getBlocks().begin();
         return visitBlock(&*func_block);
     }
@@ -682,7 +755,11 @@ private:
         return mlir::success();
     }
 
+<<<<<<< HEAD
     mlir::LogicalResult updateArgs(mlir::FuncOp op, vector<varValue>& args){
+=======
+    mlir::LogicalResult updateArgs(mlir::func::FuncOp op, vector<varValue>& args){
+>>>>>>> merge
         // store args
         // index: store in intValueTable
         // qbit: store in symbolTable and indexTable
@@ -738,7 +815,11 @@ private:
         return mlir::success();
     }
 
+<<<<<<< HEAD
     mlir::LogicalResult visitOp(mlir::CallOp op) override{
+=======
+    mlir::LogicalResult visitOp(mlir::func::CallOp op) override{
+>>>>>>> merge
         auto func_name = op.getCalleeAttr().getValue().str();
         // get args
         // index : get value from intValueTable
@@ -778,7 +859,11 @@ private:
         return mlir::success();
     }
 
+<<<<<<< HEAD
     mlir::LogicalResult visitOp(mlir::ReturnOp op) override{
+=======
+    mlir::LogicalResult visitOp(mlir::func::ReturnOp op) override{
+>>>>>>> merge
         if (op.getOperands().size() > 0){
             auto code = mlir::hash_value(op.getOperand(0));
             auto b_v = getValue(code);

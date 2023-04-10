@@ -4,8 +4,13 @@
 #include <mlir/IR/Dominance.h>
 using namespace mlir;
 
+<<<<<<< HEAD
 namespace {
 
+=======
+namespace isq_affine_scalrep{
+using namespace mlir::func;
+>>>>>>> merge
 template <typename DerivedT>
 class AffineScalarReplacementBase : public ::mlir::OperationPass<FuncOp> {
 public:
@@ -51,11 +56,23 @@ struct AffineScalarReplacement
   void runOnOperation() override;
 };
 
+<<<<<<< HEAD
+=======
+void AffineScalarReplacement::runOnOperation() {
+  using namespace isq_affine_scalrep;
+  isq::contrib::mlir::affineScalarReplace(getOperation(), getAnalysis<DominanceInfo>(),
+                      getAnalysis<PostDominanceInfo>());
+}
+
+
+
+>>>>>>> merge
 } // namespace
 
 
 
 void isq::contrib::mlir::registerAffineScalarReplacementPass() {
+<<<<<<< HEAD
   PassRegistration<AffineScalarReplacement>();
 }
 void AffineScalarReplacement::runOnOperation() {
@@ -63,3 +80,8 @@ void AffineScalarReplacement::runOnOperation() {
                       getAnalysis<PostDominanceInfo>());
 }
 
+=======
+  using namespace isq_affine_scalrep;
+  PassRegistration<AffineScalarReplacement>();
+}
+>>>>>>> merge

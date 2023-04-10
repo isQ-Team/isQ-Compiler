@@ -18,6 +18,11 @@ fn help_command() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+<<<<<<< HEAD
+=======
+
+/*
+>>>>>>> merge
 #[test]
 fn nonexist_file() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("isqc")?;
@@ -25,3 +30,7 @@ fn nonexist_file() -> Result<(), Box<dyn std::error::Error>> {
     cmd.assert().failure().stderr(predicate::str::contains("No such file or directory"));
     Ok(())
 }
+<<<<<<< HEAD
+=======
+*/
+>>>>>>> merge

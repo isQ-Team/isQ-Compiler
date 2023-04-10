@@ -84,7 +84,11 @@ mlir::LogicalResult DeclareQOpOp::parseIR(::mlir::OpAsmParser &parser,
 }
 void DeclareQOpOp::printIR(::mlir::OpAsmPrinter &p) {
     //p << "isq.declare_qop";
+<<<<<<< HEAD
     //p << ' ';
+=======
+    p << ' ';
+>>>>>>> merge
     p.printSymbolName(sym_nameAttr().getValue());
     p.printOptionalAttrDict(
         (*this)->getAttrs(),
@@ -105,5 +109,18 @@ if (op.op_type() != op.getResult().getType()) {
 return mlir::success();
 }
 */
+<<<<<<< HEAD
+=======
+
+
+::mlir::ParseResult DeclareQOpOp::parse(::mlir::OpAsmParser &parser, ::mlir::OperationState &result){
+        return DeclareQOpOp::parseIR(parser, result);
+}
+void DeclareQOpOp::print(::mlir::OpAsmPrinter & p){
+    return this->printIR(p);
+}
+
+
+>>>>>>> merge
 } // namespace ir
 } // namespace isq

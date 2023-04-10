@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {pkgs? import ../../../buildscript/pkgs.nix}:
 pkgs.stdenv.mkDerivation{
     name = "isqv2-simulator-cuda-plugin";
@@ -10,6 +11,19 @@ pkgs.stdenv.mkDerivation{
     '';
     src = ./.;
     installPhase = ''
+=======
+{ stdenv, cudaPackages_11_5, addOpenGLRunpath, makeWrapper }:
+let cudatoolkit = cudaPackages_11_5.cudatoolkit;
+in
+stdenv.mkDerivation {
+  name = "isq-simulator-plugin-cuda";
+  buildInputs = [ cudatoolkit addOpenGLRunpath makeWrapper ];
+  src = ./.;
+  preBuild = ''
+    export CUDA_PATH=${cudatoolkit}
+  '';
+  installPhase = ''
+>>>>>>> merge
     runHook preInstall
     mkdir -p $out/bin
     mkdir -p $out/lib
@@ -19,9 +33,17 @@ pkgs.stdenv.mkDerivation{
     cp qsim_kernel.h $out/include/qsim_kernel.h
     moveToOutput bin "''${!outputBin}"
     runHook postInstall
+<<<<<<< HEAD
     '';
     postFixup = ''
       addOpenGLRunpath $out/lib/libqsim_kernel.so
     '';
     outputs = [ "out" "dev" "bin"  ];
+=======
+  '';
+  postFixup = ''
+    addOpenGLRunpath $out/lib/libqsim_kernel.so
+  '';
+  outputs = [ "out" "dev" "bin" ];
+>>>>>>> merge
 }

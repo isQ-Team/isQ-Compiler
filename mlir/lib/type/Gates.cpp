@@ -4,7 +4,10 @@
 #include <isq/ParsePrint.h>
 #include <isq/QTypes.h>
 #include <mlir/IR/Builders.h>
+<<<<<<< HEAD
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
+=======
+>>>>>>> merge
 #include <mlir/Support/LogicalResult.h>
 namespace isq {
 namespace ir {
@@ -69,5 +72,18 @@ mlir::SmallVector<mlir::Type> GateType::getApplyParameterType(GateType ty) {
     }
     return args;
 }
+<<<<<<< HEAD
+=======
+
+::mlir::Type GateType::parse(::mlir::AsmParser &odsParser){
+    GateParsePrint p;
+    return p.parseType(odsParser);
+}
+void GateType::print(::mlir::AsmPrinter &odsPrinter) const{
+    GateParsePrint p;
+    p.printType(*this, odsPrinter);
+}
+
+>>>>>>> merge
 } // namespace ir
 } // namespace isq

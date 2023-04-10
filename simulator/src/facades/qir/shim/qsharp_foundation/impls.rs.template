@@ -59,6 +59,15 @@ pub fn isq_qir_shim_qis_drawrandomint_body(x0: i64, x1: i64)->i64 {
 pub fn isq_qir_shim_qis_drawrandomdouble_body(x0: f64, x1: f64)->f64 {
     todo!()
 }
+<<<<<<< HEAD
+=======
+pub fn isq_qir_shim_qis_applyifelseintrinsic_body(x0: QIRResult, x1: K<QIRCallable>, x2: K<QIRCallable>)->() {
+    todo!()
+}
+pub fn isq_qir_shim_qis_applyconditionallyinstrinsic_body(x0: K<QIRArray>, x1: K<QIRArray>, x2: K<QIRCallable>, x3: K<QIRCallable>)->() {
+    todo!()
+}
+>>>>>>> merge
 pub fn isq_qir_shim_qis_assertmeasurementprobability_body(x0: K<QIRArray>, x1: K<QIRArray>, x2: QIRResult, x3: f64, x4: K<QIRString>, x5: f64)->() {
     todo!()
 }

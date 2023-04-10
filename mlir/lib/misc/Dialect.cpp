@@ -13,7 +13,10 @@
 #define GET_ATTRDEF_CLASSES
 #include <isq/tblgen/ISQAttrs.cpp.inc>
 
+<<<<<<< HEAD
 #include <isq/tblgen/ISQStructAttrs.cpp.inc>
+=======
+>>>>>>> merge
 #include <isq/passes/Passes.h>
 #include <mlir/Transforms/InliningUtils.h>
 namespace isq {
@@ -66,15 +69,35 @@ void ISQDialect::getCanonicalizationPatterns(mlir::RewritePatternSet &results) c
 }
 
 mlir::Type ISQDialect::parseType(mlir::DialectAsmParser &parser) const {
+<<<<<<< HEAD
     mlir::StringRef kw;
     auto kwLoc = parser.getCurrentLocation();
+=======
+    /*
+    llvm::outs()<<"isq type\n";
+    mlir::StringRef kw;
+    auto kwLoc = parser.getCurrentLocation();
+    parser.emitError(kwLoc, "Here!");
+>>>>>>> merge
     if (parser.parseKeyword(&kw)) {
         parser.emitError(kwLoc, "unrecognized type");
         return nullptr;
     }
+<<<<<<< HEAD
     mlir::Type ty;
     auto ret =
         generatedTypeParser(parser, kw, ty);
+=======
+    
+    kwLoc = parser.getCurrentLocation();
+    parser.emitError(kwLoc, "Here2!");
+    */
+    auto kwLoc = parser.getCurrentLocation();
+    mlir::StringRef kw;
+    mlir::Type ty;
+    auto ret =
+        generatedTypeParser(parser, &kw, ty);
+>>>>>>> merge
     if (!ret.hasValue()) {
         parser.emitError(kwLoc, "unrecognized type");
         return nullptr;
@@ -91,6 +114,10 @@ void ISQDialect::printType(::mlir::Type type,
 
 mlir::Attribute ISQDialect::parseAttribute(::mlir::DialectAsmParser &parser,
                                            ::mlir::Type type) const {
+<<<<<<< HEAD
+=======
+    /*
+>>>>>>> merge
     mlir::StringRef kw;
     auto kwLoc = parser.getCurrentLocation();
     if (parser.parseKeyword(&kw)) {
@@ -98,7 +125,15 @@ mlir::Attribute ISQDialect::parseAttribute(::mlir::DialectAsmParser &parser,
         return nullptr;
     }
     mlir::Attribute attr;
+<<<<<<< HEAD
     auto ret = generatedAttributeParser(parser, kw, type, attr);
+=======
+    */
+    auto kwLoc = parser.getCurrentLocation();
+    mlir::StringRef kw;
+    mlir::Attribute attr;
+    auto ret = generatedAttributeParser(parser, &kw, type, attr);
+>>>>>>> merge
     if (!ret.hasValue()) {
         parser.emitError(kwLoc, "unrecognized attribute");
         return nullptr;

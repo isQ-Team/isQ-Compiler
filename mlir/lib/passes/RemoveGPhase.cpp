@@ -1,4 +1,8 @@
 #include "isq/Operations.h"
+<<<<<<< HEAD
+=======
+#include <mlir/Dialect/Func/IR/FuncOps.h>
+>>>>>>> merge
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Rewrite/FrozenRewritePatternSet.h>
@@ -27,9 +31,15 @@ public:
 
 const char* ISQ_GPHASE_REMOVED = "ISQ_GPHASE_REMOVED";
 
+<<<<<<< HEAD
 struct RemoveGPhaseFuncPass : public mlir::PassWrapper<RemoveGPhaseFuncPass, mlir::OperationPass<mlir::FuncOp>>{
     void runOnOperation() override {
         mlir::FuncOp m = this->getOperation();
+=======
+struct RemoveGPhaseFuncPass : public mlir::PassWrapper<RemoveGPhaseFuncPass, mlir::OperationPass<mlir::func::FuncOp>>{
+    void runOnOperation() override {
+        mlir::func::FuncOp m = this->getOperation();
+>>>>>>> merge
         auto ctx = m->getContext();
         // Mark the function as gphase-unreliable.
         bool has_gphase = false;
@@ -56,7 +66,11 @@ struct RemoveGPhasePass : public mlir::PassWrapper<RemoveGPhasePass, mlir::Opera
     void runOnOperation() override {
         mlir::ModuleOp module = getOperation();
         mlir::PassManager pm(module->getContext());
+<<<<<<< HEAD
         pm.addNestedPass<mlir::FuncOp>(std::make_unique<RemoveGPhaseFuncPass>());
+=======
+        pm.addNestedPass<mlir::func::FuncOp>(std::make_unique<RemoveGPhaseFuncPass>());
+>>>>>>> merge
         if(failed(pm.run(module))){
             return signalPassFailure();
         }

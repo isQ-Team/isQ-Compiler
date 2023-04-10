@@ -1,6 +1,10 @@
 #ifndef _ISQ_MATH_H
 #define _ISQ_MATH_H
 #include <cstdint>
+<<<<<<< HEAD
+=======
+#include <llvm/ADT/SmallVector.h>
+>>>>>>> merge
 #include <mlir/Support/LLVM.h>
 #include <complex>
 namespace isq {
@@ -12,15 +16,39 @@ public:
     std::unique_ptr<T> body;
     Ty *operator->() { return &*body; }
 };
+<<<<<<< HEAD
 // Row-first input matrix
 struct InputMatrix
     : public Fwd<std::vector<std::vector<std::complex<double>>>> {};
+=======
+
+template<typename T>
+concept VecDouble = requires(int x, T a){
+    { a[x]} -> std::convertible_to<std::complex<double>>;
+};
+
+template<typename T>
+concept MatDouble = requires(int x, T a){
+    { a[x] } -> VecDouble;
+};
+
+// Row-first input matrix
+struct InputMatrix
+    : public Fwd<std::vector<std::vector<std::complex<double>>>> {};
+struct InputSmallMatrix
+    : public Fwd<llvm::SmallVector<llvm::SmallVector<std::complex<double>>>> {};
+>>>>>>> merge
 struct Mat;
 struct MatDel {
     void operator()(Mat *m);
 };
 ::mlir::Optional<size_t> checkDimensionality(InputMatrix &mat);
 std::unique_ptr<Mat, MatDel> toEigenMatrix(InputMatrix &mat);
+<<<<<<< HEAD
+=======
+::mlir::Optional<size_t> checkDimensionality(InputSmallMatrix &mat);
+std::unique_ptr<Mat, MatDel> toEigenMatrix(InputSmallMatrix &mat);
+>>>>>>> merge
 bool isUnitary(Mat &mat, double eps = 1e-5);
 bool isHermitian(Mat &mat, double eps = 1e-5);
 bool isSymmetric(Mat &mat, double eps = 1e-5);

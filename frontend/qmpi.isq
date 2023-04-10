@@ -1,0 +1,167 @@
+defgate H = [
+0.7071067811865475,0.7071067811865475;
+0.7071067811865475,-0.7071067811865475
+];
+defgate X = [0,1;1,0];
+defgate Z = [1, 0;0, -1];
+int qmpi_me(){
+    // Hole.
+}
+int qmpi_size(){
+    // Hole.
+}
+
+// TODO: entire async api is lacking.
+// However, implementing a modern async/await api is very difficult.
+int qmpi_promise(){
+    // Hole.
+}
+int qmpi_promise_all(int promises[]){
+    // Hole.
+}
+int qmpi_epr_async(qbit q, int dst){
+    // Hole.
+}
+procedure qmpi_wait(int promise){
+    // Hole.
+}
+procedure qmpi_csend(bool val, int dst){
+    // Hole.
+}
+bool qmpi_crecv(int dst){
+    // Hole.
+}
+
+procedure qmpi_epr(qbit q, int dst){
+    int promise = qmpi_epr_async(q, dst);
+    qmpi_wait(promise);
+}
+
+/*
+ * Fan-out a qubit and back forth. Recognized as "Cat-Comm" in some literature.
+ */
+procedure qmpi_send(qbit q, int dst){
+    qbit a;
+    qmpi_epr(a, dst);
+    ctrl X(q, a);
+    qmpi_csend(M(a), dst);
+}
+
+procedure qmpi_recv(qbit q, int dst){
+    q=|0>;
+    qmpi_epr(q, dst);
+    if(qmpi_crecv(dst)){
+        X(q);
+    }
+}
+
+procedure qmpi_unsend(qbit q, int dst){
+    if(qmpi_crecv(dst)){
+        Z(q);
+    }
+}
+procedure qmpi_unrecv(qbit q, int dst){
+    H(q);
+    qmpi_csend(M(q), dst);
+}
+
+procedure qmpi_send_move(qbit q, int dst){
+    qbit a;
+    qmpi_epr(a, dst);
+    ctrl X(q, a);
+    H(q);
+    qmpi_csend(M(a), dst);
+    qmpi_csend(M(q), dst);
+    q=|0>;
+    a=|0>;
+}
+procedure qmpi_recv_move(qbit q, int dst){
+    q=|0>;
+    qmpi_epr(q, dst);
+    if(qmpi_crecv(dst)){
+        Z(q);
+    }
+}
+procedure qmpi_unsend_move(qbit q, int dst){
+    qmpi_recv_move(q, dst);
+}
+
+procedure qmpi_unrecv_move(qbit q, int dst){
+    qmpi_send_move(q, dst);
+}
+int log2(int x){
+    int val = 1;
+    int log = 0;
+    while(val<x){
+        val = val*2;
+        log = log+1;
+    }
+    return log;
+}
+
+procedure qmpi_bcast(qbit q, int root){
+    int me = qmpi_me();
+    if(me!=root){
+        q=|0>;
+    }
+    int size = qmpi_size();
+    int rel = (me + size - root)%size ;
+    int layer = log2(size);
+    int done = 1;
+    for i in 0:layer{
+        if(rel < done){
+            // send
+            int next = (rel + done) % size;
+            qmpi_send(q, next);
+        }else if(rel < 2*done){
+            // recv
+            int prev = (rel + size - done) % size;
+            qmpi_recv(q, prev);
+        }
+        done = done * 2;
+    }
+}
+
+// Problem: isQ supports neither Option type nor nullptr.
+procedure qmpi_gather(qbit sendbuf, qbit recvbuf[], int root){
+    int me = qmpi_me();
+    int size = qmpi_size();
+    if me==root{
+        ctrl X(sendbuf, recvbuf[me]);
+        ctrl X(recvbuf[me], sendbuf);
+        ctrl X(sendbuf, recvbuf[me]);
+        for i in 0:size{
+            qmpi_recv(recvbuf[i], i);
+        }
+    }else{
+        qmpi_send(sendbuf, root);
+    }
+}
+
+procedure qmpi_scatter(qbit recvbuf, qbit sendbuf[], int root){
+    int me = qmpi_me();
+    int size = qmpi_size();
+    if me==root{
+        ctrl X(recvbuf, sendbuf[me]);
+        ctrl X(sendbuf[me], recvbuf);
+        ctrl X(recvbuf, sendbuf[me]);
+        for i in 0:size{
+            qmpi_send(sendbuf[i], i);
+        }
+    }else{
+        qmpi_recv(recvbuf, root);
+    }
+}
+
+// TODO: async API
+procedure qmpi_alltoall(qbit buffer[], int root){
+    int me = qmpi_me();
+    int size = qmpi_size();
+    for i in 0:size{
+        
+    }
+}
+
+procedure main(){
+
+}

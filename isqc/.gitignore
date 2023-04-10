@@ -1,3 +1,8 @@
 target
 .vscode
+<<<<<<< HEAD
 *.mlir
+=======
+*.mlir
+/result
+>>>>>>> merge

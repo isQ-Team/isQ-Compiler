@@ -35,6 +35,10 @@ __isq__qir__shim__rt__bigint_to_string
 __isq__qir__shim__rt__bigint_update_reference_count
 __isq__qir__shim__rt__bool_to_string
 __isq__qir__shim__rt__callable_copy
+<<<<<<< HEAD
+=======
+__isq__qir__shim__rt__callable_create
+>>>>>>> merge
 __isq__qir__shim__rt__callable_invoke
 __isq__qir__shim__rt__callable_make_adjoint
 __isq__qir__shim__rt__callable_make_controlled
@@ -115,6 +119,11 @@ __isq__qir__shim__qis__log__body
 __isq__qir__shim__qis__ieeeremainder__body
 __isq__qir__shim__qis__drawrandomint__body
 __isq__qir__shim__qis__drawrandomdouble__body
+<<<<<<< HEAD
+=======
+__isq__qir__shim__qis__applyifelseintrinsic__body
+__isq__qir__shim__qis__applyconditionallyinstrinsic__body
+>>>>>>> merge
 __isq__qir__shim__qis__assertmeasurementprobability__body
 __isq__qir__shim__qis__assertmeasurementprobability__ctl
 __isq__qir__shim__qis__u3

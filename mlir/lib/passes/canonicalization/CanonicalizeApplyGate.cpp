@@ -2,6 +2,10 @@
 #include "isq/Enums.h"
 #include "isq/Operations.h"
 #include "isq/QTypes.h"
+<<<<<<< HEAD
+=======
+#include "isq/passes/Passes.h"
+>>>>>>> merge
 #include "isq/passes/canonicalization/CanonicalizeApplyGate.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/MLIRContext.h"
@@ -139,6 +143,82 @@ mlir::LogicalResult CancelHermitianUU::tryCancel(isq::ir::ApplyGateOp curr, isq:
     return mlir::failure();
 }
 
+<<<<<<< HEAD
+=======
+CancelRemoteCZ::CancelRemoteCZ(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx){}
+
+
+// 0 for CZ, 1 for other diagonal, 2 for nothing.
+int isCZGate(ApplyGateOp apply){
+    int fallback = 2;
+    if((apply.gate().getType().cast<GateType>().getHints() & GateTrait::Diagonal) == GateTrait::Diagonal){
+        fallback = 1;
+    }
+    auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.gate().getDefiningOp());
+    if(!usegate) return fallback;
+    auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+    if(!defgate) return fallback;
+    if(isFamousGate(defgate, "cz")){
+        return 0;
+    }
+    return fallback;
+}
+
+mlir::Value getCorrespondingResult(mlir::Value value, isq::ir::ApplyGateOp apply){
+    for(auto i=0; i<apply.args().size(); i++){
+        if(value==apply.args()[i]){
+            return apply.getResult(i);
+        }
+    }
+    assert(0 && "not operand!");
+}
+mlir::Value getCorrespondingArg(mlir::Value value, isq::ir::ApplyGateOp apply){
+    for(auto i=0; i<apply.getNumResults(); i++){
+        if(value==apply->getResult(i)){
+            return apply.args()[i];
+        }
+    }
+    assert(0 && "not result!");
+}
+mlir::LogicalResult CancelRemoteCZ::matchAndRewrite(isq::ir::ApplyGateOp op, mlir::PatternRewriter &rewriter) const {
+    const int IS_CZ = 0;
+    const int IS_DIAG = 1;
+    const int NEITHER = 2;
+    auto is_cz = isCZGate(op);
+    if(is_cz!=IS_CZ) return mlir::failure();
+    mlir::Value fst = op.args()[0];
+    mlir::SmallPtrSet<mlir::Operation*, 16> ops;
+    while(true){
+        auto fst_def = mlir::dyn_cast_or_null<ApplyGateOp>(fst.getDefiningOp());
+        if(!fst_def) break;
+        auto is_cz = isCZGate(fst_def);
+        if(is_cz==NEITHER) break;
+        if(is_cz==IS_CZ){
+            ops.insert(fst_def);
+        }
+        fst = getCorrespondingArg(fst, fst_def);
+    }
+    mlir::Value snd = op.args()[1];
+    while(true){
+        auto snd_def = mlir::dyn_cast_or_null<ApplyGateOp>(snd.getDefiningOp());
+        if(!snd_def) break;
+        auto is_cz = isCZGate(snd_def);
+        if(is_cz==NEITHER) break;
+        if(is_cz==IS_CZ){
+            if(ops.contains(snd_def)){
+                // snd_def has an operand of both op's operands.
+                // erase both.
+                rewriter.replaceOp(op, op.args());
+                rewriter.replaceOp(snd_def, snd_def.args());
+                return mlir::success();
+            }
+        }
+        snd = getCorrespondingArg(snd, snd_def);
+    }
+    return mlir::failure();
+}
+
+>>>>>>> merge
 }
 }
 }

@@ -65,7 +65,11 @@ void addMultiRx(mlir::ArrayAttr ctrl, mlir::MutableArrayRef<mlir::Value> qubits,
     mlir::SmallVector<mlir::Type> qubitTypes;
     qubitTypes.append(qubits.size(), QStateType::get(ctx));
     mlir::OperationState state(mlir::UnknownLoc::get(ctx), ISQ_INTERMEDIATE_RX, qubits, qubitTypes, mlir::ArrayRef<mlir::NamedAttribute>{mlir::NamedAttribute(rewriter.getStringAttr(ISQ_MULTIRX_CTRL), ctrl)});
+<<<<<<< HEAD
     auto new_op = rewriter.createOperation(state);
+=======
+    auto new_op = rewriter.create(state);
+>>>>>>> merge
     for(auto i=0; i<qubits.size(); i++){
         qubits[i] = new_op->getResult(i);
     }
@@ -81,7 +85,11 @@ void addMultiRz(mlir::Value lambda_plus_phi, mlir::MutableArrayRef<mlir::Value> 
     if(with_ancilla){
         state.addAttribute(ISQ_RZ_HAS_ANCILLA, mlir::UnitAttr::get(ctx));
     }
+<<<<<<< HEAD
     auto new_op = rewriter.createOperation(state);
+=======
+    auto new_op = rewriter.create(state);
+>>>>>>> merge
     for(auto i=0; i<qubits.size(); i++){
         qubits[i] = new_op->getResult(i);
     }

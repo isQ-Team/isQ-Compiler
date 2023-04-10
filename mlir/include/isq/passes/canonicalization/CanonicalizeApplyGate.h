@@ -3,6 +3,11 @@
 #include "isq/Operations.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/IR/PatternMatch.h"
+<<<<<<< HEAD
+=======
+#include <mlir/IR/MLIRContext.h>
+#include <mlir/Support/LogicalResult.h>
+>>>>>>> merge
 namespace isq{
 namespace ir{
 namespace passes{
@@ -33,6 +38,18 @@ struct CancelHermitianUU : public CancelUV{
     mlir::LogicalResult tryCancel(isq::ir::ApplyGateOp curr, isq::ir::ApplyGateOp prev, mlir::PatternRewriter& rewriter) const override;
     CancelHermitianUU(mlir::MLIRContext* ctx);
 };
+<<<<<<< HEAD
+=======
+
+/** 
+ * Cancel out two CZ gates across many diagonal gates.
+*/
+struct CancelRemoteCZ : public mlir::OpRewritePattern<isq::ir::ApplyGateOp>{
+    CancelRemoteCZ(mlir::MLIRContext* ctx);
+    mlir::LogicalResult matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const override;
+};
+
+>>>>>>> merge
 }
 }
 }

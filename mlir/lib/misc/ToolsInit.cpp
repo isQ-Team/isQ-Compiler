@@ -1,4 +1,8 @@
 #include "isq/contrib/Affine.h"
+<<<<<<< HEAD
+=======
+#include "isq/dialects/Extra.h"
+>>>>>>> merge
 #include <mlir/InitAllPasses.h>
 #include <mlir/InitAllDialects.h>
 #include <isq/IR.h>
@@ -22,9 +26,17 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerEliminateNegCtrl();
     passes::registerISQCanonicalizer();
     passes::registerOracleDecompose();
+<<<<<<< HEAD
     isq::contrib::mlir::registerAffineScalarReplacementPass();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
+=======
+    passes::registerAffineSWP();
+    isq::contrib::mlir::registerAffineScalarReplacementPass();
+    mlir::registerAllDialects(registry);
+    registry.insert<isq::ir::ISQDialect>();
+    registry.insert<isq::extra::ISQExtraDialect>();
+>>>>>>> merge
 }
 } // namespace ir
 } // namespace isq

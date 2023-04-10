@@ -1,0 +1,68 @@
+import std;
+
+procedure increment(qbit walk_0, qbit walk_1){
+    CNOT(walk_0, walk_1);
+    X(walk_0);
+} deriving gate
+procedure main(){
+    qbit coin;
+    qbit walk[2];
+    int n = 10;
+    for i in 0:n{
+        H(coin);
+        ctrl increment(coin, walk[0], walk[1]);
+        nctrl inv increment(coin, walk[0], walk[1]);
+    }
+}
+/*
+procedure grover_coin(qbit coin[]){
+    H(coin[0]);
+    H(coin[1]);
+    Z(coin[0]);
+    Z(coin[1]);
+    CZ(coin[0], coin[1]);
+    H(coin[0]);
+    H(coin[1]);
+}
+
+
+procedure walk(qbit coin[], qbit space[]){
+    Toffoli(coin[0], coin[1], space[0]);
+    X(coin[0]);
+    Toffoli(coin[0], coin[1], space[1]);
+    X(coin[0]);
+    X(coin[1]);
+    Toffoli(coin[0], coin[1], space[2]);
+    X(coin[0]);
+    Toffoli(coin[0], coin[1], coin[3]);
+}
+*/
+/*
+procedure main(){
+    qbit coin[2];
+    qbit space[4];
+    for i in 0:10{
+        // MLIR inliner cannot inline side-effected call in affine loop.
+        // We do inline by ourselves.
+        // grover_coin
+        H(coin[0]);
+        H(coin[1]);
+        Z(coin[0]);
+        Z(coin[1]);
+        CZ(coin[0], coin[1]);
+        H(coin[0]);
+        H(coin[1]);
+        // walk
+        Toffoli(coin[0], coin[1], space[0]);
+        X(coin[0]);
+        Toffoli(coin[0], coin[1], space[1]);
+        X(coin[0]);
+        X(coin[1]);
+        Toffoli(coin[0], coin[1], space[2]);
+        X(coin[0]);
+        Toffoli(coin[0], coin[1], coin[3]);
+        //grover_coin(coin);
+        //walk(coin, space);
+    }
+}
+*/

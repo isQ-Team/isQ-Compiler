@@ -1,9 +1,18 @@
+<<<<<<< HEAD
 {pkgs? import ../buildscript/pkgs.nix}:
 with pkgs;
 let
   isq = import ../. {inherit pkgs;};
 in
 stdenv.mkDerivation{
+=======
+{ pkgs ? import ../buildscript/pkgs.nix }:
+with pkgs;
+let
+  isq = import ../. { inherit pkgs; };
+in
+stdenv.mkDerivation {
+>>>>>>> merge
   name = "isq-tests";
   buildInputs = [ isq coreutils bash ];
   src = ./.;
@@ -22,4 +31,8 @@ stdenv.mkDerivation{
     ./run.sh
     cat Testing_Report.txt >> $out
   '';
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> merge

@@ -1,10 +1,15 @@
 #include "isq/GateDefTypes.h"
 #include "isq/Operations.h"
 #include "isq/QAttrs.h"
+<<<<<<< HEAD
 #include "isq/QStructs.h"
 #include "isq/QTypes.h"
 #include "isq/passes/Passes.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
+=======
+#include "isq/QTypes.h"
+#include "isq/passes/Passes.h"
+>>>>>>> merge
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/MLIRContext.h"
@@ -79,7 +84,11 @@ public:
             mlir::SmallVector<mlir::Value> calling_args;
             calling_args.append(use_op.parameters().begin(), use_op.parameters().end());
             calling_args.append(op.args().begin(), op.args().end());
+<<<<<<< HEAD
             rewriter.replaceOpWithNewOp<mlir::CallOp>(op.getOperation(), decomp_f, calling_args);
+=======
+            rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op.getOperation(), decomp_f, calling_args);
+>>>>>>> merge
             return mlir::success();
 
         }

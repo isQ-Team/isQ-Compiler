@@ -24,6 +24,11 @@
 #include "mlir/IR/IntegerSet.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "isq/contrib/Affine.h"
+<<<<<<< HEAD
+=======
+#include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/ADT/SmallVector.h>
+>>>>>>> merge
 #include <mlir/IR/Value.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 
@@ -42,7 +47,11 @@ bool isMemrefRestricted(Value memref){
     return true;
   }
   if(auto memref_arg = memref.dyn_cast<::mlir::BlockArgument>()){
+<<<<<<< HEAD
     if(auto func = ::llvm::dyn_cast_or_null<::mlir::FuncOp>(memref_arg.getParentBlock()->getParentOp())){
+=======
+    if(auto func = ::llvm::dyn_cast_or_null<::mlir::func::FuncOp>(memref_arg.getParentBlock()->getParentOp())){
+>>>>>>> merge
       for(auto i=0; i<func.getNumArguments(); i++){
         if(func.getArguments()[i]==memref){
           if(func.getArgAttr(i, RESTRICTED)){
@@ -341,6 +350,21 @@ static void findUnusedStore(AffineWriteOpInterface writeA,
   }
 }
 
+<<<<<<< HEAD
+=======
+static void findUnloadedAlloc(memref::AllocOp allocOp, SmallVectorImpl<Operation*>& opsToErase, SmallPtrSetImpl<Value> &memrefsToErase){
+  for(Operation* user : allocOp.getResult().getUsers()){
+    if(hasSingleEffect<MemoryEffects::Read>(user)) return;
+  }
+  for(Operation* user : allocOp.getResult().getUsers()){
+    if(hasSingleEffect<MemoryEffects::Write>(user)) {
+      opsToErase.push_back(user);
+    }
+  }
+  memrefsToErase.insert(allocOp.getResult());
+}
+
+>>>>>>> merge
 // The load to load forwarding / redundant load elimination is similar to the
 // store to load forwarding.
 // loadA will be be replaced with loadB if:
@@ -446,7 +470,11 @@ static LogicalResult forwardUndef(AffineReadOpInterface loadOp, SmallVectorImpl<
 // currently only eliminates the stores only if no other loads/uses (other
 // than dealloc) remain.
 //
+<<<<<<< HEAD
 void isq::contrib::mlir::affineScalarReplace(FuncOp f, DominanceInfo &domInfo,
+=======
+void isq::contrib::mlir::affineScalarReplace(func::FuncOp f, DominanceInfo &domInfo,
+>>>>>>> merge
                                PostDominanceInfo &postDomInfo) {
   // Load op's whose results were replaced by those forwarded from stores.
   SmallVector<Operation *, 8> opsToErase;
@@ -484,6 +512,13 @@ void isq::contrib::mlir::affineScalarReplace(FuncOp f, DominanceInfo &domInfo,
   f.walk([&](AffineWriteOpInterface storeOp) {
     findUnusedStore(storeOp, opsToErase, memrefsToErase, postDomInfo);
   });
+<<<<<<< HEAD
+=======
+  // Walk all allocs and purge store-only ones.
+  f.walk([&](memref::AllocOp allocOp){
+    findUnloadedAlloc(allocOp, opsToErase, memrefsToErase);
+  });
+>>>>>>> merge
   // Erase all store op's which don't impact the program
   for (auto *op : opsToErase)
     op->erase();

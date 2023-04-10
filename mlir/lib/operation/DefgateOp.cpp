@@ -5,8 +5,15 @@
 #include "llvm/ADT/SmallVector.h"
 #include <isq/IR.h>
 #include <llvm/ADT/StringSwitch.h>
+<<<<<<< HEAD
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinTypes.h>
+=======
+#include <llvm/Support/raw_ostream.h>
+#include <mlir/IR/BuiltinAttributes.h>
+#include <mlir/IR/BuiltinTypes.h>
+#include <mlir/IR/Types.h>
+>>>>>>> merge
 #include <mlir/Support/LLVM.h>
 #include <mlir/Support/LogicalResult.h>
 #include <optional>
@@ -189,6 +196,7 @@ mlir::LogicalResult verifyGateDefinition(DefgateOp op, int id,
     return mlir::success();
 }
 
+<<<<<<< HEAD
 /*
 mlir::LogicalResult verify(DeclareOp op) {
 if (op.op_type() != op.getResult().getType()) {
@@ -198,5 +206,17 @@ if (op.op_type() != op.getResult().getType()) {
 return mlir::success();
 }
 */
+=======
+::mlir::ParseResult DefgateOp::parse(::mlir::OpAsmParser &parser, ::mlir::OperationState &result){
+        return DefgateOp::parseIR(parser, result);
+}
+void DefgateOp::print(::mlir::OpAsmPrinter & p){
+    return this->printIR(p);
+}
+::mlir::LogicalResult DefgateOp::verify(){
+    return this->verifyIR();
+}
+
+>>>>>>> merge
 } // namespace ir
 } // namespace isq

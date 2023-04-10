@@ -1,0 +1,24 @@
+site_name: isQ Compiler Docs
+theme:
+  name: 'material'
+
+nav:
+  - Content:
+    - Home: index.md
+    - Installation: install.md
+    - Usage: usage.md
+    - isQ Programming Language: grammar.md
+    - Examples: example.md
+    - Development Setup: devsetup.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+
+repo_name: arclight-quantum/isQ-Compiler
+repo_url: https://github.com/arclight-quantum/isQ-Compiler
