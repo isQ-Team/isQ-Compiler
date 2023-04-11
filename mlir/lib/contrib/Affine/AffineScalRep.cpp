@@ -56,11 +56,7 @@ void AffineScalarReplacement::runOnOperation() {
   isq::contrib::mlir::affineScalarReplace(getOperation(), getAnalysis<DominanceInfo>(),
                       getAnalysis<PostDominanceInfo>());
 }
-
-
-
 } // namespace
-
 
 
 void isq::contrib::mlir::registerAffineScalarReplacementPass() {

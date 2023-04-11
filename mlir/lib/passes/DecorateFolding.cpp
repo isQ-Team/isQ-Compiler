@@ -16,10 +16,6 @@
 #include "llvm/Support/Casting.h"
 #include <llvm/Support/ErrorHandling.h>
 #include <llvm/Support/raw_ostream.h>
-#include <mlir/IR/Attributes.h>
-#include <mlir/IR/BuiltinTypes.h>
-#include <mlir/IR/OperationSupport.h>
-#include <mlir/IR/TypeRange.h>
 #include <mlir/Pass/PassManager.h>
 #include <optional>
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"

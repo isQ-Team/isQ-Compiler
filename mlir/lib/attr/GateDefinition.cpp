@@ -242,8 +242,6 @@ QIRDefinition::QIRDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateTyp
 }
 
 
-
-
 OracleTableDefinition::OracleTableDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_ORACLE_TABLE){
     auto arr = value.dyn_cast_or_null<::mlir::ArrayAttr>();
     assert(arr);

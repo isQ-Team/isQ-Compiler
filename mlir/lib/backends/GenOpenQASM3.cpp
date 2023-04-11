@@ -10,7 +10,6 @@
 
 #include "isq/Operations.h"
 #include "isq/QAttrs.h"
-//#include "isq/QStructs.h"
 #include "isq/utils/Decomposition.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/IR/Attributes.h"
