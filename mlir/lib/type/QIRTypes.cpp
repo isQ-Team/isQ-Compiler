@@ -30,8 +30,6 @@ void QIRResultParsePrint::printType(::mlir::Type type,
                                  ::mlir::AsmPrinter &printer) const {
 }
 
-<<<<<<< HEAD
-=======
 ::mlir::Type QIRResultType::parse(::mlir::AsmParser &odsParser){
     QIRResultParsePrint p;
     return p.parseType(odsParser);
@@ -50,6 +48,5 @@ void QIRQubitType::print(::mlir::AsmPrinter &odsPrinter) const{
 }
 
 
->>>>>>> merge
 } // namespace ir
 } // namespace isq

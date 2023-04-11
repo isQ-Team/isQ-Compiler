@@ -11,9 +11,6 @@ namespace math {
 
 struct Mat : public Fwd<Matrix<std::complex<double>, Dynamic, Dynamic>> {};
 
-<<<<<<< HEAD
-::mlir::Optional<size_t> checkDimensionality(InputMatrix &mat) {
-=======
 template<typename T>
 concept FwdMatDouble = requires(T a){
     { *a.body}->MatDouble;
@@ -21,24 +18,17 @@ concept FwdMatDouble = requires(T a){
 
 template<FwdMatDouble Vec>
 ::mlir::Optional<size_t> checkDimensionalityGeneric(Vec &mat) {
->>>>>>> merge
     auto sz = mat.body->size();
     for (auto &row : *mat.body) {
         if (row.size() != sz)
             return {};
     }
     return sz;
-<<<<<<< HEAD
-}
-void MatDel::operator()(Mat *m) { delete m; }
-std::unique_ptr<Mat, MatDel> toEigenMatrix(InputMatrix &mat) {
-=======
 
 }
 
 template<FwdMatDouble Vec>
 std::unique_ptr<Mat, MatDel> toEigenMatrixGeneric(Vec& mat){
->>>>>>> merge
     auto sz = checkDimensionality(mat);
     if (!sz.hasValue())
         return {};
@@ -55,8 +45,6 @@ std::unique_ptr<Mat, MatDel> toEigenMatrixGeneric(Vec& mat){
     return std::unique_ptr<Mat, MatDel>(mm, del);
 }
 
-<<<<<<< HEAD
-=======
 ::mlir::Optional<size_t> checkDimensionality(InputMatrix &mat) {
     return checkDimensionalityGeneric(mat);
 }
@@ -76,7 +64,6 @@ std::unique_ptr<Mat, MatDel> toEigenMatrix(InputSmallMatrix &mat) {
 
 void MatDel::operator()(Mat *m) { delete m; }
 
->>>>>>> merge
 bool isUnitary(Mat &mat, double eps) { return mat->isUnitary(eps); }
 
 bool isHermitian(Mat &mat, double eps) {

@@ -1,15 +1,3 @@
-<<<<<<< HEAD
-use alloc::{string::String, vec::Vec};
-use itertools::Itertools;
-
-use crate::qdevice::QDevice;
-
-pub const QCIS_ROUTE_BIN_PATH : Option<&'static str> = option_env!("ISQ_ROOT");
-
-#[inline]
-pub fn qcis_route_bin_path()->&'static str{
-    QCIS_ROUTE_BIN_PATH.expect("QCIS_ROUTE_BIN_PATH not defined at compile time!")
-=======
 use alloc::{string::String, vec::Vec, borrow::ToOwned};
 use itertools::Itertools;
 use serde::{Serialize, Deserialize};
@@ -103,7 +91,6 @@ fn generate_qcis_program_isqir(config: &QCISConfig, program: &[QCISImport])->Str
     lines.push("    return".to_owned());
     lines.push("}".to_owned());
     lines.join("\n")
->>>>>>> merge
 }
 
 pub fn run_qcis_route(code: String)->String{
@@ -118,46 +105,26 @@ pub fn run_qcis_route(code: String)->String{
         let mut config = String::new();
         config_file.read_to_string(&mut config).expect("qcis read failed");
         drop(config_file);
-<<<<<<< HEAD
-        let mut config_json = serde_json::from_str::<Value>(&config).expect("qcis json failed");
-        if let Value::Object(obj) = &mut config_json{
-            obj.insert(String::from("qcis"), Value::String(code));
-        }else{
-            panic!("qcis config schema invalid");
-        }
-        let input = serde_json::to_string(&config_json).expect("internal qcis error");
-        let qcis_root_bin = std::env::var("ISQ_ROOT").expect("QCIS_ROUTE_BIN_PATH not defined at compile time!");
-        let mut child = Command::new(format!("{}/bin/route", qcis_root_bin))
-=======
         let mut config_json = serde_json::from_str::<QCISConfig>(&config).expect("qcis json parse failed of schema invalid");
         config_json.qcis = Some(code);
         let input = serde_json::to_string(&config_json).expect("internal qcis error");
         let qcis_root_bin = qcis_route_bin_path();
         //let qcis_root_bin = std::env::var("ISQ_ROOT").expect("QCIS_ROUTE_BIN_PATH not defined at compile time!");
         let mut child = Command::new( qcis_root_bin)
->>>>>>> merge
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
             .spawn()
-<<<<<<< HEAD
-            .expect("qcis router failed to start.");
-=======
             .expect(&format!("qcis router failed to start: {}", qcis_root_bin));
->>>>>>> merge
         let mut stdin = child.stdin.take().expect("failed to open qcis route stdin");
         std::thread::spawn(move || {
             stdin.write_all(input.as_bytes()).expect("failed to write to qcis router");
         });
         let output = child.wait_with_output().expect("Failed to read stdout");
         output.status.exit_ok().expect("qcis router failed to exit. Please check.");
-<<<<<<< HEAD
-        return String::from_utf8(output.stdout).expect("qcis router yielded invalid output");
-=======
         let output = String::from_utf8(output.stdout).expect("qcis router yielded invalid output");
         let qcis_program : Vec<QCISImport> = serde_json::from_str(&output).expect(&format!("qcis router yielded bad json output {}", &output));
         generate_qcis_program_isqir(&config_json, &qcis_program)
->>>>>>> merge
     }else{
         return code;
     }
@@ -233,11 +200,7 @@ impl QDevice for QCISCodegen{
             SInv=>"SD", TInv=>"TD", CZ=>"CZ",
             X2P=>"X2P", X2M=>"X2M",
             Y2P=>"Y2P", Y2M=>"Y2M",
-<<<<<<< HEAD
-            _ => panic!("bad op type")
-=======
             _ => panic!("bad op type {:?}", op_type)
->>>>>>> merge
         };
         self.append_op(op_name, qubits);
     }

@@ -2,10 +2,7 @@
 #include "isq/Enums.h"
 #include "isq/Operations.h"
 #include "isq/QTypes.h"
-<<<<<<< HEAD
-=======
 #include "isq/passes/Passes.h"
->>>>>>> merge
 #include "isq/passes/canonicalization/CanonicalizeApplyGate.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/MLIRContext.h"
@@ -143,8 +140,6 @@ mlir::LogicalResult CancelHermitianUU::tryCancel(isq::ir::ApplyGateOp curr, isq:
     return mlir::failure();
 }
 
-<<<<<<< HEAD
-=======
 CancelRemoteCZ::CancelRemoteCZ(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx){}
 
 
@@ -218,7 +213,6 @@ mlir::LogicalResult CancelRemoteCZ::matchAndRewrite(isq::ir::ApplyGateOp op, mli
     return mlir::failure();
 }
 
->>>>>>> merge
 }
 }
 }

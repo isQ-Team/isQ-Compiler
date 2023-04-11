@@ -1,16 +1,10 @@
 extern crate std;
 use std::collections::HashSet;
-<<<<<<< HEAD
 use core::any::Any;
 use std::sync::Mutex;
 
 use alloc::sync::Arc;
 use alloc::boxed::Box;
-=======
-use core::{any::Any, cell::RefCell};
-
-use alloc::{boxed::Box, rc::Rc};
->>>>>>> merge
 
 use crate::qdevice::QDevice;
 
@@ -64,27 +58,16 @@ impl QIRContext {
     }
 }
 
-<<<<<<< HEAD
 //#[thread_local]
 static mut QIR_CURRENT_CONTEXT: Option<Arc<Mutex<QIRContext>>> = None;
 
 pub fn make_context_current(a: Arc<Mutex<QIRContext>>) {
-=======
-#[thread_local]
-static mut QIR_CURRENT_CONTEXT: Option<Rc<RefCell<QIRContext>>> = None;
-
-pub fn make_context_current(a: Rc<RefCell<QIRContext>>) {
->>>>>>> merge
     unsafe {
         QIR_CURRENT_CONTEXT = Some(a);
     }
 }
 
-<<<<<<< HEAD
 pub fn get_current_context() -> Arc<Mutex<QIRContext>> {
-=======
-pub fn get_current_context() -> Rc<RefCell<QIRContext>> {
->>>>>>> merge
     unsafe {
         QIR_CURRENT_CONTEXT
             .as_ref()

@@ -1,37 +1,23 @@
 use isq_simulator::{
     devices::{checked::CheckedDevice, naive::NaiveSimulator, sq2u3::SQ2U3Device, noop::NoopDevice},
     facades::qir::{context::{get_current_context, make_context_current, QIRContext}, types::QIRQubit, string}, qdevice::QDevice,
-<<<<<<< HEAD
-    sim::qcis,
-};
-
-=======
 };
 
 #[cfg(feature = "qcis")]
 use isq_simulator::sim::qcis;
 
->>>>>>> merge
 use libloading::*;
 
 use clap::{Parser, ArgEnum, PossibleValue};
 
 extern crate env_logger;
-<<<<<<< HEAD
 use std::{env::set_var, sync::{mpsc, Mutex, Arc}, os::unix::prelude::OsStrExt};
-=======
-use std::env::set_var;
->>>>>>> merge
 use log::debug;
 
 #[macro_use]
 extern crate std;
 use std::{io::{Read, Write}, path::{Path, PathBuf}, fs::File, collections::HashMap};
-<<<<<<< HEAD
 use std::{cell::RefCell, ffi::OsString, rc::Rc, thread};
-=======
-use std::{cell::RefCell, ffi::OsString, rc::Rc};
->>>>>>> merge
 extern crate isq_simulator;
 
 use clap::ArgGroup;
@@ -45,11 +31,7 @@ use clap::ArgGroup;
 struct SimulatorArgs {
     #[clap(index = 1, parse(from_os_str))]
     qir_shared_library: OsString,
-<<<<<<< HEAD
-    #[clap(short, long, default_value = "isq_simulator_entry")]
-=======
     #[clap(short, long, default_value = "__isq_simulator_entry")]
->>>>>>> merge
     entrypoint: String,
     #[clap(long)]
     naive: bool,
@@ -68,23 +50,15 @@ struct SimulatorArgs {
     #[clap(long, short)]
     int_par: Option<Vec<i64>>,
     #[clap(long, short)]
-<<<<<<< HEAD
     double_par: Option<Vec<f64>>,
     #[clap(long, short, default_value = "1")]
     np: i64
-=======
-    double_par: Option<Vec<f64>>
->>>>>>> merge
 }
 
 
 type SimulatorEntry = extern "C" fn(x_alloc_ptr: *const i64, x_align_ptr: *const i64, x_offset: i64, x_size: i64, x_strides: i64,
-<<<<<<< HEAD
                                     y_alloc_ptr: *const f64, y_align_ptr: *const f64, y_offset: i64, y_size: i64, y_strides: i64,
                                     rank: i64) -> ();
-=======
-                                    y_alloc_ptr: *const f64, y_align_ptr: *const f64, y_offset: i64, y_size: i64, y_strides: i64) -> ();
->>>>>>> merge
 fn main() -> std::io::Result<()> {
     /*env_logger::Builder::new()
     .format(|buf, record| {
@@ -116,14 +90,6 @@ fn main() -> std::io::Result<()> {
     };
 
     if args.qcis{
-<<<<<<< HEAD
-        let input_path = Path::new(&args.qir_shared_library);
-        let mut f = File::open(input_path)?;
-        let mut buf = String::new();
-        f.read_to_string(&mut buf).unwrap();
-        qcis::sim(buf, shots);
-        return Ok(());
-=======
         #[cfg(feature = "qcis")]
         {
             let input_path = Path::new(&args.qir_shared_library);
@@ -138,25 +104,16 @@ fn main() -> std::io::Result<()> {
             panic!("QCIS plugin not compiled!")
         }
 
->>>>>>> merge
     }
 
     let par_int = match args.int_par {
         Some(x) => x,
         None => vec![]
     };
-<<<<<<< HEAD
-=======
-    let par_int_ptr = par_int.as_ptr();
->>>>>>> merge
     let par_double = match args.double_par{
         Some(x) => x,
         None => vec![]
     };
-<<<<<<< HEAD
-=======
-    let par_double_ptr = par_double.as_ptr();
->>>>>>> merge
 
     let mut res_map: HashMap<String, i32> = HashMap::new();
     for i in 0..shots{
@@ -196,7 +153,6 @@ fn main() -> std::io::Result<()> {
             }),
         );
         
-<<<<<<< HEAD
         make_context_current(Arc::new(Mutex::new(context)));
 
         unsafe {
@@ -243,20 +199,6 @@ fn main() -> std::io::Result<()> {
         
         let ctx_ = get_current_context();
         let mut ctx = ctx_.lock().unwrap();
-=======
-        make_context_current(Rc::new(RefCell::new(context)));
-
-        let library = unsafe { Library::new(args.qir_shared_library.clone()) }.unwrap();
-        unsafe {
-            let proc = library
-                .get::<SimulatorEntry>(args.entrypoint.as_bytes())
-                .unwrap();
-            (proc)(par_int_ptr, par_int_ptr, 0, 0, 0, par_double_ptr, par_double_ptr, 0, 0, 0);
-        }
-        
-        let ctx_ = get_current_context();
-        let mut ctx = ctx_.borrow_mut();
->>>>>>> merge
 
         let r = ctx.get_device_mut().get_measure_res();
         let count = res_map.entry(r).or_insert(0);

@@ -5,10 +5,7 @@ import Data.List (intercalate)
 import Text.Printf (printf)
 import Data.Complex (Complex ((:+)))
 import GHC.Stack (HasCallStack)
-<<<<<<< HEAD
-=======
 import Debug.Trace
->>>>>>> merge
 
 data MLIRType =
     Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
@@ -102,14 +99,6 @@ type TypedSSA = (MLIRType, SSA)
 
 data GateRep = MatrixRep [[Complex Double]] | QIRRep FuncName | DecompositionRep FuncName | OracleRep FuncName | OracleTableRep [[Int]] deriving Show
 
-<<<<<<< HEAD
-gateRep :: GateRep->String
-gateRep (MatrixRep mat) = printf "{type=\"unitary\", value = %s}" (printRow (printRow printComplex) mat)
-gateRep (QIRRep fn) = printf "{type = \"qir\", value = %s}" (unFuncName fn)
-gateRep (DecompositionRep fn) = printf "{type = \"decomposition_raw\", value = %s}" (unFuncName fn)
-gateRep (OracleRep fn) = printf "{type = \"oracle\", value = %s}" (unFuncName fn)
-gateRep (OracleTableRep mat) = printf "{type = \"oracle_table\", value = %s}" (printRow (printRow printInt) mat)
-=======
 printMatrixRepNew :: [[Complex Double]]->String
 printMatrixRepNew list = printf "#isq.matrix<dense<%s>: tensor<%dx%dxcomplex<f64>>>" (printRow (printRow (\(real:+imag)->printf "(%f,%f)" real imag)) list) (length list) (length (head list))
 
@@ -119,7 +108,6 @@ gateRep (QIRRep fn) = printf "#isq.gatedef<type = \"qir\", value = %s>" (unFuncN
 gateRep (DecompositionRep fn) = printf "#isq.gatedef<type = \"decomposition_raw\", value = %s>" (unFuncName fn)
 gateRep (OracleRep fn) = printf "#isq.gatedef<type = \"oracle\", value = %s>" (unFuncName fn)
 gateRep (OracleTableRep mat) = printf "#isq.gatedef<type = \"oracle_table\", value = %s>" (printRow (printRow printInt) mat)
->>>>>>> merge
 
 
 data MLIROp =
@@ -186,11 +174,7 @@ emitBlock f env blk@(MLIRBlock id args body) =
   ([blockHeader env blk]++s)
 
 funcHeader :: FuncName->Maybe MLIRType->[MLIRType]->String
-<<<<<<< HEAD
-funcHeader name ret args = printf "func %s(%s)%s " (unFuncName name) (intercalate ", " $ fmap mlirType args) (go ret)  where
-=======
 funcHeader name ret args = printf "func.func %s(%s)%s " (unFuncName name) (intercalate ", " $ fmap mlirType args) (go ret)  where
->>>>>>> merge
   go Nothing = ""
   go (Just ty) = "->"++mlirType ty
 printComplex :: Complex Double -> String
@@ -226,15 +210,6 @@ emitOpStep f env (MModule _ ops) =
       indented env $ "    isq.declare_qop @__isq__builtin__reset : [1]()->()",
       indented env $ "    isq.declare_qop @__isq__builtin__bp : [0](index)->()",
       indented env $ "    isq.declare_qop @__isq__builtin__print_int : [0](index)->()",
-<<<<<<< HEAD
-      indented env $ "    isq.declare_qop @__isq__builtin__print_double : [0](f64)->()"
-  ]++s ++ [indented env "}"])
-emitOpStep f env (MFunc loc name ret blocks) = let s = fmap (emitBlock f env) blocks in intercalate "\n" ([indented env $ funcHeader name ret (fmap fst $ blockArgs $ head blocks), indented env "{"] ++ s ++ [indented env $ printf "} %s" (mlirPos loc)])
-emitOpStep f env (MQDefGate loc name size extra reps) = indented env $ printf "isq.defgate %s%s {definition = [%s]}: !isq.gate<%d> %s" (unFuncName name) (case extra of {[]->""; xs-> "("++intercalate ", " (map mlirType extra)++")"}) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
-emitOpStep f env (MQOracleTable loc name size reps) = indented env $ printf "isq.defgate %s {definition=[%s]}: !isq.gate<%d> %s" (unFuncName name) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
-emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)
-emitOpStep f env (MExternFunc loc name (Just returns) args) = indented env $ printf "func private %s(%s)->%s %s"(unFuncName name) (intercalate ", " $ map mlirType args) (mlirType returns) (mlirPos loc)
-=======
       indented env $ "    isq.declare_qop @__isq__builtin__print_double : [0](f64)->()",
       indented env $ "    isq.declare_qop @__isq__qmpiprim__me : [0]()->index",
       indented env $ "    isq.declare_qop @__isq__qmpiprim__size : [0]()->index",
@@ -278,7 +253,6 @@ emitOpStep f env (MQDefGate loc name size extra reps) = indented env $ printf "i
 emitOpStep f env (MQOracleTable loc name size reps) = indented env $ printf "isq.defgate %s {definition=[%s]}: !isq.gate<%d> %s" (unFuncName name) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
 emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func.func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)
 emitOpStep f env (MExternFunc loc name (Just returns) args) = indented env $ printf "func.func private %s(%s)->%s %s"(unFuncName name) (intercalate ", " $ map mlirType args) (mlirType returns) (mlirPos loc)
->>>>>>> merge
 emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) []) = indented env $ printf "%s = isq.use %s : !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) sz (mlirPos loc)
 emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) xs) = indented env $ printf "%s = isq.use %s(%s) : (%s) -> !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) (intercalate ", " $ fmap (unSsa.snd) xs) (intercalate ", " $ fmap (mlirType.fst) xs) sz (mlirPos loc)
 emitOpStep f env (MQUseGate loc val usedgate usedtype _) = error "wtf?"
@@ -350,17 +324,10 @@ emitOpStep f env (MFreeMemref loc val ty@(BorrowedRef subty)) = intercalate "\n"
   indented env $ printf "memref.dealloc %s_real : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc)]
 emitOpStep f env (MFreeMemref loc val ty) = intercalate "\n" $ [indented env $ printf "isq.accumulate_gphase %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc),
   indented env $ printf "memref.dealloc %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)]
-<<<<<<< HEAD
-emitOpStep f env (MJmp loc blk) = indented env $ printf "br %s %s" (unBlockName blk) (mlirPos loc)
-emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "cond_br %s, %s, %s %s" (unSsa val) (unBlockName trueDst) (unBlockName falseDst) (mlirPos loc)
-emitOpStep f env (MCall loc Nothing fn args) = indented env $ printf "call %s(%s) : (%s)->() %s" (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
-emitOpStep f env (MCall loc (Just (retty, retval)) fn args) = indented env $ printf "%s = call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
-=======
 emitOpStep f env (MJmp loc blk) = indented env $ printf "cf.br %s %s" (unBlockName blk) (mlirPos loc)
 emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "cf.cond_br %s, %s, %s %s" (unSsa val) (unBlockName trueDst) (unBlockName falseDst) (mlirPos loc)
 emitOpStep f env (MCall loc Nothing fn args) = indented env $ printf "func.call %s(%s) : (%s)->() %s" (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
 emitOpStep f env (MCall loc (Just (retty, retval)) fn args) = indented env $ printf "%s = func.call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
->>>>>>> merge
 emitOpStep f env (MSCFIf loc cond then' else') = intercalate "\n" $ [
   indented env $ printf "scf.if %s {" $ unSsa cond]
   ++[f (incrIndent env{isTopLevel=False}) then']
@@ -372,11 +339,7 @@ emitOpStep f env (MSCFWhile loc breakb condb cond break body) = intercalate "\n"
   ++ [indented env $ "    %cond = scf.execute_region->i1 {"]
   ++ [indented env $ "        ^break_check:"]
   ++ fmap (f (incrIndent $ incrIndent $ incrIndent env)) breakb
-<<<<<<< HEAD
-  ++ [indented env $ printf "            cond_br %s, ^break, ^while_cond" (unSsa break)]
-=======
   ++ [indented env $ printf "            cf.cond_br %s, ^break, ^while_cond" (unSsa break)]
->>>>>>> merge
   ++ [indented env $ printf "        ^while_cond:"]
   ++ fmap (f (incrIndent $ incrIndent $ incrIndent env)) condb
   ++ [indented env $ printf "            scf.yield %s: i1" (unSsa cond)]

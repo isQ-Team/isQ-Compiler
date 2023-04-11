@@ -2,11 +2,7 @@
 #include "isq/passes/Passes.h"
 #include <llvm/Support/Casting.h>
 #include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
-<<<<<<< HEAD
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-=======
 #include <mlir/Dialect/Func/IR/FuncOps.h>
->>>>>>> merge
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -21,8 +17,6 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 namespace isq::ir::passes{
 
-<<<<<<< HEAD
-=======
 struct SWAP2CX : mlir::OpRewritePattern<ApplyGateOp>{
 public:
     SWAP2CX(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
@@ -44,7 +38,6 @@ public:
         return mlir::failure();
     }
 };
->>>>>>> merge
 struct CX2HCZH : mlir::OpRewritePattern<ApplyGateOp>{
 public:
     CX2HCZH(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
@@ -196,10 +189,7 @@ class TargetQCISSetPass : public mlir::PassWrapper<TargetQCISSetPass, mlir::Oper
         }
         do{
             mlir::RewritePatternSet rps(ctx);
-<<<<<<< HEAD
-=======
             rps.add<SWAP2CX>(ctx);
->>>>>>> merge
             rps.add<CX2HCZH>(ctx);
             rps.add<RZRecog>(ctx);
             rps.add<U3ToZYZ>(ctx);
@@ -211,19 +201,6 @@ class TargetQCISSetPass : public mlir::PassWrapper<TargetQCISSetPass, mlir::Oper
         const char* finalize_qir_name = "__quantum__qis__qcis__finalize";
         const char* isq_entry_name = "__isq__entry";
         mlir::OpBuilder builder(ctx);
-<<<<<<< HEAD
-        builder.setInsertionPointToStart(&*m.body().begin());
-        auto builtin_loc = mlir::NameLoc::get(builder.getStringAttr("<builtin>"));
-        if(!mlir::SymbolTable::lookupSymbolIn(m, finalize_qir_name)){
-            auto funcType = mlir::FunctionType::get(ctx, (mlir::TypeRange){}, (mlir::TypeRange){});
-            builder.create<mlir::FuncOp>(builtin_loc, finalize_qir_name, funcType, builder.getStringAttr("private"));
-        }
-        auto isq_entry = llvm::dyn_cast_or_null<mlir::FuncOp>(mlir::SymbolTable::lookupSymbolIn(m, isq_entry_name));
-        if(isq_entry){
-            auto first_block= &*isq_entry.body().begin();
-            builder.setInsertionPoint(first_block->getTerminator());
-            builder.create<mlir::CallOp>(builtin_loc, ::mlir::FlatSymbolRefAttr::get(ctx, finalize_qir_name), ::mlir::TypeRange{}, ::mlir::ValueRange{});
-=======
         builder.setInsertionPointToStart(m.getBody());
         auto builtin_loc = mlir::NameLoc::get(builder.getStringAttr("<builtin>"));
         if(!mlir::SymbolTable::lookupSymbolIn(m, finalize_qir_name)){
@@ -235,7 +212,6 @@ class TargetQCISSetPass : public mlir::PassWrapper<TargetQCISSetPass, mlir::Oper
             auto first_block= isq_entry.getBody().begin();
             builder.setInsertionPoint(first_block->getTerminator());
             builder.create<mlir::func::CallOp>(builtin_loc, ::mlir::FlatSymbolRefAttr::get(ctx, finalize_qir_name), ::mlir::TypeRange{}, ::mlir::ValueRange{});
->>>>>>> merge
         }
     }
     mlir::StringRef getArgument() const final {

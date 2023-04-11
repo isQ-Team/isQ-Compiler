@@ -4,10 +4,6 @@
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/AttributeSupport.h>
 #include <mlir/IR/Attributes.h>
-<<<<<<< HEAD
-#define GET_ATTRDEF_CLASSES
-#include <isq/tblgen/ISQAttrs.h.inc>
-=======
 #include <mlir/IR/BuiltinAttributes.h>
 namespace isq::ir{
     
@@ -18,5 +14,4 @@ namespace isq::ir{
     using GateDefinition = GateDefinitionAttr;
     
 }
->>>>>>> merge
 #endif

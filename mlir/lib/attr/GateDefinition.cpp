@@ -1,9 +1,5 @@
 #include "isq/Operations.h"
 #include "isq/QAttrs.h"
-<<<<<<< HEAD
-#include "isq/QStructs.h"
-=======
->>>>>>> merge
 #include "isq/QTypes.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -25,38 +21,6 @@ namespace isq{
 namespace ir{
 
 GateDefinition createMatrixDef(mlir::MLIRContext* ctx, const std::vector<std::vector<std::complex<double>>> & mat){
-<<<<<<< HEAD
-    mlir::SmallVector<mlir::Attribute> matrix_attr;
-    for(auto& row: mat){
-        mlir::SmallVector<mlir::Attribute> row_attr;
-        for(auto column: row){
-            auto c = ComplexF64Attr::get(ctx, ::llvm::APFloat(column.real()), ::llvm::APFloat(column.imag()));
-            row_attr.push_back(c);
-        }
-        matrix_attr.push_back(::mlir::ArrayAttr::get(ctx, row_attr));
-    }
-    return (GateDefinition::get(mlir::StringAttr::get(ctx, "unitary"), mlir::ArrayAttr::get(ctx, matrix_attr), ctx));
-}
-
-// Define by matrix.
-MatrixDefinition::MatrixDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_MATRIX){
-    auto arr = value.dyn_cast_or_null<::mlir::ArrayAttr>();
-    assert(arr);
-    for (auto row : arr) {
-        auto row_arr = row.dyn_cast_or_null<::mlir::ArrayAttr>();
-        std::vector<std::complex<double>> row_vec;
-        assert(row_arr);
-        for (auto element : row_arr) {
-            auto element_attr = element.dyn_cast_or_null<ComplexF64Attr>();
-            assert(element_attr);
-            row_vec.push_back(element_attr.complexValue());
-        }
-        mat.push_back(std::move(row_vec));
-    }
-}
-
-const std::vector<std::vector<std::complex<double>>>& MatrixDefinition::getMatrix() const{
-=======
     mlir::SmallVector<mlir::SmallVector<std::complex<double>>> matrix_content;
     for(auto& row: mat){
         mlir::SmallVector<std::complex<double>> new_row;
@@ -79,7 +43,6 @@ MatrixDefinition::MatrixDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::G
 }
 
 const DenseComplexF64MatrixAttr::MatrixVal& MatrixDefinition::getMatrix() const{
->>>>>>> merge
     return this->mat;
 }
 ::mlir::LogicalResult MatrixDefinition::verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute) {
@@ -89,45 +52,12 @@ const DenseComplexF64MatrixAttr::MatrixVal& MatrixDefinition::getMatrix() const{
         return mlir::failure();
     }
     // try to get as a matrix.
-<<<<<<< HEAD
-    std::vector<std::vector<std::complex<double>>> mat;
-    auto arr = attribute.dyn_cast_or_null<::mlir::ArrayAttr>();
-=======
     auto arr = attribute.dyn_cast_or_null<DenseComplexF64MatrixAttr>();
->>>>>>> merge
     if (!arr) {
         op->emitError()
             << "Definition #" << id << " should use a matrix as value.";
         return mlir::failure();
     }
-<<<<<<< HEAD
-    for (auto row : arr) {
-        auto row_arr = row.dyn_cast_or_null<::mlir::ArrayAttr>();
-        std::vector<std::complex<double>> row_vec;
-        if (!row_arr) {
-            op->emitError()
-                << "Definition #" << id << " should use a matrix as value.";
-            return mlir::failure();
-        }
-        for (auto element : row_arr) {
-            auto element_attr = element.dyn_cast_or_null<ComplexF64Attr>();
-            if (!element_attr) {
-                op->emitError()
-                    << "Definition #" << id
-                    << " matrix entries should be complex numbers.";
-                return mlir::failure();
-            }
-            row_vec.push_back(element_attr.complexValue());
-        }
-        mat.push_back(std::move(row_vec));
-    }
-    math::InputMatrix wrapper;
-    wrapper.body = std::make_unique<math::InputMatrix::Ty>(std::move(mat));
-    auto dim = math::checkDimensionality(wrapper);
-    if (!dim.hasValue()) {
-        op->emitError()
-            << "Definition #" << id << " input is not a matrix.";
-=======
     auto mat = arr.toMatrixVal();
     math::InputSmallMatrix wrapper;
     wrapper.body = std::make_unique<math::InputSmallMatrix::Ty>(std::move(mat));
@@ -135,7 +65,6 @@ const DenseComplexF64MatrixAttr::MatrixVal& MatrixDefinition::getMatrix() const{
     if (!dim.hasValue()) {
         op->emitError()
             << "Definition #" << id << " input is not a square matrix.";
->>>>>>> merge
         return mlir::failure();
     }
     auto dimension = dim.getValue();
@@ -185,17 +114,10 @@ const DenseComplexF64MatrixAttr::MatrixVal& MatrixDefinition::getMatrix() const{
 // Define by decomposition.
 DecompositionDefinition::DecompositionDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_DECOMPOSITION){
     auto callee = value.cast<::mlir::SymbolRefAttr>();
-<<<<<<< HEAD
-    this->decomposition = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(op, callee);
-    assert(this->decomposition);
-}
-mlir::FuncOp DecompositionDefinition::getDecomposedFunc(){
-=======
     this->decomposition = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::func::FuncOp>(op, callee);
     assert(this->decomposition);
 }
 mlir::func::FuncOp DecompositionDefinition::getDecomposedFunc(){
->>>>>>> merge
     return this->decomposition;
 }
 ::mlir::LogicalResult DecompositionDefinition::verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute){
@@ -215,11 +137,7 @@ mlir::func::FuncOp DecompositionDefinition::getDecomposedFunc(){
                             << " does not refer to an existing symbol.";
         return mlir::failure();
     }
-<<<<<<< HEAD
-    auto funcop = ::llvm::dyn_cast_or_null<::mlir::FuncOp>(sym);
-=======
     auto funcop = ::llvm::dyn_cast_or_null<::mlir::func::FuncOp>(sym);
->>>>>>> merge
     if(!funcop){
         op->emitError() << "Definition #" << id
                             << " does not refer to a valid symbol by `builtin.func`.";
@@ -236,11 +154,7 @@ mlir::func::FuncOp DecompositionDefinition::getDecomposedFunc(){
         returntypes.push_back(::isq::ir::QStateType::get(op.getContext()));
     }
     auto required_functype = ::mlir::FunctionType::get(op->getContext(), argtypes, returntypes);
-<<<<<<< HEAD
-    if(required_functype!=funcop.getType()){
-=======
     if(required_functype!=funcop.getFunctionType()){
->>>>>>> merge
             op->emitError() << "Definition #" << id
                             << " does not have signature "<<required_functype<<".";
         return mlir::failure();
@@ -252,17 +166,10 @@ mlir::func::FuncOp DecompositionDefinition::getDecomposedFunc(){
 // Define by decomposition.
 DecompositionRawDefinition::DecompositionRawDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_DECOMPOSITION_RAW){
     auto callee = value.cast<::mlir::SymbolRefAttr>();
-<<<<<<< HEAD
-    this->decomposition = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(op, callee);
-    assert(this->decomposition);
-}
-mlir::FuncOp DecompositionRawDefinition::getDecomposedFunc(){
-=======
     this->decomposition = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::func::FuncOp>(op, callee);
     assert(this->decomposition);
 }
 mlir::func::FuncOp DecompositionRawDefinition::getDecomposedFunc(){
->>>>>>> merge
     return this->decomposition;
 }
 ::mlir::LogicalResult DecompositionRawDefinition::verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute){
@@ -282,11 +189,7 @@ mlir::func::FuncOp DecompositionRawDefinition::getDecomposedFunc(){
                             << " does not refer to an existing symbol.";
         return mlir::failure();
     }
-<<<<<<< HEAD
-    auto funcop = ::llvm::dyn_cast_or_null<::mlir::FuncOp>(sym);
-=======
     auto funcop = ::llvm::dyn_cast_or_null<::mlir::func::FuncOp>(sym);
->>>>>>> merge
     if(!funcop){
         op->emitError() << "Definition #" << id
                             << " does not refer to a valid symbol by `builtin.func`.";
@@ -307,11 +210,7 @@ mlir::func::FuncOp DecompositionRawDefinition::getDecomposedFunc(){
         argtypes.push_back(memref_1_qstate);
     }
     auto required_functype = ::mlir::FunctionType::get(op->getContext(), argtypes, returntypes);
-<<<<<<< HEAD
-    if(required_functype!=funcop.getType()){
-=======
     if(required_functype!=funcop.getFunctionType()){
->>>>>>> merge
             op->emitError() << "Definition #" << id
                             << " does not have signature "<<required_functype<<".";
         return mlir::failure();
@@ -341,8 +240,6 @@ QIRDefinition::QIRDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateTyp
 ::mlir::LogicalResult QIRDefinition::verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute value, ::mlir::SymbolTableCollection &symbolTable) {
     return ::mlir::success();
 }
-
-
 
 
 OracleTableDefinition::OracleTableDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value): GateDefinitionAttribute(GD_ORACLE_TABLE){

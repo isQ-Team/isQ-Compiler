@@ -1,10 +1,4 @@
-<<<<<<< HEAD
 use core::ops::Rem;
-=======
-use core::{cell::RefCell, ops::Rem};
-
-use alloc::vec::Vec;
->>>>>>> merge
 use itertools::Itertools;
 use rand::{distributions::Uniform, prelude::Distribution};
 
@@ -109,7 +103,6 @@ pub fn isq_qir_shim_qis_drawrandomdouble_body(x0: f64, x1: f64) -> f64 {
     let mut rng = rand::thread_rng();
     Uniform::new_inclusive(x0, x1).sample(&mut rng)
 }
-<<<<<<< HEAD
 // pub fn isq_qir_shim_qis_applyifelseintrinsic_body(
 //     x0: QIRResult,
 //     x1: K<QIRCallable>,
@@ -171,69 +164,6 @@ pub fn isq_qir_shim_qis_drawrandomdouble_body(x0: f64, x1: f64) -> f64 {
 //         );
 //     }
 // }
-=======
-pub fn isq_qir_shim_qis_applyifelseintrinsic_body(
-    x0: QIRResult,
-    x1: K<QIRCallable>,
-    x2: K<QIRCallable>,
-) -> () {
-    trace!(
-        "calling isq_qir_shim_qis_applyifelseintrinsic_body({:?}, {}, {})",
-        x0,
-        P(&x1),
-        P(&x2)
-    );
-    if x0 == QIR_RESULT_ONE {
-        crate::facades::qir::shim::qir_builtin::impls::isq_qir_shim_rt_callable_invoke(
-            x2, 0 as _, 0 as _,
-        );
-    } else {
-        crate::facades::qir::shim::qir_builtin::impls::isq_qir_shim_rt_callable_invoke(
-            x1, 0 as _, 0 as _,
-        );
-    }
-}
-pub fn isq_qir_shim_qis_applyconditionallyinstrinsic_body(
-    x0: K<QIRArray>,
-    x1: K<QIRArray>,
-    x2: K<QIRCallable>,
-    x3: K<QIRCallable>,
-) -> () {
-    trace!(
-        "calling isq_qir_shim_qis_applyconditionallyinstrinsic_body({}, {}, {}, {})",
-        P(&x0),
-        P(&x1),
-        P(&x2),
-        P(&x3)
-    );
-    use crate::facades::qir::shim::context;
-    let rctx = context();
-    let ctx = RefCell::borrow(&rctx);
-    let measurement_results = x0
-        .get(&ctx)
-        .get_1d_data_of::<QIRResult>()
-        .iter()
-        .copied()
-        .collect_vec();
-    let expected_results = x1
-        .get(&ctx)
-        .get_1d_data_of::<QIRResult>()
-        .iter()
-        .copied()
-        .collect_vec();
-    drop(ctx);
-    drop(rctx);
-    if measurement_results == expected_results {
-        crate::facades::qir::shim::qir_builtin::impls::isq_qir_shim_rt_callable_invoke(
-            x2, 0 as _, 0 as _,
-        );
-    } else {
-        crate::facades::qir::shim::qir_builtin::impls::isq_qir_shim_rt_callable_invoke(
-            x3, 0 as _, 0 as _,
-        );
-    }
-}
->>>>>>> merge
 pub fn isq_qir_shim_qis_assertmeasurementprobability_body(
     x0: K<QIRArray>,
     x1: K<QIRArray>,

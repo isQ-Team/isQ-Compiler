@@ -2,10 +2,6 @@
 #define _ISQ_GATEDEFTYPES_H
 #include "isq/Operations.h"
 #include "isq/QAttrs.h"
-<<<<<<< HEAD
-#include "isq/QStructs.h"
-=======
->>>>>>> merge
 #include "isq/QTypes.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -18,16 +14,6 @@
 #include "mlir/Support/LogicalResult.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/ADT/StringRef.h"
-<<<<<<< HEAD
-#include <memory>
-#include <optional>
-#include "isq/Math.h"
-namespace isq{
-namespace ir{
-
-GateDefinition createMatrixDef(mlir::MLIRContext* ctx, const std::vector<std::vector<std::complex<double>>>&);
-
-=======
 #include <llvm/ADT/APFloat.h>
 #include <memory>
 #include <optional>
@@ -66,7 +52,6 @@ template<isq::ir::math::MatDouble Mat>
 GateDefinition createMatrixDef(mlir::MLIRContext* ctx, const Mat & mat){
     return (GateDefinition::get(ctx, mlir::StringAttr::get(ctx, "unitary"), fromMatrixImpl(ctx,  mat)));
 }
->>>>>>> merge
 class GateDefinitionAttribute{
 public:
     enum GateDefinitionKind{
@@ -92,11 +77,7 @@ public:
 // Define by matrix.
 class MatrixDefinition: public GateDefinitionAttribute{
 private:
-<<<<<<< HEAD
-    std::vector<std::vector<std::complex<double>>> mat;
-=======
     DenseComplexF64MatrixAttr::MatrixVal mat;
->>>>>>> merge
 public:
     MatrixDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value);
     static bool classof(const GateDefinitionAttribute *attr) {
@@ -107,25 +88,15 @@ public:
     }
     static ::mlir::LogicalResult verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute);
     static ::mlir::LogicalResult verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute, ::mlir::SymbolTableCollection &symbolTable);
-<<<<<<< HEAD
-    const std::vector<std::vector<std::complex<double>>>& getMatrix() const;
-=======
     const DenseComplexF64MatrixAttr::MatrixVal& getMatrix() const;
->>>>>>> merge
 };
 
 // Define by decomposition.
 class DecompositionDefinition: public GateDefinitionAttribute{
 private:
-<<<<<<< HEAD
-    mlir::FuncOp decomposition;
-public:
-    ::mlir::FuncOp getDecomposedFunc();
-=======
     mlir::func::FuncOp decomposition;
 public:
     mlir::func::FuncOp getDecomposedFunc();
->>>>>>> merge
     DecompositionDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value);
     static bool classof(const GateDefinitionAttribute *attr) {
         return attr->getKind() == GateDefinitionAttribute::GD_DECOMPOSITION;
@@ -139,15 +110,9 @@ public:
 // Define by decomposition.
 class DecompositionRawDefinition: public GateDefinitionAttribute{
 private:
-<<<<<<< HEAD
-    mlir::FuncOp decomposition;
-public:
-    ::mlir::FuncOp getDecomposedFunc();
-=======
     mlir::func::FuncOp decomposition;
 public:
     mlir::func::FuncOp getDecomposedFunc();
->>>>>>> merge
     DecompositionRawDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::mlir::Attribute value);
     static bool classof(const GateDefinitionAttribute *attr) {
         return attr->getKind() == GateDefinitionAttribute::GD_DECOMPOSITION_RAW;
@@ -197,15 +162,6 @@ public:
 // Helpers
 template<typename T>
 std::optional<std::shared_ptr<GateDefinitionAttribute>> inline parseGateDefinitionAs(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::isq::ir::GateDefinition def){
-<<<<<<< HEAD
-    if(def.type().strref() != T::defKindName()){
-        return std::nullopt;
-    }
-    if(::mlir::failed(T::verify(op, id, gateType, def.value()))){
-        return std::nullopt;
-    }
-    return std::make_shared<T>(op, id, gateType, def.value());
-=======
     if(def.getType().strref() != T::defKindName()){
         return std::nullopt;
     }
@@ -213,7 +169,6 @@ std::optional<std::shared_ptr<GateDefinitionAttribute>> inline parseGateDefiniti
         return std::nullopt;
     }
     return std::make_shared<T>(op, id, gateType, def.getValue());
->>>>>>> merge
 }
 
 template<typename ... T>
@@ -222,20 +177,12 @@ template<> struct GateDefParser<>{
 public:
     static std::optional<std::shared_ptr<GateDefinitionAttribute>> parseGateDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::isq::ir::GateDefinition def){
         op->emitError() << "Definition #" << id
-<<<<<<< HEAD
-                << " has unrecognized type \""<<def.type().strref()<<"\".";
-=======
                 << " has unrecognized type \""<<def.getType().strref()<<"\".";
->>>>>>> merge
         return std::nullopt;
     };
     static ::mlir::LogicalResult verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::isq::ir::GateDefinition def, ::mlir::SymbolTableCollection &symbolTable){
         op->emitError() << "Definition #" << id
-<<<<<<< HEAD
-                << " has unrecognized type \""<<def.type().strref()<<"\".";
-=======
                 << " has unrecognized type \""<<def.getType().strref()<<"\".";
->>>>>>> merge
         return ::mlir::failure();
     }
 };
@@ -243,24 +190,15 @@ template<typename T, typename ...U>
 struct GateDefParser<T, U...>{
 public:
     static std::optional<std::shared_ptr<GateDefinitionAttribute>> parseGateDefinition(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType gateType, ::isq::ir::GateDefinition def){
-<<<<<<< HEAD
-        if(def.type().strref() == T::defKindName()){
-=======
         if(def.getType().strref() == T::defKindName()){
->>>>>>> merge
             return parseGateDefinitionAs<T>(op, id, gateType, def);
         }else{
             return GateDefParser<U...>::parseGateDefinition(op, id, gateType, def);
         }
     };
     static ::mlir::LogicalResult verifySymTable(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::isq::ir::GateDefinition def, ::mlir::SymbolTableCollection &symbolTable){
-<<<<<<< HEAD
-        if(def.type().strref() == T::defKindName()){
-            return T::verifySymTable(op, id, ty, def.value(), symbolTable);
-=======
         if(def.getType().strref() == T::defKindName()){
             return T::verifySymTable(op, id, ty, def.getValue(), symbolTable);
->>>>>>> merge
         }else{
             return GateDefParser<U...>::verifySymTable(op, id, ty, def, symbolTable);
         }

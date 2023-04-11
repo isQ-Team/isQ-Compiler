@@ -2,10 +2,6 @@
 /codegen/target
 /examples/*/bin
 /examples/*/obj
-<<<<<<< HEAD
-__pycache__
-=======
 __pycache__
 /result
 /result-bin
->>>>>>> merge

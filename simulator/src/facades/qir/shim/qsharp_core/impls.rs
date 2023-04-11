@@ -1,16 +1,7 @@
-<<<<<<< HEAD
-=======
-use core::cell::RefCell;
-
->>>>>>> merge
 use super::super::super::context::get_current_context as context;
 use super::types::*;
 use crate::devices::qdevice::QuantumOp::*;
 use crate::qdevice::QuantumOp;
-<<<<<<< HEAD
-=======
-use alloc::borrow::ToOwned;
->>>>>>> merge
 use alloc::vec::Vec;
 use itertools::Itertools;
 
@@ -60,11 +51,7 @@ pub fn isq_qir_shim_qis_exp_ctladj(
 pub fn isq_qir_shim_qis_h_body(x0: K<QIRQubit>) -> () {
     trace!("calling isq_qir_shim_qis_h_body(x0: {})", P(&x0));
     let rctx = context();
-<<<<<<< HEAD
     let mut ctx = rctx.lock().unwrap();
-=======
-    let mut ctx = RefCell::borrow_mut(&rctx);
->>>>>>> merge
     let device = ctx.get_device_mut();
     device.controlled_qop(H, &[], &[&x0.key], &[]);
 }
@@ -75,11 +62,7 @@ pub fn isq_qir_shim_qis_h_ctl(x0: K<QIRArray>, x1: K<QIRQubit>) -> () {
         P(&x1)
     );
     let rctx = context();
-<<<<<<< HEAD
     let mut ctx = rctx.lock().unwrap();
-=======
-    let mut ctx = RefCell::borrow_mut(&rctx);
->>>>>>> merge
     let controls: Vec<usize> = x0
         .get(&ctx)
         .get_1d_data_of::<usize>()
@@ -97,11 +80,7 @@ pub fn isq_qir_shim_qis_measure_body(x0: K<QIRArray>, x1: K<QIRArray>) -> QIRRes
         P(&x1)
     );
     let rctx = context();
-<<<<<<< HEAD
     let mut ctx = rctx.lock().unwrap();
-=======
-    let mut ctx = RefCell::borrow_mut(&rctx);
->>>>>>> merge
     let paulis = x0
         .get(&ctx)
         .get_1d_data_of::<QIRPauli>()
@@ -292,11 +271,7 @@ pub fn isq_qir_shim_qis_z_ctl(x0: K<QIRArray>, x1: K<QIRQubit>) -> () {
 pub fn isq_qir_shim_qis_dumpmachine_body(x0: *mut i8) -> () {
     trace!("calling isq_qir_shim_qis_dumpmachine_body(x0: {:?})", x0);
     let rctx = context();
-<<<<<<< HEAD
     let mut ctx = rctx.lock().unwrap();
-=======
-    let mut ctx = RefCell::borrow_mut(&rctx);
->>>>>>> merge
     ctx.dump_machine();
 }
 pub fn isq_qir_shim_qis_dumpregister_body(x0: *mut i8, x1: K<QIRArray>) -> () {
@@ -306,10 +281,6 @@ pub fn isq_qir_shim_qis_dumpregister_body(x0: *mut i8, x1: K<QIRArray>) -> () {
         P(&x1)
     );
     let rctx = context();
-<<<<<<< HEAD
     let mut ctx = rctx.lock().unwrap();
-=======
-    let mut ctx = RefCell::borrow_mut(&rctx);
->>>>>>> merge
     ctx.dump_registers(x1);
 }

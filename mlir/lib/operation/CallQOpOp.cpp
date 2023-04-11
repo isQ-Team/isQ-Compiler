@@ -29,11 +29,7 @@ CallQOpOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
 ::mlir::ParseResult CallQOpOp::parseIR(::mlir::OpAsmParser &parser,
                                        ::mlir::OperationState &result) {
     ::mlir::SymbolRefAttr calleeAttr;
-<<<<<<< HEAD
-    ::mlir::SmallVector<::mlir::OpAsmParser::OperandType, 4> argsOperands;
-=======
     ::mlir::SmallVector<::mlir::OpAsmParser::UnresolvedOperand, 4> argsOperands;
->>>>>>> merge
     ::llvm::SMLoc argsOperandsLoc;
     (void)argsOperandsLoc;
     ::llvm::ArrayRef<::mlir::Type> argsTypes;
@@ -92,11 +88,7 @@ CallQOpOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
 
 void CallQOpOp::printIR(::mlir::OpAsmPrinter &p) {
     //p << "isq.call_qop";
-<<<<<<< HEAD
-    //p << ' ';
-=======
     p << ' ';
->>>>>>> merge
     p.printAttributeWithoutType(calleeAttr());
     p << "(";
     p << args();
@@ -110,8 +102,6 @@ void CallQOpOp::printIR(::mlir::OpAsmPrinter &p) {
     p.printAttributeWithoutType(signatureAttr());
 }
 
-<<<<<<< HEAD
-=======
 
 ::mlir::ParseResult CallQOpOp::parse(::mlir::OpAsmParser &parser, ::mlir::OperationState &result){
         return CallQOpOp::parseIR(parser, result);
@@ -121,7 +111,6 @@ void CallQOpOp::print(::mlir::OpAsmPrinter & p){
 }
 
 
->>>>>>> merge
 /*
 void ApplyOp::getCanonicalizationPatterns(mlir::RewritePatternSet &results,
                                       mlir::MLIRContext *context) {

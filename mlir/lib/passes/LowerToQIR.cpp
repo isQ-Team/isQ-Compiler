@@ -1,21 +1,13 @@
 #include "isq/Dialect.h"
 #include "isq/Lower.h"
 #include "isq/Operations.h"
-<<<<<<< HEAD
-#include "isq/QStructs.h"
-=======
->>>>>>> merge
 #include "isq/QTypes.h"
 #include "isq/GateDefTypes.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-<<<<<<< HEAD
-#include "mlir/Dialect/SCF/SCF.h"
-=======
 #include "mlir/Dialect/SCF/IR/SCF.h"
->>>>>>> merge
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -25,13 +17,6 @@
 #include "mlir/Rewrite/FrozenRewritePatternSet.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-<<<<<<< HEAD
-#include "mlir/Dialect/StandardOps/Transforms/FuncConversions.h"
-#include "llvm/Support/raw_ostream.h"
-#include <llvm/Support/ErrorHandling.h>
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/Passes.h>
-=======
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
 #include "llvm/Support/raw_ostream.h"
 #include <llvm/Support/ErrorHandling.h>
@@ -39,16 +24,11 @@
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 #include <optional>
->>>>>>> merge
 namespace isq{
 namespace ir{
 namespace passes{
 
-<<<<<<< HEAD
-namespace{
-=======
 namespace lower_to_qir{
->>>>>>> merge
 
 const char* ISQ_DEINITIALIZED = "isq_deinitialized";
 const char* ISQ_INITIALIZED = "isq_initialized";
@@ -196,15 +176,9 @@ public:
         auto rootModule = this->rootModule;
         // Ctor
         do{
-<<<<<<< HEAD
-        auto ctor = rootModule.lookupSymbol<mlir::FuncOp>("__isq__global_initialize");
-        assert(ctor);
-        rewriter.setInsertionPointToStart(&*ctor.getBlocks().begin());
-=======
         auto ctor = rootModule.lookupSymbol<mlir::func::FuncOp>("__isq__global_initialize");
         //assert(ctor);
         rewriter.setInsertionPointToStart(&*ctor.getBody().begin());
->>>>>>> merge
         auto ctor_used_memref = rewriter.create<mlir::memref::GetGlobalOp>(loc, op.type(), op.sym_name());
         auto ctor_lo = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 0);
         auto ctor_hi = rewriter.create<mlir::arith::ConstantIndexOp>(loc, memrefty.getDimSize(0));
@@ -224,15 +198,9 @@ public:
         }while(0);
         // Dtor
         do{
-<<<<<<< HEAD
-        auto dtor = rootModule.lookupSymbol<mlir::FuncOp>("__isq__global_finalize");
-        assert(dtor);
-        rewriter.setInsertionPointToStart(&*dtor.getBlocks().begin());
-=======
         auto dtor = rootModule.lookupSymbol<mlir::func::FuncOp>("__isq__global_finalize");
         //assert(dtor);
         rewriter.setInsertionPointToStart(&*dtor.getBody().begin());
->>>>>>> merge
         auto dtor_used_memref = rewriter.create<mlir::memref::GetGlobalOp>(loc, op.type(), op.sym_name());
         auto dtor_lo = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 0);
         auto dtor_hi = rewriter.create<mlir::arith::ConstantIndexOp>(loc, memrefty.getDimSize(0));
@@ -287,11 +255,7 @@ public:
                 auto qref = qubit_ref(op->getLoc(), rewriter, qarg);
                 new_args.push_back(qref);
             }
-<<<<<<< HEAD
-            auto call = rewriter.create<mlir::CallOp>(op.getLoc(), qir_name, ::mlir::TypeRange{}, new_args);
-=======
             auto call = rewriter.create<mlir::func::CallOp>(op.getLoc(), qir_name, ::mlir::TypeRange{}, new_args);
->>>>>>> merge
             rewriter.eraseOp(op);
             return mlir::success();
 
@@ -537,11 +501,7 @@ public:
 };
 struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::OperationPass<mlir::ModuleOp>>{
     void populateUsefulPatternSets(mlir::RewritePatternSet& patterns, mlir::TypeConverter& converter ){
-<<<<<<< HEAD
-        mlir::populateFunctionOpInterfaceTypeConversionPattern<mlir::FuncOp>(patterns, converter);
-=======
         mlir::populateFunctionOpInterfaceTypeConversionPattern<mlir::func::FuncOp>(patterns, converter);
->>>>>>> merge
         mlir::populateCallOpTypeConversionPattern(patterns, converter);
         mlir::populateBranchOpInterfaceTypeConversionPattern(patterns, converter);
         mlir::populateReturnOpTypeConversionPattern(patterns, converter);
@@ -618,19 +578,11 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
             target.addLegalOp<AssertOp>();
             target.addLegalDialect<mlir::arith::ArithmeticDialect>();
             target.addLegalOp<mlir::UnrealizedConversionCastOp>();
-<<<<<<< HEAD
-            target.addDynamicallyLegalOp<mlir::FuncOp>(
-                [&](mlir::FuncOp op) { return converter.isSignatureLegal(op.getType()); });
-            target.addDynamicallyLegalOp<mlir::ReturnOp>(
-                [&](mlir::ReturnOp op) { return converter.isLegal(op.getOperandTypes()); });
-            target.addDynamicallyLegalOp<mlir::CallOp>([&](mlir::CallOp op) {
-=======
             target.addDynamicallyLegalOp<mlir::func::FuncOp>(
                 [&](mlir::func::FuncOp op) { return converter.isSignatureLegal(op.getFunctionType()); });
             target.addDynamicallyLegalOp<mlir::func::ReturnOp>(
                 [&](mlir::func::ReturnOp op) { return converter.isLegal(op.getOperandTypes()); });
             target.addDynamicallyLegalOp<mlir::func::CallOp>([&](mlir::func::CallOp op) {
->>>>>>> merge
                 return converter.isSignatureLegal(op.getCalleeType());
             });
             target.addDynamicallyLegalDialect<mlir::memref::MemRefDialect>([&](mlir::Operation* op){
@@ -673,10 +625,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
 }
 
 void registerLowerToQIRRep(){
-<<<<<<< HEAD
-=======
     using namespace lower_to_qir;
->>>>>>> merge
     mlir::PassRegistration<LowerToQIRRepPass>();
 }
 

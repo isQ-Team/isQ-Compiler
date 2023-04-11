@@ -6,10 +6,7 @@ Created on Sun Aug  1 18:30:20 2021
 """
 import secrets
 import numpy as np
-<<<<<<< HEAD
-=======
 import json
->>>>>>> merge
 
 def init_error_matrix(ag_matrix):
     '''exemplary error martix'''
@@ -156,8 +153,6 @@ def convert_swap(q):
         swap.append("H Q{}".format(q2+1))
     return "\n".join(swap)
 
-<<<<<<< HEAD
-=======
 def get_qcis_from_cir_out_obj(cir_out, final_map_list, measure):
     qcis = []
     for (qn, gate, q, _) in cir_out:
@@ -172,7 +167,6 @@ def get_qcis_from_cir_out_obj(cir_out, final_map_list, measure):
         qcis.append({"ty": "M", "q": [final_map_list[m]+1]})
     return qcis
 
->>>>>>> merge
 def get_qcis_from_cir_out(cir_out, final_map_list, measure):
     
     qcis = []
@@ -224,13 +218,8 @@ if __name__ == '__main__':
                                                           display_state=display_state,
                                                           init_map = init_map)
     
-<<<<<<< HEAD
-    qcis_out = get_qcis_from_cir_out(cir_out, final_map_list, measure)
-    sys.stdout.write(qcis_out)
-=======
     qcis_out = get_qcis_from_cir_out_obj(cir_out, final_map_list, measure)
     sys.stdout.write(json.dumps(qcis_out))
->>>>>>> merge
 
     '''
     # get circuits from qasm_path

@@ -22,8 +22,6 @@ void QStateParsePrint::printType(::mlir::Type type,
     //printer << this->keyword();
     //printer << "qstate";
 }
-<<<<<<< HEAD
-=======
 
 ::mlir::Type QStateType::parse(::mlir::AsmParser &odsParser){
     QStateParsePrint p;
@@ -35,6 +33,5 @@ void QStateType::print(::mlir::AsmPrinter &odsPrinter) const{
 }
 
 
->>>>>>> merge
 } // namespace ir
 } // namespace isq

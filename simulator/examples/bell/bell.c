@@ -12,10 +12,6 @@
 
 
 void bell_main();
-<<<<<<< HEAD
-DLLEXPORT void __isq__entry(){
-=======
 DLLEXPORT void isq_simulator_entry(){
->>>>>>> merge
   bell_main();
 }

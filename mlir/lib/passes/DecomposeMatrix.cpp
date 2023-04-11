@@ -1,17 +1,9 @@
 #include "isq/GateDefTypes.h"
 #include "isq/Operations.h"
-<<<<<<< HEAD
-#include "isq/QStructs.h"
-#include "isq/QSynthesis.h"
-#include "isq/QTypes.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
-=======
 #include "isq/QSynthesis.h"
 #include "isq/QTypes.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
->>>>>>> merge
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -34,12 +26,8 @@ public:
     DecomposeKnownGateDef(mlir::MLIRContext* ctx, mlir::ModuleOp module, bool ignore_sq): mlir::OpRewritePattern<DefgateOp>(ctx, 1), rootModule(module), ignore_sq(ignore_sq){
 
     }
-<<<<<<< HEAD
-    mlir::LogicalResult decomposeMatrix(mlir::PatternRewriter& rewriter, ::mlir::StringRef decomposed_name, const std::vector<std::vector<std::complex<double>>>& mat) const{
-=======
     template<isq::ir::math::MatDouble Mat> 
     mlir::LogicalResult decomposeMatrix(mlir::PatternRewriter& rewriter, ::mlir::StringRef decomposed_name, const Mat& mat) const{
->>>>>>> merge
         auto rootModule = this->rootModule;
         auto n = (int) std::log2(mat.size());
         double eps = 1e-6;
@@ -60,15 +48,9 @@ public:
         for(auto i=0; i<n; i++){
             qs.push_back(QStateType::get(rewriter.getContext()));
         }
-<<<<<<< HEAD
-        auto funcop = mlir::FuncOp::create(::mlir::UnknownLoc::get(rewriter.getContext()), decomposed_name, mlir::FunctionType::get(rewriter.getContext(), qs, qs));
-        auto ctx = rewriter.getContext();
-        funcop.sym_visibilityAttr(mlir::StringAttr::get(ctx, "private"));
-=======
         auto funcop = mlir::func::FuncOp::create(::mlir::UnknownLoc::get(rewriter.getContext()), decomposed_name, mlir::FunctionType::get(rewriter.getContext(), qs, qs));
         auto ctx = rewriter.getContext();
         funcop.setSymVisibilityAttr(mlir::StringAttr::get(ctx, "private"));
->>>>>>> merge
         rewriter.insert(funcop.getOperation());
         auto entry_block = funcop.addEntryBlock();
         rewriter.setInsertionPointToStart(entry_block);
@@ -123,11 +105,7 @@ public:
 
             }
         }
-<<<<<<< HEAD
-        rewriter.create<mlir::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
-=======
         rewriter.create<mlir::func::ReturnOp>(::mlir::UnknownLoc::get(rewriter.getContext()), qubits);
->>>>>>> merge
         return mlir::success();
     }
     mlir::LogicalResult matchAndRewrite(isq::ir::DefgateOp defgate,  mlir::PatternRewriter &rewriter) const override{
@@ -148,11 +126,7 @@ public:
             auto qsd_decomp_name = std::string(defgate.sym_name())+"__qsd__decomposition";
             // construct new matrix name.
             auto qsd_decomp_sym = mlir::FlatSymbolRefAttr::get(mlir::StringAttr::get(rewriter.getContext(), qsd_decomp_name));
-<<<<<<< HEAD
-            auto qsd_decomp = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::FuncOp>(defgate, qsd_decomp_sym);
-=======
             auto qsd_decomp = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::func::FuncOp>(defgate, qsd_decomp_sym);
->>>>>>> merge
             auto& mat_data = mat->getMatrix();
             auto n = (int) std::log2(mat_data.size());
             auto ctx = rewriter.getContext();
@@ -166,15 +140,9 @@ public:
                     auto r = defs.getAsRange<::mlir::Attribute>();
                     new_defs.append(r.begin(), r.end());
                     new_defs.push_back(GateDefinition::get(
-<<<<<<< HEAD
-                        ::mlir::StringAttr::get(ctx, "decomposition"),
-                        qsd_decomp_sym,
-                        ctx
-=======
                         ctx,
                         ::mlir::StringAttr::get(ctx, "decomposition"),
                         qsd_decomp_sym
->>>>>>> merge
                     ));
                     defgate->setAttr("definition", ::mlir::ArrayAttr::get(ctx, new_defs));
                 });

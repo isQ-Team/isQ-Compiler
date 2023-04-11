@@ -169,28 +169,6 @@ entry:
     ret double %x5
 }
 declare dllimport double @__isq__qir__shim__qis__drawrandomdouble__body(double, double)
-<<<<<<< HEAD
-=======
-define void @__quantum__qis__applyifelseintrinsic__body (%Result* %x0, %Callable* %x1, %Callable* %x2) alwaysinline {
-entry:
-    %x3 = bitcast %Result* %x0 to i8*
-    %x4 = bitcast %Callable* %x1 to i8*
-    %x5 = bitcast %Callable* %x2 to i8*
-    call void @__isq__qir__shim__qis__applyifelseintrinsic__body(i8* %x3, i8* %x4, i8* %x5)
-    ret void
-}
-declare dllimport void @__isq__qir__shim__qis__applyifelseintrinsic__body(i8*, i8*, i8*)
-define void @__quantum__qis__applyconditionallyinstrinsic__body (%Array* %x0, %Array* %x1, %Callable* %x2, %Callable* %x3) alwaysinline {
-entry:
-    %x4 = bitcast %Array* %x0 to i8*
-    %x5 = bitcast %Array* %x1 to i8*
-    %x6 = bitcast %Callable* %x2 to i8*
-    %x7 = bitcast %Callable* %x3 to i8*
-    call void @__isq__qir__shim__qis__applyconditionallyinstrinsic__body(i8* %x4, i8* %x5, i8* %x6, i8* %x7)
-    ret void
-}
-declare dllimport void @__isq__qir__shim__qis__applyconditionallyinstrinsic__body(i8*, i8*, i8*, i8*)
->>>>>>> merge
 define void @__quantum__qis__assertmeasurementprobability__body (%Array* %x0, %Array* %x1, %Result* %x2, double %x3, %String* %x4, double %x5) alwaysinline {
 entry:
     %x6 = bitcast %Array* %x0 to i8*

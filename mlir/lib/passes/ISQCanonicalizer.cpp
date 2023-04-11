@@ -5,11 +5,7 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"
 
-<<<<<<< HEAD
-namespace {
-=======
 namespace isq_canonicalizer{
->>>>>>> merge
 using namespace mlir;
 template <typename DerivedT>
 class CanonicalizerBase : public ::mlir::OperationPass<> {
@@ -69,21 +65,11 @@ protected:
     ::mlir::Pass::ListOption<std::string> disabledPatterns{
         *this, "disable-patterns",
         ::llvm::cl::desc("Labels of patterns that should be filtered out "
-<<<<<<< HEAD
-                         "during application"),
-        llvm::cl::MiscFlags::CommaSeparated};
-    ::mlir::Pass::ListOption<std::string> enabledPatterns{
-        *this, "enable-patterns",
-        ::llvm::cl::desc("Labels of patterns that should be used during "
-                         "application, all other patterns are filtered out"),
-        llvm::cl::MiscFlags::CommaSeparated};
-=======
                          "during application")};
     ::mlir::Pass::ListOption<std::string> enabledPatterns{
         *this, "enable-patterns",
         ::llvm::cl::desc("Labels of patterns that should be used during "
                          "application, all other patterns are filtered out")};
->>>>>>> merge
 };
 struct Canonicalizer : public CanonicalizerBase<Canonicalizer> {
     Canonicalizer(const GreedyRewriteConfig &config,
@@ -130,10 +116,7 @@ struct Canonicalizer : public CanonicalizerBase<Canonicalizer> {
 
 namespace isq::ir::passes{
     void registerISQCanonicalizer(){
-<<<<<<< HEAD
-=======
         using namespace isq_canonicalizer;
->>>>>>> merge
         mlir::PassRegistration<Canonicalizer>();
     }
 }

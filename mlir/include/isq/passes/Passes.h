@@ -21,11 +21,8 @@ void registerRemoveGPhase();
 void registerEliminateNegCtrl();
 void registerISQCanonicalizer();
 void registerOracleDecompose();
-<<<<<<< HEAD
-=======
 void registerAffineSWP();
 
->>>>>>> merge
 
 void addLegalizeTraitsRules(mlir::RewritePatternSet& patterns);
 

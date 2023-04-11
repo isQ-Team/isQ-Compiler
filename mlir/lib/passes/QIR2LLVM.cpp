@@ -1,10 +1,6 @@
 #include "isq/Dialect.h"
 #include "isq/Lower.h"
 #include "isq/Operations.h"
-<<<<<<< HEAD
-#include "isq/QStructs.h"
-=======
->>>>>>> merge
 #include "isq/QTypes.h"
 #include "isq/GateDefTypes.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
@@ -12,22 +8,13 @@
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
-<<<<<<< HEAD
-#include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
-#include "mlir/Conversion/SCFToStandard/SCFToStandard.h"
-=======
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
->>>>>>> merge
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-<<<<<<< HEAD
-#include "mlir/Dialect/SCF/SCF.h"
-=======
 #include "mlir/Dialect/SCF/IR/SCF.h"
->>>>>>> merge
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -37,26 +24,16 @@
 #include "mlir/Rewrite/FrozenRewritePatternSet.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-<<<<<<< HEAD
-#include "mlir/Dialect/StandardOps/Transforms/FuncConversions.h"
-#include "llvm/Support/raw_ostream.h"
-#include <mlir/Dialect/Arithmetic/Transforms/Passes.h>
-=======
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
 #include "llvm/Support/raw_ostream.h"
 #include <mlir/Dialect/Arithmetic/Transforms/Passes.h>
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
->>>>>>> merge
 namespace isq{
 namespace ir{
 namespace passes{
 
-<<<<<<< HEAD
-namespace{
-=======
 namespace qir_rep_to_llvm{
->>>>>>> merge
 using namespace mlir;
 
 class RuleReplaceAssert : public mlir::OpRewritePattern<AssertOp>{
@@ -159,27 +136,16 @@ public:
             mlir::Value line = rewriter.create<mlir::LLVM::ConstantOp>(loc, mlir::IntegerType::get(context, 32), lineAttr);
             auto columnAttr = rewriter.getI32IntegerAttr(flc.getColumn());
             mlir::Value column = rewriter.create<mlir::LLVM::ConstantOp>(loc, mlir::IntegerType::get(context, 32), columnAttr);
-<<<<<<< HEAD
-            rewriter.create<mlir::CallOp>(loc, printfRef, rewriter.getIntegerType(32),
-=======
             rewriter.create<mlir::func::CallOp>(loc, printfRef, rewriter.getIntegerType(32),
->>>>>>> merge
                 llvm::ArrayRef<mlir::Value>({locStr, sourcePos, line, column}));
 
             // Print error message
             auto errorNum = op.error_num();
             mlir::Value messageCst = getErrorMessage(loc, rewriter, errorNum, parentModule);
-<<<<<<< HEAD
-            rewriter.create<mlir::CallOp>(loc, printfRef, rewriter.getIntegerType(32), llvm::ArrayRef<mlir::Value>({messageCst}));
-            auto attr = rewriter.getIntegerAttr(rewriter.getIntegerType(32), errorNum);
-            mlir::Value code = rewriter.create<mlir::LLVM::ConstantOp>(loc, mlir::IntegerType::get(context, 32), attr);
-            rewriter.create<mlir::CallOp>(loc, exitRef, llvm::ArrayRef<Type>({}), llvm::ArrayRef<mlir::Value>({code}));
-=======
             rewriter.create<mlir::func::CallOp>(loc, printfRef, rewriter.getIntegerType(32), llvm::ArrayRef<mlir::Value>({messageCst}));
             auto attr = rewriter.getIntegerAttr(rewriter.getIntegerType(32), errorNum);
             mlir::Value code = rewriter.create<mlir::LLVM::ConstantOp>(loc, mlir::IntegerType::get(context, 32), attr);
             rewriter.create<mlir::func::CallOp>(loc, exitRef, llvm::ArrayRef<Type>({}), llvm::ArrayRef<mlir::Value>({code}));
->>>>>>> merge
         });
         return mlir::success();
     }
@@ -205,13 +171,6 @@ struct QIRRepToLLVMPass : public mlir::PassWrapper<QIRRepToLLVMPass, mlir::Opera
 
         RewritePatternSet patterns(&getContext());
         populateAffineToStdConversionPatterns(patterns);
-<<<<<<< HEAD
-        populateLoopToStdConversionPatterns(patterns);
-        populateMemRefToLLVMConversionPatterns(typeConverter, patterns);
-        arith::populateArithmeticExpandOpsPatterns(patterns);
-        arith::populateArithmeticToLLVMConversionPatterns(typeConverter, patterns);
-        populateStdToLLVMConversionPatterns(typeConverter, patterns);
-=======
         populateSCFToControlFlowConversionPatterns(patterns);
         populateMemRefToLLVMConversionPatterns(typeConverter, patterns);
         arith::populateArithmeticExpandOpsPatterns(patterns);
@@ -219,7 +178,6 @@ struct QIRRepToLLVMPass : public mlir::PassWrapper<QIRRepToLLVMPass, mlir::Opera
         cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
         populateFuncToLLVMConversionPatterns(typeConverter, patterns);
         //populateStdToLLVMConversionPatterns(typeConverter, patterns);
->>>>>>> merge
 
         auto module = getOperation();
         auto ctx = module->getContext();
@@ -240,10 +198,7 @@ struct QIRRepToLLVMPass : public mlir::PassWrapper<QIRRepToLLVMPass, mlir::Opera
 }
 
 void registerQIR2LLVM(){
-<<<<<<< HEAD
-=======
     using namespace qir_rep_to_llvm;
->>>>>>> merge
     mlir::PassRegistration<QIRRepToLLVMPass>();
 }
 

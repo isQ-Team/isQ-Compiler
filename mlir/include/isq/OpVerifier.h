@@ -5,10 +5,6 @@
 #include <mlir/Support/LLVM.h>
 #include "./QTypes.h"
 #include "./QAttrs.h"
-<<<<<<< HEAD
-#include "./QStructs.h"
-=======
->>>>>>> merge
 namespace isq {
 namespace ir {
 mlir::SmallVector<mlir::Type> getGateParameterType(GateType ty);

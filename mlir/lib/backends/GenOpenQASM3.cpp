@@ -10,11 +10,6 @@
 
 #include "isq/Operations.h"
 #include "isq/QAttrs.h"
-<<<<<<< HEAD
-#include "isq/QStructs.h"
-=======
-//#include "isq/QStructs.h"
->>>>>>> merge
 #include "isq/utils/Decomposition.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/IR/Attributes.h"
@@ -29,14 +24,9 @@
 
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
-<<<<<<< HEAD
-#include "mlir/Dialect/SCF/SCF.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
-=======
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
->>>>>>> merge
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Pass/Pass.h"
@@ -48,10 +38,7 @@
 
 #include "llvm/Support/raw_ostream.h"
 #include "isq/Backends.h"
-<<<<<<< HEAD
-=======
 #include "mlir/AsmParser/AsmParser.h"
->>>>>>> merge
 
 #define TRY(x) if(mlir::failed(x)) return mlir::failure();
 
@@ -87,11 +74,7 @@ using namespace mlir::arith;
 using namespace mlir::memref;
 using namespace mlir::scf;
 using CodegenOpVisitor = OpVisitor<
-<<<<<<< HEAD
-    FuncOp, AffineIfOp, AffineForOp,
-=======
     mlir::func::FuncOp, AffineIfOp, AffineForOp,
->>>>>>> merge
     GetGlobalOp, GlobalOp,
     mlir::arith::ConstantOp, AllocaOp,
     AffineLoadOp, AffineStoreOp,
@@ -99,11 +82,7 @@ using CodegenOpVisitor = OpVisitor<
     AddIOp, SubIOp, MulIOp, DivSIOp,
     UseGateOp, DecorateOp,
     ApplyGateOp, CallQOpOp,
-<<<<<<< HEAD
-    CallOp, ReturnOp,DefgateOp, WhileOp, ConditionOp,
-=======
     mlir::func::CallOp, mlir::func::ReturnOp,DefgateOp, WhileOp, ConditionOp,
->>>>>>> merge
     ModuleOp, SubViewOp, PassOp, AffineYieldOp, scf::YieldOp,
     memref::CastOp, mlir::scf::IfOp
     >;
@@ -287,11 +266,7 @@ private:
         return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::ModuleOp curr_module) override{
-<<<<<<< HEAD
-        auto mod_name = curr_module.sym_name();
-=======
         auto mod_name = curr_module.getSymName();
->>>>>>> merge
         /*
         if(mod_name){
             if(*mod_name == "isq_builtin"){
@@ -304,12 +279,8 @@ private:
         return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::scf::IfOp if_stmt) override{
-<<<<<<< HEAD
-
-=======
         llvm_unreachable("TODO");
         return mlir::failure();
->>>>>>> merge
     }
     mlir::LogicalResult visitOp(mlir::AffineIfOp if_stmt) override{
         // update_symbol_use_operation
@@ -342,11 +313,7 @@ private:
                 rval = get<2>(res);
             }
         }
-<<<<<<< HEAD
-        if(!if_stmt.results().empty()){
-=======
         if(!if_stmt.getResults().empty()){
->>>>>>> merge
             if_stmt.emitError("If-stmt with yielded value not supported.");
             return mlir::failure();
         }
@@ -374,30 +341,18 @@ private:
         // Generate while-statement using manual guard.
         return mlir::success();
     }
-<<<<<<< HEAD
-    mlir::LogicalResult visitOp(mlir::FuncOp func_op) override{
-=======
     mlir::LogicalResult visitOp(mlir::func::FuncOp func_op) override{
->>>>>>> merge
         // update_symbol_use_operation
         tmpVarCnt = 1;
         qVarCnt = 1;
         argCnt = 1;
         hasRes = false;
 
-<<<<<<< HEAD
-        auto attr = func_op.sym_nameAttr();
-        
-        funcName = attr.getValue().str();
-
-        auto res_type = func_op.getType();
-=======
         auto attr = func_op.getSymNameAttr();
         
         funcName = attr.getValue().str();
 
         auto res_type = func_op.getFunctionType();
->>>>>>> merge
         for (auto &type: res_type.getResults()){
             if (type.isa<mlir::IntegerType>()){
                 hasRes = true;
@@ -405,11 +360,7 @@ private:
             }
         }
         // update_region
-<<<<<<< HEAD
-        auto not_main = func_op.sym_name() != "main";
-=======
         auto not_main = func_op.getSymName() != "main";
->>>>>>> merge
         set<size_t> block_args;
         auto& func_body = func_op.getBody();
         if(!func_body.hasOneBlock()) {
@@ -691,11 +642,7 @@ private:
         openQasmUnitary(gate_name_with_modifier, qlist);
         return mlir::success();
     }
-<<<<<<< HEAD
-    mlir::LogicalResult visitOp(mlir::CallOp op) override{
-=======
     mlir::LogicalResult visitOp(mlir::func::CallOp op) override{
->>>>>>> merge
         auto func_name = op.getCalleeAttr();
         string call_str = func_name.getValue().str() + "(";
         for (auto indexOperand : llvm::enumerate(op->getOperands())){
@@ -770,11 +717,7 @@ private:
         }
         return mlir::success();
     }
-<<<<<<< HEAD
-    mlir::LogicalResult visitOp(mlir::ReturnOp op) override{
-=======
     mlir::LogicalResult visitOp(mlir::func::ReturnOp op) override{
->>>>>>> merge
         if (hasRes){
             size_t opcode = size_t(mlir::hash_value(op->getOperand(0)));
             auto res = getSymbol(opcode);
@@ -797,24 +740,17 @@ private:
         }
         for(auto& def_ : *op.definition()){
             auto def = def_.cast<GateDefinition>();
-<<<<<<< HEAD
-            if(def.type()=="unitary"){
-                auto mat = def.value().cast<mlir::ArrayAttr>();
-=======
             if(def.getType()=="unitary"){
                 auto mat = def.getValue().cast<DenseComplexF64MatrixAttr>();
                 auto matval = mat.toMatrixVal();
                 /*
                 auto mat = def.getValue().cast<mlir::ArrayAttr>();
->>>>>>> merge
                 std::complex<double> matv[2][2];
                 for(int i=0; i<2; i++){
                     for(int j=0; j<2; j++){
                         matv[i][j]=mat[i].cast<mlir::ArrayAttr>()[j].cast<ComplexF64Attr>().complexValue();
                     }
                 }
-<<<<<<< HEAD
-=======
                 */
                 std::complex<double> matv[2][2];
                 for(int i=0; i<2; i++){
@@ -822,7 +758,6 @@ private:
                         matv[i][j]=matval[i][j];
                     }
                 }
->>>>>>> merge
                 openQasmGateDefine(gate_name, shape, matv);
                 return mlir::success();
             }
