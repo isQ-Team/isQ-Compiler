@@ -24,6 +24,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerISQCanonicalizer();
     passes::registerOracleDecompose();
     passes::registerAffineSWP();
+    passes::registerGlobalThreadLocal();
     isq::contrib::mlir::registerAffineScalarReplacementPass();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();

@@ -22,7 +22,7 @@ void registerEliminateNegCtrl();
 void registerISQCanonicalizer();
 void registerOracleDecompose();
 void registerAffineSWP();
-
+void registerGlobalThreadLocal();
 
 void addLegalizeTraitsRules(mlir::RewritePatternSet& patterns);
 
