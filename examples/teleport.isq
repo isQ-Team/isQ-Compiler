@@ -1,6 +1,6 @@
 import std;
 
-int m1, m2;
+bool m1, m2;
 qbit q_1, q_2, q_3;
 
 procedure Teleport(qbit qsrc, qbit qanc, qbit qdest) 
@@ -11,8 +11,8 @@ procedure Teleport(qbit qsrc, qbit qanc, qbit qdest)
     H<qsrc>;
     m1 = M<qsrc>;
     m2 = M<qanc>;
-    if (m2 == 1) { X<qdest>; }
-    if (m1 == 1) { Z<qdest>; }
+    if (m2) { X<qdest>; }
+    if (m1) { Z<qdest>; }
 }
 
 procedure main()
