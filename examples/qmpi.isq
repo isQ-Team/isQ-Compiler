@@ -1,0 +1,10 @@
+int __qmpi_rank = 8;
+
+int qmpi_comm_rank()
+{
+    return __qmpi_rank;
+}
+
+procedure main(){
+    print qmpi_comm_rank();
+}

@@ -4,6 +4,14 @@ defgate H = [
 ];
 defgate X = [0,1;1,0];
 defgate Z = [1, 0;0, -1];
+
+int __qmpi_rank = 8;
+
+int qmpi_comm_rank()
+{
+    return __qmpi_rank;
+}
+
 int qmpi_me(){
     // Hole.
 }
@@ -163,5 +171,5 @@ procedure qmpi_alltoall(qbit buffer[], int root){
 }
 
 procedure main(){
-
+    print qmpi_comm_rank();
 }
