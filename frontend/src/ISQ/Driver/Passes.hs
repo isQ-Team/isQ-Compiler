@@ -198,12 +198,19 @@ globalSourceQcis = "int __measure_bundle(qbit q[])\
 \    return 0;\
 \}"
 
+globalQmpiSource :: String
+globalQmpiSource = "int __qmpi_rank;\
+\int qmpi_comm_rank()\
+\{\
+\    return __qmpi_rank;\
+\}"
+
 generateTcast :: String -> FilePath -> Bool -> IO (Either CompileError ([TCAST], Int))
 generateTcast incPathStr inputFileName qcis = do
     let gc = case qcis of
             True -> globalSourceQcis
             False -> globalSource
-    let (globalTcasts, globalTable, ssaId) = processGlobal gc
+    let (globalTcasts, globalTable, ssaId) = processGlobal (gc ++ globalQmpiSource)
     absolutPath <- canonicalizePath inputFileName
     let splitedPath = splitOn ":" incPathStr
     incPath <- mapM canonicalizePath splitedPath

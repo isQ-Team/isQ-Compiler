@@ -1,7 +1,8 @@
 extern crate std;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use core::any::Any;
-use std::sync::Mutex;
+use std::sync::{Mutex, mpsc};
 
 use alloc::sync::Arc;
 use alloc::boxed::Box;
@@ -15,7 +16,8 @@ pub struct QIRContext {
     device: Box<dyn QDevice<Qubit = usize>>,
     classical_resource_manager: ResourceMap,
     message_handler: Box<dyn Fn(&str) -> ()>,
-    disabled_bp : HashSet<i64>,
+    disabled_bp: HashSet<i64>,
+    recv_channel: HashMap<(i64, i64, i64), mpsc::Receiver<bool>>
 }
 use crate::facades::qir::resource::ResourceKey;
 impl QIRContext {
@@ -28,6 +30,7 @@ impl QIRContext {
             classical_resource_manager: ResourceMap::new(),
             message_handler,
             disabled_bp: HashSet::new(),
+            recv_channel: HashMap::new(),
         }
     }
     pub fn get_device(&self) -> &dyn QDevice<Qubit = usize> {
@@ -55,6 +58,14 @@ impl QIRContext {
     }
     pub fn disable_bp_index(&mut self, index: i64) {
         self.disabled_bp.insert(index);
+    }
+    pub fn send_bool(&mut self, send_id: i64, recv_id: i64, tag: i64, val: bool) {
+        let (tx, rx) = mpsc::channel();
+        tx.send(val).unwrap();
+        self.recv_channel.insert((send_id, recv_id, tag), rx);
+    }
+    pub fn recv_bool(&mut self, send_id: i64, recv_id: i64, tag: i64) -> bool {
+        self.recv_channel.get(&(send_id, recv_id, tag)).unwrap().recv().unwrap()
     }
 }
 

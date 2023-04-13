@@ -118,3 +118,5 @@ entry:
     ret void
 }
 declare dllimport void @__isq__qir__shim__qis__isq_print_f64(double)
+declare dllimport void @__isq__qir__shim__qmpi__csend(i64, i64, i64, i1)
+declare dllimport i1 @__isq__qir__shim__qmpi__crecv(i64, i64, i64)

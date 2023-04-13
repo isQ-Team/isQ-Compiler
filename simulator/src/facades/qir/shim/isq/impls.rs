@@ -152,3 +152,19 @@ pub fn isq_qir_shim_qis_bp(x0: i64)->() {
         ctx.disable_bp_index(x0);
     }
 }
+pub fn isq_qir_shim_qmpi_csend(sender: i64, receiver: i64, tag: i64, val: bool)->() {
+    trace!(
+        "calling isq_qir_shim_qmpi_csend()",
+    );
+    let rctx = context();
+    let mut ctx = rctx.lock().unwrap();
+    ctx.send_bool(sender, receiver, tag, val);
+}
+pub fn isq_qir_shim_qmpi_crecv(sender: i64, receiver: i64, tag: i64)->bool {
+    trace!(
+        "calling isq_qir_shim_qmpi_csend()",
+    );
+    let rctx = context();
+    let mut ctx = rctx.lock().unwrap();
+    ctx.recv_bool(sender, receiver, tag)
+}

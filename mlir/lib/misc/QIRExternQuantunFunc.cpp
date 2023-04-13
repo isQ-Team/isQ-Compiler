@@ -38,6 +38,8 @@ const std::string isq_decomposed_head = "__isq__decomposed__";
 const std::string qir_bp = "__quantum__qis__bp";
 const std::string qir_print_i64 = "__quantum__qis__isq_print_i64";
 const std::string qir_print_f64 = "__quantum__qis__isq_print_f64";
+const std::string qmpi_csend = "__isq__qir__shim__qmpi__csend";
+const std::string qmpi_crecv = "__isq__qir__shim__qmpi__crecv";
 using mlir::func::FuncOp;
 using mlir::func::CallOp;
 using mlir::func::ReturnOp;
@@ -107,6 +109,28 @@ void QIRExternQuantumFunc::printInt(::mlir::Location loc, PatternRewriter& rewri
 void QIRExternQuantumFunc::printFloat(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value f){
     assert(f.getType() == getF64Type(module->getContext()));
     safeCallExternOp(module, rewriter, loc, qir_print_f64, ArrayRef<Value>{f}, ArrayRef<Type>{});
+}
+void QIRExternQuantumFunc::qmpiCsend(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value sender, Value receiver, Value tag, Value val){
+    auto ctx = module->getContext();
+    assert(sender.getType() == getIndexType(ctx));
+    auto sender_cast = rewriter.create<arith::IndexCastOp>(loc, getI64Type(ctx), sender);
+    assert(receiver.getType() == getIndexType(ctx));
+    auto receiver_cast = rewriter.create<arith::IndexCastOp>(loc, getI64Type(ctx), receiver);
+    assert(tag.getType() == getIndexType(ctx));
+    auto tag_cast = rewriter.create<arith::IndexCastOp>(loc, getI64Type(ctx), tag);
+    assert(val.getType() == getI1Type(ctx));
+    safeCallExternOp(module, rewriter, loc, qmpi_csend, ArrayRef<Value>{sender_cast.getOut(), receiver_cast.getOut(), tag_cast.getOut(), val}, ArrayRef<Type>{});
+}
+Value QIRExternQuantumFunc::qmpiCrecv(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value sender, Value receiver, Value tag){
+    auto ctx = module->getContext();
+    assert(sender.getType() == getIndexType(ctx));
+    auto sender_cast = rewriter.create<arith::IndexCastOp>(loc, getI64Type(ctx), sender);
+    assert(receiver.getType() == getIndexType(ctx));
+    auto receiver_cast = rewriter.create<arith::IndexCastOp>(loc, getI64Type(ctx), receiver);
+    assert(tag.getType() == getIndexType(ctx));
+    auto tag_cast = rewriter.create<arith::IndexCastOp>(loc, getI64Type(ctx), tag);
+    auto op = safeCallExternOp(module, rewriter, loc, qmpi_csend, ArrayRef<Value>{sender_cast.getOut(), receiver_cast.getOut(), tag_cast.getOut()}, ArrayRef<Type>{getI1Type(ctx)});
+    return op->getResult(0);
 }
 Value QIRExternQuantumFunc::allocQubit(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module){
     auto op = safeCallExternOp(module, rewriter, loc, qir_alloc_qubit, ArrayRef<Value>{}, ArrayRef<Type>{getQIRQubitType(module->getContext())});

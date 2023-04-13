@@ -313,6 +313,17 @@ public:
             rewriter.eraseOp(op);
             return mlir::success();
         }
+        if (qop.sym_name() == "__isq__qmpiprim__csend") {
+            utils.qmpiCsend(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1), op.getOperand(2), op.getOperand(3));
+            rewriter.eraseOp(op);
+            return mlir::success();
+        }
+        if (qop.sym_name() == "__isq__qmpiprim__crecv") {
+            auto val = utils.qmpiCrecv(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1), op.getOperand(2));
+            op->getResult(1).replaceAllUsesWith(val);
+            rewriter.eraseOp(op);
+            return mlir::success();
+        }
 
         return mlir::failure();
     }
