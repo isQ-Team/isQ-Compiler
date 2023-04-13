@@ -53,7 +53,7 @@ develop:
 	@exec nix develop
 lock:
 	cd vendor && nix flake lock --update-input isqc-base
-	cd simulator && nix flake lock --update-input isqc-base --update-input mlir --update-input vendor
+	cd simulator && nix flake lock --update-input isqc-base --update-input vendor --update-input vendor
 	cd isqc && nix flake lock --update-input isqc-base
 	cd mlir && nix flake lock --update-input isqc-base --update-input vendor
 	cd frontend && nix flake lock --update-input isqc-base
