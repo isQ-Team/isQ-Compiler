@@ -56,7 +56,7 @@ module{
         %ssa_38_zero = arith.constant 0 : index
         %ssa_38 = memref.subview %ssa_38_real[%ssa_38_zero][1][1] : memref<1x!isq.qstate> to memref<1x!isq.qstate, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/random_walk.isq":7:5)
         %ssa_39 = memref.alloc() : memref<2x!isq.qstate> loc("/home/gjz010/isQ-Compiler/examples/random_walk.isq":8:5)
-        %ssa_40 = arith.constant 10 : index loc("/home/gjz010/isQ-Compiler/examples/random_walk.isq":9:13)
+        %ssa_40 = arith.constant 100 : index loc("/home/gjz010/isQ-Compiler/examples/random_walk.isq":9:13)
         %ssa_41_real = memref.alloc() : memref<1xindex> loc("/home/gjz010/isQ-Compiler/examples/random_walk.isq":9:5)
         %ssa_41_zero = arith.constant 0 : index
         %ssa_41 = memref.subview %ssa_41_real[%ssa_41_zero][1][1] : memref<1xindex> to memref<1xindex, affine_map<(d0)[s0]->(d0+s0)>> loc("/home/gjz010/isQ-Compiler/examples/random_walk.isq":9:5)
