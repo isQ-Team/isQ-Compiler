@@ -1,1 +1,3 @@
-../rust-toolchain
+[toolchain]
+channel = "nightly"
+profile = "default"
