@@ -45,7 +45,6 @@ pub const QIR_RESULT_ONE: QIRResultPtr = 2 as QIRResultPtr;
 
 pub type QIRResourcePtr = usize;
 pub type QIRQubit = usize;
-use core::fmt::Display;
 
 pub use super::array::QIRArray;
 pub use super::bigint::QIRBigInt;

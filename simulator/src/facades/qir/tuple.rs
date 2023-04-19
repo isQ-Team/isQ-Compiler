@@ -108,7 +108,7 @@ impl AliasingTracker for QTupleOwned {
     }
     fn full_copy(&self, allocated_id: usize /* backdoor for tuples */) -> Self {
         let sz = self.size_in_usize();
-        let mut s = Self::new(sz);
+        let s = Self::new(sz);
         s.set_resource_id(allocated_id);
         //s.update_alias_count(1);
         unsafe {

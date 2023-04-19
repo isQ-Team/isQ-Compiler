@@ -1,5 +1,0 @@
-procedure main(){
-    int x=114514;
-    int y = -x;
-    print y;
-}

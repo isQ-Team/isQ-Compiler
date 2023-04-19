@@ -1,0 +1,10 @@
+import std;
+import lib;
+
+procedure main() {
+    qbit q[2];
+    H(q);
+    qft(q);
+    qft_dagger(q);
+    bp;
+}

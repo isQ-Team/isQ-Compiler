@@ -116,7 +116,7 @@ impl NaiveSimulator {
         trace!("{:?}", self.state);
         let sum: f64 = self.state.iter().map(|x| x.norm_sqr()).sum();
         if sum>1.001 || sum<0.999{
-            panic!("failed");
+            panic!("failed as the sum is {}", sum);
         }
     }
     // Remove the most significant qubit. This must be done after assuring that the qubit is in computational state.
@@ -243,7 +243,7 @@ impl QDevice for NaiveSimulator {
 
     fn supported_quantum_ops(&self) -> Vec<crate::qdevice::QuantumOp> {
         use crate::qdevice::QuantumOp::*;
-        vec![Reset, CNOT, CZ, Swap, AnySQ, GPhase]
+        vec![Reset, CNOT, CZ, Swap, AnySQ, GPhase, EPR]
     }
 
     fn controlled_qop(
@@ -321,6 +321,24 @@ impl QDevice for NaiveSimulator {
                     [Complex64::new(p[4], p[5]), Complex64::new(p[6], p[7])]
                 ];
                 self.single_qubit_gate(controllers, *qubits[0], mat)
+            }
+            EPR => {
+                assert_ne!(qubits[0], qubits[1]);
+                self.measure(qubits[0]);
+                self.measure(qubits[1]);
+                let pos1 = self.qubit_to_state_id(qubits[0]);
+                let pos2 = self.qubit_to_state_id(qubits[1]);
+                for i in 0..self.state.len() {
+                    if (i & (1 << pos1)) == 0 && (i & (1 << pos2)) == 0 {
+                        let a = self.state[i];
+                        let b = self.state[i + (1 << pos2)];
+                        let c = self.state[i + (1 << pos1)];
+                        let d = self.state[i + (1 << pos1) + (1 << pos2)];
+                        let m = a + b + c + d;
+                        self.state[i] = m * (0.5f64).sqrt();
+                        self.state[i + (1 << pos1) + (1 << pos2)] = self.state[i];
+                    }
+                }
             }
             _ => {
                 panic!("Unsupported quantum operation: {:?}", op_type);
