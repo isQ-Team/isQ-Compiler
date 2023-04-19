@@ -27,7 +27,7 @@ impl QDevice for NoopDevice{
         use crate::qdevice::QuantumOp::*;
         vec![
             X,Y,Z,H,S,T,
-            SInv,TInv,CZ,X2M,X2P,Y2M,Y2P, QCIS_Finalize, U3, AnySQ, Reset
+            SInv,TInv,CZ,X2M,X2P,Y2M,Y2P, QcisFinalize, U3, AnySQ, Reset
         ]
     }
 

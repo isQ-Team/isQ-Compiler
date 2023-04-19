@@ -1,0 +1,38 @@
+import std;
+
+procedure SWAP(qbit p, qbit q) {
+    CNOT(p, q);
+    CNOT(q, p);
+    CNOT(p, q);
+}
+
+procedure R(int k, qbit q) {
+    double phase = pi / 2 ** (k - 1);
+    ctrl GPhase(phase, q);
+} deriving gate
+
+procedure qft(qbit q[]) {
+    int len = q.length;
+    for i in 0:len {
+        H(q[i]);
+        for j in i+1:len {
+            ctrl R(j-i+1, q[j], q[i]);
+        }
+    }
+    for i in 0:len/2 {
+        SWAP(q[i], q[len-i-1]);
+    }
+}
+
+procedure qft_dagger(qbit q[]) {
+    int len = q.length;
+    for i in 0:len/2 {
+        SWAP(q[i], q[len-i-1]);
+    }
+    for i in len-1:-1:-1 {
+        for j in i+1:len {
+            ctrl inv R(j-i+1, q[j], q[i]);
+        }
+        H(q[i]);
+    }
+}

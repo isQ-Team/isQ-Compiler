@@ -29,7 +29,6 @@ pub mod shim_prelude {
         }
     }
 }
-use core::cell::RefCell;
 
 use super::context::get_current_context as context;
 use crate::qdevice::QuantumOp;

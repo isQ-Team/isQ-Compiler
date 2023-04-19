@@ -76,12 +76,22 @@ pub extern "C" fn __isq__qir__shim__qis__isq_print_f64(x0: f64)->() {
     unsafe { t(isq_qir_shim_qis_isq_print_f64(t::<_, f64>(x0)))}
 }
 #[no_mangle]
-pub extern "C" fn __isq__qir__shim__qmpi__csend(sender: i64, receiver: i64, tag: i64, val: bool)->() {
+pub extern "C" fn __isq__qir__shim__qmpi__csend(receiver: i64, tag: i64, val: bool)->() {
     use core::mem::transmute as t;
-    unsafe { t(isq_qir_shim_qmpi_csend(t::<_, i64>(sender), t::<_, i64>(receiver), t::<_, i64>(tag), t::<_, bool>(val)))}
+    unsafe { t(isq_qir_shim_qmpi_csend(t::<_, i64>(receiver), t::<_, i64>(tag), t::<_, bool>(val)))}
 }
 #[no_mangle]
-pub extern "C" fn __isq__qir__shim__qmpi__crecv(sender: i64, receiver: i64, tag: i64)->bool {
+pub extern "C" fn __isq__qir__shim__qmpi__crecv(sender: i64, tag: i64)->bool {
     use core::mem::transmute as t;
-    unsafe { t(isq_qir_shim_qmpi_crecv(t::<_, i64>(sender), t::<_, i64>(receiver), t::<_, i64>(tag)))}
+    unsafe { t(isq_qir_shim_qmpi_crecv(t::<_, i64>(sender), t::<_, i64>(tag)))}
+}
+#[no_mangle]
+pub extern "C" fn __isq__qir__shim__qmpi__create__epr(peer: i64, tag: i64, x1: *mut i8)->() {
+    use core::mem::transmute as t;
+    unsafe { t(isq_qir_shim_qmpi_create_epr(t::<_, i64>(peer), t::<_, i64>(tag), t::<_, K<QIRQubit>>(x1)))}
+}
+#[no_mangle]
+pub extern "C" fn __isq__qir__shim__qmpi__size()->i64 {
+    use core::mem::transmute as t;
+    unsafe { t(isq_qir_shim_qmpi_comm_size())}
 }
