@@ -314,13 +314,19 @@ public:
             return mlir::success();
         }
         if (qop.sym_name() == "__isq__qmpiprim__csend") {
-            utils.qmpiCsend(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1), op.getOperand(2), op.getOperand(3));
+            utils.qmpiCsend(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1), op.getOperand(2));
             rewriter.eraseOp(op);
             return mlir::success();
         }
         if (qop.sym_name() == "__isq__qmpiprim__crecv") {
-            auto val = utils.qmpiCrecv(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1), op.getOperand(2));
-            op->getResult(1).replaceAllUsesWith(val);
+            auto val = utils.qmpiCrecv(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1));
+            op->getResult(0).replaceAllUsesWith(val);
+            rewriter.eraseOp(op);
+            return mlir::success();
+        }
+        if (qop.sym_name() == "__isq__qmpiprim__size") {
+            auto val = utils.qmpiSize(loc, rewriter, rootModule);
+            op->getResult(0).replaceAllUsesWith(val);
             rewriter.eraseOp(op);
             return mlir::success();
         }

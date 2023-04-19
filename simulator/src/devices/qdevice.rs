@@ -1,6 +1,5 @@
 // Useful quantum ops that can be supported.
 use alloc::{vec::Vec, string::String};
-use num_complex::Complex64;
 #[derive(Copy, Clone, Eq, PartialEq, Debug, PartialOrd, Ord)]
 pub enum QuantumOp {
     Reset,
@@ -23,7 +22,8 @@ pub enum QuantumOp {
     GPhase,
     AnySQ,
     X2P, X2M, Y2P, Y2M,
-    QCIS_Finalize
+    QcisFinalize,
+    EPR,
 }
 
 impl QuantumOp {
@@ -52,7 +52,8 @@ impl QuantumOp {
             QuantumOp::X2M => 1,
             QuantumOp::Y2P => 1,
             QuantumOp::Y2M => 1,
-            QuantumOp::QCIS_Finalize => 0,
+            QuantumOp::QcisFinalize => 0,
+            QuantumOp::EPR => 2,
         }
     }
     pub fn get_parameter_count(&self) -> usize {
@@ -80,7 +81,8 @@ impl QuantumOp {
             QuantumOp::X2M => 0,
             QuantumOp::Y2P => 0,
             QuantumOp::Y2M => 0,
-            QuantumOp::QCIS_Finalize => 0,
+            QuantumOp::QcisFinalize => 0,
+            QuantumOp::EPR => 0,
         }
     }
 }

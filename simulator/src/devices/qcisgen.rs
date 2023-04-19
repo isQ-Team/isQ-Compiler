@@ -96,7 +96,6 @@ fn generate_qcis_program_isqir(config: &QCISConfig, program: &[QCISImport])->Str
 pub fn run_qcis_route(code: String)->String{
     extern crate std;
     extern crate serde_json;
-    use serde_json::Value;
     use std::{process::{Command, Stdio}, io::Write};
     use std::io::Read;
     let qcis_configuration = std::env::var("QCIS_ROUTE_CONFIG");//.expect("qcis routing configuration not speficied.");
@@ -169,7 +168,7 @@ impl QDevice for QCISCodegen{
         use crate::qdevice::QuantumOp::*;
         vec![
             X,Y,Z,H,S,T,
-            SInv,TInv,CZ,X2M,X2P,Y2M,Y2P, QCIS_Finalize
+            SInv,TInv,CZ,X2M,X2P,Y2M,Y2P, QcisFinalize
         ]
     }
 
@@ -180,7 +179,7 @@ impl QDevice for QCISCodegen{
 
     fn qop(&mut self, op_type: crate::qdevice::QuantumOp, qubits: &[&Self::Qubit], parameters: &[f64]) {
         use crate::qdevice::QuantumOp::*;
-        if let QCIS_Finalize = op_type{
+        if let QcisFinalize = op_type{
             if !self.finalized{
                 self.finalized=true;
                 self.finalize_route();

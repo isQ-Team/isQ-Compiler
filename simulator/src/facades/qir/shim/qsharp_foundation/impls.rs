@@ -1,5 +1,4 @@
 use core::ops::Rem;
-use itertools::Itertools;
 use rand::{distributions::Uniform, prelude::Distribution};
 
 use super::types::*;

@@ -1,6 +1,6 @@
 use isq_simulator::{
     devices::{checked::CheckedDevice, naive::NaiveSimulator, sq2u3::SQ2U3Device, noop::NoopDevice},
-    facades::qir::{context::{get_current_context, make_context_current, QIRContext}, types::QIRQubit, string}, qdevice::QDevice,
+    facades::qir::{context::{get_current_context, make_context_current, QIRContext, RANK_REF}}, qdevice::QDevice,
 };
 
 #[cfg(feature = "qcis")]
@@ -8,16 +8,16 @@ use isq_simulator::sim::qcis;
 
 use libloading::*;
 
-use clap::{Parser, ArgEnum, PossibleValue};
+use clap::Parser;
 
 extern crate env_logger;
-use std::{env::set_var, sync::{mpsc, Mutex, Arc}, os::unix::prelude::OsStrExt};
+use std::{env::set_var, sync::{mpsc, Mutex, Arc}};
 use log::debug;
 
 #[macro_use]
 extern crate std;
-use std::{io::{Read, Write}, path::{Path, PathBuf}, fs::File, collections::HashMap};
-use std::{cell::RefCell, ffi::OsString, rc::Rc, thread};
+use std::{io::{Read, Write}, path::Path, fs::File, collections::HashMap};
+use std::{ffi::OsString, thread};
 extern crate isq_simulator;
 
 use clap::ArgGroup;
@@ -151,6 +151,7 @@ fn main() -> std::io::Result<()> {
             Box::new(|s| {
                 println!("{}", s);
             }),
+            args.np,
         );
         
         make_context_current(Arc::new(Mutex::new(context)));
@@ -163,6 +164,7 @@ fn main() -> std::io::Result<()> {
                 let (tx_osstring, rx_osstring) = mpsc::channel::<OsString>();
                 let (tx_string, rx_string) = mpsc::channel::<String>();
                 let handle = thread::spawn(move || {
+                    RANK_REF.with(|r| *r.borrow_mut() = rank);
                     let mut par_int = vec![];
                     for received in rx_int {
                         par_int.push(received);

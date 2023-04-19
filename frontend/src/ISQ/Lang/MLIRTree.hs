@@ -213,9 +213,9 @@ emitOpStep f env (MModule _ ops) =
       indented env $ "    isq.declare_qop @__isq__builtin__print_double : [0](f64)->()",
       indented env $ "    isq.declare_qop @__isq__qmpiprim__me : [0]()->index",
       indented env $ "    isq.declare_qop @__isq__qmpiprim__size : [0]()->index",
-      indented env $ "    isq.declare_qop @__isq__qmpiprim__epr : [1](index)->()",
-      indented env $ "    isq.declare_qop @__isq__qmpiprim__csend : [0](i1, index)->()",
-      indented env $ "    isq.declare_qop @__isq__qmpiprim__crecv : [0](index)->i1"
+      indented env $ "    isq.declare_qop @__isq__qmpiprim__epr : [1](index, index)->()",
+      indented env $ "    isq.declare_qop @__isq__qmpiprim__csend : [0](index, index, i1)->()",
+      indented env $ "    isq.declare_qop @__isq__qmpiprim__crecv : [0](index, index)->i1"
   ]++s ++ [indented env "}"])
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_me\"") _ _) = "\n\
 \func.func @qmpi.qmpi_me()->index { \n\
@@ -230,21 +230,20 @@ emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_size\"") _ _) = "\n\
 \  }\n\
 \"
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_epr\"") _ _) = "\n\
-\func.func @qmpi.qmpi_epr(%arg0: memref<1x!isq.qstate, affine_map<(d0)[s0] -> (d0 + s0)>>, %arg1: index) {\n\
-\  %q = affine.load %arg0[0] : memref<1x!isq.qstate, affine_map<(d0)[s0] -> (d0 + s0)>>\n\
-\  %q1 = isq.call_qop @__isq__qmpiprim__epr(%q, %arg1) : [1](index)->()\n\
+\func.func @qmpi.qmpi_epr(%qubit: !isq.qstate, %peer: index, %tag: index) {\n\
+\  isq.call_qop @__isq__qmpiprim__epr(%qubit, %self, %peer, %tag) : [1](index, index, index)->()\n\
 \  return\n\
 \}\n\
 \"
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_csend\"") _ _) = "\n\
-\func.func @qmpi.qmpi_csend(%arg0: i1, %arg1: index) {\n\
-\  isq.call_qop @__isq__qmpiprim__csend(%arg0, %arg1) : [0](i1, index)->()\n\
+\func.func @\"qmpi.qmpi_csend\"(%val: i1, %recv: index, %tag: index) {\n\
+\  isq.call_qop @__isq__qmpiprim__csend(%recv, %tag, %val) : [0](index, index, i1)->()\n\
 \  return\n\
 \}\n\
 \"
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_crecv\"") _ _) = "\n\
-\func.func @qmpi.qmpi_crecv(%arg0: index) -> i1 {\n\
-\  %0 = isq.call_qop @__isq__qmpiprim__crecv(%arg0) : [0](index)->i1\n\
+\func.func @\"qmpi.qmpi_crecv\"(%send: index, %tag: index) -> i1 {\n\
+\  %0 = isq.call_qop @__isq__qmpiprim__crecv(%send, %tag) : [0](index, index)->i1\n\
 \  return %0 : i1\n\
 \}\n\
 \"

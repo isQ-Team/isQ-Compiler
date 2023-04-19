@@ -1,0 +1,37 @@
+import std;
+import lib;
+
+int x = 23;
+int n = 6;
+
+double theta(){
+    return 2 * pi * x / (2 ** n);
+}
+
+procedure U(double theta, qbit q){
+    X(q);
+    ctrl GPhase(theta, q);
+    X(q);
+} deriving gate
+
+procedure pow2_ctrlU(int n, qbit anc, qbit ev){
+    double t = theta() * (2 ** n);
+    ctrl U(t, anc, ev);
+}
+
+int phase_estimation(int n, qbit ev) {
+    qbit anc[n];
+    for i in 0:n {
+        H(anc[i]);
+        pow2_ctrlU(n - 1 - i, anc[i], ev);
+    }
+    qft_dagger(anc);
+    return M(anc);
+}
+
+procedure main()
+{
+    qbit ev;
+    ev = |0>; /* eigen vector of U */ 
+    print phase_estimation(n, ev);
+}
