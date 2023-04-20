@@ -153,9 +153,7 @@ pub fn isq_qir_shim_qis_bp(x0: i64)->() {
 static WAIT_TIME: time::Duration = time::Duration::from_millis(10);
 
 pub fn isq_qir_shim_qmpi_comm_rank()->i64 {
-    trace!(
-        "calling isq_qir_shim_qmpi_comm_rank()",
-    );
+    trace!("calling isq_qir_shim_qmpi_comm_rank()");
     RANK_REF.with(|r|r.borrow().clone())
 }
 pub fn isq_qir_shim_qmpi_comm_size()->i64 {
@@ -165,9 +163,7 @@ pub fn isq_qir_shim_qmpi_comm_size()->i64 {
     *ctx.get_np()
 }
 pub fn isq_qir_shim_qmpi_csend(receiver: i64, tag: i64, val: bool)->() {
-    trace!(
-        "calling isq_qir_shim_qmpi_csend()",
-    );
+    trace!("calling isq_qir_shim_qmpi_csend(receiver: {}, tag: {}, val: {})", receiver, tag, val);
     let sender = isq_qir_shim_qmpi_comm_rank();
     loop {
         let rctx = context();
@@ -184,9 +180,7 @@ pub fn isq_qir_shim_qmpi_csend(receiver: i64, tag: i64, val: bool)->() {
     }
 }
 pub fn isq_qir_shim_qmpi_crecv(sender: i64, tag: i64)->bool {
-    trace!(
-        "calling isq_qir_shim_qmpi_csend()",
-    );
+    trace!("calling isq_qir_shim_qmpi_csend(sender: {}, tag: {})", sender, tag);
     let receiver = isq_qir_shim_qmpi_comm_rank();
     loop {
         let rctx = context();
@@ -204,7 +198,7 @@ pub fn isq_qir_shim_qmpi_crecv(sender: i64, tag: i64)->bool {
     }
 }
 pub fn isq_qir_shim_qmpi_create_epr(peer: i64, tag: i64, x0: K<QIRQubit>)->() {
-    trace!("calling isq_qir_shim_qmpi_create_epr(x0: {})", P(&x0));
+    trace!("calling isq_qir_shim_qmpi_create_epr(peer: {}, tag: {}, x0: {})", peer, tag, P(&x0));
     let rank = isq_qir_shim_qmpi_comm_rank();
     assert_ne!(rank, peer);
     if rank < peer { // send

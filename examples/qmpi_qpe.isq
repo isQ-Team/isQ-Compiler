@@ -1,0 +1,130 @@
+import std;
+import qmpi;
+
+int x = 23;
+int n = 6;
+
+double theta(){
+    return 2 * pi * x / (2 ** n);
+}
+
+procedure U(double theta, qbit q){
+    X(q);
+    ctrl GPhase(theta, q);
+    X(q);
+} deriving gate
+
+procedure pow2_ctrlU(int n, qbit anc, qbit ev){
+    double t = theta() * (2 ** n);
+    ctrl U(t, anc, ev);
+}
+
+procedure R(int k, qbit q) {
+    double phase = pi / 2 ** (k - 1);
+    ctrl GPhase(phase, q);
+} deriving gate
+
+procedure main()
+{
+    int np = qmpi_size();
+    if (np < 2 || np > 4) {
+        return;
+    }
+    int per_node = n / (np - 1);
+    int rank = qmpi_comm_rank();
+    qbit comm;
+    if (rank == 0) { // Main node
+        qbit ev;
+        ev = |0>; // eigenstate of U
+
+        // Apply controlled-U^(2^i)
+        for i in 1:np {
+            for j in 0:per_node {
+                create_epr(i, 88, comm);
+                if (qmpi_crecv(i, 99)) {
+                    X(comm);
+                }
+                pow2_ctrlU((i-1) * per_node + j, comm, ev);
+                H(comm);
+                bool res = M(comm);
+                qmpi_csend(res, i, 77);
+                if (res) {
+                    X(comm);
+                }
+            }
+        }
+
+        // Collect result
+        int res = 0;
+        for i in 1:np {
+            for j in 0:per_node {
+                res = res * 2;
+                if (qmpi_crecv(i, 33)) {
+                    res += 1;
+                }
+            }
+        }
+        print res;
+
+    } else { // Working nodes
+
+        qbit q[per_node];
+
+        // Apply controlled-U^(2^i)
+        for j in 0:per_node {
+            H(q[j]);
+            create_epr(0, 88, comm);
+            CNOT(q[j], comm);
+            bool res = M(comm);
+            if (res) {
+                X(comm);
+            }
+            qmpi_csend(res, 0, 99);
+            if (qmpi_crecv(0, 77)) {
+                Z(q[j]);
+            }
+        }
+
+        // Apply QFT_dagger
+        for i in per_node-1:-1:-1 {
+            for j in i+1:per_node {
+                ctrl inv R(j - i + 1, q[j], q[i]);
+            }
+            for j in rank+1:np {
+                create_epr(j, 66, comm);
+                CNOT(q[i], comm);
+                bool res = M(comm);
+                if (res) {
+                    X(comm);
+                }
+                qmpi_csend(res, j, 55);
+                if (qmpi_crecv(j, 44)) {
+                    Z(q[i]);
+                }
+            }
+            H(q[i]);
+        }
+        for peer in rank-1:0:-1 {
+            for qidx in per_node-1:-1:-1 {
+                create_epr(peer, 66, comm);
+                if (qmpi_crecv(peer, 55)) {
+                    X(comm);
+                }
+                for i in 0:per_node {
+                    ctrl inv R((rank - peer - 1) * per_node + i + 1 + per_node - qidx, comm, q[i]);
+                }
+                H(comm);
+                bool res = M(comm);
+                qmpi_csend(res, peer, 44);
+                if (res) {
+                    X(comm);
+                }
+            }
+        }
+
+        // Send result to node 0
+        for i in 0:per_node {
+            qmpi_csend(M(q[i]), 0, 33);
+        }
+    }
+}
