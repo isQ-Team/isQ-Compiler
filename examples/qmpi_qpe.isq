@@ -1,28 +1,159 @@
+/*
+* Distributed quantum phase estimation algorithm
+*
+* Based on paper N. M. Neumann, et. al, “Imperfect distributed quantum phase estimation,” 2020.
+*/
+
 import std;
 import qmpi;
 
-int x = 23;
-int n = 6;
+int x = 23;   // The phase to be estimated (as integer)
+int n = 6;    // The number of bits in the estimation result
 
-double theta(){
+// The phase to be estimated (as float)
+double theta() {
     return 2 * pi * x / (2 ** n);
 }
 
-procedure U(double theta, qbit q){
+// The oracle
+procedure U(double theta, qbit q) {
     X(q);
     ctrl GPhase(theta, q);
     X(q);
 } deriving gate
 
-procedure pow2_ctrlU(int n, qbit anc, qbit ev){
-    double t = theta() * (2 ** n);
-    ctrl U(t, anc, ev);
+/*
+* The controlled U^(2^pow) gate.
+*
+* @pow the power of 2
+* @c the control qubit
+* @ev the qubit that holds the eigenstate of the oracle
+*/
+procedure pow2_ctrlU(int pow, qbit c, qbit ev){
+    double t = theta() * (2 ** pow);
+    ctrl U(t, c, ev);
 }
 
+/*
+* Gate of the following matrix:
+*   1       0
+*   0  e^[2*pi*i/2^k]
+*/
 procedure R(int k, qbit q) {
     double phase = pi / 2 ** (k - 1);
     ctrl GPhase(phase, q);
 } deriving gate
+
+/*
+* The controller side of a remote control gate.
+*
+* @contolled_node the index of the node that hold the contolled gate
+* @control the control qubit
+* @comm the communication qubit on the controller node
+*/
+procedure remote_ctrl(int contolled_node, qbit control, qbit comm) {
+    create_epr(contolled_node, 88, comm);
+    CNOT(control, comm);
+    bool res = M(comm);
+    if (res) {
+        X(comm);
+    }
+    qmpi_csend(res, contolled_node, 99);
+    if (qmpi_crecv(contolled_node, 77)) {
+        Z(control);
+    }
+}
+
+/*
+* The beginning phase of a remote control gate on the controlled side.
+*
+* @controller_node the index of the node that hold the contoller qubit
+* @comm the communication qubit on the controller node
+*/
+procedure controlled_fanout(int controller_node, qbit comm) {
+    create_epr(controller_node, 88, comm);
+    if (qmpi_crecv(controller_node, 99)) {
+        X(comm);
+    }
+}
+
+/*
+* The ending phase of a remote control gate on the controlled side.
+*
+* @controller_node the index of the node that hold the contoller qubit
+* @comm the communication qubit on the controller node
+*/
+procedure controlled_unfanout(int controller_node, qbit comm) {
+    H(comm);
+    bool res = M(comm);
+    qmpi_csend(res, controller_node, 77);
+    if (res) {
+        X(comm);
+    }
+}
+
+// This process holds the eigenstate of U and gives the estimation result
+procedure manager_process(int np, int per_node, qbit comm) {
+    qbit ev;
+    ev = |0>; // eigenstate of U
+
+    // Apply controlled-U^(2^i)
+    for i in 1:np {
+        for j in 0:per_node {
+            controlled_fanout(i, comm);
+            pow2_ctrlU((i-1) * per_node + j, comm, ev);
+            controlled_unfanout(i, comm);
+        }
+    }
+
+    // Collect result
+    int res = 0;
+    for i in 1:np {
+        for j in 0:per_node {
+            res = res * 2;
+            if (qmpi_crecv(i, 33)) {
+                res += 1;
+            }
+        }
+    }
+    print res;
+}
+
+// The worker processes each hold part of the estimation bits
+procedure worker_process(int np, int per_node, int rank, qbit comm) {
+    qbit q[per_node];
+
+    // Apply controlled-U^(2^i)
+    for j in 0:per_node {
+        H(q[j]);
+        remote_ctrl(0, q[j], comm);
+    }
+
+    // Apply QFT_dagger
+    for i in per_node-1:-1:-1 {
+        for j in i+1:per_node {
+            ctrl inv R(j - i + 1, q[j], q[i]);
+        }
+        for j in rank+1:np {
+            remote_ctrl(j, q[i], comm);
+        }
+        H(q[i]);
+    }
+    for peer in rank-1:0:-1 {
+        for qidx in per_node-1:-1:-1 {
+            controlled_fanout(peer, comm);
+            for i in 0:per_node {
+                ctrl inv R((rank - peer - 1) * per_node + i + 1 + per_node - qidx, comm, q[i]);
+            }
+            controlled_unfanout(peer, comm);
+        }
+    }
+
+    // Send result to the manager node
+    for i in 0:per_node {
+        qmpi_csend(M(q[i]), 0, 33);
+    }
+}
 
 procedure main()
 {
@@ -30,101 +161,14 @@ procedure main()
     if (np < 2 || np > 4) {
         return;
     }
+
     int per_node = n / (np - 1);
     int rank = qmpi_comm_rank();
-    qbit comm;
-    if (rank == 0) { // Main node
-        qbit ev;
-        ev = |0>; // eigenstate of U
+    qbit comm; // communication qubit
 
-        // Apply controlled-U^(2^i)
-        for i in 1:np {
-            for j in 0:per_node {
-                create_epr(i, 88, comm);
-                if (qmpi_crecv(i, 99)) {
-                    X(comm);
-                }
-                pow2_ctrlU((i-1) * per_node + j, comm, ev);
-                H(comm);
-                bool res = M(comm);
-                qmpi_csend(res, i, 77);
-                if (res) {
-                    X(comm);
-                }
-            }
-        }
-
-        // Collect result
-        int res = 0;
-        for i in 1:np {
-            for j in 0:per_node {
-                res = res * 2;
-                if (qmpi_crecv(i, 33)) {
-                    res += 1;
-                }
-            }
-        }
-        print res;
-
-    } else { // Working nodes
-
-        qbit q[per_node];
-
-        // Apply controlled-U^(2^i)
-        for j in 0:per_node {
-            H(q[j]);
-            create_epr(0, 88, comm);
-            CNOT(q[j], comm);
-            bool res = M(comm);
-            if (res) {
-                X(comm);
-            }
-            qmpi_csend(res, 0, 99);
-            if (qmpi_crecv(0, 77)) {
-                Z(q[j]);
-            }
-        }
-
-        // Apply QFT_dagger
-        for i in per_node-1:-1:-1 {
-            for j in i+1:per_node {
-                ctrl inv R(j - i + 1, q[j], q[i]);
-            }
-            for j in rank+1:np {
-                create_epr(j, 66, comm);
-                CNOT(q[i], comm);
-                bool res = M(comm);
-                if (res) {
-                    X(comm);
-                }
-                qmpi_csend(res, j, 55);
-                if (qmpi_crecv(j, 44)) {
-                    Z(q[i]);
-                }
-            }
-            H(q[i]);
-        }
-        for peer in rank-1:0:-1 {
-            for qidx in per_node-1:-1:-1 {
-                create_epr(peer, 66, comm);
-                if (qmpi_crecv(peer, 55)) {
-                    X(comm);
-                }
-                for i in 0:per_node {
-                    ctrl inv R((rank - peer - 1) * per_node + i + 1 + per_node - qidx, comm, q[i]);
-                }
-                H(comm);
-                bool res = M(comm);
-                qmpi_csend(res, peer, 44);
-                if (res) {
-                    X(comm);
-                }
-            }
-        }
-
-        // Send result to node 0
-        for i in 0:per_node {
-            qmpi_csend(M(q[i]), 0, 33);
-        }
+    if (rank == 0) {
+        manager_process(np, per_node, comm);
+    } else {
+        worker_process(np, per_node, rank, comm);
     }
 }
