@@ -1,0 +1,151 @@
+import std;
+import qmpi;
+
+int parent(int rank){
+    return (rank-1)/2;
+}
+int lchild(int rank){
+    return (rank*2)+1;
+}
+int rchild(int rank){
+    return (rank*2)+2;
+}
+int layer(int rank){
+    int l=0;
+    while(rank!=0){
+        rank = parent(rank);
+        l=l+1;
+    }
+    return l;
+}
+procedure assert(bool cond, int errno, int n){
+    if(!cond){
+        print(errno * 1000000 + n);
+    }
+}
+procedure remote_cx_src(qbit q, int other){
+    int tag = 10;
+    qbit tmp;
+    create_epr(other, tag, tmp);
+    CNOT(q, tmp);
+    qmpi_csend(M(tmp), other, tag);
+    if(qmpi_crecv(other, tag)){
+        Z(q);
+    }
+}
+procedure remote_cx_tgt(qbit q, int other){
+    int tag = 10;
+    qbit tmp;
+    create_epr(other, tag, tmp);
+    bool meas_result = qmpi_crecv(other, tag);
+    if(meas_result){
+        X(tmp);
+    }
+    CNOT(tmp, q);
+    H(tmp);
+    qmpi_csend(M(tmp), other, tag);
+}
+procedure compute_parity_parent(qbit q, int child){
+    remote_cx_src(q, child);
+}
+procedure compute_parity_child(qbit q, qbit middle, int p){
+    CNOT(q, middle);
+    remote_cx_tgt(middle, p);
+}
+procedure collect_parity_parent(int child, bool acc[]){
+    int tag = 11;
+    if(qmpi_crecv(child, tag)){
+        acc[0] = !acc[0];
+    }
+    
+}
+procedure collect_parity_child(qbit q, int rank,  bool acc[], bool acc_next){
+    int tag = 11;
+    if(acc[0]){
+        X(q);
+    }
+    if(acc_next){
+        acc[0] = !acc[0];
+    } 
+    if(rank!=0) {
+        int p = parent(rank);
+        qmpi_csend(acc[0], p, tag);
+    }
+}
+bool xor(bool a, bool b){
+    bool c=b;
+    if(a){
+        c=!c;
+    }
+    return c;
+}
+procedure poor_man_cat_state(int rank, int n, qbit q){
+    //Reset(q);
+    q=|0>;
+    H(q);
+    bool parity_with_prev = false;
+    if(rank%2==0){
+        if(rank+1<n){
+            remote_cx_src(q, rank+1);
+        }
+        if(rank>0){
+            qbit middle;
+            CNOT(q, middle);
+            remote_cx_tgt(middle, rank-1);
+            parity_with_prev = M(middle);
+        }
+    }else{
+        if(rank>0){
+            qbit middle;
+            CNOT(q, middle);
+            remote_cx_tgt(middle, rank-1);
+            parity_with_prev = M(middle);
+        }
+        if(rank+1<n){
+            remote_cx_src(q, rank+1);
+        }
+    }
+    // Naive scan. There should not be that many nodes in the cluster.
+    // So we don't implement the work-efficient version.
+    int delta = 1;
+    bool acc = parity_with_prev;
+    int tag = 12;
+    while(delta<n){
+        bool new_acc = acc;
+        int prev = rank-delta;
+        int next = rank+delta;
+        int round = (rank/delta)%2;
+        if(round==0){
+            if(next<n){
+                qmpi_csend(acc, next, tag);
+            }
+            if(prev>=0){
+                new_acc = xor(new_acc, qmpi_crecv(prev, tag));
+            }
+        }else{
+            if(prev>=0){
+                new_acc = xor(new_acc, qmpi_crecv(prev, tag));
+            }
+            if(next<n){
+                qmpi_csend(acc, next, tag);
+            }
+        }
+        acc = new_acc;
+        delta = delta*2;
+    }
+    if(acc){
+        X(q);
+    }
+    
+}
+
+procedure main(){
+    int size = qmpi_size();
+    qbit me;
+    poor_man_cat_state(qmpi_comm_rank(), size, me);
+    int ret = 0;
+    if(M(me)){
+        ret=1;
+    }
+    print ret;
+}

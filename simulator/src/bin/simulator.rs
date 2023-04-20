@@ -11,7 +11,7 @@ use libloading::*;
 use clap::Parser;
 
 extern crate env_logger;
-use std::{env::set_var, sync::{mpsc, Mutex, Arc}};
+use std::{env::{set_var, self}, sync::{mpsc, Mutex, Arc}};
 use log::debug;
 
 #[macro_use]
@@ -77,7 +77,10 @@ fn main() -> std::io::Result<()> {
     let args: SimulatorArgs = SimulatorArgs::parse();
 
     if args.debug{
-        set_var("RUST_LOG", "simulator=debug, isq_simulator::facades::qir::shim=debug");
+        if env::var("RUST_LOG").is_err(){
+            set_var("RUST_LOG", "simulator=debug, isq_simulator::facades::qir::shim=debug");
+        }
+        
     }
 
     env_logger::builder().format(|buf, record| {
