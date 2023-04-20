@@ -239,7 +239,7 @@
       },
       "locked": {
         "lastModified": 1,
-        "narHash": "sha256-mgE+6iAdkqsADz8PL1Pu35ZPD7se01leigeDE0PNPro=",
+        "narHash": "sha256-YODyJ6Lj1NmfGeDvFEKCMg2RNpDzuqTrjAkwlfvVrHU=",
         "path": "./simulator",
         "type": "path"
       },
