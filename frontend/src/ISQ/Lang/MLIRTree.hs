@@ -308,7 +308,7 @@ emitOpStep f env (MArrayLen loc value (arr_ty@(Memref _ elem_ty), arr_val)) = in
   ]
 emitOpStep f env (MListCast loc value rhs True arr_ty@(Memref (Just x) elem_ty)) = indented env $ printf "%s = memref.cast %s : %s to %s %s" (unSsa value) (unSsa rhs) (mlirType arr_ty) (mlirType $ Memref Nothing elem_ty) (mlirPos loc)
 emitOpStep f env (MListCast loc value rhs False arr_ty@(Memref (Just x) elem_ty)) = indented env $ printf "%s = memref.cast %s : %s to %s %s" (unSsa value) (unSsa rhs) (mlirType $ Memref Nothing elem_ty) (mlirType arr_ty) (mlirPos loc)
-emitOpStep f env (MListCast loc value rhs to_zero arr_ty) = error "wtf?"
+emitOpStep f env x@(MListCast loc value rhs to_zero arr_ty) = error ("wtf?" ++ (show x))
 emitOpStep f env (MLitInt loc value val) = indented env $ printf "%s = arith.constant %d : index %s" (unSsa value) val (mlirPos loc)
 emitOpStep f env (MLitBool loc value val) = indented env $ printf "%s = arith.constant %d : i1 %s" (unSsa value) (if val then 1::Int else 0) (mlirPos loc)
 emitOpStep f env (MLitDouble loc value val) = indented env $ printf "%s = arith.constant %f : f64 %s" (unSsa value) val (mlirPos loc)

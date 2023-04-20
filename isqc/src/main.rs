@@ -146,8 +146,16 @@ fn resolve_input_path<'a>(input: &'a str, extension: &str)->miette::Result<(&'a 
 
 fn main()->miette::Result<()> {
     let cli = Arguments::parse();
-    let root = std::env::var("ISQV2_ROOT").map_err(|_| NoISQv2RootError)?;
-    
+    let root = std::env::var("ISQ_ROOT").map_err(|_| NoISQv2RootError)?;
+    let llvm_root = std::env::var("MLIR_ROOT");
+    let llvm_tool = |s: &str|{
+        if let Ok(root) = &llvm_root{
+            format!("{}/bin/{}", root, s)
+        }else{
+            s.to_owned()
+        }
+        
+    };
     match cli.command{
         Commands::Run{input, shots, debug, np}=>{
             let (input_path, default_output_path) = resolve_input_path(&input, "so")?;
@@ -240,14 +248,14 @@ fn main()->miette::Result<()> {
                 fout.finalize();
                 break 'command;
             }
-            let llvm = exec::exec_command_text("", "mlir-translate", &["--mlir-to-llvmir"], &llvm_mlir).map_err(ioErrorWhen("Calling mlir-translate"))?;
+            let llvm = exec::exec_command_text("", &llvm_tool("mlir-translate"), &["--mlir-to-llvmir"], &llvm_mlir).map_err(ioErrorWhen("Calling mlir-translate"))?;
             if let EmitMode::LLVM = emit{
                 writeln!(fout.get_file_mut(), "{}", llvm).map_err(IoError)?;
                 fout.finalize();
                 break 'command;
             }
             // linking with stub. This step we use byte output.
-            let linked_llvm = exec::exec_command("", "llvm-link", &[
+            let linked_llvm = exec::exec_command("", &llvm_tool("llvm-link"), &[
                 format!("-"),
                 format!("{}/share/isq-simulator/isq-simulator.bc", &root)
             ], llvm.as_bytes()).map_err(ioErrorWhen("Calling llvm-link"))?;
@@ -255,14 +263,14 @@ fn main()->miette::Result<()> {
             if let Some(o) = opt_level{
                 opt_args.push(format!("-O{}", o));
             }
-            let optimized_llvm = exec::exec_command("", "opt", &opt_args, &linked_llvm).map_err(ioErrorWhen("Calling opt"))?;
+            let optimized_llvm = exec::exec_command("", &llvm_tool("opt"), &opt_args, &linked_llvm).map_err(ioErrorWhen("Calling opt"))?;
             let compiled_obj = exec::exec_command("", "llc", &["-filetype=obj", "--relocation-model=pic"], &optimized_llvm).map_err(ioErrorWhen("Calling llc"))?;
             // create obj file.
             let mut tmpfile = tempfile::NamedTempFile::new().map_err(ioErrorWhen("Creating tempfile"))?;
             tmpfile.write_all(&compiled_obj).map_err(IoError)?;
             tmpfile.flush().map_err(IoError)?;
             // link obj file.
-            let linked_obj = exec::exec_command("", "lld", &["-flavor", "gnu", "-shared", tmpfile.path().as_os_str().to_str().unwrap(), "-o", "-"], &[]).map_err(ioErrorWhen("Calling ld.lld"))?;
+            let linked_obj = exec::exec_command("", &llvm_tool("lld"), &["-flavor", "gnu", "-shared", tmpfile.path().as_os_str().to_str().unwrap(), "-o", "-"], &[]).map_err(ioErrorWhen("Calling ld.lld"))?;
             drop(tmpfile);
             
             fout.get_file_mut().write_all(&linked_obj).map_err(IoError)?;

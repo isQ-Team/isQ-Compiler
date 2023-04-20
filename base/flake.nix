@@ -11,19 +11,6 @@
       base-overlay = final: prev:
         let pkgs = final; in {
           isqc = prev.lib.makeScope prev.newScope (self: {
-            buildISQCEnv =
-              { isqc1 ? self.isqc1
-              , isq-opt ? self.isq-opt
-              , isqc-driver ? self.isqc-driver
-              , isq-simulator ? self.isq-simulator
-              }: pkgs.buildEnv {
-                name = "isqc";
-                paths = [ isqc1 isq-opt isqc-driver isq-simulator isq-opt.mlir ];
-                nativeBuildInputs = [ pkgs.makeWrapper ];
-                postBuild = ''
-                  wrapProgram $out/bin/isqc --set ISQ_ROOT $out
-                '';
-              };
             #mlir = self.callPackage ./mlir.nix {};
           });
         };
