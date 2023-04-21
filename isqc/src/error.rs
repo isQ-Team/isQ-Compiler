@@ -1,8 +1,8 @@
-use miette::{Diagnostic, NamedSource, SourceOffset, SourceSpan};
+use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 
 
-pub fn ioErrorWhen(reason: &'static str)->impl FnOnce(std::io::Error)->IoErrorWhen{
+pub fn io_error_when(reason: &'static str)->impl FnOnce(std::io::Error)->IoErrorWhen{
     return move |e| IoErrorWhen(reason, e);
 }
 
@@ -78,12 +78,12 @@ pub struct SyntaxError {
 }
 
 #[derive(Error, Debug, Diagnostic)]
-#[error("Redefined symbol `{symName}`.")]
+#[error("Redefined symbol `{sym_name}`.")]
 #[diagnostic(
     code(isqv2::frontend::redefined_symbol)
 )]
 pub struct RedefinedSymbolError {
-    pub symName: String,
+    pub sym_name: String,
     #[source_code]
     pub src: NamedSource,
     #[label("Trying to redefine symbol here.")]
@@ -93,12 +93,12 @@ pub struct RedefinedSymbolError {
 }
 
 #[derive(Error, Debug, Diagnostic)]
-#[error("Conflict symbol `{symName}`.")]
+#[error("Conflict symbol `{sym_name}`.")]
 #[diagnostic(
     code(isqv2::frontend::conflict_symbol)
 )]
 pub struct ConflictSymbolError {
-    pub symName: String,
+    pub sym_name: String,
     #[source_code]
     pub src: NamedSource,
     #[label("Also defined here.")]
@@ -114,7 +114,7 @@ pub struct FirstDefineError {
     #[source_code]
     pub src: NamedSource,
     #[label("First defined here.")]
-    pub posFirst: SourceSpan
+    pub pos_first: SourceSpan
 }
 
 
@@ -161,12 +161,12 @@ pub struct DeriveOracleError{
 
 
 #[derive(Error, Debug, Diagnostic)]
-#[error("Undefined symbol `{symName}`.")]
+#[error("Undefined symbol `{sym_name}`.")]
 #[diagnostic(
     code(isqv2::frontend::undefined_symbol)
 )]
 pub struct UndefinedSymbolError {
-    pub symName: String,
+    pub sym_name: String,
     #[source_code]
     pub src: NamedSource,
     #[label("Trying to use symbol here.")]
@@ -266,13 +266,13 @@ pub struct BadMainSigError(pub String);
 
 
 #[derive(Error, Debug, Diagnostic)]
-#[error("Unexpected statement outside a {scopeType}.")]
+#[error("Unexpected statement outside a {scope_type}.")]
 #[diagnostic(
     code(isqv2::frontend::unmatched_scope),
     help("You can only use `return` inside a function, and `break` or `continue` inside a loop.")
 )]
 pub struct UnmatchedScopeError{
-    pub scopeType: String,
+    pub scope_type: String,
     #[label("Statement here.")]
     pub pos: SourceSpan,
 }

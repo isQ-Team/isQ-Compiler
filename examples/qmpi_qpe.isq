@@ -157,15 +157,22 @@ procedure worker_process(int np, int per_node, int rank, qbit comm) {
 
 procedure main()
 {
+    // At least two nodes are required
     int np = qmpi_size();
-    if (np < 2 || np > 4) {
+    if (np < 2) {
         return;
     }
 
+    // Only support evenly divided working qubits
+    if (n % (np - 1) != 0) {
+        return;
+    }
     int per_node = n / (np - 1);
-    int rank = qmpi_comm_rank();
-    qbit comm; // communication qubit
 
+    // Each node has one communication qubit
+    qbit comm;
+
+    int rank = qmpi_comm_rank();
     if (rank == 0) {
         manager_process(np, per_node, comm);
     } else {

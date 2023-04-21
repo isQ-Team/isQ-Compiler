@@ -21,7 +21,7 @@ pub fn exec_command_with_decorator<S: AsRef<OsStr>, F: FnOnce(&mut Command)->()>
     Ok(output.stdout)
 }
 pub fn exec_command<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S], sin: &[u8])->std::io::Result<Vec<u8>>{
-    exec_command_with_decorator(root, cmd, args, sin,|x|{})
+    exec_command_with_decorator(root, cmd, args, sin,|_x|{})
 }
 pub fn exec_command_text<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S], sin: &str)->std::io::Result<String>{
     let output = exec_command(root, cmd, args, sin.as_bytes())?;
@@ -38,7 +38,7 @@ pub fn system_exec_command<S: AsRef<OsStr>>(root: &str, cmd: &str, args: &[S])->
     .stdout(Stdio::inherit())
     .stderr(Stdio::inherit())
     .spawn()?;
-    let exit = child.wait()?;
+    let _exit = child.wait()?;
     Ok(())
 }
 
