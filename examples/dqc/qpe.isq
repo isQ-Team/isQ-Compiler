@@ -6,6 +6,7 @@
 
 import std;
 import qmpi;
+import lib;
 
 int x = 23;   // The phase to be estimated (as integer)
 int n = 6;    // The number of bits in the estimation result
@@ -44,54 +45,6 @@ procedure R(int k, qbit q) {
     ctrl GPhase(phase, q);
 } deriving gate
 
-/*
-* The controller side of a remote control gate.
-*
-* @contolled_node the index of the node that hold the contolled gate
-* @control the control qubit
-* @comm the communication qubit on the controller node
-*/
-procedure remote_ctrl(int contolled_node, qbit control, qbit comm) {
-    create_epr(contolled_node, 88, comm);
-    CNOT(control, comm);
-    bool res = M(comm);
-    if (res) {
-        X(comm);
-    }
-    qmpi_csend(res, contolled_node, 99);
-    if (qmpi_crecv(contolled_node, 77)) {
-        Z(control);
-    }
-}
-
-/*
-* The beginning phase of a remote control gate on the controlled side.
-*
-* @controller_node the index of the node that hold the contoller qubit
-* @comm the communication qubit on the controller node
-*/
-procedure controlled_fanout(int controller_node, qbit comm) {
-    create_epr(controller_node, 88, comm);
-    if (qmpi_crecv(controller_node, 99)) {
-        X(comm);
-    }
-}
-
-/*
-* The ending phase of a remote control gate on the controlled side.
-*
-* @controller_node the index of the node that hold the contoller qubit
-* @comm the communication qubit on the controller node
-*/
-procedure controlled_unfanout(int controller_node, qbit comm) {
-    H(comm);
-    bool res = M(comm);
-    qmpi_csend(res, controller_node, 77);
-    if (res) {
-        X(comm);
-    }
-}
-
 // This process holds the eigenstate of U and gives the estimation result
 procedure manager_process(int np, int per_node, qbit comm) {
     qbit ev;
@@ -100,9 +53,9 @@ procedure manager_process(int np, int per_node, qbit comm) {
     // Apply controlled-U^(2^i)
     for i in 1:np {
         for j in 0:per_node {
-            controlled_fanout(i, comm);
+            target_fanout(i, comm);
             pow2_ctrlU((i-1) * per_node + j, comm, ev);
-            controlled_unfanout(i, comm);
+            target_unfanout(i, comm);
         }
     }
 
@@ -141,11 +94,11 @@ procedure worker_process(int np, int per_node, int rank, qbit comm) {
     }
     for peer in rank-1:0:-1 {
         for qidx in per_node-1:-1:-1 {
-            controlled_fanout(peer, comm);
+            target_fanout(peer, comm);
             for i in 0:per_node {
                 ctrl inv R((rank - peer - 1) * per_node + i + 1 + per_node - qidx, comm, q[i]);
             }
-            controlled_unfanout(peer, comm);
+            target_unfanout(peer, comm);
         }
     }
 
@@ -160,11 +113,13 @@ procedure main()
     // At least two nodes are required
     int np = qmpi_size();
     if (np < 2) {
+        print -1;
         return;
     }
 
     // Only support evenly divided working qubits
     if (n % (np - 1) != 0) {
+        print -2;
         return;
     }
     int per_node = n / (np - 1);

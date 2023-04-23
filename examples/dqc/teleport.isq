@@ -5,7 +5,7 @@ procedure main() {
     // Only works for the case of two nodes
     int size = qmpi_size();
     if (size != 2) {
-        print size;
+        print -size;
         return;
     }
 

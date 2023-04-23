@@ -119,6 +119,10 @@ getImportedTcasts froms incPath impList = do
     let table = MultiMap.fromList $ concat $ map MultiMap.toList tables
     return (tcast, table)
 
+notMain :: LAST -> Bool
+notMain (NProcedureWithDerive ann rttype name arg body derive) = name /= "main"
+notMain _ = True
+
 doImport :: [FilePath] -> [FilePath] -> FilePath -> LAST -> PassMonad ([TCAST], SymbolTableLayer)
 doImport incPath froms file node = do
     let pkg = package node
@@ -130,9 +134,11 @@ doImport incPath froms file node = do
         lis -> do
             let pacIndex = last lis
             let prefix = intercalate "." (drop pacIndex pathList) ++ "."
-            let defList = defMemberList node
-            let impList = importList node
             let isMain = null froms
+            let defList = case isMain of
+                    True -> defMemberList node
+                    False -> filter notMain $ defMemberList node
+            let impList = importList node
             let rootPath = joinPath $ take pacIndex pathList
             let newIncPath = case isMain of {True -> rootPath:incPath; False -> incPath}
             case isMain || rootPath `elem` newIncPath of
