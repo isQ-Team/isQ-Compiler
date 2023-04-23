@@ -1,0 +1,27 @@
+import std;
+import qmpi;
+import lib;
+
+procedure main()
+{
+    int rank = qmpi_comm_rank();
+    int size = qmpi_size();
+    qbit psi;
+    psi = |0>;
+
+    // Prepare the source state
+    if (rank == 0) {
+        H(psi);
+        Ry(pi/4, psi);
+    }
+
+    // Broadcast psi from node 0 to the other nodes
+    qmpi_bcast(psi, 0);
+
+    // Verify the broadcast result
+    qmpi_barrier();
+    if (rank == 0) {
+        bp;
+    }
+    qmpi_barrier();
+}

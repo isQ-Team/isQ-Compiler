@@ -1,0 +1,182 @@
+import std;
+import qmpi;
+
+/*
+* Send @val from @root to all the nodes
+*/
+bool qmpi_bcastc(bool val, int root) {
+    int size = qmpi_size();
+    int rank = (qmpi_comm_rank() - root) % size;
+    int known = 1;
+    int tag = 42;
+    bool res = val;
+    while (known < size) {
+        if (rank < known) {
+            qmpi_csend(res, (rank + root + known) % size, tag);
+        } else if (rank < known * 2) {
+            res = qmpi_crecv((rank + root - known) % size, tag);
+        }
+        known *= 2;
+    }
+    return res;
+}
+
+// Synchronize all the nodes
+procedure qmpi_barrier() {
+    qmpi_bcastc(false, 0);
+}
+
+/*
+* The controller side of a remote control gate.
+*
+* @target_node the index of the node that hold the target gate
+* @control the control qubit
+* @comm the communication qubit on the controller node
+*/
+procedure remote_ctrl(int target_node, qbit control, qbit comm) {
+    create_epr(target_node, 88, comm);
+    CNOT(control, comm);
+    bool res = M(comm);
+    if (res) {
+        X(comm);
+    }
+    qmpi_csend(res, target_node, 99);
+    if (qmpi_crecv(target_node, 77)) {
+        Z(control);
+    }
+}
+
+/*
+* The beginning phase of a remote control gate on the target side.
+*
+* @control_node the index of the node that hold the contol qubit
+* @comm the communication qubit on the target node
+*/
+procedure target_fanout(int control_node, qbit comm) {
+    create_epr(control_node, 88, comm);
+    if (qmpi_crecv(control_node, 99)) {
+        X(comm);
+    }
+}
+
+/*
+* The ending phase of a remote control gate on the target side.
+*
+* @control_node the index of the node that hold the contol qubit
+* @comm the communication qubit on the target node
+*/
+procedure target_unfanout(int control_node, qbit comm) {
+    H(comm);
+    bool res = M(comm);
+    qmpi_csend(res, control_node, 77);
+    if (res) {
+        X(comm);
+    }
+}
+
+// The control part of a remote CNOT
+procedure remote_cx_src(qbit q, int other){
+    qbit comm;
+    remote_ctrl(other, q, comm);
+}
+
+// The target part of a remote CNOT
+procedure remote_cx_tgt(qbit q, int other){
+    qbit comm;
+    target_fanout(other, comm);
+    CNOT(comm, q);
+    target_unfanout(other, comm);
+}
+
+/*
+* Create a CAT state on all nodes
+*
+* @rank the rank of current node
+* @size the number of nodes
+* @q the qbit that holds the CAT state
+*/
+procedure poor_man_cat_state(int rank, int n, qbit q){
+    q = |0>;
+    H(q);
+    bool parity_with_prev = false;
+    if (rank % 2 == 0) {
+        if (rank + 1 < n) {
+            remote_cx_src(q, rank+1);
+        }
+        if (rank > 0) {
+            qbit middle;
+            CNOT(q, middle);
+            remote_cx_tgt(middle, rank-1);
+            parity_with_prev = M(middle);
+        }
+    } else {
+        if (rank > 0) {
+            qbit middle;
+            CNOT(q, middle);
+            remote_cx_tgt(middle, rank-1);
+            parity_with_prev = M(middle);
+        }
+        if (rank + 1 < n) {
+            remote_cx_src(q, rank+1);
+        }
+    }
+
+    // Naive scan. There should not be that many nodes in the cluster.
+    // So we don't implement the work-efficient version.
+    int delta = 1;
+    bool acc = parity_with_prev;
+    int tag = 12;
+    while (delta < n) {
+        bool new_acc = acc;
+        int prev = rank - delta;
+        int next = rank + delta;
+        int round = (rank / delta) % 2;
+        if (round == 0) {
+            if (next < n) {
+                qmpi_csend(acc, next, tag);
+            }
+            if (prev >= 0) {
+                new_acc = new_acc != qmpi_crecv(prev, tag);
+            }
+        } else {
+            if (prev >= 0) {
+                new_acc = new_acc != qmpi_crecv(prev, tag);
+            }
+            if (next < n) {
+                qmpi_csend(acc, next, tag);
+            }
+        }
+        acc = new_acc;
+        delta = delta * 2;
+    }
+    if (acc) {
+        X(q);
+    }    
+}
+
+/*
+* Broadcast @psi from node @root to the other nodes
+*/
+procedure qmpi_bcast(qbit psi, int root) {
+    int rank = qmpi_comm_rank();
+    qbit backup;
+    if (rank == root) {
+        SWAP(psi, backup);
+    }
+
+    // Create CAT state on all the nodes
+    int size = qmpi_size();
+    poor_man_cat_state(rank, size, psi);
+
+    // Create the fanout state of psi
+    bool m;
+    if (rank == root) {
+        CNOT(psi, backup);
+        CNOT(backup, psi);
+        m = M(backup);
+    }
+    m = qmpi_bcastc(m, 0);
+    if (rank != root && m) {
+        X(psi);
+    }
+}

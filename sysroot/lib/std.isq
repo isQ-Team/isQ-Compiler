@@ -17,6 +17,12 @@ extern defgate Y2P() : gate(1) = "__quantum__qis__y2p";
 extern defgate CZ() : gate(2) = "__quantum__qis__cz";
 extern defgate GPhase(double) : gate(0) = "__quantum__qis__gphase";
 
+procedure SWAP(qbit a, qbit b) {
+    CNOT(a, b);
+    CNOT(b, a);
+    CNOT(a, b);
+} deriving gate
+
 procedure __add(qbit a[], qbit b[])
 {
     int len = a.length;

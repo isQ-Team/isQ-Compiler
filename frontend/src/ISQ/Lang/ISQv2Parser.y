@@ -54,8 +54,11 @@ import Control.Exception (throw, Exception)
     '-' { TokenReservedOp $$ "-" }
     '-=' { TokenReservedOp $$ "-=" }
     '*' { TokenReservedOp $$ "*" }
+    '*=' { TokenReservedOp $$ "*=" }
     '/' { TokenReservedOp $$ "/" }
+    '/=' { TokenReservedOp $$ "/=" }
     '%' { TokenReservedOp $$ "%" }
+    '%=' { TokenReservedOp $$ "%=" }
     '**' { TokenReservedOp $$ "**" }
     '<' { TokenReservedOp $$ "<" }
     '>' { TokenReservedOp $$ ">" }
@@ -243,6 +246,9 @@ AssignStatement :: {LAST}
 AssignStatement : Expr1Left '=' Expr { NAssign $2 $1 $3 AssignEq }
                 | Expr1Left '+=' Expr { NAssign $2 $1 $3 AddEq }
                 | Expr1Left '-=' Expr { NAssign $2 $1 $3 SubEq }
+                | Expr1Left '*=' Expr { NAssign $2 $1 (EBinary $2 Mul $1 $3) AssignEq }
+                | Expr1Left '/=' Expr { NAssign $2 $1 (EBinary $2 Div $1 $3) AssignEq }
+                | Expr1Left '%=' Expr { NAssign $2 $1 (EBinary $2 Mod $1 $3) AssignEq }
 
 ReturnStatement :: {LAST}
 ReturnStatement : return Expr {NReturn $1 $2}
