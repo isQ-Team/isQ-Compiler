@@ -183,8 +183,8 @@ pub fn isq_qir_shim_qis_assertmeasurementprobability_body(
     todo!()
 }
 pub fn isq_qir_shim_qis_assertmeasurementprobability_ctl(
-    x0: K<QIRArray>,
-    x1: *const MeasurementProbabilityArgs,
+    _x0: K<QIRArray>,
+    _x1: *const MeasurementProbabilityArgs,
 ) -> () {
     todo!()
 }

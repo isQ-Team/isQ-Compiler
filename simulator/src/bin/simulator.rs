@@ -124,13 +124,13 @@ fn main() -> std::io::Result<()> {
         let device: Box<dyn QDevice<Qubit=usize>> = {
             if args.naive{
                 Box::new(CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new())))
-            }else if let Some(cap) = args.cuda{
+            }else if let Some(_cap) = args.cuda{
                 #[cfg(not(feature = "cuda"))]
-                panic!("Simulator is built with `cuda` feature disabled.");
+                panic!("Simulator is built with `cuda` feature disabled. {}", cap);
                 #[cfg(feature = "cuda")]
                 {
                     use isq_simulator::devices::cuda::QSimKernelSimulator;
-                    Box::new(CheckedDevice::new(SQ2U3Device::new(QSimKernelSimulator::new(cap))))
+                    Box::new(CheckedDevice::new(SQ2U3Device::new(QSimKernelSimulator::new(_cap))))
                 }
                 
             }else if args.qcisgen{

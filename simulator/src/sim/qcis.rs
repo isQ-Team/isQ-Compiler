@@ -112,7 +112,7 @@ pub fn sim(code: String, shots: i64){
     }
     
     let mut res_map: HashMap<String, i32> = HashMap::new();
-    for i in 0..shots{
+    for _ in 0..shots{
         let mut tmp = dev.clone();
         let mut s = "".to_string();
         

@@ -62,7 +62,7 @@ fn generate_qcis_program_isqir(config: &QCISConfig, program: &[QCISImport])->Str
             ssa+=2;
         }
         lines.push(format!("    // {} {}", inst.ty, operands.iter().map(|x| format!("Q{}", x.0)).join(" "),));
-        for (q, ssa_in, ssa_out) in operands.iter().copied(){
+        for (q, ssa_in, _ssa_out) in operands.iter().copied(){
             lines.push(format!("    %{} = affine.load %Q[{}] : memref<{}x!isq.qstate>", ssa_in, q, nq));
         }
         if inst.ty == "M"{
@@ -84,7 +84,7 @@ fn generate_qcis_program_isqir(config: &QCISConfig, program: &[QCISImport])->Str
             ));
         }
         
-        for (q, ssa_in, ssa_out) in operands.iter().copied(){
+        for (q, _ssa_in, ssa_out) in operands.iter().copied(){
             lines.push(format!("    affine.store %{}, %Q[{}] : memref<{}x!isq.qstate>", ssa_out, q, nq));
         }
     }
@@ -160,7 +160,7 @@ impl QDevice for QCISCodegen{
         qubit
     }
 
-    fn free_qubit(&mut self, qubit: Self::Qubit) {
+    fn free_qubit(&mut self, _qubit: Self::Qubit) {
         // no-op.
     }
 
