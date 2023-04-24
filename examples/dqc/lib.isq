@@ -29,28 +29,24 @@ bool qmpi_bcastc(bool val, int root) {
 }
 
 /*
-* Synchronize all the nodes
+* Synchronize all the processes
 *
-* Make sure that all the nodes call qmpi_crecv at least once,
-* since it is blocked.
+* No process would leave this procedure before all the processes have entered.
 */
 procedure qmpi_barrier() {
     int rank = qmpi_comm_rank();
     int size = qmpi_size();
     int tag = 63;
-    if (rank % 2 == 0 && rank < size - 1) {
-        qmpi_csend(false, rank + 1, tag);
-        qmpi_crecv(rank + 1, tag);
-    } else if (rank % 2 == 1) {
-        qmpi_crecv(rank - 1, tag);
-        qmpi_csend(true, rank - 1, tag);
-    }
-    if (size % 2 == 1 && size > 1) {
-        if (rank == 0) {
-            qmpi_csend(false, size - 1, tag);
-        } else if (rank == size - 1) {
-            qmpi_crecv(0, tag);
+    if (rank == 0) {
+        for i in 1:size {
+            qmpi_crecv(i, tag);
         }
+        for i in 1:size {
+            qmpi_csend(true, i, tag);
+        }
+    } else {
+        qmpi_csend(false, 0, tag);
+        qmpi_crecv(0, tag);
     }
 }
 
@@ -206,5 +202,33 @@ procedure qmpi_bcast(qbit psi, int root) {
     m = qmpi_bcastc(m, root);
     if (rank != root && m) {
         X(psi);
+    }
+}
+
+/*
+* Eliminate the entanglement between the broadcast states.
+*
+* When the operation is finished, only node @root keeps the state @psi.
+* Other qubits are measured (thus distroied their states).
+*/
+procedure qmpi_unbcast(qbit psi, int root) {
+    int size = qmpi_size();
+    int rank = qmpi_comm_rank();
+    int tag = 29;
+    if (rank == root) {
+        int count = 0;
+        for i in 0:size {
+            if (i != root) {
+                if (qmpi_crecv(i, tag)) {
+                    count += 1;
+                }
+            }
+        }
+        if (count % 2 == 1) {
+            Z(psi);
+        }
+    } else {
+        H(psi);
+        qmpi_csend(M(psi), root, tag);
     }
 }

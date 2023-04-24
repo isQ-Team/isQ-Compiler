@@ -25,23 +25,9 @@ procedure main()
     }
     qmpi_barrier();
 
-    int size = qmpi_size();
-    int tag = 29;
+    // Unbroadcast and verify
+    qmpi_unbcast(psi, root);
     if (rank == root) {
-        int count = 0;
-        for i in 0:size {
-            if (i != root) {
-                if (qmpi_crecv(i, tag)) {
-                    count += 1;
-                }
-            }
-        }
-        if (count % 2 == 1) {
-            Z(psi);
-        }
         bp;
-    } else {
-        H(psi);
-        qmpi_csend(M(psi), root, tag);
     }
 }
