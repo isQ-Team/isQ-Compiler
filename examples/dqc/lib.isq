@@ -5,25 +5,53 @@ import qmpi;
 * Send @val from @root to all the nodes
 */
 bool qmpi_bcastc(bool val, int root) {
+
+    // Sanity check
     int size = qmpi_size();
-    int rank = (qmpi_comm_rank() - root) % size;
+    if (root >= size) {
+        print -1;
+        return false;
+    }
+
+    int rank = (qmpi_comm_rank() - root + size) % size;
     int known = 1;
     int tag = 42;
     bool res = val;
     while (known < size) {
-        if (rank < known) {
+        if (rank < known && rank + known < size) {
             qmpi_csend(res, (rank + root + known) % size, tag);
-        } else if (rank < known * 2) {
-            res = qmpi_crecv((rank + root - known) % size, tag);
+        } else if (known <= rank && rank < known * 2) {
+            res = qmpi_crecv((rank + root - known + size) % size, tag);
         }
         known *= 2;
     }
     return res;
 }
 
-// Synchronize all the nodes
+/*
+* Synchronize all the nodes
+*
+* Make sure that all the nodes call qmpi_crecv at least once,
+* since it is blocked.
+*/
 procedure qmpi_barrier() {
-    qmpi_bcastc(false, 0);
+    int rank = qmpi_comm_rank();
+    int size = qmpi_size();
+    int tag = 63;
+    if (rank % 2 == 0 && rank < size - 1) {
+        qmpi_csend(false, rank + 1, tag);
+        qmpi_crecv(rank + 1, tag);
+    } else if (rank % 2 == 1) {
+        qmpi_crecv(rank - 1, tag);
+        qmpi_csend(true, rank - 1, tag);
+    }
+    if (size % 2 == 1 && size > 1) {
+        if (rank == 0) {
+            qmpi_csend(false, size - 1, tag);
+        } else if (rank == size - 1) {
+            qmpi_crecv(0, tag);
+        }
+    }
 }
 
 /*
@@ -175,7 +203,7 @@ procedure qmpi_bcast(qbit psi, int root) {
         CNOT(backup, psi);
         m = M(backup);
     }
-    m = qmpi_bcastc(m, 0);
+    m = qmpi_bcastc(m, root);
     if (rank != root && m) {
         X(psi);
     }

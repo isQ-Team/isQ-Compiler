@@ -16,7 +16,7 @@ use test_case::test_case;
 #[test_case("classic_empty_statement", "0")]
 #[test_case("classic_equal", &merge(&["0", "1"]))]
 #[test_case("classic_local", &merge(&["789", "123", "456"]))]
-#[test_case("classic_mod_pow", &merge(&["1", "49"]))]
+#[test_case("classic_mod_pow", &merge(&["1", "-1", "49"]))]
 #[test_case("classic_mul_div", &merge(&["32", "2"]))]
 #[test_case("classic_nested_comment", "114514")]
 #[test_case("classic_nested_region", "2")]

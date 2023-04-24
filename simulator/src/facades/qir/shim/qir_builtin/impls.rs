@@ -551,7 +551,7 @@ pub fn isq_qir_shim_rt_qubit_allocate_array(x0: i32) -> K<QIRArray> {
     let rctx = context();
     let mut ctx = rctx.lock().unwrap();
     let mut qubits = Vec::new();
-    for i in 0..x0 {
+    for _ in 0..x0 {
         qubits.push(ctx.get_device_mut().alloc_qubit());
     }
     let mut arr = array.get_mut(&mut ctx);

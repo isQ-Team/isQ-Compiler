@@ -180,7 +180,7 @@ pub fn isq_qir_shim_qmpi_csend(receiver: i64, tag: i64, val: bool)->() {
     }
 }
 pub fn isq_qir_shim_qmpi_crecv(sender: i64, tag: i64)->bool {
-    trace!("calling isq_qir_shim_qmpi_csend(sender: {}, tag: {})", sender, tag);
+    trace!("calling isq_qir_shim_qmpi_crecv(sender: {}, tag: {})", sender, tag);
     let receiver = isq_qir_shim_qmpi_comm_rank();
     loop {
         let rctx = context();

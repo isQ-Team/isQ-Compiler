@@ -74,7 +74,7 @@ impl QIRContext {
         self.classical_resource_manager.add_key(resource)
     }
     pub fn dump_machine(&mut self) {}
-    pub fn dump_registers(&mut self, reg: ResourceKey<QIRArray>) {}
+    pub fn dump_registers(&mut self, _reg: ResourceKey<QIRArray>) {}
     pub fn message(&self, s: &str) {
         (self.message_handler)(s);
     }
