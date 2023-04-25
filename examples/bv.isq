@@ -1,0 +1,19 @@
+import std;
+
+procedure main(){
+    qbit q[6];
+    qbit res;
+    X(res);
+    H(res);
+    H(q);
+
+    // Implements f(x) = 110111 * x
+    CNOT(q[0], res);
+    CNOT(q[1], res);
+    CNOT(q[3], res);
+    CNOT(q[4], res);
+    CNOT(q[5], res);
+
+    H(q); 
+    print M(q); // should print 56 (=0x110111)
+}
