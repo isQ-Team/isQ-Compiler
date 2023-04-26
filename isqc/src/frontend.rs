@@ -90,6 +90,7 @@ pub fn parse_match_rule(match_rule: &Value)->String{
         "AnyFunc"=>"`function`".into(),
         "AnyGate"=>"gate<_>".into(),
         "AnyRef"=>"`left value`".into(),
+        "ArrayType"=>format!("{}[]", parse_match_rule(&match_rule["contents"])),
         _=>unreachable!()
     }
 }

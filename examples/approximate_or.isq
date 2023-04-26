@@ -1,0 +1,72 @@
+import std;
+
+procedure hamming_rx(double phi, qbit x[], int start, int n, qbit q) {
+    qbit anc[n];
+    for i in 0:n {
+        CNOT(q, anc[i]);
+        ctrl Rz(phi, x[start + i], anc[i]);
+    }
+    ctrl Rz(phi, x[start + n], q);
+    for i in 0:n {
+        CNOT(q, anc[i]);
+    }
+}
+
+procedure mu(double phi, qbit x[], int start, int n, qbit q) {
+    H(q);
+    hamming_rx(phi, x, start, n, q);
+    //bp;
+    H(q);
+}
+
+int log(int v) {
+    if (v < 1) {
+        return -1;
+    }
+    int res = 0;
+    while (v > 1) {
+        v /= 2;
+        res += 1;
+    }
+    return res;
+}
+
+procedure approx_or(qbit x[], qbit res) {
+    int n = x.length;
+    int m = log(n) * n;
+    qbit anc[m * n];
+    qbit y[m];
+    double phi = 2 * pi / m;
+
+    for i in 0:m {
+        for j in 0:n {
+            CNOT(x[j], anc[i * n + j]);
+        }
+        mu(phi * i, anc, i * n, n - 1, y[i]);
+        for j in 0:n {
+            CNOT(x[j], anc[i * n + j]);
+        }
+    }
+    mu(phi, y, 0, m - 1, res);
+    for i in 0:m {
+        for j in 0:n {
+            CNOT(x[j], anc[i * n + j]);
+        }
+        mu(-phi * i, anc, i * n, n - 1, y[i]);
+        for j in 0:n {
+            CNOT(x[j], anc[i * n + j]);
+        }
+    }
+}
+
+procedure main()
+{
+    int size = 4;
+    qbit x[size];
+    X(x[0:3]);
+    qbit q;
+    approx_or(x, q);
+    //mu(2 * pi / size, x, 0, size - 1, q);
+    //bp;
+    print M(q);
+}

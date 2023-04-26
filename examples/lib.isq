@@ -1,11 +1,5 @@
 import std;
 
-procedure SWAP(qbit p, qbit q) {
-    CNOT(p, q);
-    CNOT(q, p);
-    CNOT(p, q);
-}
-
 procedure R(int k, qbit q) {
     double phase = pi / 2 ** (k - 1);
     ctrl GPhase(phase, q);
