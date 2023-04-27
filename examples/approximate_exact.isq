@@ -1,49 +1,46 @@
 /*
-* Implement approximate OR function based on paper:
+* Implement approximate EXACT function based on paper:
 * Høyer, Peter, and Robert Špalek. "Quantum fan-out is powerful." Theory of computing 1, no. 1 (2005): 81-103.
 */
 
 import std;
+import approximate_or;
 
-procedure hamming_rx(double phi, qbit x[], int start, int n, qbit q) {
+procedure mu_exact(int t, double phi, qbit x[], int start, int n, qbit q) {
+    H(q);
     qbit anc[n];
     for i in 0:n {
         CNOT(q, anc[i]);
         ctrl Rz(phi, x[start + i], anc[i]);
     }
-    ctrl Rz(phi, x[start + n], q);
+    Rz(-phi * t, q);
     for i in 0:n {
         CNOT(q, anc[i]);
     }
-}
-
-procedure mu(double phi, qbit x[], int start, int n, qbit q) {
-    H(q);
-    hamming_rx(phi, x, start, n, q);
     H(q);
 }
 
-int log_ceil(int v) {
+int log(int v) {
     if (v < 1) {
         return -1;
     }
     int res = 0;
     while (v > 1) {
-        v = (v + 1) / 2;
+        v /= 2;
         res += 1;
     }
     return res;
 }
 
 /*
-* Decide whether all the bits of @x are 0.
+* Decide whether the hamming weight of @x is exactlly @t.
 *
 * If true, @res is untouched; otherwise, an X gate is applied to @res,
 * with an error rate of O(1/n). Error means no X gate ia applied.
 */
-procedure approx_or(qbit x[], qbit res) {
+procedure approx_exact(int t, qbit x[], qbit res) {
     int n = x.length;
-    int m = log_ceil(n + 1) * n;
+    int m = log(n) * n;
     qbit anc[m * n];
     qbit y[m];
     double phi = 2 * pi / m;
@@ -52,7 +49,7 @@ procedure approx_or(qbit x[], qbit res) {
         for j in 0:n {
             CNOT(x[j], anc[i * n + j]);
         }
-        mu(phi * i, anc, i * n, n - 1, y[i]);
+        mu_exact(t, phi * i, anc, i * n, n, y[i]);
         for j in 0:n {
             CNOT(x[j], anc[i * n + j]);
         }
@@ -64,7 +61,7 @@ procedure approx_or(qbit x[], qbit res) {
         for j in 0:n {
             CNOT(x[j], anc[i * n + j]);
         }
-        mu(-phi * i, anc, i * n, n - 1, y[i]);
+        mu_exact(t, -phi * i, anc, i * n, n, y[i]);
         for j in 0:n {
             CNOT(x[j], anc[i * n + j]);
         }
@@ -73,10 +70,10 @@ procedure approx_or(qbit x[], qbit res) {
 
 procedure main()
 {
-    int size = 2;
+    int size = 3;
     qbit x[size];
     X(x);
     qbit q;
-    approx_or(x, q);
+    approx_exact(3, x, q);
     print M(q);
 }
