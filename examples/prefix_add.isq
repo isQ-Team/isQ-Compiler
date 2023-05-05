@@ -1,0 +1,65 @@
+import std;
+
+/*
+* |x>|y> -> |x>|x+y>
+* where |x> stores in q[a: a+width] and |y> stores in q[b: b+width].
+*/
+procedure scalar_add(qbit q[], int width, int a, int b)
+{
+    CNOT(q[a + 1: a + width], q[b + 1:]);
+    CNOT(q[a + width - 2: a: -1], q[a + width - 1::-1]);
+    Toffoli(q[a:], q[b:], q[a + 1: a + width]);
+    for i in width-1:0:-1 {
+        CNOT(q[a + i], q[b + i]);
+        Toffoli(q[a + i - 1], q[b + i - 1], q[a + i]);
+    }
+    CNOT(q[a + 1:], q[a + 2: a + width]);
+    CNOT(q[a:], q[b: b + width]);
+}
+
+/*
+* |x1>|x2>...|xn> -> |x1>|x1+x2>...|x1+x2+...+xn>
+* where |xk> stores in q[start + k * step: start + k * step + width].
+*/
+procedure prefix_add(qbit q[], int width, int start, int step) {
+    int len = q.length;
+    if (start + step + width > len) {
+        return;
+    }
+
+    for i in start: len-step: step*2 {
+        scalar_add(q, width, i, i + step);
+    }
+    prefix_add(q, width, start + width, step * 2);
+    for i in start+step: len-step: step*2 {
+        scalar_add(q, width, i, i + step);
+    }
+}
+
+/*
+* Return the measurement result of q[start: start+width] as an int
+* where the lower bits are less siginificant.
+*/
+int meas(qbit q[], int start, int width) {
+    int res = 0;
+    int i = start + width - 1;
+    while (i >= start) {
+        res = res * 2 + M(q[i]);
+        i = i - 1;
+    }
+    return res;
+}
+
+procedure main()
+{
+    int width = 3;
+    int n = 4;
+    int len = width * n;
+    qbit q[len];
+    X(q[0:len:width]);
+    X(q[2]);
+    prefix_add(q, width, 0, width);
+    for i in 0:n {
+        print meas(q, i * width, width);
+    }
+}
