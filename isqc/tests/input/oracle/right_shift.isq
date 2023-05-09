@@ -1,0 +1,16 @@
+import std;
+
+oracle bool[3] right_shift(bool a[3]) {
+    bool b[] = {a[1], a[2], a[0]};
+	return b;
+}
+
+procedure main()
+{
+	qbit a[3], b[3];
+    X(a[0]);
+    X(a[2]);
+	right_shift(a, b);
+	print M(a);
+	print M(b);
+}
