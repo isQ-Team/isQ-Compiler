@@ -39,64 +39,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<Ty>& v) {
     os << ']';
     return os;
 }
-/*
-void debugOutput(std::string info = "debug info here...", std::string path = "/mnt/d/isqv2/debugoutput.txt") {
-    std::ofstream fout(path);
-    std::streambuf *oldcout;
-    oldcout = std::cout.rdbuf(fout.rdbuf());
-    std::cout << info << std::endl;
-    std::cout.rdbuf(oldcout);
-    fout.close();
-}
 
-class ReversibleSynthesizer {
-public:
-    enum PebbleStrategy : uint8_t {
-        Bennett, 
-        EagerCleanup, 
-        BreakoutLocalSearch
-    } _strategy;
-
-    struct Move {
-        enum Action { compute, uncompute } action;
-        mockturtle::klut_network::node target;
-    };
-    std::vector<Move> _reversiblePebbling;
-
-    ReversibleSynthesizer(mockturtle::xag_network xag) : _xag(xag), _strategy(PebbleStrategy::EagerCleanup) {}
-
-    void setQMMStrategy(PebbleStrategy s) { _strategy = s; }
-
-    void doLHRSynthesis() {
-        // LUT mapping
-        collapse2Klut(_xag);
-
-        // Quantum memory management
-        computeReversiblePebbling();
-    }
-private:
-    void collapse2Klut(mockturtle::xag_network const& xagTarget) {
-        mockturtle::lut_mapping_params mappingParams;
-        mappingParams.cut_enumeration_ps.cut_size = 4;
-        mockturtle::mapping_view<mockturtle::xag_network, true> mappedXag(xagTarget);
-        mockturtle::lut_mapping<mockturtle::mapping_view<mockturtle::xag_network, true>, true>(mappedXag, mappingParams);
-        _klut = *mockturtle::collapse_mapped_network<mockturtle::klut_network>(mappedXag);
-    }
-
-    void computeReversiblePebbling() {
-        _reversiblePebbling.clear();
-        if (_strategy == PebbleStrategy::EagerCleanup) {
-            // TODO
-        } else if (_strategy == PebbleStrategy::BreakoutLocalSearch) {
-            // TODO
-        } else { // Bennett
-            
-        }
-    }
-    mockturtle::xag_network _xag;
-    mockturtle::klut_network _klut;
-};
-*/
 class RuleReplaceLogicFunc : public mlir::OpRewritePattern<logic::ir::FuncOp> {
 public:
     RuleReplaceLogicFunc(mlir::MLIRContext *ctx): mlir::OpRewritePattern<logic::ir::FuncOp>(ctx, 1) {}
@@ -224,7 +167,6 @@ public:
         // Convert XAG to quantum circuit. 
         // caterpillar::eager_mapping_strategy<mockturtle::xag_network> strategy;
         caterpillar::greedy_pebbling_mapping_strategy<mockturtle::xag_network> strategy;
-        //caterpillar::eager_mapping_strategy<mockturtle::xag_network> strategy;
         tweedledum::netlist<caterpillar::stg_gate> circ;
         caterpillar::logic_network_synthesis_stats stats;
         caterpillar::detail::logic_network_synthesis_impl<tweedledum::netlist<caterpillar::stg_gate>, 
@@ -252,7 +194,7 @@ public:
 
         // Debug infomation. 
         /*
-        std::ofstream fout("/mnt/d/isqv2/debugoutput.txt");
+        std::ofstream fout("/mnt/c/Users/14796/Desktop/workspace/isqv2/debugoutput.txt");
         std::streambuf *oldcout;
         oldcout = std::cout.rdbuf(fout.rdbuf());
         std::cout << "******xag description*******" << std::endl;
@@ -273,17 +215,6 @@ public:
                 std::cout << "  complemented: " << (child.complement ? "y" : "n") << std::endl;
             });
         } );
-        
-        caterpillar::greedy_pebbling_mapping_strategy<mockturtle::xag_network> strategy_test;
-        tweedledum::netlist<caterpillar::stg_gate> circ_test;
-        caterpillar::logic_network_synthesis_stats stats_test;
-        auto result = strategy_test.compute_steps( xag );
-        strategy_test.print_connected_component(std::cout);
-
-        std::cout << "******mapping strategy*******" << std::endl;
-        caterpillar::print_mapping_strategy<caterpillar::eager_mapping_strategy<mockturtle::xag_network>>(strategy, std::cout);
-        std::cout << "******test strategy*******" << std::endl;
-        caterpillar::print_mapping_strategy<caterpillar::greedy_pebbling_mapping_strategy<mockturtle::xag_network>>(strategy_test, std::cout);
         
         std::cout << "******circuit description*******" << std::endl;
         std::cout << "num_gates: " << circ.num_gates() << std::endl;
@@ -318,12 +249,12 @@ public:
                 auto xagnode = symbol_table[{str, j}];
                 uint32_t qubit = (i == input_num ? stats.o_indexes[j] : stats.i_indexes[xag.pi_index(xagnode.index)]);
                 qubit_to_wire[qubit] = wires.size() - 1;
-                // std::cout << (i == input_num ? "  output: " : "  input: ") << qubit << " to " << wires.size() - 1 << std::endl;
+                //std::cout << (i == input_num ? "  output: " : "  input: ") << qubit << " to " << wires.size() - 1 << std::endl;
             }
         }
 
         // Ancilla allocation. 
-        int ancilla_num = circ.num_qubits() - wires.size();
+        int ancilla_num = circ.num_qubits() - qubit_to_wire.size();
         int lowest_wire = wires.size();
         mlir::MemRefType memref_ancilla_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{ancilla_num}, qstate);
         mlir::memref::AllocOp ancillas = builder.create<mlir::memref::AllocOp>(loc, memref_ancilla_qstate);
@@ -338,7 +269,7 @@ public:
             uint32_t qubit = qubit_id.index();
             if (qubit_to_wire.find(qubit) == qubit_to_wire.end()) {
                 qubit_to_wire[qubit] = lowest_wire++;
-                // std::cout << "  ancilla: " << qubit << " to " << lowest_wire - 1 << std::endl;
+                //std::cout << "  ancilla: " << qubit << " to " << lowest_wire - 1 << std::endl;
             }
         } );
         
@@ -390,7 +321,7 @@ public:
                 // std::cout << "apply toffoli gate from " << n.gate.controls()[0] << ", " <<  n.gate.controls()[1] << " to " << n.gate.targets()[0] << std::endl;
                 apply_toffoli(n.gate.controls()[0], n.gate.controls()[1], n.gate.targets()[0]);
             } else {
-                // return mlir::failure();
+                // ???
             }
         } );
 
@@ -407,8 +338,8 @@ public:
         builder.create<mlir::memref::DeallocOp>(loc, ancillas);
         builder.create<mlir::ReturnOp>(loc); // dummy terminator
 
-        // std::cout.rdbuf(oldcout);
-        // fout.close();
+        //std::cout.rdbuf(oldcout);
+        //fout.close();
 
         rewriter.eraseOp(op); // Remove original logic.func op
         return mlir::success();
