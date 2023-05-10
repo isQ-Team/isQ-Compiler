@@ -4,10 +4,12 @@
 #include <mlir/InitAllDialects.h>
 #include <isq/IR.h>
 #include <isq/passes/Passes.h>
+#include "logic/IR.h"
 namespace isq {
 namespace ir {
 void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     mlir::registerAllPasses();
+    passes::registerLogicToISQ();
     passes::registerDecorateFolding();
     passes::registerQSD();
     passes::registerExpandDecomposition();
@@ -30,6 +32,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
     registry.insert<isq::extra::ISQExtraDialect>();
+    registry.insert<logic::ir::LogicDialect>();
 }
 } // namespace ir
 } // namespace isq

@@ -6,6 +6,7 @@ namespace ir{
 namespace passes{
 
 //void registerQuantumGatePass();
+void registerLogicToISQ();
 void registerDecorateFolding();
 void registerQSD();
 void registerExpandDecomposition();
