@@ -5,8 +5,9 @@ stages:
 build:
   stage: build
   script:
-    - nix-portable nix-build buildscript/nixTarball.nix -o isqv2.tar.gz.link
-    - nix-portable nix-shell -p coreutils --command "cp -Lr isqv2.tar.gz.link isqv2.tar.gz"
+    - nix develop
+    - export ISQ_ROOT=`pwd`
+    - make
   artifacts:
     paths:
       - isqv2.tar.gz
