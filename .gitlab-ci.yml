@@ -5,6 +5,7 @@ stages:
 build:
   stage: build
   script:
+    - make lock
     - nix develop
     - export ISQ_ROOT=`pwd`
     - make
@@ -14,8 +15,22 @@ build:
 test:
   stage: test
   script:
-    - nix-portable nix-build tests/ -o tests_result.txt.link
-    - nix-portable nix-shell -p coreutils --command "cat tests_result.txt.link | tee tests_result.txt"
-  artifacts:
-    paths:
-      - tests_result.txt
+    - export ISQ_ROOT=`pwd`
+    - bin/isqc run examples/bell.isq
+
+frontend test:
+  stage: test
+  script:
+    - cd frontend
+    - stack test
+
+integration test:
+  stage: test
+  script:
+    - export ISQ_ROOT=`pwd`
+    - cd isqc
+    - cargo test
+  dependencies:
+    - build
+    - sanity test
+    - frontend test
