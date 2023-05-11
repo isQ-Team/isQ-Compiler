@@ -5,7 +5,7 @@ stages:
 build:
   stage: build
   script:
-    - cp -r /data/project/isqv2/bin .
+    - nix develop
     - export ISQ_ROOT=`pwd`
     - make
   artifacts:
