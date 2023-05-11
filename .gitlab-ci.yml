@@ -5,6 +5,7 @@ stages:
 build:
   stage: build
   script:
+    - make lock
     - nix develop
     - export ISQ_ROOT=`pwd`
     - make
