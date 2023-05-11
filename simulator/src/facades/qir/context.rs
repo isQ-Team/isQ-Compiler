@@ -1,8 +1,10 @@
 extern crate std;
+use core::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use core::any::Any;
-use std::sync::{Mutex, mpsc};
+use std::sync::Mutex;
+use std::thread_local;
 
 use alloc::sync::Arc;
 use alloc::boxed::Box;
@@ -17,20 +19,25 @@ pub struct QIRContext {
     classical_resource_manager: ResourceMap,
     message_handler: Box<dyn Fn(&str) -> ()>,
     disabled_bp: HashSet<i64>,
-    recv_channel: HashMap<(i64, i64, i64), mpsc::Receiver<bool>>
+    classical_mailbox: HashMap<(i64, i64, i64), bool>,
+    epr_pair: HashMap<(i64, i64, i64), usize>,
+    np: i64,
 }
 use crate::facades::qir::resource::ResourceKey;
 impl QIRContext {
     pub fn new(
         device: Box<dyn QDevice<Qubit = usize>>,
         message_handler: Box<dyn Fn(&str) -> ()>,
+        np: i64,
     ) -> Self {
         Self {
             device,
             classical_resource_manager: ResourceMap::new(),
             message_handler,
             disabled_bp: HashSet::new(),
-            recv_channel: HashMap::new(),
+            classical_mailbox: HashMap::new(),
+            epr_pair: HashMap::new(),
+            np,
         }
     }
     pub fn get_device(&self) -> &dyn QDevice<Qubit = usize> {
@@ -45,11 +52,29 @@ impl QIRContext {
     pub fn get_classical_resource_manager_mut(&mut self) -> &mut ResourceMap {
         &mut self.classical_resource_manager
     }
+    pub fn get_mailbox(&self) -> &HashMap<(i64, i64, i64), bool> {
+        &self.classical_mailbox
+    }
+    pub fn get_mailbox_mut(&mut self) -> &mut HashMap<(i64, i64, i64), bool> {
+        &mut self.classical_mailbox
+    }
+    pub fn get_epr_pair(&self) -> &HashMap<(i64, i64, i64), usize> {
+        &self.epr_pair
+    }
+    pub fn get_epr_pair_mut(&mut self) -> &mut HashMap<(i64, i64, i64), usize> {
+        &mut self.epr_pair
+    }
+    pub fn get_np(&self) -> &i64 {
+        &self.np
+    }
+    pub fn get_np_mut(&mut self) -> &mut i64 {
+        &mut self.np
+    }
     pub fn add<T: Any + 'static>(&self, resource: T) -> ResourceKey<T> {
         self.classical_resource_manager.add_key(resource)
     }
     pub fn dump_machine(&mut self) {}
-    pub fn dump_registers(&mut self, reg: ResourceKey<QIRArray>) {}
+    pub fn dump_registers(&mut self, _reg: ResourceKey<QIRArray>) {}
     pub fn message(&self, s: &str) {
         (self.message_handler)(s);
     }
@@ -59,17 +84,8 @@ impl QIRContext {
     pub fn disable_bp_index(&mut self, index: i64) {
         self.disabled_bp.insert(index);
     }
-    pub fn send_bool(&mut self, send_id: i64, recv_id: i64, tag: i64, val: bool) {
-        let (tx, rx) = mpsc::channel();
-        tx.send(val).unwrap();
-        self.recv_channel.insert((send_id, recv_id, tag), rx);
-    }
-    pub fn recv_bool(&mut self, send_id: i64, recv_id: i64, tag: i64) -> bool {
-        self.recv_channel.get(&(send_id, recv_id, tag)).unwrap().recv().unwrap()
-    }
 }
 
-//#[thread_local]
 static mut QIR_CURRENT_CONTEXT: Option<Arc<Mutex<QIRContext>>> = None;
 
 pub fn make_context_current(a: Arc<Mutex<QIRContext>>) {
@@ -85,4 +101,8 @@ pub fn get_current_context() -> Arc<Mutex<QIRContext>> {
             .expect("No QIR context made current")
             .clone()
     }
+}
+
+thread_local! {
+    pub static RANK_REF: RefCell<i64> = RefCell::new(0);
 }

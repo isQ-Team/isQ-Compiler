@@ -5,18 +5,18 @@ stages:
 build:
   stage: build
   script:
-    - cp -r /data/project/isqv2/bin .
-    - export ISQ_ROOT=`pwd`
-    - make
+    - make lock
+    - nix build
   artifacts:
     paths:
-      - bin
+      - result
 
 sanity test:
   stage: test
   script:
-    - export ISQ_ROOT=`pwd`
-    - bin/isqc run examples/bell.isq
+    - export ISQ_ROOT=`pwd`/result
+    - export MLIR_ROOT=`pwd`/result
+    - result/bin/isqc run examples/bell.isq
 
 frontend test:
   stage: test
@@ -27,7 +27,8 @@ frontend test:
 integration test:
   stage: test
   script:
-    - export ISQ_ROOT=`pwd`
+    - export ISQ_ROOT=`pwd`/result
+    - export MLIR_ROOT=`pwd`/result
     - cd isqc
     - cargo test
   dependencies:

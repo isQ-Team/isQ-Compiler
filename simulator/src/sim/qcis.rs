@@ -5,11 +5,9 @@ use crate::{
 };
 
 extern crate std;
-use core::hash::Hash;
-use std::{io::Write, collections::HashMap, os::unix::raw::dev_t};
+use std::collections::HashMap;
 use alloc::{string::{String, ToString}, vec::Vec};
 use regex::Regex;
-use serde_json::de;
 
 fn reg(qcis: &Vec<&str>) -> bool{
     
@@ -71,7 +69,7 @@ fn get_single_mat(s: &str, parameters: &[f64]) -> [f64; 8]{
 pub fn sim(code: String, shots: i64){
     
     let mut dev = NaiveSimulator::new();
-    let mut qcis: Vec<&str> = code.split("\n").collect();
+    let qcis: Vec<&str> = code.split("\n").collect();
 
     if !reg(&qcis){
         panic!("format error!");
@@ -114,7 +112,7 @@ pub fn sim(code: String, shots: i64){
     }
     
     let mut res_map: HashMap<String, i32> = HashMap::new();
-    for i in 0..shots{
+    for _ in 0..shots{
         let mut tmp = dev.clone();
         let mut s = "".to_string();
         

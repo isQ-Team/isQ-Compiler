@@ -1,21 +1,20 @@
-#![feature(label_break_value)]
 extern crate clap;
 
 mod exec;
 mod frontend;
 mod error;
-use std::{fs::File, io::{Read, Write}, path::{Path, PathBuf}, ffi::OsStr};
+use std::{fs::File, io::Write, path::{Path, PathBuf}, ffi::OsStr};
 
 use clap::*;
 use error::*;
-use serde_json::de;
+
 use std::str::FromStr;
-use tempfile::tempfile;
+
 use crate::frontend::resolve_isqc1_output;
 
 fn opt_level(s: &str) -> Result<(), String> {
     usize::from_str(s)
-        .map(|o| o>=0 && o<=3)
+        .map(|o: usize| o<=3)
         .map_err(|e| e.to_string())
         .and_then(|result| match result {
             true => Ok(()),
@@ -147,17 +146,25 @@ fn resolve_input_path<'a>(input: &'a str, extension: &str)->miette::Result<(&'a 
 fn main()->miette::Result<()> {
     let cli = Arguments::parse();
     let root = std::env::var("ISQ_ROOT").map_err(|_| NoISQv2RootError)?;
-    
+    let llvm_root = std::env::var("MLIR_ROOT");
+    let llvm_tool = |s: &str|{
+        if let Ok(root) = &llvm_root{
+            format!("{}/bin/{}", root, s)
+        }else{
+            s.to_owned()
+        }
+        
+    };
     match cli.command{
         Commands::Run{input, shots, debug, np}=>{
             let (input_path, default_output_path) = resolve_input_path(&input, "so")?;
             exec::system_exec_command(&root, "isqc", 
             &[OsStr::new("compile"), input_path.as_os_str(), OsStr::new("-o"), default_output_path.as_os_str()]
-            ).map_err(ioErrorWhen("Calling isqc compile"))?;
+            ).map_err(io_error_when("Calling isqc compile"))?;
             
             let mut v = vec![OsStr::new("simulate")];
             
-            let mut shot_str = "".to_string();
+            let shot_str;
             if let Some(x) = shots{
                 v.push(OsStr::new("--shots"));
                 shot_str = format!("{}", x);
@@ -168,13 +175,13 @@ fn main()->miette::Result<()> {
                 v.push(OsStr::new("--debug"))
             }
             v.push(OsStr::new("--np"));
-            let mut np_str = format!("{}", np);
+            let np_str = format!("{}", np);
             v.push(OsStr::new(np_str.as_str()));
             v.push(default_output_path.as_os_str());
 
             exec::system_exec_command(&root, "isqc", 
             &v
-            ).map_err(ioErrorWhen("Calling isqc simulate"))?;
+            ).map_err(io_error_when("Calling isqc simulate"))?;
         }
         Commands::Compile{input, output, opt_level, emit, target, qcis_config, inc_path, int_par, double_par}=>'command:{
             let (input_path, default_output_path) = resolve_input_path(&input, match emit{
@@ -192,7 +199,7 @@ fn main()->miette::Result<()> {
             // Finally, write obj into output.
             let mut fout = MayDropFile::new(&output)?;
             //let mut fout = File::create(output).map_err(IoError)?;
-            let mut f = File::open(input_path).map_err(IoError)?;
+            let _f = File::open(input_path).map_err(IoError)?;
             //let mut buf = String::new();
             //f.read_to_string(&mut buf).unwrap();
             let fin = input_path.canonicalize().unwrap();
@@ -204,20 +211,20 @@ fn main()->miette::Result<()> {
 
             let full_flags = ["-i", fin.as_os_str().to_str().unwrap(), "-I", &incpath, "--qcis"];
             let frontend_flags = if let CompileTarget::QCIS = target {&full_flags} else {&full_flags[..4]};
-            let mlir = exec::exec_command_text::<&str>(&root, "isqc1", frontend_flags, "").map_err(ioErrorWhen("Calling isqc1"))?;
+            let mlir = exec::exec_command_text::<&str>(&root, "isqc1", frontend_flags, "").map_err(io_error_when("Calling isqc1"))?;
             let resolved_mlir = resolve_isqc1_output(&mlir)?;
             if let EmitMode::MLIR = emit{
                 writeln!(fout.get_file_mut(), "{}", resolved_mlir).map_err(IoError)?;
                 fout.finalize();
                 break 'command;
             }
-            let qcis_flags = "-pass-pipeline=cse,func.func(affine-loop-unroll),isq-canonicalize,canonicalize,isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-target-qcis,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-target-qcis,isq-expand-decomposition,canonicalize,cse,canonicalize,cse";
-            let normal_flags = "-pass-pipeline=isq-oracle-decompose,isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,cse";
+            let qcis_flags = "-pass-pipeline=cse,logic-lower-to-isq,func.func(affine-loop-unroll),isq-canonicalize,canonicalize,isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-target-qcis,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-target-qcis,isq-expand-decomposition,canonicalize,cse,canonicalize,cse";
+            let normal_flags = "-pass-pipeline=cse,logic-lower-to-isq,isq-oracle-decompose,isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,cse";
             let flags = if let CompileTarget::QCIS = target {qcis_flags} else {normal_flags};
             let optimized_mlir = exec::exec_command_text(&root, "isq-opt", &[
                 flags,
                 "--mlir-print-debuginfo"
-            ], &resolved_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
+            ], &resolved_mlir).map_err(io_error_when("Calling isq-opt"))?;
             if optimized_mlir.trim().is_empty(){
                 return Err(InternalCompilerError("Optimization failed".to_owned()))?;
             }
@@ -231,7 +238,7 @@ fn main()->miette::Result<()> {
                 //"-pass-pipeline=symbol-dce,cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,builtin.func(convert-math-to-llvm),isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
                 "-pass-pipeline=cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,func.func(convert-math-to-llvm),isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export,global-thread-local",
                 "--mlir-print-debuginfo"
-            ], &optimized_mlir).map_err(ioErrorWhen("Calling isq-opt"))?;
+            ], &optimized_mlir).map_err(io_error_when("Calling isq-opt"))?;
             if llvm_mlir.trim().is_empty(){
                 return Err(InternalCompilerError("Generate LLVM IR failed".to_owned()))?;
             }
@@ -240,29 +247,29 @@ fn main()->miette::Result<()> {
                 fout.finalize();
                 break 'command;
             }
-            let llvm = exec::exec_command_text("", "mlir-translate", &["--mlir-to-llvmir"], &llvm_mlir).map_err(ioErrorWhen("Calling mlir-translate"))?;
+            let llvm = exec::exec_command_text("", &llvm_tool("mlir-translate"), &["--mlir-to-llvmir"], &llvm_mlir).map_err(io_error_when("Calling mlir-translate"))?;
             if let EmitMode::LLVM = emit{
                 writeln!(fout.get_file_mut(), "{}", llvm).map_err(IoError)?;
                 fout.finalize();
                 break 'command;
             }
             // linking with stub. This step we use byte output.
-            let linked_llvm = exec::exec_command("", "llvm-link", &[
+            let linked_llvm = exec::exec_command("", &llvm_tool("llvm-link"), &[
                 format!("-"),
                 format!("{}/share/isq-simulator/isq-simulator.bc", &root)
-            ], llvm.as_bytes()).map_err(ioErrorWhen("Calling llvm-link"))?;
+            ], llvm.as_bytes()).map_err(io_error_when("Calling llvm-link"))?;
             let mut opt_args: Vec<String> = Vec::new();
             if let Some(o) = opt_level{
                 opt_args.push(format!("-O{}", o));
             }
-            let optimized_llvm = exec::exec_command("", "opt", &opt_args, &linked_llvm).map_err(ioErrorWhen("Calling opt"))?;
-            let compiled_obj = exec::exec_command("", "llc", &["-filetype=obj", "--relocation-model=pic"], &optimized_llvm).map_err(ioErrorWhen("Calling llc"))?;
+            let optimized_llvm = exec::exec_command("", &llvm_tool("opt"), &opt_args, &linked_llvm).map_err(io_error_when("Calling opt"))?;
+            let compiled_obj = exec::exec_command("", &llvm_tool("llc"), &["-filetype=obj", "--relocation-model=pic"], &optimized_llvm).map_err(io_error_when("Calling llc"))?;
             // create obj file.
-            let mut tmpfile = tempfile::NamedTempFile::new().map_err(ioErrorWhen("Creating tempfile"))?;
+            let mut tmpfile = tempfile::NamedTempFile::new().map_err(io_error_when("Creating tempfile"))?;
             tmpfile.write_all(&compiled_obj).map_err(IoError)?;
             tmpfile.flush().map_err(IoError)?;
             // link obj file.
-            let linked_obj = exec::exec_command("", "lld", &["-flavor", "gnu", "-shared", tmpfile.path().as_os_str().to_str().unwrap(), "-o", "-"], &[]).map_err(ioErrorWhen("Calling ld.lld"))?;
+            let linked_obj = exec::exec_command("", &llvm_tool("lld"), &["-flavor", "gnu", "-shared", tmpfile.path().as_os_str().to_str().unwrap(), "-o", "-"], &[]).map_err(io_error_when("Calling ld.lld"))?;
             drop(tmpfile);
             
             fout.get_file_mut().write_all(&linked_obj).map_err(IoError)?;
@@ -304,9 +311,9 @@ fn main()->miette::Result<()> {
                     let output = if let Some(s) = config_file {
                         exec::exec_command_with_decorator(&root, "simulator", &v, &[], |child|{
                             child.env("QCIS_ROUTE_CONFIG", &s);
-                        }).map_err(ioErrorWhen("running qcis classical part"))?
+                        }).map_err(io_error_when("running qcis classical part"))?
                     }else{
-                        exec::exec_command(&root, "simulator", &v, &[]).map_err(ioErrorWhen("running qcis classical part"))?
+                        exec::exec_command(&root, "simulator", &v, &[]).map_err(io_error_when("running qcis classical part"))?
                     };
                     
                     qcis_out.get_file_mut().write_all(&output).map_err(IoError)?;

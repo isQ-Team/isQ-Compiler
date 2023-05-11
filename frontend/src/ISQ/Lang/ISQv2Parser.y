@@ -5,6 +5,7 @@ import ISQ.Lang.ISQv2Tokenizer
 import ISQ.Lang.ISQv2Grammar
 import Data.Maybe (catMaybes)
 import Control.Exception (throw, Exception)
+import Control.Monad (void)
 
 }
 %name isqv2
@@ -54,8 +55,11 @@ import Control.Exception (throw, Exception)
     '-' { TokenReservedOp $$ "-" }
     '-=' { TokenReservedOp $$ "-=" }
     '*' { TokenReservedOp $$ "*" }
+    '*=' { TokenReservedOp $$ "*=" }
     '/' { TokenReservedOp $$ "/" }
+    '/=' { TokenReservedOp $$ "/=" }
     '%' { TokenReservedOp $$ "%" }
+    '%=' { TokenReservedOp $$ "%=" }
     '**' { TokenReservedOp $$ "**" }
     '<' { TokenReservedOp $$ "<" }
     '>' { TokenReservedOp $$ ">" }
@@ -71,6 +75,7 @@ import Control.Exception (throw, Exception)
     '&' { TokenReservedOp $$ "&" }
     '|' { TokenReservedOp $$ "|" }
     '^' { TokenReservedOp $$ "^" }
+    '~' { TokenReservedOp $$ "~" }
     '<<' { TokenReservedOp $$ "<<" }
     '>>' { TokenReservedOp $$ ">>" }
     ',' { TokenReservedOp $$ "," }
@@ -140,6 +145,7 @@ TopDefMember : ISQCore_GatedefStatement ';' { $1 }
              | Procedure { $1 }
              | OracleTruthTable { $1 }
              | OracleFunction { $1 }
+             | OracleLogic { $1 }
 
 StatementList :: {[LAST]}
 StatementList : {- empty -} { [] }
@@ -155,7 +161,6 @@ ExprCallable : '(' Expr ')' { $2 }
 Expr1Left :: {LExpr}
 Expr1Left : ExprCallable {$1}
           | Expr1Left '[' Expr ']' { ESubscript $2 $1 $3 }
-          | Expr1Left '.length' { EArrayLen $2 $1 }
 
 Expr1 :: {LExpr}
 Expr1 : Expr1Left { $1 }
@@ -184,6 +189,8 @@ Expr1 : Expr1Left { $1 }
      | '+' Expr1 %prec POS { EUnary $1 Positive $2 }
      | '!' Expr1 { EUnary $1 Not $2 }
      | not Expr1 { EUnary $1 Not $2 }
+     | '~' Expr1 { EUnary $1 Noti $2 }
+     | Expr1Left '.length' { EArrayLen $2 $1 }
      | NATURAL{ EIntLit (annotation $1) (tokenNaturalV $1) }
      | FLOAT { EFloatingLit (annotation $1) (tokenFloatV $1) }
      | pi { EFloatingLit $1 3.14159265358979323846264338327950288 }
@@ -243,6 +250,9 @@ AssignStatement :: {LAST}
 AssignStatement : Expr1Left '=' Expr { NAssign $2 $1 $3 AssignEq }
                 | Expr1Left '+=' Expr { NAssign $2 $1 $3 AddEq }
                 | Expr1Left '-=' Expr { NAssign $2 $1 $3 SubEq }
+                | Expr1Left '*=' Expr { NAssign $2 $1 (EBinary $2 Mul $1 $3) AssignEq }
+                | Expr1Left '/=' Expr { NAssign $2 $1 (EBinary $2 Div $1 $3) AssignEq }
+                | Expr1Left '%=' Expr { NAssign $2 $1 (EBinary $2 Mod $1 $3) AssignEq }
 
 ReturnStatement :: {LAST}
 ReturnStatement : return Expr {NReturn $1 $2}
@@ -377,6 +387,9 @@ OracleTruthTable : oracle IDENTIFIER '(' NATURAL ',' NATURAL ')' '=' '[' ISQCore
 
 OracleFunction :: {LAST}
 OracleFunction : oracle IDENTIFIER '(' NATURAL ',' NATURAL ')' ':' IDENTIFIER '{' StatementList '}' { NOracleFunc $1 (tokenIdentV $2) (tokenNaturalV $4) (tokenNaturalV $6) (tokenIdentV $9) $11 }
+
+OracleLogic :: {LAST}
+OracleLogic : oracle Type IDENTIFIER '(' ProcedureArgList ')' '{' StatementList '}' { NOracleLogic $1 (void $2) (tokenIdentV $3) (fmap (\(ty, ident) -> (void ty, ident)) $5) $8 }
 
 {
 parseError :: [ISQv2Token] -> a

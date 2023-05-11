@@ -54,8 +54,8 @@ void ApplyGateOp::getCanonicalizationPatterns(mlir::RewritePatternSet &patterns,
     patterns.add<passes::canonicalize::CorrectSymmetryApplyOrder>(context);
     patterns.add<passes::canonicalize::CancelHermitianUU>(context);
     patterns.add<passes::canonicalize::CancelUUAdj>(context);
-    patterns.add<passes::canonicalize::CancelRemoteCZ>(context);
-    patterns.add<passes::canonicalize::CancelRemoteCX>(context);
+    //patterns.add<passes::canonicalize::CancelRemoteCZ>(context);
+    //patterns.add<passes::canonicalize::CancelRemoteCX>(context);
 }
 
 ::mlir::LogicalResult ApplyGateOp::verify(){

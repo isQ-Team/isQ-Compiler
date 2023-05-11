@@ -1,0 +1,33 @@
+import std;
+import qmpi;
+import lib;
+
+procedure main()
+{
+    int rank = qmpi_comm_rank();
+    qbit psi;
+    psi = |0>;
+
+    // Prepare the source state
+    int root = 2;
+    if (rank == root) {
+        H(psi);
+        Ry(pi/4, psi);
+    }
+
+    // Broadcast psi from node 0 to the other nodes
+    qmpi_bcast(psi, root);
+
+    // Verify the broadcast result
+    qmpi_barrier();
+    if (rank == root) {
+        bp;
+    }
+    qmpi_barrier();
+
+    // Unbroadcast and verify
+    qmpi_unbcast(psi, root);
+    if (rank == root) {
+        bp;
+    }
+}

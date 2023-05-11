@@ -1,3 +1,0 @@
-procedure main(){
-    print qmpi_comm_rank();
-}

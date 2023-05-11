@@ -62,7 +62,7 @@ fn generate_qcis_program_isqir(config: &QCISConfig, program: &[QCISImport])->Str
             ssa+=2;
         }
         lines.push(format!("    // {} {}", inst.ty, operands.iter().map(|x| format!("Q{}", x.0)).join(" "),));
-        for (q, ssa_in, ssa_out) in operands.iter().copied(){
+        for (q, ssa_in, _ssa_out) in operands.iter().copied(){
             lines.push(format!("    %{} = affine.load %Q[{}] : memref<{}x!isq.qstate>", ssa_in, q, nq));
         }
         if inst.ty == "M"{
@@ -84,7 +84,7 @@ fn generate_qcis_program_isqir(config: &QCISConfig, program: &[QCISImport])->Str
             ));
         }
         
-        for (q, ssa_in, ssa_out) in operands.iter().copied(){
+        for (q, _ssa_in, ssa_out) in operands.iter().copied(){
             lines.push(format!("    affine.store %{}, %Q[{}] : memref<{}x!isq.qstate>", ssa_out, q, nq));
         }
     }
@@ -96,7 +96,6 @@ fn generate_qcis_program_isqir(config: &QCISConfig, program: &[QCISImport])->Str
 pub fn run_qcis_route(code: String)->String{
     extern crate std;
     extern crate serde_json;
-    use serde_json::Value;
     use std::{process::{Command, Stdio}, io::Write};
     use std::io::Read;
     let qcis_configuration = std::env::var("QCIS_ROUTE_CONFIG");//.expect("qcis routing configuration not speficied.");
@@ -161,7 +160,7 @@ impl QDevice for QCISCodegen{
         qubit
     }
 
-    fn free_qubit(&mut self, qubit: Self::Qubit) {
+    fn free_qubit(&mut self, _qubit: Self::Qubit) {
         // no-op.
     }
 
@@ -169,7 +168,7 @@ impl QDevice for QCISCodegen{
         use crate::qdevice::QuantumOp::*;
         vec![
             X,Y,Z,H,S,T,
-            SInv,TInv,CZ,X2M,X2P,Y2M,Y2P, QCIS_Finalize
+            SInv,TInv,CZ,X2M,X2P,Y2M,Y2P, QcisFinalize
         ]
     }
 
@@ -180,7 +179,7 @@ impl QDevice for QCISCodegen{
 
     fn qop(&mut self, op_type: crate::qdevice::QuantumOp, qubits: &[&Self::Qubit], parameters: &[f64]) {
         use crate::qdevice::QuantumOp::*;
-        if let QCIS_Finalize = op_type{
+        if let QcisFinalize = op_type{
             if !self.finalized{
                 self.finalized=true;
                 self.finalize_route();

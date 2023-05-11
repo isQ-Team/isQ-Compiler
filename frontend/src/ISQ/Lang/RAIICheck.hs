@@ -166,13 +166,13 @@ eliminateNonAffineForStmts' f (NFor (_, ann) vn (ERange (_, ann2) (Just a) (Just
         step = ETempVar ann2 idstep
         left = EBinary ann2 Mul v step
         right = EBinary ann2 Mul hi step
-        in return [
+        block = [
             NTempvar ann (intType (), idlo, Just $ eraseSafe a),
             NTempvar ann (intType (), idhi, Just $ eraseSafe b),
             NTempvar ann (intType (), idstep, Just $ eraseSafe c),
             NDefvar ann [(intType ann, vn, Just lo, Nothing)],
-            NWhile ann (EBinary ann2 (Cmp Less) left right) ((concat b') ++ [NAssign ann v (EBinary ann2 Add v step) AssignEq])
-        ]
+            NWhile ann (EBinary ann2 (Cmp Less) left right) ((concat b') ++ [NAssign ann v (EBinary ann2 Add v step) AssignEq])]
+        in return [NBlock ann block]
 eliminateNonAffineForStmts' f NFor{} = error "For-statement with non-standard range indices not supported."
 eliminateNonAffineForStmts' f (NProcedure a b c d e) = do
     e' <- mapM f e

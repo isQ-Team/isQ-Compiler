@@ -1,0 +1,102 @@
+/*
+* The distributed version of approximate OR function.
+*/
+
+import std;
+import qmpi;
+import lib;
+
+procedure hamming_rx(double phi, qbit x[], int start, int n, qbit q) {
+    qbit anc[n];
+    for i in 0:n {
+        CNOT(q, anc[i]);
+        ctrl Rz(phi, x[start + i], anc[i]);
+    }
+    ctrl Rz(phi, x[start + n], q);
+    for i in 0:n {
+        CNOT(q, anc[i]);
+    }
+}
+
+procedure mu(double phi, qbit x[], int start, int n, qbit q) {
+    H(q);
+    hamming_rx(phi, x, start, n, q);
+    H(q);
+}
+
+int log_ceil(int v) {
+    if (v < 1) {
+        return -1;
+    }
+    int res = 0;
+    while (v > 1) {
+        v = (v + 1) / 2;
+        res += 1;
+    }
+    return res;
+}
+
+procedure remote_crz_tgt(double phi, qbit q, int other){
+    qbit comm;
+    target_fanout(other, comm);
+    ctrl Rz(phi, comm, q);
+    target_unfanout(other, comm);
+}
+
+procedure approx_or(qbit x[], int n, int m) {
+    qbit y;
+    double phi = 2 * pi / m;
+    int rank = qmpi_comm_rank();
+
+    for i in 0:n {
+        qmpi_bcast(x[i], 0);
+    }
+
+    // First level of mu function
+    mu(phi * rank, x, 0, n - 1, y);
+
+    if (rank == 0) {
+        qbit anc[m - 1];
+        qbit res;
+
+        // Second level of mu function.
+        // Conducted only on node 0.
+        H(res);
+        for i in 0:m-1 {
+            CNOT(res, anc[i]);
+            remote_crz_tgt(phi, anc[i], i + 1);
+        }
+        ctrl Rz(phi, y, res);
+        for i in 0:m-1 {
+            CNOT(res, anc[i]);
+        }
+        H(res);
+        print M(res);
+    } else {
+        remote_cx_src(y, 0);
+    }
+
+    for i in 0:n {
+        qmpi_unbcast(x[i], 0);
+    }
+}
+
+procedure main()
+{
+    int n = 2;
+    int m = log_ceil(n + 1) * n;
+    int size = qmpi_size();
+    if (size != m) {
+        print -1;
+        return;
+    }
+
+    // Prepare the input value.
+    qbit x[n];
+    int rank = qmpi_comm_rank();
+    if (rank == 0) {
+        //X(x[0]);
+    }
+
+    approx_or(x, n, m);
+}

@@ -31,7 +31,7 @@ impl AliasingTracker for QCallable {
         self.alias_count.set(new_val as usize);
     }
     fn full_copy(&self, _allocated_id: usize) -> Self {
-        let mut x = self.clone();
+        let x = self.clone();
         x.alias_count.set(0);
         x
     }

@@ -132,3 +132,5 @@ __isq__qir__shim__qis__qcis__finalize
 __isq__qir__shim__qis__bp
 __isq__qir__shim__qis__isq_print_i64
 __isq__qir__shim__qis__isq_print_f64
+__isq__qir__shim__qmpi__csend
+__isq__qir__shim__qmpi__crecv

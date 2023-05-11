@@ -41,8 +41,9 @@ public:
     void breakPoint(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value i);
     void printInt(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value i);
     void printFloat(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value f);
-    void qmpiCsend(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value sender, Value receiver, Value tag, Value val);
-    Value qmpiCrecv(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value sender, Value receiver, Value tag);
+    void qmpiCsend(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value receiver, Value tag, Value val);
+    Value qmpiCrecv(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value sender, Value tag);
+    Value qmpiSize(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module);
     Value allocQubit(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module);
     void releaseQubit(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value q);
     // Obtain some boolean value at once.

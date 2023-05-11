@@ -1,0 +1,136 @@
+/*
+* Distributed quantum phase estimation algorithm
+*
+* Based on paper N. M. Neumann, et. al, “Imperfect distributed quantum phase estimation,” 2020.
+*/
+
+import std;
+import qmpi;
+import lib;
+
+int x = 23;   // The phase to be estimated (as integer)
+int n = 6;    // The number of bits in the estimation result
+
+// The phase to be estimated (as float)
+double theta() {
+    return 2 * pi * x / (2 ** n);
+}
+
+// The oracle
+procedure U(double theta, qbit q) {
+    X(q);
+    ctrl GPhase(theta, q);
+    X(q);
+} deriving gate
+
+/*
+* The controlled U^(2^pow) gate.
+*
+* @pow the power of 2
+* @c the control qubit
+* @ev the qubit that holds the eigenstate of the oracle
+*/
+procedure pow2_ctrlU(int pow, qbit c, qbit ev){
+    double t = theta() * (2 ** pow);
+    ctrl U(t, c, ev);
+}
+
+/*
+* Gate of the following matrix:
+*   1       0
+*   0  e^[2*pi*i/2^k]
+*/
+procedure R(int k, qbit q) {
+    double phase = pi / 2 ** (k - 1);
+    ctrl GPhase(phase, q);
+} deriving gate
+
+// This process holds the eigenstate of U and gives the estimation result
+procedure manager_process(int np, int per_node, qbit comm) {
+    qbit ev;
+    ev = |0>; // eigenstate of U
+
+    // Apply controlled-U^(2^i)
+    for i in 1:np {
+        for j in 0:per_node {
+            target_fanout(i, comm);
+            pow2_ctrlU((i-1) * per_node + j, comm, ev);
+            target_unfanout(i, comm);
+        }
+    }
+
+    // Collect result
+    int res = 0;
+    for i in 1:np {
+        for j in 0:per_node {
+            res = res * 2;
+            if (qmpi_crecv(i, 33)) {
+                res += 1;
+            }
+        }
+    }
+    print res;
+}
+
+// The worker processes each hold part of the estimation bits
+procedure worker_process(int np, int per_node, int rank, qbit comm) {
+    qbit q[per_node];
+
+    // Apply controlled-U^(2^i)
+    for j in 0:per_node {
+        H(q[j]);
+        remote_ctrl(0, q[j], comm);
+    }
+
+    // Apply QFT_dagger
+    for i in per_node-1:-1:-1 {
+        for j in i+1:per_node {
+            ctrl inv R(j - i + 1, q[j], q[i]);
+        }
+        for j in rank+1:np {
+            remote_ctrl(j, q[i], comm);
+        }
+        H(q[i]);
+    }
+    for peer in rank-1:0:-1 {
+        for qidx in per_node-1:-1:-1 {
+            target_fanout(peer, comm);
+            for i in 0:per_node {
+                ctrl inv R((rank - peer - 1) * per_node + i + 1 + per_node - qidx, comm, q[i]);
+            }
+            target_unfanout(peer, comm);
+        }
+    }
+
+    // Send result to the manager node
+    for i in 0:per_node {
+        qmpi_csend(M(q[i]), 0, 33);
+    }
+}
+
+procedure main()
+{
+    // At least two nodes are required
+    int np = qmpi_size();
+    if (np < 2) {
+        print -1;
+        return;
+    }
+
+    // Only support evenly divided working qubits
+    if (n % (np - 1) != 0) {
+        print -2;
+        return;
+    }
+    int per_node = n / (np - 1);
+
+    // Each node has one communication qubit
+    qbit comm;
+
+    int rank = qmpi_comm_rank();
+    if (rank == 0) {
+        manager_process(np, per_node, comm);
+    } else {
+        worker_process(np, per_node, rank, comm);
+    }
+}

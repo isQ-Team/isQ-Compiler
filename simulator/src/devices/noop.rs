@@ -19,7 +19,7 @@ impl QDevice for NoopDevice{
         qubit
     }
 
-    fn free_qubit(&mut self, qubit: Self::Qubit) {
+    fn free_qubit(&mut self, _qubit: Self::Qubit) {
         // no-op.
     }
 
@@ -27,15 +27,15 @@ impl QDevice for NoopDevice{
         use crate::qdevice::QuantumOp::*;
         vec![
             X,Y,Z,H,S,T,
-            SInv,TInv,CZ,X2M,X2P,Y2M,Y2P, QCIS_Finalize, U3, AnySQ, Reset
+            SInv,TInv,CZ,X2M,X2P,Y2M,Y2P, QcisFinalize, U3, AnySQ, Reset
         ]
     }
 
-    fn measure(&mut self, qubit: &Self::Qubit) -> bool {
+    fn measure(&mut self, _qubit: &Self::Qubit) -> bool {
         return false;
     }
 
-    fn qop(&mut self, op_type: crate::qdevice::QuantumOp, qubits: &[&Self::Qubit], parameters: &[f64]) {
+    fn qop(&mut self, _op_type: crate::qdevice::QuantumOp, _qubits: &[&Self::Qubit], _parameters: &[f64]) {
         return;
     }
     

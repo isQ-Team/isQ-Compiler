@@ -8,7 +8,7 @@ import qualified Data.Map.Lazy as Map
 import Control.Monad.Fix
 type Ident = String
 type ASTBlock ann = [AST ann]
-data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | Array Int | UserType String | IntRange | Gate Int | FuncTy deriving (Show, Eq)
+data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | Array Int | UserType String | IntRange | Gate Int | Logic Int | FuncTy deriving (Show, Eq)
 data Type ann = Type { annotationType :: ann, ty :: BuiltinType, subTypes :: [Type ann]} deriving (Show,Functor, Eq)
 
 intType ann = Type ann Int []
@@ -23,7 +23,7 @@ refBoolType ann = Type ann Ref [boolType ann]
 
 data CmpType = Equal | NEqual | Greater | Less | GreaterEq | LessEq deriving (Eq, Show)
 data BinaryOperator = Add | Sub | Mul | Div | Mod | And | Or | Andi | Ori | Xori | Cmp CmpType | Pow | Shl | Shr deriving (Eq, Show)
-data UnaryOperator = Neg | Positive | Not deriving (Eq, Show)
+data UnaryOperator = Neg | Positive | Not | Noti deriving (Eq, Show)
 data Expr ann = 
        EIdent { annotationExpr :: ann, identName :: String}
      | EBinary { annotationExpr :: ann, binaryOp :: BinaryOperator, binaryLhs :: Expr ann, binaryRhs :: Expr ann}
@@ -114,6 +114,8 @@ data AST ann =
      | NGlobalDefvar {annotationAST :: ann, globalDefinitions :: [(Type (), Int, String, Maybe (Expr ann))]}
      | NOracle { annotationAST :: ann, oracleName :: String, oracleN :: Int, oracleM :: Int, oracleMap :: [Expr ann] }
      | NOracleFunc { annotationAST :: ann, gateName :: String, oracleN :: Int, oracleM :: Int, inVar :: String, procBody :: [AST ann] }
+     | NOracleLogic { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, logicArgs :: [(Type (), Ident)], procBody :: [AST ann] }
+     | NResolvedOracleLogic { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, resolvedProcArgs :: [(Type (), Int)], procBody :: [AST ann] }
      deriving (Eq, Show, Functor)
 
 data GateModifier = Inv | Ctrl Bool Int deriving (Show, Eq)
@@ -122,6 +124,8 @@ addedQubits :: GateModifier->Int
 addedQubits Inv = 0
 addedQubits (Ctrl _ x) = x
 
+logicSuffix :: String
+logicSuffix = "__logic"
 
 type LAST = AST Pos
 type LExpr = Expr Pos

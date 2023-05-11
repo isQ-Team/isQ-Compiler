@@ -1,0 +1,79 @@
+/*
+* Implement approximate EXACT function based on paper:
+* Høyer, Peter, and Robert Špalek. "Quantum fan-out is powerful." Theory of computing 1, no. 1 (2005): 81-103.
+*/
+
+import std;
+import approximate_or;
+
+procedure mu_exact(int t, double phi, qbit x[], int start, int n, qbit q) {
+    H(q);
+    qbit anc[n];
+    for i in 0:n {
+        CNOT(q, anc[i]);
+        ctrl Rz(phi, x[start + i], anc[i]);
+    }
+    Rz(-phi * t, q);
+    for i in 0:n {
+        CNOT(q, anc[i]);
+    }
+    H(q);
+}
+
+int log(int v) {
+    if (v < 1) {
+        return -1;
+    }
+    int res = 0;
+    while (v > 1) {
+        v /= 2;
+        res += 1;
+    }
+    return res;
+}
+
+/*
+* Decide whether the hamming weight of @x is exactlly @t.
+*
+* If true, @res is untouched; otherwise, an X gate is applied to @res,
+* with an error rate of O(1/n). Error means no X gate ia applied.
+*/
+procedure approx_exact(int t, qbit x[], qbit res) {
+    int n = x.length;
+    int m = log(n) * n;
+    qbit anc[m * n];
+    qbit y[m];
+    double phi = 2 * pi / m;
+
+    for i in 0:m {
+        for j in 0:n {
+            CNOT(x[j], anc[i * n + j]);
+        }
+        mu_exact(t, phi * i, anc, i * n, n, y[i]);
+        for j in 0:n {
+            CNOT(x[j], anc[i * n + j]);
+        }
+    }
+    mu(phi, y, 0, m - 1, res);
+
+    // Uncompute to free ancillary qubits
+    for i in 0:m {
+        for j in 0:n {
+            CNOT(x[j], anc[i * n + j]);
+        }
+        mu_exact(t, -phi * i, anc, i * n, n, y[i]);
+        for j in 0:n {
+            CNOT(x[j], anc[i * n + j]);
+        }
+    }
+}
+
+procedure main()
+{
+    int size = 3;
+    qbit x[size];
+    X(x);
+    qbit q;
+    approx_exact(3, x, q);
+    print M(q);
+}

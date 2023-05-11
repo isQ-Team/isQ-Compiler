@@ -1,0 +1,12 @@
+import lib;
+
+procedure main()
+{
+    bool v = false;
+    int root = 2;
+    if (root == qmpi_comm_rank()) {
+        v = !v;
+    }
+    v = qmpi_bcastc(v, root);
+    print v;
+}

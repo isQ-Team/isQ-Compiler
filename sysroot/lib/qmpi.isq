@@ -1,0 +1,4 @@
+procedure qmpi_csend(bool val, int recv, int tag) {}
+bool qmpi_crecv(int send, int tag) {}
+int qmpi_size() {}
+extern defgate create_epr(int, int) : gate(1) = "__quantum__qmpi__create__epr";

@@ -4,44 +4,36 @@ use serde_json::*;
 use crate::error::*;
 use serde_json::Value as V;
 
-use std::{fs::File, io::{Read, Write}, path::{Path, PathBuf}, ffi::OsStr};
+use std::{fs::File, io::{Read}};
 
 
-pub fn parseType(input: &Value)->String{
+pub fn parse_type(input: &Value)->String{
     let ty = input["ty"]["tag"].as_str().unwrap();
     let subtypes = input["subTypes"].as_array().unwrap();
     match ty{
-        "Ref"=>format!("&{}", parseType(&subtypes[0])),
+        "Ref"=>format!("&{}", parse_type(&subtypes[0])),
         "Unit"=>format!("()"),
         "Qbit"=>format!("qbit"),
         "Int"=>format!("int"),
         "Bool"=>format!("bool"),
         "Double"=>format!("double"),
         "Complex"=>format!("complex"),
-        "Array"=>format!("[{};{}]", parseType(&subtypes[0]), input["ty"]["contents"].as_i64().unwrap()),
-        "UserType"=>format!("{}<{}>", input["ty"]["contents"].as_str().unwrap(), subtypes.iter().map(parseType).collect::<Vec<_>>().join(", ")),
+        "Array"=>format!("[{};{}]", parse_type(&subtypes[0]), input["ty"]["contents"].as_i64().unwrap()),
+        "UserType"=>format!("{}<{}>", input["ty"]["contents"].as_str().unwrap(), subtypes.iter().map(parse_type).collect::<Vec<_>>().join(", ")),
         "IntRange"=>format!("range"),
         "Gate"=>format!("gate<{}>", input["ty"]["contents"].as_i64().unwrap()),
-        "FuncTy"=>format!("({})->{}", subtypes.iter().skip(1).map(parseType).collect::<Vec<_>>().join(", "), parseType(&subtypes[0])),
+        "FuncTy"=>format!("({})->{}", subtypes.iter().skip(1).map(parse_type).collect::<Vec<_>>().join(", "), parse_type(&subtypes[0])),
         _ => unreachable!()
     }
 }
-/* 
-pub fn parsePos(source: &str, input: &Value)->SourceSpan{
-    let line = input["line"].as_i64().unwrap() as usize;
-    let column = input["column"].as_i64().unwrap() as usize+1;
-    SourceSpan::new(
-        SourceOffset::from_location(source, line, column),
-        SourceOffset::from(0)
-    )
-}*/
-pub fn parsePos(input: &Value)->miette::Result<(NamedSource, SourceSpan)>{
+
+pub fn parse_pos(input: &Value)->miette::Result<(NamedSource, SourceSpan)>{
 
     let path = input["filename"].as_str().unwrap();
     let name: Vec<&str> = path.split("/").collect(); 
     let mut f = File::open(path).map_err(IoError)?;
     let mut buf = String::new();
-    f.read_to_string(&mut buf);
+    f.read_to_string(&mut buf).unwrap();
 
     let loc_line = input["line"].as_i64().unwrap() as usize;
     let loc_col = input["column"].as_i64().unwrap() as usize+1;
@@ -74,11 +66,11 @@ pub fn parsePos(input: &Value)->miette::Result<(NamedSource, SourceSpan)>{
     return Ok((src, ss));
 }
 
-fn getFirstDefineErr(source: NamedSource, lable: SourceSpan) -> core::result::Result<(), Vec<FirstDefineError>> {
-    Err(vec![FirstDefineError{src: source, posFirst: lable}])
+fn get_first_define_err(source: NamedSource, lable: SourceSpan) -> core::result::Result<(), Vec<FirstDefineError>> {
+    Err(vec![FirstDefineError{src: source, pos_first: lable}])
 }
 
-pub fn parseSymbol(symbol: &Value)->String{
+pub fn parse_symbol(symbol: &Value)->String{
     let ty = symbol["tag"].as_str().unwrap();
     match ty{
         "SymVar"=>symbol["contents"].as_str().unwrap().into(),
@@ -88,16 +80,17 @@ pub fn parseSymbol(symbol: &Value)->String{
 
     }
 }
-pub fn parseMatchRule(matchRule: &Value)->String{
-    let ty = matchRule["tag"].as_str().unwrap();
+pub fn parse_match_rule(match_rule: &Value)->String{
+    let ty = match_rule["tag"].as_str().unwrap();
     match ty{
-        "Exact"=>parseType(&matchRule["contents"]),
+        "Exact"=>parse_type(&match_rule["contents"]),
         "AnyUnknownList"=>"[_]".into(),
-        "AnyKnownList"=>format!("[_;{}]", matchRule["contents"].as_i64().unwrap()),
+        "AnyKnownList"=>format!("[_;{}]", match_rule["contents"].as_i64().unwrap()),
         "AnyList"=>"`array`".into(),
         "AnyFunc"=>"`function`".into(),
         "AnyGate"=>"gate<_>".into(),
         "AnyRef"=>"`left value`".into(),
+        "ArrayType"=>format!("{}[]", parse_match_rule(&match_rule["contents"])),
         _=>unreachable!()
     }
 }
@@ -116,35 +109,35 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                     
                     match content["tag"].as_str().unwrap(){
                         "BadMatrixElement"=>{
-                            let (src,matelem_pos) = parsePos(&content["badExpr"]["annotationExpr"])?;
+                            let (src,matelem_pos) = parse_pos(&content["badExpr"]["annotationExpr"])?;
                             return Err(SyntaxError{reason: "bad matrix element.".into(), src, pos: matelem_pos})?;
                         }
                         "BadMatrixShape"=>{
-                            let (src, mat_pos) = parsePos(&content["badMatrix"]["annotationAST"])?;
+                            let (src, mat_pos) = parse_pos(&content["badMatrix"]["annotationAST"])?;
                             return Err(SyntaxError{reason: "bad matrix shape.".into(), src, pos: mat_pos})?;
                         }
                         "BadGlobalVarSize"=>{
-                            let (src,pos) = parsePos(&content["badDefPos"])?;
+                            let (src,pos) = parse_pos(&content["badDefPos"])?;
                             return Err(SyntaxError{reason: format!("global array with non-integer length: `{}`.", content["badDefName"].as_str().unwrap()), src, pos: pos})?;
                         }
                         "UnexpectedToken"=>{
-                            let (src,pos) = parsePos(&content["token"]["annotationToken"])?;
+                            let (src,pos) = parse_pos(&content["token"]["annotationToken"])?;
                             return Err(SyntaxError{reason: "unexpected token.".into(), src, pos: pos})?;
                         }
                         "InconsistentRoot"=>{
-                            let filePath = content["importedFile"].as_str().unwrap();
-                            let rootPath = content["rootPath"].as_str().unwrap();
-                            let message = "The root path of file ".to_string() + filePath + " is " + rootPath + ", which does not consist with the project.";
+                            let file_path = content["importedFile"].as_str().unwrap();
+                            let root_path = content["rootPath"].as_str().unwrap();
+                            let message = "The root path of file ".to_string() + file_path + " is " + root_path + ", which does not consist with the project.";
                             Err(GeneralGrammarError("Inconsistent root path".to_string(), message))?
                         }
                         "ImportNotFound"=>{
-                            let importString = content["missingImport"].as_str().unwrap();
-                            let message = "Cannot find ".to_string() + importString;
+                            let import_string = content["missingImport"].as_str().unwrap();
+                            let message = "Cannot find ".to_string() + import_string;
                             return Err(GeneralGrammarError("Cannot find import".to_string(), message))?;
                         }
                         "DuplicatedImport"=>{
-                            let importString = content["duplicatedImport"].as_str().unwrap();
-                            let message = importString.to_string() + " is imported multiple times.";
+                            let import_string = content["duplicatedImport"].as_str().unwrap();
+                            let message = import_string.to_string() + " is imported multiple times.";
                             return Err(GeneralGrammarError("Duplicated import".to_string(), message))?;
                         }
                         "CyclicImport"=>{
@@ -153,10 +146,10 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                             Err(GeneralGrammarError("Cyclic import".to_string(), files + message))?
                         }
                         "AmbiguousImport"=>{
-                            let ambImport = content["ambImport"].as_str().unwrap();
+                            let amb_import = content["ambImport"].as_str().unwrap();
                             let cand1 = content["candidate1"].as_str().unwrap();
                             let cand2 = content["candidate2"].as_str().unwrap();
-                            let message = ambImport.to_string() + " has at least two candidates: " + cand1 + " and " + cand2;
+                            let message = amb_import.to_string() + " has at least two candidates: " + cand1 + " and " + cand2;
                             return Err(GeneralGrammarError("Ambiguous import".to_string(), message))?;
                         }
                         _=>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
@@ -164,62 +157,66 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                 }else if tag=="TypeCheckError"{
                     match content["tag"].as_str().unwrap(){
                         "RedefinedSymbol"=>{
-                            let (src,pos) = parsePos(&content["pos"])?;
-                            let symbolName = parseSymbol(&content["symbolName"]);
-                            let (src2, firstDefinedAt) = parsePos(&content["firstDefinedAt"])?;
-                            getFirstDefineErr(src2, firstDefinedAt).map_err(|err_list| RedefinedSymbolError{
-                                symName: symbolName.into(), 
+                            let (src,pos) = parse_pos(&content["pos"])?;
+                            let symbol_name = parse_symbol(&content["symbolName"]);
+                            let (src2, first_defined_at) = parse_pos(&content["firstDefinedAt"])?;
+                            get_first_define_err(src2, first_defined_at).map_err(|err_list| RedefinedSymbolError{
+                                sym_name: symbol_name.into(), 
                                 src: src, 
                                 pos: pos,
                                 related: err_list
                             })?;
                         }
                         "UndefinedSymbol"=>{
-                            let (src,pos) = parsePos(&content["pos"])?;
-                            let symbolName = parseSymbol(&content["symbolName"]);
-                            return Err(UndefinedSymbolError{symName: symbolName.into(), src, pos})?;
+                            let (src,pos) = parse_pos(&content["pos"])?;
+                            let symbol_name = parse_symbol(&content["symbolName"]);
+                            return Err(UndefinedSymbolError{sym_name: symbol_name.into(), src, pos})?;
                         }
                         "AmbiguousSymbol"=>{
-                            let (src1, pos1) = parsePos(&content["firstDefinedAt"])?;
-                            let symbolName = parseSymbol(&content["symbolName"]);
-                            let (src2, pos2) = parsePos(&content["secondDefinedAt"])?;
-                            Err(vec![FirstDefineError{src: src1, posFirst: pos1}]).map_err(|err_list| ConflictSymbolError{
-                                symName: symbolName.into(),
+                            let (src1, pos1) = parse_pos(&content["firstDefinedAt"])?;
+                            let symbol_name = parse_symbol(&content["symbolName"]);
+                            let (src2, pos2) = parse_pos(&content["secondDefinedAt"])?;
+                            Err(vec![FirstDefineError{src: src1, pos_first: pos1}]).map_err(|err_list| ConflictSymbolError{
+                                sym_name: symbol_name.into(),
                                 src: src2,
                                 pos: pos2,
                                 related: err_list
                             })?
                         }
                         "TypeMismatch"=>{
-                            let (src,pos) = parsePos(&content["pos"])?;
-                            let expected = content["expectedType"].as_array().unwrap().iter().map(parseMatchRule).collect::<Vec<_>>().join(" or ");
-                            let actual = parseType(&content["actualType"]);
+                            let (src,pos) = parse_pos(&content["pos"])?;
+                            let expected = content["expectedType"].as_array().unwrap().iter().map(parse_match_rule).collect::<Vec<_>>().join(" or ");
+                            let actual = parse_type(&content["actualType"]);
                             return Err(TypeMismatchError{expected, actual, src, pos})?;
                         }
                         "UnsupportedType"=>{
-                            let (src,pos) = parsePos(&content["pos"])?;
-                            let actual = parseType(&content["actualType"]);
-                            return Err(SyntaxError{reason: "UnsupportedType: ".to_string() + actual.as_str(), src, pos: pos})?;
+                            let (src,pos) = parse_pos(&content["pos"])?;
+                            let actual = parse_type(&content["actualType"]);
+                            return Err(SyntaxError{reason: "unsupported type: ".to_string() + actual.as_str(), src, pos: pos})?;
+                        }
+                        "UnsupportedLeftSide"=>{
+                            let (src,pos) = parse_pos(&content["pos"])?;
+                            return Err(SyntaxError{reason: "unsupported left side".to_string(), src, pos: pos})?;
                         }
                         "ViolateNonCloningTheorem"=>{
-                            let (src,pos) = parsePos(&content["pos"])?;
+                            let (src,pos) = parse_pos(&content["pos"])?;
                             return Err(AssignQbitError{src, pos})?;
                         }
                         "ArgNumberMismatch"=>{
-                            let (src,pos) = parsePos(&content["pos"])?;
+                            let (src,pos) = parse_pos(&content["pos"])?;
                             let expected = content["expectedArgs"].as_i64().unwrap() as usize;
                             let actual = content["actualArgs"].as_i64().unwrap() as usize;
                             return Err(ArgNumberMismatchError{expected, actual, src, pos})?;
                         }
                         "BadProcedureArgType"=>{
-                            let (src,pos) = parsePos(&content["pos"])?;
-                            let argtype = parseType(&content["arg"][0]);
+                            let (src,pos) = parse_pos(&content["pos"])?;
+                            let argtype = parse_type(&content["arg"][0]);
                             let argname = content["arg"][1].as_str().unwrap().into();
                             return Err(BadProcedureArgTypeError{argname, argtype, pos, src})?;
                         }
                         "BadProcedureReturnType"=>{
-                            let (src,pos) = parsePos(&content["pos"])?;
-                            let returntype = parseType(&content["ret"][0]);
+                            let (src,pos) = parse_pos(&content["pos"])?;
+                            let returntype = parse_type(&content["ret"][0]);
                             let procname = content["ret"][1].as_str().unwrap().into();
                             return Err(BadProcedureRetTypeError{procname, returntype, pos, src})?;
                         }
@@ -230,7 +227,7 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                             return Err(MainUndefinedError)?;
                         }
                         "BadMainSignature"=>{
-                            let sig = parseType(&content["actualMainSignature"]);
+                            let sig = parse_type(&content["actualMainSignature"]);
                             return Err(BadMainSigError(sig))?;
                         }
                         _=>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
@@ -238,14 +235,14 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                 }else if tag=="RAIIError"{
                     match content["tag"].as_str().unwrap(){
                         "UnmatchedScopeError"=>{
-                            let (src,pos) = parsePos(&content["unmatchedPos"])?;
+                            let (_src,pos) = parse_pos(&content["unmatchedPos"])?;
                             let rtype = content["wantedRegionType"].as_str().unwrap();
                             let r = match rtype{
                                 "RFunc"=>"function",
                                 "RLoop"=>"loop",
                                 _=>unreachable!()
                             };
-                            return Err(UnmatchedScopeError{pos, scopeType: r.into()})?;
+                            return Err(UnmatchedScopeError{pos, scope_type: r.into()})?;
                         }
                         _=>{return Err(GeneralISQC1Error(V::Object(err.clone()).to_string()))?;}
                     }
@@ -253,27 +250,27 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                     let ice = content.as_str().unwrap().to_owned();
                     return Err(GeneralISQC1Error(format!("Internal compiler error: {}", ice)))?;
                 }else if tag=="SyntaxError"{
-                    let (src,pos) = parsePos(content)?;
+                    let (src,pos) = parse_pos(content)?;
                     return Err(SyntaxError{reason: "tokenizing failed.".into(), src, pos: pos})?;
                 }else if tag=="OracleError"{
                     match content["tag"].as_str().unwrap() {
                         "MultipleDefined"=>{
-                            let (src,pos) = parsePos(&content["sourcePos"])?;
-                            let symbolName = content["varName"].as_str().unwrap();
-                            return Err(SyntaxError{reason: "Multiple defined symbol: ".to_string() + symbolName, src, pos})?;
+                            let (src,pos) = parse_pos(&content["sourcePos"])?;
+                            let symbol_name = content["varName"].as_str().unwrap();
+                            return Err(SyntaxError{reason: "Multiple defined symbol: ".to_string() + symbol_name, src, pos})?;
                         }
                         "NoReturnValue"=>{
-                            let (src,pos) = parsePos(&content["sourcePos"])?;
+                            let (src,pos) = parse_pos(&content["sourcePos"])?;
                             let value = content["varName"].as_i64().unwrap();
                             return Err(SyntaxError{reason: format!("No return value for input {}.", value), src, pos})?;
                         }
                         "UndefinedSymbol"=>{
-                            let (src,pos) = parsePos(&content["sourcePos"])?;
-                            let symbolName = content["varName"].as_str().unwrap();
-                            return Err(SyntaxError{reason: "Undefined symbol: ".to_string() + symbolName, src, pos})?;
+                            let (src,pos) = parse_pos(&content["sourcePos"])?;
+                            let symbol_name = content["varName"].as_str().unwrap();
+                            return Err(SyntaxError{reason: "Undefined symbol: ".to_string() + symbol_name, src, pos})?;
                         }
                         _ => {
-                            let (src, pos) = parsePos(&content["contents"])?;
+                            let (src, pos) = parse_pos(&content["contents"])?;
                             match content["tag"].as_str().unwrap() {
                                 "BadOracleShape" => {
                                     return Err(OracleShapeError{src, pos})?;
@@ -296,7 +293,7 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                     }
                 }
                 else if tag=="DeriveError"{
-                    let (src, pos) = parsePos(&content["contents"])?;
+                    let (src, pos) = parse_pos(&content["contents"])?;
                     match content["tag"].as_str().unwrap() {
                         "BadGateSignature" => {
                             return Err(DeriveGateError{src, pos})?;

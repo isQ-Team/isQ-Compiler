@@ -30,7 +30,8 @@ data TypeCheckError =
     | UndefinedSymbol { pos :: Pos, symbolName :: Symbol}
     | AmbiguousSymbol { pos :: Pos, symbolName :: Symbol, firstDefinedAt :: Pos, secondDefinedAt :: Pos}
     | TypeMismatch {pos :: Pos, expectedType :: [MatchRule], actualType :: Type ()}
-    | UnsupportedType {pos :: Pos, actualType :: Type ()}
+    | UnsupportedType { pos :: Pos, actualType :: Type () }
+    | UnsupportedLeftSide { pos :: Pos }
     | ViolateNonCloningTheorem { pos :: Pos }
     | GateNameError { pos :: Pos }
     | ArgNumberMismatch { pos :: Pos, expectedArgs :: Int, actualArgs :: Int }
@@ -61,7 +62,8 @@ insertSymbol sym ast (x:xs) = case MultiMap.lookup sym x of
 data TypeCheckEnv = TypeCheckEnv {
     symbolTable :: SymbolTable,
     ssaAllocator :: Int,
-    mainDefined :: Bool
+    mainDefined :: Bool,
+    inOracle :: Bool
 }
 
 type TypeCheck = ExceptT TypeCheckError (State TypeCheckEnv)
@@ -94,17 +96,28 @@ defineSym a b c= do
     addSym a (DefinedSymbol b c ssa False "")
     return ssa
 
-defineGlobalSym :: String -> String -> Pos -> EType -> TypeCheck Int
-defineGlobalSym prefix name b c= do
+defineGlobalSym :: String -> String -> Pos -> EType -> Bool -> TypeCheck Int
+defineGlobalSym prefix name b c logic = do
     ssa<-nextId
     when (name == "main" && c /= Type () FuncTy [Type () Unit []] && c /= Type () FuncTy [Type () Unit [], Type () (Array 0) [intType ()], Type () (Array 0) [doubleType ()]]) $ do
         throwError $ BadMainSignature c
     when (name == "main") $ do
         modify' (\x->x{mainDefined = True})
     let qualifiedName = prefix ++ name
-    addSym (SymVar name) (DefinedSymbol b c ssa True qualifiedName)
-    addSym (SymVar qualifiedName) (DefinedSymbol b c ssa True qualifiedName)
+    let qualifiedName' = if logic then qualifiedName ++ logicSuffix else qualifiedName
+    addSym (SymVar name) (DefinedSymbol b c ssa True qualifiedName')
+    addSym (SymVar qualifiedName) (DefinedSymbol b c ssa True qualifiedName')
     return ssa
+
+setSym :: Symbol -> Pos -> TypeCheckData -> TypeCheck Int
+setSym sym pos (TypeCheckData _ ty rid) = do
+    sym_tables <- gets symbolTable
+    let cur_table = head sym_tables
+    let deleted = MultiMap.delete sym cur_table
+    let new_data = DefinedSymbol pos ty rid False ""
+    let new_curr = MultiMap.insert sym new_data deleted
+    modify' (\x -> x{symbolTable=new_curr : tail sym_tables})
+    return rid
 
 scope :: TypeCheck ()
 scope = modify (\x->x{symbolTable = MultiMap.empty:symbolTable x})
@@ -149,6 +162,7 @@ checkRule (AnyKnownList x) (Type () (Array y) [_]) = x==y
 checkRule AnyList (Type () (Array _) [_]) = True
 checkRule AnyFunc (Type () FuncTy _) = True
 checkRule AnyGate (Type () (Gate _) _) = True
+checkRule AnyGate (Type () (Logic _) _) = True
 checkRule AnyRef (Type () Ref [_]) = True
 checkRule (ArrayType subRule) (Type () (Array _) [subType]) = checkRule subRule subType
 checkRule _ _ = False
@@ -182,7 +196,7 @@ matchType' wanted e = do
                     Exact (Type () (Array x) [y]) -> do
                         id <- nextId
                         matchType' wanted (EListCast (TypeCheckData pos (Type () (Array x) [y]) id) e)
-                    other -> return Nothing
+                    _ -> return Nothing
             -- Auto list erasure
             Type () (Array x) [y] -> do
                 id<-nextId
@@ -206,25 +220,38 @@ exactBinaryCheck f etype pos op lhs rhs = do
 
 buildBinaryExpr :: Pos -> BinaryOperator -> Expr TypeCheckData -> Expr TypeCheckData -> TypeCheck (Expr TypeCheckData)
 buildBinaryExpr pos op ref_lhs ref_rhs = do
-    lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
-    rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
-    ssa<-nextId
-    let lty = astType lhs'
-    let rty = astType rhs'
-    --traceM $ show rty
-    matched_lhs <- case ty rty of
-            Double -> matchType [Exact (doubleType ())] lhs'
-            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
-    matched_rhs <- case ty lty of
-            Double -> matchType [Exact (doubleType ())] rhs'
-            _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
-    --traceM $ show matched_lhs
-    let return_type = case op of
-            Cmp _ -> boolType ()
-            _ -> astType matched_lhs
-    case op of
-        Mod -> if (return_type /= intType ()) then throwError $ TypeMismatch pos [Exact (intType ())] return_type else return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
-        _ -> return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+    ssa <- nextId
+    logic <- gets inOracle
+    case logic of
+        True -> do
+            let ty = astType ref_lhs
+            case ty of
+                Type () Bool [] -> do
+                    rhs <- matchType [Exact ty] ref_rhs
+                    return $ EBinary (TypeCheckData pos ty ssa) op ref_lhs rhs
+                Type () (Array _) [Type () Bool []] -> do
+                    rhs <- matchType [Exact ty] ref_rhs
+                    return $ EBinary (TypeCheckData pos ty ssa) op ref_lhs rhs
+        False -> do
+            lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
+            rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
+            let lty = astType lhs'
+            let rty = astType rhs'
+            --traceM $ show rty
+            matched_lhs <- case ty rty of
+                    Double -> matchType [Exact (doubleType ())] lhs'
+                    _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
+            matched_rhs <- case ty lty of
+                    Double -> matchType [Exact (doubleType ())] rhs'
+                    _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
+            --traceM $ show matched_lhs
+            let return_type = case op of
+                    Cmp _ -> boolType ()
+                    _ -> astType matched_lhs
+            case op of
+                Mod -> if (return_type /= intType ()) then throwError $ TypeMismatch pos [Exact (intType ())] return_type
+                    else return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
+                _ -> return $ EBinary (TypeCheckData pos return_type ssa) op matched_lhs matched_rhs
 
 -- By now we only support bottom-up type checking.
 -- All leaf nodes have their own type, and intermediate types are calculated.
@@ -232,9 +259,14 @@ typeCheckExpr' :: (Expr Pos->TypeCheck (Expr TypeCheckData))->Expr Pos->TypeChec
 typeCheckExpr' f (EIdent pos ident) = do
     sym<-getSym pos (SymVar ident)
     ssa<-nextId
+    in_oracle <- gets inOracle
     case isGlobal sym of
         True ->return $ EGlobalName (TypeCheckData pos (definedType sym) ssa) (qualifiedName sym)
-        False -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) (definedSSA sym)
+        False -> do
+            let sym_ssa = definedSSA sym
+            case in_oracle of
+                True -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) sym_ssa) sym_ssa
+                False -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) sym_ssa
 
 typeCheckExpr' f (EBinary pos And lhs rhs) = exactBinaryCheck f (boolType ()) pos And lhs rhs
 typeCheckExpr' f (EBinary pos Or lhs rhs) = exactBinaryCheck f (boolType ()) pos Or lhs rhs
@@ -254,28 +286,32 @@ typeCheckExpr' f (EBinary pos op lhs rhs) = do
     ref_lhs<-f lhs
     ref_rhs<-f rhs
     buildBinaryExpr pos op ref_lhs ref_rhs
-typeCheckExpr' f (EUnary pos Not lhs) = do
-    lhs'<-f lhs
-    matched_lhs <- matchType (map Exact [boolType ()]) lhs'
-    ssa<-nextId
-    let return_type = boolType ()
-    return $ EUnary (TypeCheckData pos return_type ssa) Not matched_lhs
 typeCheckExpr' f (EUnary pos op lhs) = do
     lhs'<-f lhs
-    matched_lhs <- matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
+    matched_lhs <- case op of
+        Not -> matchType [Exact $ boolType ()] lhs'
+        Noti -> matchType [ArrayType $ Exact $ boolType ()] lhs'
+        _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
     ssa<-nextId
     let return_type = astType matched_lhs
     return $ EUnary (TypeCheckData pos return_type ssa) op matched_lhs
 typeCheckExpr' f (ESubscript pos base offset) = do
-    base'<-f base
-    offset'<-f offset
-    base''<-matchType [AnyList] base'
-    offset''<-matchType [Exact $ intType (), Exact $ Type () IntRange []] offset'
-    ssa<-nextId
+    base' <- f base
+    offset' <- f offset
+    base'' <- matchType [AnyList] base'
+    offset'' <- matchType [Exact $ intType (), Exact $ Type () IntRange []] offset'
+    ssa <- nextId
+    in_oracle <- gets inOracle
     let a = case astType base'' of
-            Type () (Array _) [ax] -> case astType offset'' of
-                    Type () IntRange [] -> Type () (Array 0) [ax]
-                    _ -> refType () ax
+            Type () (Array _) [ax] -> do
+                let offset_type = astType offset''
+                case in_oracle of
+                    True -> case offset_type of
+                        Type () Int [] -> ax
+                        _ -> undefined
+                    False -> case offset_type of
+                        Type () IntRange [] -> Type () (Array 0) [ax]
+                        _ -> refType () ax
             _ -> undefined
     return $ ESubscript (TypeCheckData pos a ssa) base'' offset''
 typeCheckExpr' f (ECall pos callee callArgs) = do
@@ -331,7 +367,8 @@ typeCheckExpr' f (EList pos lis) = do
     let ele_type = intToType min_level
     lis'' <- mapM (matchType [Exact ele_type]) lis'
     let ty = Type () (Array $ length lis) [ele_type]
-    return $ EList (TypeCheckData pos ty (-1)) lis''
+    ssa <- nextId
+    return $ EList (TypeCheckData pos ty ssa) lis''
 typeCheckExpr' f x@EDeref{} = error "Unreachable."
 typeCheckExpr' f x@EImplicitCast{} = error "Unreachable."
 typeCheckExpr' f (ETempVar pos ident) = do
@@ -496,84 +533,142 @@ typeCheckAST' f (NCall pos c@(ECall _ callee args)) = do
             c'<-typeCheckExpr c
             return $ NCall (okStmt pos) c'
         Gate _ -> f (NCoreUnitary pos callee args [])
+        Logic _ -> f (NCoreUnitary pos callee args [])
         _ -> undefined
 typeCheckAST' f (NCall pos c) = error "unreachable"
 typeCheckAST' f (NDefvar pos defs) = do
+    in_oracle <- gets inOracle
     let def_one (ty, name, initializer, length) = do
             let left_type = void ty
-            (i', ty')<-case initializer of
-                Just r->do
-                    r' <- typeCheckExpr r
-                    case left_type of
-                        Type () (Array llen) [lsub] -> do
-                            let right_type = termType $ annotationExpr r'
-                            case right_type of
-                                Type () (Array rlen) [rsub] -> do
-                                    let li = typeToInt lsub
-                                    let ri = typeToInt rsub
-                                    let min = minimum [li, ri]
-                                    when (min < 0 || li > ri) $ throwError $ TypeMismatch pos [Exact left_type] right_type
-                                    let llen' = case llen of
-                                            0 -> rlen
-                                            _ -> llen
-                                    return (Just r', Type () (Array llen') [lsub])
-                                _ -> throwError $ TypeMismatch pos [Exact left_type] right_type
-                        _ -> do
-                            r''<-matchType [Exact left_type] r'
-                            return (Just r'', definedRefType left_type)
-                Nothing -> case length of
-                    Nothing -> return (Nothing, definedRefType left_type)
-                    Just len -> do
-                        len' <- typeCheckExpr len
-                        len'' <- matchType [Exact $ intType ()] len'
-                        return (Just len'', left_type)
-            s <- defineSym (SymVar name) pos ty'
-            return (ty', s, i')
+            case in_oracle of
+                True -> do
+                    let sym = SymVar name
+                    case initializer of
+                        Just r -> do
+                            r' <- typeCheckExpr r
+                            case left_type of
+                                Type () (Array 0) [Type () Bool []] -> do
+                                    r'' <- matchType [ArrayType $ Exact $ boolType ()] r'
+                                    rid <- setSym sym pos $ annotationExpr r''
+                                    return (left_type, rid, Just r'')
+                                Type () Bool [] -> do
+                                    r''<-matchType [Exact left_type] r'
+                                    rid <- setSym sym pos $ annotationExpr r''
+                                    return (left_type, rid, Just r'')
+                                other -> throwError $ UnsupportedType pos other
+                        Nothing -> case length of
+                            Nothing -> do
+                                case left_type of
+                                    Type () Bool [] -> do
+                                        rid <- defineSym sym pos left_type
+                                        return (left_type, rid, Nothing)
+                                    _ -> throwError $ UnsupportedType pos left_type
+                            Just (EIntLit _ len) -> do
+                                case left_type of
+                                    Type () (Array 0) [Type () Bool []] -> do
+                                        let ty = Type () (Array len) [Type () Bool []]
+                                        rid <- defineSym sym pos ty
+                                        return (ty, rid, Nothing)
+                                    other -> throwError $ UnsupportedType pos other
+                            _ -> throwError $ UnsupportedLeftSide pos
+                False -> do
+                    (i', ty') <- case initializer of
+                        Just r -> do
+                            r' <- typeCheckExpr r
+                            case left_type of
+                                Type () (Array llen) [lsub] -> do
+                                    let right_type = termType $ annotationExpr r'
+                                    case right_type of
+                                        Type () (Array rlen) [rsub] -> do
+                                            let li = typeToInt lsub
+                                            let ri = typeToInt rsub
+                                            let min = minimum [li, ri]
+                                            when (min < 0 || li > ri) $ throwError $ TypeMismatch pos [Exact left_type] right_type
+                                            let llen' = case llen of
+                                                    0 -> rlen
+                                                    _ -> llen
+                                            return (Just r', Type () (Array llen') [lsub])
+                                        _ -> throwError $ TypeMismatch pos [Exact left_type] right_type
+                                _ -> do
+                                    r''<-matchType [Exact left_type] r'
+                                    return (Just r'', definedRefType left_type)
+                        Nothing -> case length of
+                            Nothing -> return (Nothing, definedRefType left_type)
+                            Just len -> do
+                                len' <- typeCheckExpr len
+                                len'' <- matchType [Exact $ intType ()] len'
+                                return (Just len'', left_type)
+                    s <- defineSym (SymVar name) pos ty'
+                    return (ty', s, i')
     defs'<-mapM def_one defs
     return $ NResolvedDefvar (okStmt pos) defs'
 typeCheckAST' f (NAssign pos lhs rhs op) = do
-    lhs'<-typeCheckExpr lhs
     rhs'<-typeCheckExpr rhs
-    let doAssign lhs' rhs' = do
-            lhs'' <- matchType [AnyRef] lhs'
-            let Type () Ref [lhs_ty] = astType lhs''
-            when (ty lhs_ty==Qbit) $ throwError $ ViolateNonCloningTheorem pos
-            rhs'' <- matchType [Exact lhs_ty] rhs'
-            return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
-    case op of
-        AssignEq -> doAssign lhs' rhs'
-        AddEq -> do
-            let lhs_ty = termType $ annotationExpr lhs'
-            case lhs_ty of
-                Type () (Array _) [Type () Qbit []] -> do
-                    lhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] lhs'
-                    rhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] rhs'
-                    call_id <- nextId
-                    callee <- typeCheckExpr $ EIdent pos "__add"
-                    let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
-                    return $ NCall (okStmt pos) ecall
-                other -> do
-                    eadd <- buildBinaryExpr pos Add lhs' rhs'
-                    doAssign lhs' eadd
-        SubEq -> do
-            let lhs_ty = termType $ annotationExpr lhs'
-            case lhs_ty of
-                Type () (Array _) [Type () Qbit []] -> do
-                    lhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] lhs'
-                    rhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] rhs'
-                    call_id <- nextId
-                    callee <- typeCheckExpr $ EIdent pos "__sub"
-                    let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
-                    return $ NCall (okStmt pos) ecall
-                other -> do
-                    esub <- buildBinaryExpr pos Sub lhs' rhs'
-                    doAssign lhs' esub
+    in_oracle <- gets inOracle
+    lhs' <- typeCheckExpr lhs
+    case in_oracle of
+        True -> do
+            lhs'' <- matchType [Exact $ boolType()] lhs'
+            case lhs of
+                EIdent lpos ident -> do
+                    let sym = SymVar ident
+                    sym_data <- getSym lpos sym
+                    let lhs_ty = definedType sym_data
+                    case lhs_ty of
+                        Type () Bool [] -> do
+                            rhs'' <- matchType [Exact lhs_ty] rhs'
+                            setSym sym lpos $ annotationExpr rhs''
+                            return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
+                        other -> throwError $ UnsupportedType pos other
+                ESubscript _ _ _ -> do
+                    rhs'' <- matchType [Exact $ boolType()] rhs'
+                    return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
+                _ -> throwError $ UnsupportedLeftSide $ annotationExpr lhs
+        False -> do
+            let doAssign lhs' rhs' = do
+                    lhs'' <- matchType [AnyRef] lhs'
+                    let Type () Ref [lhs_ty] = astType lhs''
+                    when (ty lhs_ty==Qbit) $ throwError $ ViolateNonCloningTheorem pos
+                    rhs'' <- matchType [Exact lhs_ty] rhs'
+                    return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
+            case op of
+                AssignEq -> doAssign lhs' rhs'
+                AddEq -> do
+                    let lhs_ty = termType $ annotationExpr lhs'
+                    case lhs_ty of
+                        Type () (Array _) [Type () Qbit []] -> do
+                            lhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] lhs'
+                            rhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] rhs'
+                            call_id <- nextId
+                            callee <- typeCheckExpr $ EIdent pos "__add"
+                            let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
+                            return $ NCall (okStmt pos) ecall
+                        _ -> do
+                            eadd <- buildBinaryExpr pos Add lhs' rhs'
+                            doAssign lhs' eadd
+                SubEq -> do
+                    let lhs_ty = termType $ annotationExpr lhs'
+                    case lhs_ty of
+                        Type () (Array _) [Type () Qbit []] -> do
+                            lhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] lhs'
+                            rhs'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] rhs'
+                            call_id <- nextId
+                            callee <- typeCheckExpr $ EIdent pos "__sub"
+                            let ecall = ECall (TypeCheckData pos (unitType ()) call_id) callee [rhs'', lhs'']
+                            return $ NCall (okStmt pos) ecall
+                        _ -> do
+                            esub <- buildBinaryExpr pos Sub lhs' rhs'
+                            doAssign lhs' esub
 typeCheckAST' f (NGatedef pos lhs rhs _) = error "unreachable"
-typeCheckAST' f (NReturn _ _) = error "unreachable"
+typeCheckAST' f (NReturn pos expr) = do
+    expr' <- typeCheckExpr expr
+    return $ NReturn (okStmt pos) expr'
 typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
     gate'<-typeCheckExpr gate
     gate''<-matchType [AnyGate] gate'
-    let Type _ (Gate x) extra = astType gate''
+    let (x, extra) = case astType gate'' of
+            Type _ (Gate x) extra -> (x, extra)
+            Type _ (Logic x) extra -> (x, extra)
     let total_qubits = sum (map addedQubits modifiers) + x
     let total_operands = length extra + total_qubits
     when (total_operands /= length operands) $ throwError $ ArgNumberMismatch pos total_qubits (length operands)
@@ -731,22 +826,34 @@ typeCheckToplevel isMain prefix ast = do
     resolved_headers<-mapM (\node->case node of
             Right x->return (Right x)
             Left (NResolvedGatedef pos name matrix size qir) -> do
-                defineGlobalSym prefix name pos (Type () (Gate size) [])
+                defineGlobalSym prefix name pos (Type () (Gate size) []) False
                 return $ Right (NResolvedGatedef (okStmt pos) (prefix ++ name) matrix size qir)
             Left (NExternGate pos name extra size qirname) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym prefix name pos (Type () (Gate size) extra')
+                defineGlobalSym prefix name pos (Type () (Gate size) extra') False
                 return $ Right $ NResolvedExternGate (okStmt pos) (prefix ++ name) (fmap void extra) size qirname
             Left (NOracleTable pos name source value size) -> do
-                defineGlobalSym prefix name pos (Type () (Gate size) [])
+                defineGlobalSym prefix name pos (Type () (Gate size) []) False
                 return $ Right (NOracleTable (okStmt pos) (prefix ++ name) (prefix ++ source) value size)
+            Left (NOracleLogic pos ty name args body) -> do
+                let bool2qbit (Type () (Array x) [Type () Bool []]) = (Type () (Array x) [Type () Qbit []])
+                let arg_types = map fst args
+                let arg_types' = map bool2qbit $ arg_types ++ [ty]
+                defineGlobalSym prefix name pos (Type () FuncTy $ unitType() : arg_types') True
+                scope
+                ids <- mapM (\(ty, i) -> defineSym (SymVar i) pos ty) args
+                modify' (\x->x{inOracle = True})
+                body' <- mapM typeCheckAST body
+                modify' (\x->x{inOracle = False})
+                unscope
+                return $ Right (NResolvedOracleLogic (okStmt pos) (Type () FuncTy $ ty:arg_types) (prefix ++ name) (zip arg_types ids) body')
             Left x@(NDerivedGatedef pos name source extra size) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym prefix name pos (Type () (Gate size) extra')
+                defineGlobalSym prefix name pos (Type () (Gate size) extra') False
                 return $ Right (NDerivedGatedef (okStmt pos) (prefix ++ name) (prefix ++ source) extra' size)
             Left x@(NDerivedOracle pos name source extra size)->do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym prefix name pos (Type () (Gate size) extra')
+                defineGlobalSym prefix name pos (Type () (Gate size) extra') False
                 return $ Right (NDerivedOracle (okStmt pos) (prefix ++ name) (prefix ++ source) extra size)
             Left (NProcedureWithRet pos ty name args body ret) -> do
                 -- check arg types and return types
@@ -758,7 +865,7 @@ typeCheckToplevel isMain prefix ast = do
                     _ -> throwError $ BadProcedureReturnType pos (void ty, name)
                 let new_args = if name == "main" && (length args) == 0 then [(Type pos (Array 0) [intType pos], "main$par1"), (Type pos (Array 0) [doubleType pos], "main$par2")] else args
                 args'<-mapM (uncurry argType) new_args
-                defineGlobalSym prefix name (annotation ty) (Type () FuncTy (ty':args'))
+                defineGlobalSym prefix name (annotation ty) (Type () FuncTy (ty':args')) False
                 -- NTempvar a (void b, procRet, Nothing)
                 let procName = case name of {"main" -> "main"; x -> prefix ++ name}
                 return $ Left (pos, ty', procName, zip args' (fmap snd new_args), body, ret)
@@ -825,7 +932,7 @@ getSecondLast (x:xs) = getSecondLast xs
 
 typeCheckTop :: Bool -> String -> [LAST] -> SymbolTableLayer -> Int -> Either TypeCheckError ([TCAST], SymbolTableLayer, Int)
 typeCheckTop isMain prefix ast stl ssaId = do
-    let env = TypeCheckEnv [MultiMap.empty, stl] ssaId False
+    let env = TypeCheckEnv [MultiMap.empty, stl] ssaId False False
     evalState (runExceptT $ typeCheckToplevel isMain prefix ast) env
 
 -- TODO: unification-based type check and type inference.

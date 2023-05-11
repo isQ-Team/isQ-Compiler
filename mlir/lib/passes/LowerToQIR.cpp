@@ -116,11 +116,8 @@ public:
         if(!memrefty.getElementType().isa<QStateType>() && !memrefty.getElementType().isa<QIRQubitType>()) return mlir::failure();
 
         auto shape = memrefty.getShape();
-        // One-dim known arrays supported only.
+        // One-dim arrays supported only.
         if(shape.size()!=1) return mlir::failure();
-        if(memrefty.isDynamicDim(0)){
-            return mlir::failure();
-        }
         if(op->hasAttr(ISQ_DEINITIALIZED)) return mlir::failure();
         
         rewriter.updateRootInPlace(op, [&]{
@@ -131,12 +128,11 @@ public:
         auto loc = op.getLoc();
         // Create an `scf.for` op. 
         auto lo = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 0);
-        auto hi = rewriter.create<mlir::arith::ConstantIndexOp>(loc, memrefty.getDimSize(0));
+        auto hi = rewriter.create<mlir::memref::DimOp>(loc, op.memref(), 0);
         auto step = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 1);
         auto loop =
           rewriter.create<mlir::scf::ForOp>(loc, lo, hi, step, mlir::ValueRange{}, [&](mlir::OpBuilder& b, mlir::Location loc, mlir::Value iv, mlir::ValueRange iterArgs){
-              
-          });
+        });
         rewriter.updateRootInPlace(loop, [&]{
             rewriter.setInsertionPointToEnd(loop.getBody());
             auto load = rewriter.create<mlir::memref::LoadOp>(loc, utils.getQStateType(ctx), op.memref(), mlir::ValueRange{loop.getInductionVar()});
@@ -314,13 +310,19 @@ public:
             return mlir::success();
         }
         if (qop.sym_name() == "__isq__qmpiprim__csend") {
-            utils.qmpiCsend(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1), op.getOperand(2), op.getOperand(3));
+            utils.qmpiCsend(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1), op.getOperand(2));
             rewriter.eraseOp(op);
             return mlir::success();
         }
         if (qop.sym_name() == "__isq__qmpiprim__crecv") {
-            auto val = utils.qmpiCrecv(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1), op.getOperand(2));
-            op->getResult(1).replaceAllUsesWith(val);
+            auto val = utils.qmpiCrecv(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1));
+            op->getResult(0).replaceAllUsesWith(val);
+            rewriter.eraseOp(op);
+            return mlir::success();
+        }
+        if (qop.sym_name() == "__isq__qmpiprim__size") {
+            auto val = utils.qmpiSize(loc, rewriter, rootModule);
+            op->getResult(0).replaceAllUsesWith(val);
             rewriter.eraseOp(op);
             return mlir::success();
         }

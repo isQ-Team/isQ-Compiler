@@ -7,6 +7,7 @@ import ISQ.Lang.MLIRTree hiding (Bool, Gate, Unit, Double)
 import qualified ISQ.Lang.MLIRTree as M
 import Control.Monad.State (fix, void, State, zipWithM_, evalState, execState, runState)
 import Control.Lens
+import Data.List (isSuffixOf, take)
 import Data.List.Split (splitOn)
 import Debug.Trace
 
@@ -18,7 +19,8 @@ data RegionBuilder = RegionBuilder{
     _headBlocks :: [MLIRBlock],
     _tailBlocks :: [MLIRBlock],
     _filename :: String,
-    _ssaId :: Int
+    _ssaId :: Int,
+    _inLogic :: Bool
 } deriving Show
 
 makeLenses ''RegionBuilder
@@ -30,6 +32,7 @@ nextSsaId = do
     return id
 
 mapType :: EType->MLIRType
+mapType (Type () Unit []) = MUnit
 mapType (Type () Bool []) = M.Bool
 mapType (Type () Ref [x]) = BorrowedRef (mapType x)
 mapType (Type () Int []) = Index
@@ -37,13 +40,16 @@ mapType (Type () Qbit []) = QState
 mapType (Type () (Array 0) [x]) = Memref Nothing (mapType x)
 mapType (Type () (Array n) [x]) = Memref (Just n) (mapType x)
 mapType (Type () (Gate n) _) = M.Gate n
+mapType (Type () (Logic n) _) = M.Gate n
 mapType (Type () Double []) = M.Double
+mapType (Type () FuncTy (ret:arg)) = Func (mapType ret) $ map mapType arg
 mapType _ = error "unsupported type"
 
 
 -- Create an empty region builder, with entry and exit.
-generalRegion :: String -> [(MLIRType, SSA)] -> [MLIROp] -> Int -> RegionBuilder
-generalRegion name init_args end_body ssa = RegionBuilder 1 1 (MLIRBlock (BlockName "^entry") init_args []) [] [MLIRBlock (BlockName "^exit") [] end_body] name ssa
+generalRegion :: String -> [(MLIRType, SSA)] -> [MLIROp] -> Int -> Bool -> RegionBuilder
+generalRegion name init_args end_body ssa in_logic = RegionBuilder 1 1 (MLIRBlock (BlockName "^entry") init_args [])
+    [] [MLIRBlock (BlockName "^exit") [] end_body] name ssa in_logic
 
 -- Called to emit a branch statement according to a flag.
 pushBlock :: MLIRPos->SSA->State RegionBuilder ()
@@ -144,6 +150,16 @@ unaryopTranslate Neg M.Double = mlirNegF
 unaryopTranslate Neg Index = mlirNegI
 unaryopTranslate _ _ = undefined
 
+logicOpTranslate :: BinaryOperator -> String
+logicOpTranslate Andi = "andv"
+logicOpTranslate Ori = "orv"
+logicOpTranslate Xori = "xorv"
+logicOpTranslate And = "and"
+logicOpTranslate Or = "or"
+logicOpTranslate (Cmp Equal) = "xnor"
+logicOpTranslate (Cmp NEqual) = "xor"
+logicOpTranslate _ = undefined
+
 emitExpr' :: (Expr TypeCheckData->State RegionBuilder SSA)->Expr TypeCheckData->State RegionBuilder SSA
 emitExpr' f (EIdent ann name) = error "unreachable"
 emitExpr' f x@(EBinary ann binop lhs rhs) = do
@@ -152,39 +168,49 @@ emitExpr' f x@(EBinary ann binop lhs rhs) = do
     pos<-mpos ann
     let lhsTy = astMType lhs
     let i = ssa ann
-    pushOp $ MBinary pos i lhs' rhs' (binopTranslate binop lhsTy)
+    logic <- use inLogic
+    case logic of
+        True -> pushOp $ MLBinary pos (lhsTy, i) lhs' rhs' $ logicOpTranslate binop
+        False -> pushOp $ MBinary pos i lhs' rhs' $ binopTranslate binop lhsTy
     return i
 emitExpr' f (EUnary ann uop lhs) = do
     lhs'<-f lhs
     pos<-mpos ann
+    let i = ssa ann
     let lhsTy = astMType lhs
     case uop of
         Positive -> return lhs' -- Positive x is x
         Neg -> do
             case lhsTy of
                 Index -> do
-                    let i = ssa ann
                     let zero = SSA (unSsa i ++ "_zero")
                     pushOp $ MLitInt pos zero 0
                     pushOp $ MBinary pos i zero lhs' (binopTranslate Sub lhsTy)
                     return i
                 M.Double -> do
-                    let i = ssa ann
                     pushOp $ MUnary pos i lhs' (unaryopTranslate uop lhsTy)
                     return i
                 _->error "bad neg type"
         Not -> do
-            let i = ssa ann
-            let zero = SSA (unSsa i ++ "_false")
-            pushOp $ MLitBool pos zero False
-            pushOp $ MBinary pos i zero lhs' (binopTranslate (Cmp Equal) lhsTy)
+            in_logic <- use inLogic
+            case in_logic of
+                True -> pushOp $ MLUnary pos (lhsTy, i) lhs' "not"
+                False -> do
+                    let zero = SSA (unSsa i ++ "_false")
+                    pushOp $ MLitBool pos zero False
+                    pushOp $ MBinary pos i zero lhs' (binopTranslate (Cmp Equal) lhsTy)
             return i
+        Noti -> do
+            pushOp $ MLUnary pos (lhsTy, i) lhs' "notv"
+            return i
+
 emitExpr' f (ESubscript ann base offset) = do
     base'<-f base
     offset'<-f offset
     pos<-mpos ann
     let i = ssa ann
-    pushOp $ MTakeRef pos i (astMType base, base') offset'
+    in_logic <- use inLogic
+    pushOp $ MTakeRef pos i (astMType base, base') offset' in_logic
     return i
 emitExpr' f (EArrayLen ann base) = do
     base' <- f base
@@ -194,12 +220,15 @@ emitExpr' f (EArrayLen ann base) = do
     return i
 emitExpr' f x@(ECall ann (EGlobalName ann2 mname) args) = do
     let name = if mname=="main" then "__isq__main" else mname
+    let logic = isSuffixOf logicSuffix name
+    -- remove logicSuffix
+    let name' = if logic then take (length name - length logicSuffix) name else name
     args'<-mapM f args
     let args'' = zip (fmap astMType args) args'
     let ret = if (ty $ termType $ ann) == Unit then Nothing else Just (astMType x, ssa ann)
     pos<-mpos ann
     let i = ssa ann
-    pushOp $ MCall pos ret (fromFuncName name) args''
+    pushOp $ MCall pos ret (fromFuncName name') args'' logic
     return i
 emitExpr' f (ECall ann _ _) = error "indirect call not supported"
 emitExpr' f (EIntLit ann val) = do
@@ -286,16 +315,16 @@ emitStatement' :: (AST TypeCheckData-> State RegionBuilder ())->(AST TypeCheckDa
 emitStatement' f (NBlock ann lis) = do
     pos<-mpos ann
     curSsa <- use ssaId
-    lis' <- scopedStatement [] [MSCFYield pos] (mapM f lis) curSsa
+    lis' <- scopedStatement [] [MSCFYield pos] (mapM f lis) curSsa False
     pushOp $ MSCFExecRegion pos lis'
 -- Generic if.
 emitStatement' f (NIf ann cond bthen belse) = do
     pos<-mpos ann
     cond'<-emitExpr cond
     curSsa <- use ssaId
-    then_block <- scopedStatement [] [MSCFYield pos] (mapM f bthen) curSsa
+    then_block <- scopedStatement [] [MSCFYield pos] (mapM f bthen) curSsa False
     curSsa <- use ssaId
-    else_block <- scopedStatement [] [MSCFYield pos] (mapM f belse) curSsa
+    else_block <- scopedStatement [] [MSCFYield pos] (mapM f belse) curSsa False
     pushOp $ MSCFIf pos cond' (MSCFExecRegion pos then_block) (MSCFExecRegion pos else_block)
 emitStatement' f NFor{} = error "unreachable"
 emitStatement' f NEmpty{} = return ()
@@ -310,12 +339,24 @@ emitStatement' f NWhile{} = error "unreachable"
 emitStatement' f (NCall ann expr) = void $ emitExpr expr
 emitStatement' f (NDefvar ann defs) = error "unreachable"
 emitStatement' f (NAssign ann lhs rhs op) = do
-    lhs'<-emitExpr lhs
-    rhs'<-emitExpr rhs
-    pos<-mpos ann
-    pushOp $ MStore pos (astMType lhs, lhs') rhs'
+    rhs' <- emitExpr rhs
+    in_logic <- use inLogic
+    pos <- mpos ann
+    case in_logic of
+        True -> case lhs of
+            ESubscript ann base offset -> do
+                offset' <- emitExpr offset
+                pushOp $ MStoreOffset pos (astMType base, ssa $ annotationExpr base) rhs' offset'
+            _ -> return ()
+        False -> do
+            lhs' <- emitExpr lhs
+            pushOp $ MStore pos (astMType lhs, lhs') rhs'
 emitStatement' f NGatedef{} = error "unreachable"
-emitStatement' f NReturn{} = error "unreachable"
+emitStatement' f (NReturn ann expr) = do
+    pos <- mpos ann
+    let ty = astMType expr
+    expr' <- emitExpr expr
+    pushOp $ MReturn pos (ty, expr') True
 emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
     let go Inv (l, f) = (l, not f)
         go (Ctrl x i) (l, f) = (replicate i x ++ l, f)
@@ -325,13 +366,18 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
     let i = ssa ann2
     
     let used_gate = i;
-    let Type _ (Gate _) extra_params_type = termType ann2;
-    let gate_type@(M.Gate gate_size) = mType ann2;
+    let ty = termType ann2;
+    let isq = case ty of
+            Type _ (Gate _) _ -> True
+            Type _ (Logic _) _ -> False
+            other -> error "unexpected type"
+    let len = length $ subTypes ty
+    let gate_type@(M.Gate gate_size) = mapType ty;
     
-    let (extra_args, qubit_args) = splitAt (length extra_params_type) ops
-    let (extra_ssa, qubit_ssa) = splitAt (length extra_params_type) ops'
+    let (extra_args, qubit_args) = splitAt len ops
+    let (extra_ssa, qubit_ssa) = splitAt len ops'
     let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..length qubit_ssa]
-    pushOp $ MQUseGate pos used_gate (fromFuncName name) gate_type (zipWith (\arg ssa->(astMType arg, ssa)) extra_args extra_ssa)
+    pushOp $ MQUseGate pos used_gate (fromFuncName name) gate_type (zipWith (\arg ssa->(astMType arg, ssa)) extra_args extra_ssa) isq
     decorated_gate<-case folded_mods of
             ([], False)->return i
             (ctrls, adj)->do
@@ -339,7 +385,7 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
                 pushOp $ MQDecorate pos decorated_gate used_gate folded_mods gate_size
                 return $ decorated_gate
     zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins qubit_ssa
-    pushOp $ MQApplyGate pos outs ins decorated_gate
+    pushOp $ MQApplyGate pos outs ins decorated_gate isq
     zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs qubit_ssa
 emitStatement' f NCoreUnitary{} = error "first-class gate unsupported"
 emitStatement' f (NCoreReset ann operand) = do
@@ -364,7 +410,7 @@ emitStatement' f (NResolvedFor ann fori (ERange _ (Just lo) (Just hi) (Just (EIn
     hi'<-emitExpr hi
     pos<-mpos ann
     curSsa <- use ssaId
-    r<-scopedStatement [] [MSCFYield pos] (mapM f body) curSsa
+    r<-scopedStatement [] [MSCFYield pos] (mapM f body) curSsa False
     pushOp $ MSCFFor pos lo' hi' step (fromSSA fori) [MSCFExecRegion pos r]
 emitStatement' f NResolvedFor{} = error "unreachable"
 emitStatement' f (NResolvedGatedef ann name mat sz qir) = do
@@ -373,6 +419,15 @@ emitStatement' f (NResolvedGatedef ann name mat sz qir) = do
 emitStatement' f (NOracleTable ann name source value size) = do
     pos<-mpos ann
     pushOp $ MQOracleTable pos (fromFuncName name) size [(DecompositionRep $ fromFuncName source), (OracleTableRep value)]
+emitStatement' f NOracleLogic{} = error "unreachable"
+emitStatement' f (NResolvedOracleLogic ann ty name args body) = do
+    pos <- mpos ann
+    let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
+    curSsa <- use ssaId
+    body' <- scopedStatement first_args [] (mapM f body) curSsa True
+    let entry = head body'
+    let region = entry{blockBody = init $ blockBody entry}
+    pushOp $ MQOracleLogic pos (fromFuncName name) (Just $ mapType ty) region
 emitStatement' f (NWhileWithGuard ann cond body breakflag) = do
     pos<-mpos ann
     curSsa <- use ssaId
@@ -380,7 +435,7 @@ emitStatement' f (NWhileWithGuard ann cond body breakflag) = do
     curSsa <- use ssaId
     cond_block <- unscopedStatement (emitExpr cond) curSsa
     curSsa <- use ssaId
-    body_block <- scopedStatement [] [MSCFYield pos] (mapM f body) curSsa
+    body_block <- scopedStatement [] [MSCFYield pos] (mapM f body) curSsa False
     let break_ssa = fromSSA $ termId $ annotation breakflag
     let cond_ssa = fromSSA $ termId $ annotation cond
     pushOp $ MSCFWhile pos break_block cond_block cond_ssa break_ssa [MSCFExecRegion pos body_block]
@@ -391,9 +446,9 @@ emitStatement' f (NResolvedProcedureWithRet ann ret mname args body (Just retval
     let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
     curSsa <- use ssaId
     load_return_value <- unscopedStatement (emitExpr retval) curSsa
-    let tail_ret = load_return_value ++ [MFreeMemref pos (fromSSA $ snd retvar) (mapType $ fst retvar), MReturn pos (astMType retval, ssa $ annotation retval)]
+    let tail_ret = load_return_value ++ [MFreeMemref pos (fromSSA $ snd retvar) (mapType $ fst retvar), MReturn pos (astMType retval, ssa $ annotation retval) False]
     curSsa <- use ssaId
-    body' <- scopedStatement first_args tail_ret (mapM f body) curSsa
+    body' <- scopedStatement first_args tail_ret (mapM f body) curSsa False
     let first_alloc = MAllocMemref pos (fromSSA $ snd retvar) (mapType $ fst retvar) $ SSA ""
     let body_head = head body'
     let body'' = (body_head{blockBody = first_alloc : blockBody body_head}):tail body'
@@ -403,7 +458,7 @@ emitStatement' f (NResolvedProcedureWithRet ann ret mname args body Nothing Noth
     pos<-mpos ann
     let first_args = map (\(ty, s)->(mapType ty, fromSSA s)) args
     curSsa <- use ssaId
-    body'<-scopedStatement first_args [MReturnUnit pos] (mapM f body) curSsa
+    body'<-scopedStatement first_args [MReturnUnit pos] (mapM f body) curSsa False
     pushOp $ MFunc pos (fromFuncName name) Nothing body'
 emitStatement' f NResolvedProcedureWithRet{} = error "unreachable"
 emitStatement' f (NJumpToEndOnFlag ann flag) = do
@@ -416,6 +471,7 @@ emitStatement' f (NJumpToEnd ann) = do
 emitStatement' f NTempvar{} = error "unreachable"
 emitStatement' f (NResolvedDefvar ann defs) = do
     pos<-mpos ann
+    in_logic <- use inLogic
     let one_def :: (Type (), Int, Maybe TCExpr) -> State RegionBuilder ()
         -- isQ source: sub_ty arr[] = lis;
         one_def ((Type () (Array _) [sub_ty]), ssa, Just (EList eann lis)) = do
@@ -423,26 +479,39 @@ emitStatement' f (NResolvedDefvar ann defs) = do
             let mlir_ty = mapType $ Type () (Array rlen) [sub_ty]
             pushAllocFree pos (mlir_ty, fromSSA ssa)
             let one_assign base (index, right) = do
-                    index_ssa <- nextSsaId
-                    pushOp $ MLitInt pos (fromSSA index_ssa) index
+                    index_id <- nextSsaId
+                    let index_ssa = fromSSA index_id
+                    pushOp $ MLitInt pos index_ssa index
                     ref_ssa <- nextSsaId
-                    pushOp $ MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) (fromSSA index_ssa)
                     initialized_val <- emitExpr right
-                    pushOp $ MStore pos (mapType $ refType () sub_ty, fromSSA ref_ssa) initialized_val
+                    case in_logic of
+                        True -> pushOp $ MStoreOffset pos (mlir_ty, fromSSA base) initialized_val index_ssa
+                        False -> do
+                            pushOp $ MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) index_ssa in_logic
+                            pushOp $ MStore pos (mapType $ refType () sub_ty, fromSSA ref_ssa) initialized_val
             mapM_ (one_assign ssa) $ zip [0..rlen-1] lis
 
         -- isQ source: sub_ty arr[elen];
         one_def ((Type () (Array _) [sub_ty]), ssa, Just len) = do
-            let mlir_ty = mapType $ Type () (Array 0) [sub_ty]
             len' <- emitExpr len
-            pushOp (MAllocMemref pos (fromSSA ssa) mlir_ty len')
-            pushRAII [MFreeMemref pos (fromSSA ssa) mlir_ty]
+            case in_logic of
+                True -> return ()
+                False -> do
+                    let mlir_ty = mapType $ Type () (Array 0) [sub_ty]
+                    pushOp (MAllocMemref pos (fromSSA ssa) mlir_ty len')
+                    pushRAII [MFreeMemref pos (fromSSA ssa) mlir_ty]
         one_def (ty, ssa, Just initializer) = do
             initialized_val <- emitExpr initializer
-            pushAllocFree pos (mapType ty, fromSSA ssa)
-            pushOp $ MStore pos (mapType ty, fromSSA ssa) initialized_val
+            case in_logic of
+                True -> return ()
+                False -> do
+                    pushAllocFree pos (mapType ty, fromSSA ssa)
+                    pushOp $ MStore pos (mapType ty, fromSSA ssa) initialized_val
         one_def (ty, ssa, Nothing) = do
-            pushAllocFree pos (mapType ty, fromSSA ssa)
+            case in_logic of
+                True -> return ()
+                False -> do
+                    pushAllocFree pos (mapType ty, fromSSA ssa)
     mapM_ one_def defs
 emitStatement' f NExternGate{} = error "unreachable"
 emitStatement' f NProcedureWithDerive{} = error "unreachable"
@@ -470,16 +539,16 @@ emitStatement' f other = error "unexpected statement to emit"
 emitStatement :: AST TypeCheckData -> State RegionBuilder ()
 emitStatement = fix emitStatement'
 
-scopedStatement :: [(MLIRType, SSA)] -> [MLIROp] -> State RegionBuilder a -> Int -> State RegionBuilder [MLIRBlock]
-scopedStatement args tailops op curSsa = do
+scopedStatement :: [(MLIRType, SSA)] -> [MLIROp] -> State RegionBuilder a -> Int -> Bool -> State RegionBuilder [MLIRBlock]
+scopedStatement args tailops op curSsa in_logic = do
     file<-use filename
-    let region = generalRegion file args tailops curSsa
+    let region = generalRegion file args tailops curSsa in_logic
     return $ evalState (op >> finalizeBlock) region
 
 unscopedStatement :: State RegionBuilder a -> Int -> State RegionBuilder [MLIROp]
 unscopedStatement op curSsa = do
     file<-use filename
-    let region = generalRegion file [] [] curSsa
+    let region = generalRegion file [] [] curSsa False
     let finalized_block = evalState (op >> finalizeBlock) region
     let x = head finalized_block
     let y= init $ blockBody x
@@ -487,7 +556,7 @@ unscopedStatement op curSsa = do
 
 unscopedStatement' :: String -> State RegionBuilder a -> Int -> ([MLIROp], Int)
 unscopedStatement' file op ssa =
-    let region = generalRegion file [] [] ssa
+    let region = generalRegion file [] [] ssa False
         (finalized_block, region') = runState (op >> finalizeBlock) region
         x = head finalized_block
         y = init $ blockBody x
@@ -534,7 +603,7 @@ emitTop file (NGlobalDefvar ann defs) = do
                                         index_ssa <- nextCurrentSsa
                                         let mint = MLitInt pos (fromSSA index_ssa) index
                                         ref_ssa <- nextCurrentSsa
-                                        let mref = MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) (fromSSA index_ssa)
+                                        let mref = MTakeRef pos (fromSSA ref_ssa) (mlir_ty, fromSSA base) (fromSSA index_ssa) False
                                         curSsa <- use currentSsa
                                         let (right_ops, ssa') = unscopedStatement' file (emitExpr right) curSsa
                                         currentSsa .= ssa'
@@ -557,6 +626,11 @@ emitTop file x@NResolvedGatedef{} = do
     currentSsa .= ssa'
     mainModule %= (fn:)
 emitTop file x@NOracleTable{} = do
+    ssa <- use currentSsa
+    let ([fn], ssa') = unscopedStatement' file (emitStatement x) ssa
+    currentSsa .= ssa'
+    mainModule %= (fn:)
+emitTop file x@NResolvedOracleLogic{} = do
     ssa <- use currentSsa
     let ([fn], ssa') = unscopedStatement' file (emitStatement x) ssa
     currentSsa .= ssa'
@@ -589,11 +663,11 @@ generateMLIRModule file (xs, ssa) =
         args = [(Memref Nothing Index, SSA {unSsa = "%ssa_1"}), (Memref Nothing M.Double, SSA {unSsa = "%ssa_2"})]
         ssa_rank = SSA {unSsa = "%r"}
         entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) (args ++ [(Index, ssa_arg_rank)]) [
-                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [],
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [] False,
                 MUseGlobalMemref MLIRPosUnknown ssa_rank (fromFuncName ".__qmpi_rank") (BorrowedRef Index),
                 MStore MLIRPosUnknown (BorrowedRef Index, ssa_rank) ssa_arg_rank,
-                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") args,
-                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_finalize") [],
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") args False,
+                MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_finalize") [] False,
                 MReturnUnit MLIRPosUnknown 
             ]]
     in MModule MLIRPosUnknown (reverse $ entry : finalize : initialize:view mainModule builder)

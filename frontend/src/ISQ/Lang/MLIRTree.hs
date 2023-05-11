@@ -8,9 +8,10 @@ import GHC.Stack (HasCallStack)
 import Debug.Trace
 
 data MLIRType =
-    Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
-  | Gate Int | Double | QIRQubit deriving Show
+    MUnit | Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
+  | Gate Int | Double | QIRQubit | Func MLIRType [MLIRType] deriving Show
 mlirType :: MLIRType->String
+mlirType MUnit = "()"
 mlirType Bool = "i1"
 mlirType I2 = "i2"
 mlirType I64 = "i64"
@@ -22,6 +23,7 @@ mlirType (Memref Nothing ty) = "memref<?x" ++ mlirType ty ++ ">"
 mlirType (Memref (Just x) ty) = "memref<"++show x++"x" ++ mlirType ty ++ ">"
 mlirType (BorrowedRef ty) = "memref<1x"++ mlirType ty ++", affine_map<(d0)[s0]->(d0+s0)>>"
 mlirType (Gate x) = "!isq.gate<"++show x++">"
+mlirType (Func ret args) = "(" ++ intercalate "," (map mlirType args) ++ ")->" ++ mlirType ret
 newtype BlockName = BlockName {unBlockName :: String} deriving Show
 newtype SSA = SSA {unSsa :: String} deriving Show
 newtype FuncName = FuncName {unFuncName :: String} deriving Show
@@ -114,20 +116,24 @@ data MLIROp =
       MFunc {location :: MLIRPos, funcName :: FuncName, funcReturnType :: Maybe MLIRType, funcRegion :: [MLIRBlock]}
     | MQDefGate { location :: MLIRPos, gateName :: FuncName, gateSize :: Int, extraArgTypes :: [MLIRType], representations :: [GateRep]}
     | MQOracleTable { location :: MLIRPos, gateName :: FuncName, gateSize :: Int, representations :: [GateRep] }
-    | MQUseGate { location :: MLIRPos, value :: SSA, usedGate :: FuncName, usedGateType :: MLIRType, useGateParams :: [(MLIRType, SSA)]}
+    | MQOracleLogic { location :: MLIRPos, gateName :: FuncName, funcReturnType :: Maybe MLIRType, logicRegion :: MLIRBlock }
+    | MQUseGate { location :: MLIRPos, value :: SSA, usedGate :: FuncName, usedGateType :: MLIRType, useGateParams :: [(MLIRType, SSA)], isqDialect :: Bool }
     | MExternFunc { location :: MLIRPos, funcName :: FuncName, funcReturnType :: Maybe MLIRType, funcArgTypes :: [MLIRType]}
     | MQDecorate { location :: MLIRPos, value :: SSA, decoratedGate :: SSA, trait :: ([Bool], Bool), gateSize :: Int }
-    | MQApplyGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA}
+    | MQApplyGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA, isqDialect :: Bool }
     | MQMeasure { location :: MLIRPos, measResult :: SSA, measQOut :: SSA, measQIn :: SSA}
     | MQReset { location :: MLIRPos, resetQOut :: SSA, resetQIn :: SSA}
     | MQPrint { location :: MLIRPos, printIn :: (MLIRType, SSA)}
     -- | MQCallQop { location :: MLIRPos, values :: [(MLIRType, SSA)], funcName :: FuncName, operands :: [(MLIRType, SSA)]}
     | MBinary {location :: MLIRPos, value :: SSA, lhs :: SSA, rhs :: SSA, bopType :: MLIRBinaryOp}
+    | MLBinary { location :: MLIRPos, returnVal :: TypedSSA, lhs :: SSA, rhs :: SSA, logicOp :: String}
     | MUnary {location :: MLIRPos, value :: SSA, unaryOperand :: SSA, uopType :: MLIRUnaryOp}
+    | MLUnary {location :: MLIRPos, returnVal :: TypedSSA, unaryOperand :: SSA, logicOp :: String}
     | MCast {location::MLIRPos, value :: SSA, unaryOperand :: SSA, uopType :: MLIRUnaryOp}
     | MLoad {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
     | MStore {location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA}
-    | MTakeRef {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), arrayOffset :: SSA}
+    | MStoreOffset { location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA, arrayOffset :: SSA }
+    | MTakeRef { location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), arrayOffset :: SSA, isLogic :: Bool }
     | MArrayLen {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
     | MListCast { location :: MLIRPos, value :: SSA, rhs :: SSA, to_zero :: Bool, listType :: MLIRType }
     | MLitInt {location :: MLIRPos, value :: SSA, litInt :: Int}
@@ -138,14 +144,14 @@ data MLIROp =
     | MJmp {location :: MLIRPos, jmpBlock :: BlockName}
     | MBranch {location :: MLIRPos, value :: SSA, branches :: (BlockName, BlockName)}
     | MModule {location :: MLIRPos, topOps :: [MLIROp]}
-    | MCall {location :: MLIRPos, callRet :: Maybe (MLIRType, SSA), funcName :: FuncName, operands :: [(MLIRType, SSA)]}
+    | MCall { location :: MLIRPos, callRet :: Maybe (MLIRType, SSA), funcName :: FuncName, operands :: [(MLIRType, SSA)], isLogic :: Bool }
     | MSCFIf {location :: MLIRPos, ifCondition :: SSA, thenRegion :: MLIROp, elseRegion :: MLIROp}
     | MSCFWhile {location :: MLIRPos, breakBlock :: [MLIROp], condBlock :: [MLIROp], condExpr :: SSA, breakCond :: SSA, whileBody :: [MLIROp]}
     | MAffineFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
     | MSCFFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
     | MSCFExecRegion {location :: MLIRPos, blocks :: [MLIRBlock]}
     | MSCFYield {location :: MLIRPos}
-    | MReturn {location :: MLIRPos, returnVal :: TypedSSA}
+    | MReturn { location :: MLIRPos, returnVal :: TypedSSA, isLogic :: Bool }
     | MReturnUnit {location :: MLIRPos}
     | MBp {location :: MLIRPos, bpLine :: SSA}
     | MGlobalMemref {location :: MLIRPos, globalMemrefName :: FuncName, globalMemrefType :: MLIRType}
@@ -213,9 +219,9 @@ emitOpStep f env (MModule _ ops) =
       indented env $ "    isq.declare_qop @__isq__builtin__print_double : [0](f64)->()",
       indented env $ "    isq.declare_qop @__isq__qmpiprim__me : [0]()->index",
       indented env $ "    isq.declare_qop @__isq__qmpiprim__size : [0]()->index",
-      indented env $ "    isq.declare_qop @__isq__qmpiprim__epr : [1](index)->()",
-      indented env $ "    isq.declare_qop @__isq__qmpiprim__csend : [0](i1, index)->()",
-      indented env $ "    isq.declare_qop @__isq__qmpiprim__crecv : [0](index)->i1"
+      indented env $ "    isq.declare_qop @__isq__qmpiprim__epr : [1](index, index)->()",
+      indented env $ "    isq.declare_qop @__isq__qmpiprim__csend : [0](index, index, i1)->()",
+      indented env $ "    isq.declare_qop @__isq__qmpiprim__crecv : [0](index, index)->i1"
   ]++s ++ [indented env "}"])
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_me\"") _ _) = "\n\
 \func.func @qmpi.qmpi_me()->index { \n\
@@ -230,35 +236,40 @@ emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_size\"") _ _) = "\n\
 \  }\n\
 \"
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_epr\"") _ _) = "\n\
-\func.func @qmpi.qmpi_epr(%arg0: memref<1x!isq.qstate, affine_map<(d0)[s0] -> (d0 + s0)>>, %arg1: index) {\n\
-\  %q = affine.load %arg0[0] : memref<1x!isq.qstate, affine_map<(d0)[s0] -> (d0 + s0)>>\n\
-\  %q1 = isq.call_qop @__isq__qmpiprim__epr(%q, %arg1) : [1](index)->()\n\
+\func.func @qmpi.qmpi_epr(%qubit: !isq.qstate, %peer: index, %tag: index) {\n\
+\  isq.call_qop @__isq__qmpiprim__epr(%qubit, %self, %peer, %tag) : [1](index, index, index)->()\n\
 \  return\n\
 \}\n\
 \"
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_csend\"") _ _) = "\n\
-\func.func @qmpi.qmpi_csend(%arg0: i1, %arg1: index) {\n\
-\  isq.call_qop @__isq__qmpiprim__csend(%arg0, %arg1) : [0](i1, index)->()\n\
+\func.func @\"qmpi.qmpi_csend\"(%val: i1, %recv: index, %tag: index) {\n\
+\  isq.call_qop @__isq__qmpiprim__csend(%recv, %tag, %val) : [0](index, index, i1)->()\n\
 \  return\n\
 \}\n\
 \"
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_crecv\"") _ _) = "\n\
-\func.func @qmpi.qmpi_crecv(%arg0: index) -> i1 {\n\
-\  %0 = isq.call_qop @__isq__qmpiprim__crecv(%arg0) : [0](index)->i1\n\
+\func.func @\"qmpi.qmpi_crecv\"(%send: index, %tag: index) -> i1 {\n\
+\  %0 = isq.call_qop @__isq__qmpiprim__crecv(%send, %tag) : [0](index, index)->i1\n\
 \  return %0 : i1\n\
 \}\n\
 \"
 emitOpStep f env (MFunc loc name ret blocks) = let s = fmap (emitBlock f env) blocks in intercalate "\n" ([indented env $ funcHeader name ret (fmap fst $ blockArgs $ head blocks), indented env "{"] ++ s ++ [indented env $ printf "} %s" (mlirPos loc)])
 emitOpStep f env (MQDefGate loc name size extra reps) = indented env $ printf "isq.defgate %s%s {definition = [%s]}: !isq.gate<%d> %s" (unFuncName name) (case extra of {[]->""; xs-> "("++intercalate ", " (map mlirType extra)++")"}) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
 emitOpStep f env (MQOracleTable loc name size reps) = indented env $ printf "isq.defgate %s {definition=[%s]}: !isq.gate<%d> %s" (unFuncName name) (intercalate ", " $ map gateRep reps) size (mlirPos loc)
+emitOpStep f env (MQOracleLogic loc name (Just ty) region) = intercalate "\n" $ fmap (indented env)
+  [
+    indented env $ printf "logic.func %s: %s {" (unFuncName name) (mlirType ty),
+    emitBlock f env region,
+    indented env $ printf "} %s" (mlirPos loc)
+  ]
 emitOpStep f env (MExternFunc loc name Nothing args) = indented env $ printf "func.func private %s(%s) %s" (unFuncName name) (intercalate ", " $ map mlirType args) (mlirPos loc)
 emitOpStep f env (MExternFunc loc name (Just returns) args) = indented env $ printf "func.func private %s(%s)->%s %s"(unFuncName name) (intercalate ", " $ map mlirType args) (mlirType returns) (mlirPos loc)
-emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) []) = indented env $ printf "%s = isq.use %s : !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) sz (mlirPos loc)
-emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) xs) = indented env $ printf "%s = isq.use %s(%s) : (%s) -> !isq.gate<%d> %s " (unSsa val) (unFuncName usedgate) (intercalate ", " $ fmap (unSsa.snd) xs) (intercalate ", " $ fmap (mlirType.fst) xs) sz (mlirPos loc)
-emitOpStep f env (MQUseGate loc val usedgate usedtype _) = error "wtf?"
+emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) [] isq) = let dialect = case isq of {True -> "isq"; False -> "logic"} in indented env $ printf "%s = %s.use %s : !isq.gate<%d> %s " (unSsa val) dialect (unFuncName usedgate) sz (mlirPos loc)
+emitOpStep f env (MQUseGate loc val usedgate usedtype@(Gate sz) xs isq) = let dialect = case isq of {True -> "isq"; False -> "logic"} in indented env $ printf "%s = %s.use %s(%s) : (%s) -> !isq.gate<%d> %s " (unSsa val) dialect (unFuncName usedgate) (intercalate ", " $ fmap (unSsa.snd) xs) (intercalate ", " $ fmap (mlirType.fst) xs) sz (mlirPos loc)
+emitOpStep f env (MQUseGate loc val usedgate usedtype _ _) = error "wtf?"
 emitOpStep f env (MQDecorate loc value source trait size) = let (d, sz) = decorToDict trait in indented env $ printf "%s = isq.decorate(%s: !isq.gate<%d>) %s : !isq.gate<%d> %s" (unSsa value) (unSsa source) size d (size+sz) (mlirPos loc)
-emitOpStep f env (MQApplyGate loc values [] gate) = indented env $ printf "isq.apply_gphase %s : !isq.gate<0> %s" (unSsa gate) (mlirPos loc)
-emitOpStep f env (MQApplyGate loc values args gate) = indented env $ printf "%s = isq.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
+emitOpStep f env (MQApplyGate loc values [] gate isq) = let dialect = case isq of {True -> "isq"; False -> "logic"} in indented env $ printf "%s.apply_gphase %s : !isq.gate<0> %s" dialect (unSsa gate) (mlirPos loc)
+emitOpStep f env (MQApplyGate loc values args gate isq) = let dialect = case isq of {True -> "isq"; False -> "logic"} in indented env $ printf "%s = %s.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) dialect (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
 emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @__isq__builtin__measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qop @__isq__builtin__reset(%s): [1]()->() %s" (unSsa out)  (unSsa arg) (mlirPos loc)
 emitOpStep f env (MBp loc arg) = indented env $ printf "isq.call_qop @__isq__builtin__bp(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
@@ -280,18 +291,23 @@ emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp "arith.divf" lt rt res
     indented env $ printf "%s = arith.divf %s, %s : %s %s" (unSsa value) (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
   ]
 emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = %s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
+emitOpStep f env (MLBinary loc (ty, value) lhs rhs op) = indented env $ printf "%s = logic.%s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
+emitOpStep f env (MLUnary loc (ty, value) operand op) = indented env $ printf "%s = logic.%s %s : %s %s" (unSsa value) op (unSsa operand) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
 emitOpStep f env (MLoad loc value (arr_type, arr_val)) = intercalate "\n" $
-  [indented env $ printf "%s_load_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
-  indented env $ printf "%s = affine.load %s[%s_load_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)]
-
+  [
+    indented env $ printf "%s_load_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
+    indented env $ printf "%s = affine.load %s[%s_load_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)
+  ]
 emitOpStep f env (MStore loc (arr_type, arr_val) value) = intercalate "\n" $
   [
     indented env $ printf "%s_store_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
     indented env $ printf "affine.store %s, %s[%s_store_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)
   ]
-emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset) = intercalate "\n" $
+emitOpStep f env (MStoreOffset loc (arr_type, arr_val) value offset) = indented env $ printf "memref.store %s, %s[%s] : %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_type) (mlirPos loc)
+emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset True) = indented env $ printf "%s = memref.load %s[%s] : %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirPos loc)
+emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset False) = intercalate "\n" $
   [
     indented env $ printf "%s_zero = arith.constant 0 : index %s" (unSsa value) (mlirPos loc),
     indented env $ printf "%s_length = memref.dim %s, %s_zero : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_ty) (mlirPos loc),
@@ -301,7 +317,7 @@ emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset
     indented env $ printf "isq.assert %s_both : i1, 2 %s" (unSsa value) (mlirPos loc),
     indented env $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirType $ BorrowedRef elem_ty) (mlirPos loc)
   ]
-emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset) = error "wtf?"
+emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset _) = error "wtf?"
 emitOpStep f env (MArrayLen loc value (arr_ty@(Memref _ elem_ty), arr_val)) = intercalate "\n" $
   [
     indented env $ printf "%s_zero = arith.constant 0 : index %s" (unSsa value) (mlirPos loc),
@@ -309,7 +325,7 @@ emitOpStep f env (MArrayLen loc value (arr_ty@(Memref _ elem_ty), arr_val)) = in
   ]
 emitOpStep f env (MListCast loc value rhs True arr_ty@(Memref (Just x) elem_ty)) = indented env $ printf "%s = memref.cast %s : %s to %s %s" (unSsa value) (unSsa rhs) (mlirType arr_ty) (mlirType $ Memref Nothing elem_ty) (mlirPos loc)
 emitOpStep f env (MListCast loc value rhs False arr_ty@(Memref (Just x) elem_ty)) = indented env $ printf "%s = memref.cast %s : %s to %s %s" (unSsa value) (unSsa rhs) (mlirType $ Memref Nothing elem_ty) (mlirType arr_ty) (mlirPos loc)
-emitOpStep f env (MListCast loc value rhs to_zero arr_ty) = error "wtf?"
+emitOpStep f env x@(MListCast loc value rhs to_zero arr_ty) = error ("wtf?" ++ (show x))
 emitOpStep f env (MLitInt loc value val) = indented env $ printf "%s = arith.constant %d : index %s" (unSsa value) val (mlirPos loc)
 emitOpStep f env (MLitBool loc value val) = indented env $ printf "%s = arith.constant %d : i1 %s" (unSsa value) (if val then 1::Int else 0) (mlirPos loc)
 emitOpStep f env (MLitDouble loc value val) = indented env $ printf "%s = arith.constant %f : f64 %s" (unSsa value) val (mlirPos loc)
@@ -326,8 +342,8 @@ emitOpStep f env (MFreeMemref loc val ty) = intercalate "\n" $ [indented env $ p
   indented env $ printf "memref.dealloc %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)]
 emitOpStep f env (MJmp loc blk) = indented env $ printf "cf.br %s %s" (unBlockName blk) (mlirPos loc)
 emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "cf.cond_br %s, %s, %s %s" (unSsa val) (unBlockName trueDst) (unBlockName falseDst) (mlirPos loc)
-emitOpStep f env (MCall loc Nothing fn args) = indented env $ printf "func.call %s(%s) : (%s)->() %s" (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
-emitOpStep f env (MCall loc (Just (retty, retval)) fn args) = indented env $ printf "%s = func.call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
+emitOpStep f env (MCall loc Nothing fn args logic) = let dialect = if logic then "logic" else "func" in indented env $ printf "%s.call %s(%s) : (%s)->() %s" dialect (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
+emitOpStep f env (MCall loc (Just (retty, retval)) fn args _) = indented env $ printf "%s = func.call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
 emitOpStep f env (MSCFIf loc cond then' else') = intercalate "\n" $ [
   indented env $ printf "scf.if %s {" $ unSsa cond]
   ++[f (incrIndent env{isTopLevel=False}) then']
@@ -367,7 +383,8 @@ emitOpStep f env (MSCFFor loc lo hi step var body) = intercalate "\n" $
     indented env $ printf "scf.for %s = %s to %s step %s_one {" (unSsa var) (unSsa lo) (unSsa hi) (unSsa var)]
   ++ fmap (f (incrIndent (env{isTopLevel=False}))) body
   ++ [indented env $ printf "} %s" (mlirPos loc)]
-emitOpStep f env (MReturn loc (ty, v)) = indented env $ printf "return %s : %s %s" (unSsa v) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MReturn loc (ty, v) logic) = let dialect = if logic then "logic." else "" in 
+  indented env $ printf "%sreturn %s : %s %s" dialect (unSsa v) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MReturnUnit loc) = indented env $ printf "return %s" (mlirPos loc)
 --emitOpStep f env (MBp loc) = indented env $ printf "isq.bp %s" (mlirPos loc)
 emitOpStep f env (MGlobalMemref loc name ty@(BorrowedRef subty)) = indented env $ printf "memref.global %s : memref<1x%s> = uninitialized %s"  (unFuncName name) (mlirType subty) (mlirPos loc)

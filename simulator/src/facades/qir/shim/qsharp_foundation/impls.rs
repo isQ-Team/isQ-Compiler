@@ -1,5 +1,4 @@
 use core::ops::Rem;
-use itertools::Itertools;
 use rand::{distributions::Uniform, prelude::Distribution};
 
 use super::types::*;
@@ -184,8 +183,8 @@ pub fn isq_qir_shim_qis_assertmeasurementprobability_body(
     todo!()
 }
 pub fn isq_qir_shim_qis_assertmeasurementprobability_ctl(
-    x0: K<QIRArray>,
-    x1: *const MeasurementProbabilityArgs,
+    _x0: K<QIRArray>,
+    _x1: *const MeasurementProbabilityArgs,
 ) -> () {
     todo!()
 }
