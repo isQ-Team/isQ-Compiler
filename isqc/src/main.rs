@@ -263,7 +263,7 @@ fn main()->miette::Result<()> {
                 opt_args.push(format!("-O{}", o));
             }
             let optimized_llvm = exec::exec_command("", &llvm_tool("opt"), &opt_args, &linked_llvm).map_err(io_error_when("Calling opt"))?;
-            let compiled_obj = exec::exec_command("", "llc", &["-filetype=obj", "--relocation-model=pic"], &optimized_llvm).map_err(io_error_when("Calling llc"))?;
+            let compiled_obj = exec::exec_command("", &llvm_tool("llc"), &["-filetype=obj", "--relocation-model=pic"], &optimized_llvm).map_err(io_error_when("Calling llc"))?;
             // create obj file.
             let mut tmpfile = tempfile::NamedTempFile::new().map_err(io_error_when("Creating tempfile"))?;
             tmpfile.write_all(&compiled_obj).map_err(IoError)?;
