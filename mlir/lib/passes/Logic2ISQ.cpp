@@ -12,7 +12,7 @@
 
 #include "mockturtle/algorithms/simulation.hpp"
 #include "mockturtle/networks/xag.hpp"
-#include "caterpiller/synthesis/lhrs.hpp"
+#include "caterpiller/synthesis/lhrs_oracle.hpp"
 #include "caterpiller/synthesis/strategies/bennett_mapping_strategy.hpp"
 #include "caterpiller/synthesis/strategies/eager_mapping_strategy.hpp"
 #include "caterpiller/synthesis/strategies/greedy_pebbling_mapping_strategy.hpp"
@@ -169,7 +169,7 @@ public:
         caterpillar::greedy_pebbling_mapping_strategy<mockturtle::xag_network> strategy;
         tweedledum::netlist<caterpillar::stg_gate> circ;
         caterpillar::logic_network_synthesis_stats stats;
-        caterpillar::detail::logic_network_synthesis_impl<tweedledum::netlist<caterpillar::stg_gate>, 
+        caterpillar::detail::logic_network_synthesis_impl_oracle<tweedledum::netlist<caterpillar::stg_gate>, 
             mockturtle::xag_network, tweedledum::stg_from_pprm> impl( circ, xag, strategy, {}, {}, stats );
         impl.run();
         
