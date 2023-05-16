@@ -336,16 +336,8 @@ emitOpStep f env (MAllocMemref loc val ty@(BorrowedRef subty) _) = intercalate "
   printf "%s_real = memref.alloc() : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc),
   printf "%s_zero = arith.constant 0 : index" (unSsa val),
   printf "%s = memref.subview %s_real[%s_zero][1][1] : memref<1x%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) (mlirType subty) (mlirType ty) (mlirPos loc)]
-emitOpStep f env (MAllocMemref loc val ty@(Memref (Just n) subty) len) = intercalate "\n" $ fmap (indented env) [
-  printf "%s_real = memref.alloc() : memref<%dx%s> %s" (unSsa val) n (mlirType subty) (mlirPos loc),
-  printf "%s_0 = arith.constant 0 : index" (unSsa val),
-  printf "%s_1 = arith.constant 1 : index" (unSsa val),
-  printf "%s = memref.subview %s_real[%s_0][%d][%s_1] : memref<%dx%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) n (unSsa val) n (mlirType subty) (mlirType ty) (mlirPos loc)]
-emitOpStep f env (MAllocMemref loc val ty@(Memref Nothing subty) len) = intercalate "\n" $ fmap (indented env) [
-  printf "%s_real = memref.alloc(%s) : memref<?x%s> %s" (unSsa val) (unSsa len) (mlirType subty) (mlirPos loc),
-  printf "%s_0 = arith.constant 0 : index" (unSsa val),
-  printf "%s_1 = arith.constant 1 : index" (unSsa val),
-  printf "%s = memref.subview %s_real[%s_0][%s][%s_1] : memref<?x%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) (unSsa len) (unSsa val) (mlirType subty) (mlirType ty) (mlirPos loc)]
+emitOpStep f env (MAllocMemref loc val ty@(Memref (Just n) _) len) = indented env $ printf "%s = memref.alloc() : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MAllocMemref loc val ty len) = indented env $ printf "%s = memref.alloc(%s) : %s %s" (unSsa val) (unSsa len) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MFreeMemref loc val ty@(BorrowedRef subty)) = intercalate "\n" $ [indented env $ printf "isq.accumulate_gphase %s_real : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc),
   indented env $ printf "memref.dealloc %s_real : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc)]
 emitOpStep f env (MFreeMemref loc val ty) = intercalate "\n" $ [indented env $ printf "isq.accumulate_gphase %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc),
