@@ -492,14 +492,13 @@ emitStatement' f (NResolvedDefvar ann defs) = do
             mapM_ (one_assign ssa) $ zip [0..rlen-1] lis
 
         -- isQ source: sub_ty arr[elen];
-        one_def ((Type () (Array _) [sub_ty]), ssa, Just len) = do
+        one_def (ty@(Type () (Array _) [sub_ty]), ssa, Just len) = do
             len' <- emitExpr len
-            case in_logic of
-                True -> return ()
-                False -> do
-                    let mlir_ty = mapType $ Type () (Array 0) [sub_ty]
-                    pushOp (MAllocMemref pos (fromSSA ssa) mlir_ty len')
-                    pushRAII [MFreeMemref pos (fromSSA ssa) mlir_ty]
+            let mlir_ty = case in_logic of
+                    True -> mapType ty
+                    False -> mapType $ Type () (Array 0) [sub_ty]
+            pushOp (MAllocMemref pos (fromSSA ssa) mlir_ty len')
+            pushRAII [MFreeMemref pos (fromSSA ssa) mlir_ty]
         one_def (ty, ssa, Just initializer) = do
             initialized_val <- emitExpr initializer
             case in_logic of

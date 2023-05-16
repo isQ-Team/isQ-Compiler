@@ -232,6 +232,7 @@ buildBinaryExpr pos op ref_lhs ref_rhs = do
                 Type () (Array _) [Type () Bool []] -> do
                     rhs <- matchType [Exact ty] ref_rhs
                     return $ EBinary (TypeCheckData pos ty ssa) op ref_lhs rhs
+                other -> throwError $ UnsupportedType pos other
         False -> do
             lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
             rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
@@ -563,12 +564,13 @@ typeCheckAST' f (NDefvar pos defs) = do
                                         rid <- defineSym sym pos left_type
                                         return (left_type, rid, Nothing)
                                     _ -> throwError $ UnsupportedType pos left_type
-                            Just (EIntLit _ len) -> do
+                            Just elen@(EIntLit _ len) -> do
                                 case left_type of
                                     Type () (Array 0) [Type () Bool []] -> do
                                         let ty = Type () (Array len) [Type () Bool []]
                                         rid <- defineSym sym pos ty
-                                        return (ty, rid, Nothing)
+                                        elen' <- typeCheckExpr elen
+                                        return (ty, rid, Just elen')
                                     other -> throwError $ UnsupportedType pos other
                             _ -> throwError $ UnsupportedLeftSide pos
                 False -> do

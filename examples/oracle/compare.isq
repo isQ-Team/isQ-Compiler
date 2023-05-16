@@ -1,0 +1,49 @@
+import std;
+
+oracle bool[2] larger(bool a[2], bool b[2]) {
+    bool a_low_larger = (a[0] && !b[0]) || (a[0] == b[0]);
+    bool a_larger = (a[1] && !b[1]) || (a[1] == b[1]) && a_low_larger;
+    bool res[2];
+    res[0] = (a_larger && a[0]) || (!a_larger && b[0]);
+    res[1] = (a_larger && a[1]) || (!a_larger && b[1]);
+    return res;
+}
+
+procedure largest(qbit a[2], qbit b[2], qbit c[2], qbit d[2], qbit res[2]) {
+    qbit ab[2], cd[2];
+    larger(a, b, ab);
+    larger(c, d, cd);
+    larger(ab, cd, res);
+    larger(a, b, ab);
+    larger(c, d, cd);
+}
+
+oracle bool[2] match_index(bool a[2], bool b[2], bool c[2], bool d[2], bool v[2]) {
+    bool isb = v[1] == b[1] && v[0] == b[0];
+    bool isc = v[1] == c[1] && v[0] == c[0];
+    bool isd = v[1] == d[1] && v[0] == d[0];
+    bool res[2];
+    res[0] = isb || isd;
+    res[1] = isc || isd;
+    return res;
+}
+
+procedure largest_idx(qbit a[2], qbit b[2], qbit c[2], qbit d[2], qbit res[2]) {
+    qbit max[2];
+    largest(a, b, c, d, max);
+    match_index(a, b, c, d, max, res);
+    largest(a, b, c, d, max);
+}
+
+procedure main()
+{
+    qbit a[2], b[2], c[2], d[2], e[2];
+    //X(a[1]);
+    X(b[0]);
+    largest(a, b, c, d, e);
+    print M(a);
+    print M(b);
+    print M(c);
+    print M(d);
+    print M(e);
+}

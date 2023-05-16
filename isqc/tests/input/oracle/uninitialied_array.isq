@@ -1,0 +1,17 @@
+import std;
+
+oracle bool[2] g(bool a[2]) {
+    bool res[2];
+    res[0] = a[0] && a[1];
+    res[1] = a[0] || a[1];
+    return res;
+}
+
+procedure main()
+{
+    qbit a[2], b[2];
+    X(a[0]);
+    g(a, b);
+    print M(a);
+    print M(b);
+}
