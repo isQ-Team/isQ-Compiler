@@ -492,14 +492,19 @@ emitStatement' f (NResolvedDefvar ann defs) = do
                             pushOp $ MStore pos (mapType $ refType () sub_ty, fromSSA ref_ssa) initialized_val
             mapM_ (one_assign ssa) $ zip [0..rlen-1] lis
 
-        -- isQ source: sub_ty arr[elen];
-        one_def (ty@(Type () (Array _) [sub_ty]), ssa, Just len) = do
-            len' <- emitExpr len
-            let mlir_ty = case in_logic of
-                    True -> mapType ty
-                    False -> mapType $ Type () (Array 0) [sub_ty]
-            pushOp (MAllocMemref pos (fromSSA ssa) mlir_ty len')
-            pushRAII [MFreeMemref pos (fromSSA ssa) mlir_ty]
+        one_def (ty@(Type () (Array _) [sub_ty]), ssa, Just initOrLen) = do
+            initOrLen' <- emitExpr initOrLen
+            let iol_ty = termType $ annotationExpr initOrLen
+            case iol_ty of
+                -- isQ source: sub_ty arr[len];
+                Type () Int [] -> do
+                    let mlir_ty = case in_logic of
+                            True -> mapType ty
+                            False -> mapType $ Type () (Array 0) [sub_ty]
+                    pushOp (MAllocMemref pos (fromSSA ssa) mlir_ty initOrLen')
+                    pushRAII [MFreeMemref pos (fromSSA ssa) mlir_ty]
+                -- isQ source: sub_ty arr[] = init
+                _ -> return ()
         one_def (ty, ssa, Just initializer) = do
             initialized_val <- emitExpr initializer
             case in_logic of
