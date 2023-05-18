@@ -19,8 +19,8 @@ mlirType Index = "index"
 mlirType Double = "f64"
 mlirType QState = "!isq.qstate"
 mlirType QIRQubit = "!isq.qir.qubit"
-mlirType (Memref Nothing ty) = "memref<?x" ++ mlirType ty ++ ">"
-mlirType (Memref (Just x) ty) = "memref<"++show x++"x" ++ mlirType ty ++ ">"
+mlirType (Memref Nothing ty) = "memref<?x" ++ mlirType ty ++ ", affine_map<(d0)[s0, s1] -> (d0 * s1 + s0)>>"
+mlirType (Memref (Just x) ty) = "memref<"++show x++"x" ++ mlirType ty ++ ", affine_map<(d0)[s0, s1] -> (d0 * s1 + s0)>>"
 mlirType (BorrowedRef ty) = "memref<1x"++ mlirType ty ++", affine_map<(d0)[s0]->(d0+s0)>>"
 mlirType (Gate x) = "!isq.gate<"++show x++">"
 mlirType (Func ret args) = "(" ++ intercalate "," (map mlirType args) ++ ")->" ++ mlirType ret
@@ -134,6 +134,7 @@ data MLIROp =
     | MStore {location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA}
     | MStoreOffset { location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA, arrayOffset :: SSA }
     | MTakeRef { location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), arrayOffset :: SSA, isLogic :: Bool }
+    | MSlice { location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), start :: SSA, size :: SSA, step :: SSA, isLogic :: Bool }
     | MArrayLen {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
     | MListCast { location :: MLIRPos, value :: SSA, rhs :: SSA, to_zero :: Bool, listType :: MLIRType }
     | MLitInt {location :: MLIRPos, value :: SSA, litInt :: Int}
@@ -335,8 +336,16 @@ emitOpStep f env (MAllocMemref loc val ty@(BorrowedRef subty) _) = intercalate "
   printf "%s_real = memref.alloc() : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc),
   printf "%s_zero = arith.constant 0 : index" (unSsa val),
   printf "%s = memref.subview %s_real[%s_zero][1][1] : memref<1x%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) (mlirType subty) (mlirType ty) (mlirPos loc)]
-emitOpStep f env (MAllocMemref loc val ty@(Memref (Just n) _) len) = indented env $ printf "%s = memref.alloc() : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)
-emitOpStep f env (MAllocMemref loc val ty len) = indented env $ printf "%s = memref.alloc(%s) : %s %s" (unSsa val) (unSsa len) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MAllocMemref loc val ty@(Memref (Just n) subty) len) = intercalate "\n" $ fmap (indented env) [
+  printf "%s_real = memref.alloc() : memref<%dx%s> %s" (unSsa val) n (mlirType subty) (mlirPos loc),
+  printf "%s_0 = arith.constant 0 : index" (unSsa val),
+  printf "%s_1 = arith.constant 1 : index" (unSsa val),
+  printf "%s = memref.subview %s_real[%s_0][%d][%s_1] : memref<%dx%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) n (unSsa val) n (mlirType subty) (mlirType ty) (mlirPos loc)]
+emitOpStep f env (MAllocMemref loc val ty@(Memref Nothing subty) len) = intercalate "\n" $ fmap (indented env) [
+  printf "%s_real = memref.alloc(%s) : memref<?x%s> %s" (unSsa val) (unSsa len) (mlirType subty) (mlirPos loc),
+  printf "%s_0 = arith.constant 0 : index" (unSsa val),
+  printf "%s_1 = arith.constant 1 : index" (unSsa val),
+  printf "%s = memref.subview %s_real[%s_0][%s][%s_1] : memref<?x%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) (unSsa len) (unSsa val) (mlirType subty) (mlirType ty) (mlirPos loc)]
 emitOpStep f env (MFreeMemref loc val ty@(BorrowedRef subty)) = intercalate "\n" $ [indented env $ printf "isq.accumulate_gphase %s_real : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc),
   indented env $ printf "memref.dealloc %s_real : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc)]
 emitOpStep f env (MFreeMemref loc val ty) = intercalate "\n" $ [indented env $ printf "isq.accumulate_gphase %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc),
@@ -389,13 +398,17 @@ emitOpStep f env (MReturn loc (ty, v) logic) = let dialect = if logic then "logi
 emitOpStep f env (MReturnUnit loc) = indented env $ printf "return %s" (mlirPos loc)
 --emitOpStep f env (MBp loc) = indented env $ printf "isq.bp %s" (mlirPos loc)
 emitOpStep f env (MGlobalMemref loc name ty@(BorrowedRef subty)) = indented env $ printf "memref.global %s : memref<1x%s> = uninitialized %s"  (unFuncName name) (mlirType subty) (mlirPos loc)
-emitOpStep f env (MGlobalMemref loc name ty) = indented env $ printf "memref.global %s : %s = uninitialized %s"  (unFuncName name) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MGlobalMemref loc name ty@(Memref (Just n) subty)) = indented env $ printf "memref.global %s : memref<%dx%s> = uninitialized %s"  (unFuncName name) n (mlirType subty) (mlirPos loc)
 emitOpStep f env (MUseGlobalMemref loc val name ty@(BorrowedRef subty)) = intercalate "\n" $ fmap (indented env) [
   printf "%s_uncast = memref.get_global %s : memref<1x%s> %s" (unSsa val) (unFuncName name) (mlirType subty) (mlirPos loc),
   printf "%s_zero = arith.constant 0 : index" (unSsa val),
   printf "%s = memref.subview %s_uncast[%s_zero][1][1] : memref<1x%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) (mlirType subty) (mlirType ty) (mlirPos loc)
   ]
-emitOpStep f env (MUseGlobalMemref loc val name ty) = indented env $ printf "%s = memref.get_global %s : %s %s" (unSsa val) (unFuncName name) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MUseGlobalMemref loc val name ty@(Memref (Just n) subty)) = intercalate "\n" $ fmap (indented env) [
+  printf "%s_uncast = memref.get_global %s : memref<%dx%s> %s" (unSsa val) (unFuncName name) n (mlirType subty) (mlirPos loc),
+  printf "%s_0 = arith.constant 0 : index" (unSsa val),
+  printf "%s_1 = arith.constant 1 : index" (unSsa val),
+  printf "%s = memref.subview %s_uncast[%s_0][%d][%s_1] : memref<%dx%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) n (unSsa val) n (mlirType subty) (mlirType ty) (mlirPos loc)]
 emitOp' :: MLIREmitEnv -> MLIROp -> String
 emitOp' = fix emitOpStep
 

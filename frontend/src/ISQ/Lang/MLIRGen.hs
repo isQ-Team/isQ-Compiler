@@ -5,6 +5,7 @@ import ISQ.Lang.ISQv2Tokenizer(Pos(Pos), Annotated (annotation))
 import ISQ.Lang.TypeCheck
 import ISQ.Lang.MLIRTree hiding (Bool, Gate, Unit, Double)
 import qualified ISQ.Lang.MLIRTree as M
+import Control.Monad (when)
 import Control.Monad.State (fix, void, State, zipWithM_, evalState, execState, runState)
 import Control.Lens
 import Data.List (isSuffixOf, take)
@@ -477,7 +478,7 @@ emitStatement' f (NResolvedDefvar ann defs) = do
         one_def ((Type () (Array _) [sub_ty]), ssa, Just (EList eann lis)) = do
             let rlen = length lis
             let mlir_ty = mapType $ Type () (Array rlen) [sub_ty]
-            pushAllocFree pos (mlir_ty, fromSSA ssa)
+            when (not in_logic) $ pushAllocFree pos (mlir_ty, fromSSA ssa)
             let one_assign base (index, right) = do
                     index_id <- nextSsaId
                     let index_ssa = fromSSA index_id

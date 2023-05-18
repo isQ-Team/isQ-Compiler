@@ -1,3 +1,5 @@
+import std;
+
 procedure main(){
     qbit q[26];
     for j in 0:30{

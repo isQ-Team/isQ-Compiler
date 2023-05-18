@@ -27,10 +27,10 @@ isqc: check-env
 	ln -s ../isqc/target/debug/isqc isqc
 
 simulator: check-env
-	cd simulator &&	cargo build
+	cd simulator &&	cargo build --release
 	cd ${ISQ_ROOT}/bin && \
 	rm -f simulator && \
-	ln -s ../simulator/target/debug/simulator simulator
+	ln -s ../simulator/target/release/simulator simulator
 
 isq-simulator.bc: check-env
 	mkdir -p ${ISQ_ROOT}/share/isq-simulator;

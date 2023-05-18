@@ -181,14 +181,18 @@ public:
         mlir::SmallVector<::mlir::Type> argtypes;
         mlir::SmallVector<::mlir::Type> returntypes;
         isq::ir::QStateType qstate = isq::ir::QStateType::get(ctx);
+        mlir::AffineExpr d0, s0, s1;
+        mlir::bindDims(ctx, d0);
+        mlir::bindSymbols(ctx, s0, s1);
+        auto affine_map = mlir::AffineMap::get(1, 2, d0 * s1 + s0);
         for (int i=0; i<input_num; i++) {
             mlir::Value arg = op.getArgument(i);
             int width = getBitWidth(arg);
-            mlir::MemRefType memref_i_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{width}, qstate);
+            mlir::MemRefType memref_i_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{width}, qstate, affine_map);
             argtypes.push_back(memref_i_qstate);
         }
         auto po_num = xag.num_pos();
-        mlir::MemRefType memref_o_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{po_num}, qstate);
+        mlir::MemRefType memref_o_qstate = mlir::MemRefType::get(mlir::ArrayRef<int64_t>{po_num}, qstate, affine_map);
         argtypes.push_back(memref_o_qstate);
         mlir::FunctionType functype = mlir::FunctionType::get(ctx, argtypes, returntypes);
 
