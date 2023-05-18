@@ -2,13 +2,18 @@ stages:
   - build
   - test
 
-build:
+nix build:
   stage: build
   script:
     - nix build
-  artifacts:
-    paths:
-      - result
+
+build:
+  stage: build
+  script:
+    - export ISQ_ROOT=`pwd`
+    - make frontend
+    - nix-shell
+    - make mlir isqc simulator isq-simulator.bc
 
 sanity test:
   stage: test
