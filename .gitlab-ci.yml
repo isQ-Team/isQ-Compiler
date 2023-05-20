@@ -2,18 +2,14 @@ stages:
   - build
   - test
 
-nix build:
-  stage: build
-  script:
-    - nix build
-
 build:
   stage: build
   script:
-    - export ISQ_ROOT=`pwd`
-    - make frontend
-    - nix-shell
-    - make mlir isqc simulator isq-simulator.bc
+    - make lock
+    - nix build
+  artifacts:
+    paths:
+      - result
 
 sanity test:
   stage: test
@@ -31,8 +27,8 @@ frontend test:
 integration test:
   stage: test
   script:
-    - export ISQ_ROOT=`pwd`
-    - nix-shell
+    - export ISQ_ROOT=`pwd`/result
+    - export MLIR_ROOT=`pwd`/result
     - cd isqc
     - cargo test
   dependencies:
