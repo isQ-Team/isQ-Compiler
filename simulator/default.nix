@@ -1,9 +1,10 @@
 { rust-bin
-, mlir
 , makeRustPlatform
-, gitignoreSource
 , plugins ? [ ]
 , lib
+, vendor ? null
+, gitignoreSource ? vendor.gitignoreSource
+, mlir ? vendor.mlir
 }:
 let
   rust = rust-bin.fromRustupToolchainFile ./rust-toolchain;

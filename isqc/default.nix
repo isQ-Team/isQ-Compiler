@@ -1,4 +1,8 @@
-{ rust-bin, makeRustPlatform, gitignoreSource }:
+{ rust-bin
+, makeRustPlatform
+, vendor ? null
+, gitignoreSource ? vendor.gitignoreSource
+}:
 let
   rust = rust-bin.fromRustupToolchainFile ./rust-toolchain;
   rustPlatform = makeRustPlatform {

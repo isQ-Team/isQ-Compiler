@@ -1,9 +1,33 @@
-{ mlir, cmake, ninja, doxygen, graphviz, python3, which, git, lld, eigen, gitignoreSource, llvmPackages, nlohmann_json }:
-llvmPackages.stdenv.mkDerivation {
-  name = "isq-opt";
-  nativeBuildInputs = [ cmake ninja doxygen graphviz python3 which git lld ];
-  buildInputs = [ eigen mlir nlohmann_json ];
-  src = gitignoreSource ./.;
-  cmakeFlags = [ "-DISQ_OPT_ENABLE_ASSERTIONS=1" ];
-  inherit mlir;
-}
+{ cmake
+, ninja
+, doxygen
+, graphviz
+, python3
+, which
+, git
+, lld
+, eigen
+, llvmPackages
+, nlohmann_json
+, mkShell
+, clang-tools
+, vendor ? null
+, gitignoreSource ? vendor.gitignoreSource
+, mlir ? vendor.mlir
+}:
+let
+  isq-opt =
+    llvmPackages.stdenv.mkDerivation {
+      name = "isq-opt";
+      nativeBuildInputs = [ cmake ninja doxygen graphviz python3 which git lld ];
+      buildInputs = [ eigen mlir nlohmann_json ];
+      src = gitignoreSource ./.;
+      cmakeFlags = [ "-DISQ_OPT_ENABLE_ASSERTIONS=1" ];
+      passthru.isQDevShell = mkShell.override { stdenv = llvmPackages.stdenv; } {
+        inputsFrom = [ isq-opt ];
+        nativeBuildInputs = [ clang-tools ];
+      };
+      inherit mlir;
+    };
+in
+isq-opt

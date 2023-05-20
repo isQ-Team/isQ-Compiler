@@ -4,66 +4,36 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    vendor = {
-      url = "path:./vendor";
-      inputs.isqc-base.follows = "isqc-base";
-    };
-    isqc-base = {
-      url = "path:./base";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
-    };
-    isqc-driver = {
-      url = "path:./isqc";
-      inputs.isqc-base.follows = "isqc-base";
-      inputs.rust-overlay.follows = "rust-overlay";
-    };
-    isq-simulator = {
-      url = "path:./simulator";
-      inputs.isqc-base.follows = "isqc-base";
-      inputs.rust-overlay.follows = "rust-overlay";
-      inputs.vendor.follows = "vendor";
-    };
-    isq-opt = {
-      url = "path:./mlir";
-      inputs.isqc-base.follows = "isqc-base";
-      inputs.vendor.follows = "vendor";
-    };
-    isqc1 = {
-      url = "path:./frontend";
-      inputs.isqc-base.follows = "isqc-base";
-    };
-    isqc-docs = {
-      url = "path:./docs";
-      inputs.isqc-base.follows = "isqc-base";
-    };
+    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
-    pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
+    gitignore.url = "github:hercules-ci/gitignore.nix";
+    gitignore.inputs.nixpkgs.follows = "nixpkgs";
   };
   nixConfig = {
     bash-prompt-prefix = "(nix-isqc:$ISQC_DEV_ENV)";
     extra-substituters = [ "https://arclight-quantum.cachix.org" ];
     extra-trusted-public-keys = [ "arclight-quantum.cachix.org-1:DiMhc4M3H1Z3gBiJMBTpF7+HyTwXMOPmLVkjREzF404=" ];
   };
-  outputs = { self, nixpkgs, flake-utils, isqc-base, isqc-driver, isq-simulator, isq-opt, isqc1, rust-overlay, vendor, pre-commit-hooks, flake-compat, isqc-docs }:
-    let lib = nixpkgs.lib; in
-    (isqc-base.lib.isqc-components-flake rec {
+  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat, gitignore }:
+    let
+      lib = nixpkgs.lib;
+      base = import ./base/isq-flake.nix { inherit nixpkgs; inherit flake-utils; };
+    in
+    (base.isqc-flake rec {
       inherit self;
-      skipBaseOverlay = true;
-
-      overlay = lib.composeManyExtensions ((map (component: component.overlays.default) [
-        isqc-base
-        vendor
-        isqc1
-        isq-opt
-        isqc-driver
-        isq-simulator
-        isqc-docs
-      ]) ++ [
-        (isqc-base.lib.isqc-override (pkgs: final: prev: rec {
+      overlay =
+        (base.isqc-override (pkgs: final: prev: rec {
+          vendor = (import ./vendor pkgs final prev) // {
+            gitignoreSource = gitignore.lib.gitignoreSource;
+          };
+          isqc-driver = (final.callPackage ./isqc { });
+          isq-opt = (final.callPackage ./mlir { });
+          isq-simulator = (final.callPackage ./simulator { });
+          isqc1 = (final.callPackage ./frontend { });
+          isqc-docs = (final.callPackage ./docs { });
           buildISQCEnv =
             { isqc1 ? final.isqc1
             , isq-opt ? final.isq-opt
@@ -118,8 +88,7 @@
             ];
             vscode = pkgs.vscodium;
           };
-        }))
-      ]);
+        }));
       #overlay = isqc-base.overlays.default;
       #overlay = final: prev: prev;
       components = [
@@ -136,11 +105,10 @@
       defaultComponent = "isqc";
       preOverlays = [ rust-overlay.overlays.default ];
       shell = { pkgs, system }: pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
-        inputsFrom = map (flake: flake.devShell.${system}) [ isqc1 isq-opt isqc-driver isq-simulator isqc-docs ];
+        inputsFrom = map (component: if component ? passthru && component.passthru ? isQDevShell then component.passthru.isQDevShell else component) (with pkgs.isqc; [ isqc1 isq-opt isqc-driver isq-simulator isqc-docs ]);
         # https://github.com/NixOS/nix/issues/6982
         nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp pkgs.rust-analyzer ];
         ISQC_DEV_ENV = "dev";
-        shellHook = self.checks.${system}.pre-commit-check.shellHook;
       };
       extraShells = { pkgs, system }:
         let defaultShell = shell { inherit pkgs; inherit system; };
@@ -152,21 +120,6 @@
         };
       extra = { pkgs, system }: {
         formatter = pkgs.nixpkgs-fmt;
-        checks = {
-          pre-commit-check = pre-commit-hooks.lib.${system}.run {
-            src = ./.;
-            hooks = {
-              nixpkgs-fmt.enable = true;
-              update-flake-lock = {
-                enable = true;
-                name = "Update local flake locks.";
-                entry = "make lock";
-                language = "system";
-                pass_filenames = false;
-              };
-            };
-          };
-        };
       };
     }) // {
       templates = {
