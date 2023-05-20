@@ -5,10 +5,7 @@ stages:
 build:
   stage: build
   script:
-    - export ISQ_ROOT=`pwd`
-    - make frontend
-    - nix-shell
-    - make mlir isqc simulator isq-simulator.bc
+    - nix build
   artifacts:
     paths:
       - result
