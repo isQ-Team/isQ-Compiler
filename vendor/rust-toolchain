@@ -1,4 +1,5 @@
 [toolchain]
-channel = "stable"
+channel = "nightly-2023-04-16"
+#channel = "stable"
 profile = "default"
 components = [ "rust-analyzer", "rust-src" ]

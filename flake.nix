@@ -29,9 +29,9 @@
         (base.isqc-override (pkgs: final: prev: rec {
           vendor = (import ./vendor pkgs final prev) // rec {
             gitignoreSource = gitignore.lib.gitignoreSource;
-            rust = pkgs.rust-bin.fromRustupToolchainFile 
-                ./vendor/rust-toolchain;
-            rustPlatform = 
+            rust = pkgs.rust-bin.fromRustupToolchainFile
+              ./vendor/rust-toolchain;
+            rustPlatform =
               pkgs.makeRustPlatform {
                 cargo = rust;
                 rustc = rust;

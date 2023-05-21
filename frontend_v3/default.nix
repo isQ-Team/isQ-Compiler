@@ -1,4 +1,4 @@
-{ vendor? null, gitignoreSource? vendor.gitignoreSource }:
+{ vendor ? null, gitignoreSource ? vendor.gitignoreSource }:
 let
   rustPlatform = vendor.rustPlatform;
 in

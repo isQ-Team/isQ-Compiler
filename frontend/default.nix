@@ -1,11 +1,12 @@
-{ pkgs, vendor? null, gitignoreSource? vendor.gitignoreSource}:
+{ pkgs, vendor ? null, gitignoreSource ? vendor.gitignoreSource }:
 let
-src = gitignoreSource ./.;
-isqc1 = (pkgs.haskellPackages.callCabal2nix "isqc1" src { });
-inherit (pkgs.haskell.lib) justStaticExecutables;
-isqc1Static = justStaticExecutables isqc1;
-in isqc1Static.overrideAttrs (prev: final: {
-  passthru.isQDevShell = 
+  src = gitignoreSource ./.;
+  isqc1 = (pkgs.haskellPackages.callCabal2nix "isqc1" src { });
+  inherit (pkgs.haskell.lib) justStaticExecutables;
+  isqc1Static = justStaticExecutables isqc1;
+in
+isqc1Static.overrideAttrs (prev: final: {
+  passthru.isQDevShell =
     let
       hs_shell = pkgs.haskellPackages.shellFor {
         nativeBuildInputs = with pkgs; [
