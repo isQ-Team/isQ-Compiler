@@ -120,7 +120,9 @@ pub fn run_qcis_route(code: String)->String{
             stdin.write_all(input.as_bytes()).expect("failed to write to qcis router");
         });
         let output = child.wait_with_output().expect("Failed to read stdout");
-        output.status.exit_ok().expect("qcis router failed to exit. Please check.");
+        if !output.status.success(){
+            panic!("qcis router failed to exit. Please check.");
+        }
         let output = String::from_utf8(output.stdout).expect("qcis router yielded invalid output");
         let qcis_program : Vec<QCISImport> = serde_json::from_str(&output).expect(&format!("qcis router yielded bad json output {}", &output));
         generate_qcis_program_isqir(&config_json, &qcis_program)

@@ -26,8 +26,15 @@
       inherit self;
       overlay =
         (base.isqc-override (pkgs: final: prev: rec {
-          vendor = (import ./vendor pkgs final prev) // {
+          vendor = (import ./vendor pkgs final prev) // rec {
             gitignoreSource = gitignore.lib.gitignoreSource;
+            rust = pkgs.rust-bin.fromRustupToolchainFile 
+                ./vendor/rust-toolchain;
+            rustPlatform = 
+              pkgs.makeRustPlatform {
+                cargo = rust;
+                rustc = rust;
+              };
           };
           isqc-driver = (final.callPackage ./isqc { });
           isq-opt = (final.callPackage ./mlir { });
@@ -107,7 +114,7 @@
       shell = { pkgs, system }: pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
         inputsFrom = map (component: if component ? passthru && component.passthru ? isQDevShell then component.passthru.isQDevShell else component) (with pkgs.isqc; [ isqc1 isq-opt isqc-driver isq-simulator isqc-docs ]);
         # https://github.com/NixOS/nix/issues/6982
-        nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp pkgs.rust-analyzer ];
+        nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp pkgs.isqc.vendor.rust ];
         ISQC_DEV_ENV = "dev";
       };
       extraShells = { pkgs, system }:

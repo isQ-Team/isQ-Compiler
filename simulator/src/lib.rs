@@ -1,6 +1,6 @@
 #![no_std]
-#![feature(vec_into_raw_parts)]
-#![feature(exit_status_error)]
+//#![feature(vec_into_raw_parts)]
+//#![feature(exit_status_error)]
 #[cfg(test)]
 #[macro_use]
 extern crate std;

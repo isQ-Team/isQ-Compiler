@@ -1,14 +1,8 @@
-{ rust-bin
-, makeRustPlatform
-, vendor ? null
+{ vendor ? null
 , gitignoreSource ? vendor.gitignoreSource
 }:
 let
-  rust = rust-bin.fromRustupToolchainFile ./rust-toolchain;
-  rustPlatform = makeRustPlatform {
-    cargo = rust;
-    rustc = rust;
-  };
+  rustPlatform = vendor.rustPlatform;
 in
 rustPlatform.buildRustPackage rec {
   pname = "isqc-driver";

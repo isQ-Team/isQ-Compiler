@@ -1,17 +1,11 @@
-{ rust-bin
-, makeRustPlatform
-, plugins ? [ ]
+{ plugins ? [ ]
 , lib
 , vendor ? null
 , gitignoreSource ? vendor.gitignoreSource
 , mlir ? vendor.mlir
 }:
 let
-  rust = rust-bin.fromRustupToolchainFile ./rust-toolchain;
-  rustPlatform = makeRustPlatform {
-    cargo = rust;
-    rustc = rust;
-  };
+  rustPlatform = vendor.rustPlatform;
   llvm_tools = mlir;
   pluginDeps = lib.catAttrs "derivation" plugins;
   pluginFeatures = lib.catAttrs "feature" plugins;
