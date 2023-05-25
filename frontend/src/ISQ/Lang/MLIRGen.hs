@@ -487,7 +487,7 @@ emitStatement' f (NResolvedDefvar ann defs) = do
         one_def ((Type () (Array _) [sub_ty]), ssa, Just (EList eann lis)) = do
             let rlen = length lis
             let mlir_ty = mapType $ Type () (Array rlen) [sub_ty]
-            when (not in_logic) $ pushAllocFree pos (mlir_ty, fromSSA ssa)
+            pushAllocFree pos (mlir_ty, fromSSA ssa)
             let one_assign base (index, right) = do
                     index_id <- nextSsaId
                     let index_ssa = fromSSA index_id
