@@ -6,21 +6,22 @@ import std;
 import qmpi;
 import lib;
 
-procedure hamming_rx(double phi, qbit x[], int start, int n, qbit q) {
+procedure hamming_rx(double phi, qbit x[], qbit q) {
+    int n = x.length - 1;
     qbit anc[n];
     for i in 0:n {
         CNOT(q, anc[i]);
-        ctrl Rz(phi, x[start + i], anc[i]);
+        ctrl Rz(phi, x[i], anc[i]);
     }
-    ctrl Rz(phi, x[start + n], q);
+    ctrl Rz(phi, x[n], q);
     for i in 0:n {
         CNOT(q, anc[i]);
     }
 }
 
-procedure mu(double phi, qbit x[], int start, int n, qbit q) {
+procedure mu(double phi, qbit x[], qbit q) {
     H(q);
-    hamming_rx(phi, x, start, n, q);
+    hamming_rx(phi, x, q);
     H(q);
 }
 
@@ -53,7 +54,7 @@ procedure approx_or(qbit x[], int n, int m) {
     }
 
     // First level of mu function
-    mu(phi * rank, x, 0, n - 1, y);
+    mu(phi * rank, x[:n], y);
 
     if (rank == 0) {
         qbit anc[m - 1];
@@ -95,7 +96,7 @@ procedure main()
     qbit x[n];
     int rank = qmpi_comm_rank();
     if (rank == 0) {
-        //X(x[0]);
+        X(x[0]);
     }
 
     approx_or(x, n, m);

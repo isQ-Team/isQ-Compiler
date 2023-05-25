@@ -58,6 +58,7 @@ mlirMuli = mlirBinaryOp ("muli", Index, Index, Index)
 --mlirDivsi = mlirBinaryOp ("divsi", Index, Index, Index)
 mlirRemsi = mlirBinaryOp ("remsi", Index, Index, Index)
 mlirFloorDivsi = mlirBinaryOp ("floordivsi", Index, Index, Index) -- Use this by default
+mlirCeilDivsi = mlirBinaryOp ("ceildivsi", Index, Index, Index)
 mlirAnd = mlirBinaryOp ("andi", Bool, Bool, Bool)
 mlirOr = mlirBinaryOp ("ori", Bool, Bool, Bool)
 mlirAndi = mlirBinaryOp ("andi", Index, Index, Index)
@@ -134,7 +135,7 @@ data MLIROp =
     | MStore {location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA}
     | MStoreOffset { location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA, arrayOffset :: SSA }
     | MTakeRef { location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), arrayOffset :: SSA, isLogic :: Bool }
-    | MSlice { location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), start :: SSA, size :: SSA, step :: SSA, isLogic :: Bool }
+    | MSlice { location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), start :: SSA, size :: SSA, step :: SSA }
     | MArrayLen {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
     | MListCast { location :: MLIRPos, value :: SSA, rhs :: SSA, to_zero :: Bool, listType :: MLIRType }
     | MLitInt {location :: MLIRPos, value :: SSA, litInt :: Int}
@@ -319,6 +320,7 @@ emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset
     indented env $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirType $ BorrowedRef elem_ty) (mlirPos loc)
   ]
 emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset _) = error "wtf?"
+emitOpStep f env (MSlice loc value (arr_ty, arr_val) start size step) = indented env $ printf "%s = memref.subview %s[%s][%s][%s] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa start) (unSsa size) (unSsa step) (mlirType arr_ty) (mlirType arr_ty) (mlirPos loc)
 emitOpStep f env (MArrayLen loc value (arr_ty@(Memref _ elem_ty), arr_val)) = intercalate "\n" $
   [
     indented env $ printf "%s_zero = arith.constant 0 : index %s" (unSsa value) (mlirPos loc),

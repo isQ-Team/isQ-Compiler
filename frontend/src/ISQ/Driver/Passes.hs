@@ -14,6 +14,7 @@ import Data.List (filter, findIndex, findIndices, groupBy, intercalate, maximumB
 import Data.List.Split (splitOn)
 import qualified Data.Map.Lazy as Map
 import qualified Data.MultiMap as MultiMap
+import System.IO
 import ISQ.Driver.Jsonify
 import ISQ.Lang.CompileError
 import ISQ.Lang.DeriveGate (passDeriveGate)
@@ -166,6 +167,13 @@ doImport incPath froms file node = do
                                             modify' (\x->x{ssaId = newId})
                                             return (tcast ++ importTcast, table)
 
+myReadFile :: FilePath -> IO (String)
+myReadFile file = do
+    inputHandle <- openFile file ReadMode 
+    hSetEncoding inputHandle utf8
+    theInput <- hGetContents inputHandle
+    return theInput
+
 fileToTcast :: [FilePath] -> [FilePath] -> FilePath -> PassMonad ([TCAST], SymbolTableLayer)
 fileToTcast incPath froms file = do
     stl <- gets symbolTable
@@ -173,8 +181,8 @@ fileToTcast incPath froms file = do
     case maybeSymbol of
         Just symbol -> return ([], symbol)
         Nothing -> do
-            excptionOrStr <- liftIO $ do try(readFile file) :: IO (Either SomeException String)
-            case excptionOrStr of
+            exceptionOrStr <- liftIO $ do try(myReadFile file) :: IO (Either SomeException String)
+            case exceptionOrStr of
                 Left _ -> throwError $ GrammarError $ ReadFileError file
                 Right str -> do
                     ast <- parseToAST file str

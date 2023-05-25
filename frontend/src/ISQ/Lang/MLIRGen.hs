@@ -10,6 +10,7 @@ import Control.Monad.State (fix, void, State, zipWithM_, evalState, execState, r
 import Control.Lens
 import Data.List (isSuffixOf, take)
 import Data.List.Split (splitOn)
+import Data.Maybe (fromJust)
 import Debug.Trace
 
 
@@ -118,6 +119,7 @@ binopTranslate Add Index = mlirAddi
 binopTranslate Sub Index = mlirSubi
 binopTranslate Mul Index = mlirMuli
 binopTranslate Div Index = mlirFloorDivsi
+binopTranslate CeilDiv Index = mlirCeilDivsi
 binopTranslate Mod Index = mlirRemsi
 binopTranslate And M.Bool = mlirAnd
 binopTranslate Or M.Bool = mlirOr
@@ -206,12 +208,19 @@ emitExpr' f (EUnary ann uop lhs) = do
             return i
 
 emitExpr' f (ESubscript ann base offset) = do
-    base'<-f base
-    offset'<-f offset
-    pos<-mpos ann
+    base' <- f base
+    pos <- mpos ann
     let i = ssa ann
     in_logic <- use inLogic
-    pushOp $ MTakeRef pos i (astMType base, base') offset' in_logic
+    case offset of
+        ERange _ start size step -> do
+            start' <- f $ fromJust start
+            size' <- f $ fromJust size
+            step' <- f $ fromJust step
+            pushOp $ MSlice pos i (astMType base, base') start' size' step'
+        _ -> do
+            offset'<-f offset
+            pushOp $ MTakeRef pos i (astMType base, base') offset' in_logic
     return i
 emitExpr' f (EArrayLen ann base) = do
     base' <- f base

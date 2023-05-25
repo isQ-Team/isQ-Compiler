@@ -22,7 +22,7 @@ refIntType ann = Type ann Ref [intType ann]
 refBoolType ann = Type ann Ref [boolType ann]
 
 data CmpType = Equal | NEqual | Greater | Less | GreaterEq | LessEq deriving (Eq, Show)
-data BinaryOperator = Add | Sub | Mul | Div | Mod | And | Or | Andi | Ori | Xori | Cmp CmpType | Pow | Shl | Shr deriving (Eq, Show)
+data BinaryOperator = Add | Sub | Mul | Div | CeilDiv | Mod | And | Or | Andi | Ori | Xori | Cmp CmpType | Pow | Shl | Shr deriving (Eq, Show)
 data UnaryOperator = Neg | Positive | Not | Noti deriving (Eq, Show)
 data Expr ann = 
        EIdent { annotationExpr :: ann, identName :: String}

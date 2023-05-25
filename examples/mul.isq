@@ -33,6 +33,8 @@ procedure main()
     qbit a[width], b[width], c[width * 2];
     set(a, 2);
     set(b, 3);
+    print M(a);
+    print M(b);
     mul(a, b, c);
     print M(c);
 }

@@ -9,6 +9,7 @@ use test_case::test_case;
 #[test_case("init", &merge(&["4", "5", "6"]))]
 #[test_case("length", &merge(&["5", "5", "5", "5"]))]
 #[test_case("measure", &merge(&["4", "5"]))]
+#[test_case("slice", &merge(&["3", "0", "3", "6"]))]
 fn test_array(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
     let folder = Path::new("tests").join("input").join("array");
