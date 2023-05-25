@@ -1,13 +1,25 @@
-{ plugins ? [ ]
+{ enabledPlugins ? [ "qcis" ]
 , lib
 , vendor ? null
 , gitignoreSource ? vendor.gitignoreSource
 , mlir ? vendor.mlir
+, callPackage
 }:
 let
   rustPlatform = vendor.rustPlatform;
   llvm_tools = mlir;
-  pluginDeps = lib.catAttrs "derivation" plugins;
+  availablePlugins = {
+    qcis = {
+      feature = "qcis";
+      package = callPackage ./plugins/python-routing-plugin {};
+    };
+    cuda = {
+      feature = "cuda";
+      package = callPackage ./plugins/cuda-plugin {};
+    };
+  };
+  plugins = map (x: availablePlugins."${x}") enabledPlugins;
+  pluginDeps = lib.catAttrs "package" plugins;
   pluginFeatures = lib.catAttrs "feature" plugins;
   pluginExports = builtins.foldl' (x: y: x // y) { } (lib.catAttrs "exports" plugins);
 in
@@ -17,7 +29,7 @@ rustPlatform.buildRustPackage ((pluginExports) // rec {
   nativeBuildInputs = [ llvm_tools ];
   #buildInputs = (builtins.concatLists [
   #  (addInput build_cuda_plugin (pkgs.lib.getLib cudaPlugin))
-  #  (addInput build_qcis_plugin routingPlugin)
+  #  (addInput build_qcis_plugin rout ingPlugin)
   #]);
   buildInputs = pluginDeps;
   src = gitignoreSource ./.;
@@ -40,5 +52,6 @@ rustPlatform.buildRustPackage ((pluginExports) // rec {
     echo "echo $out/share/isq-simulator/isq-simulator.bc" >> $out/bin/isq-simulator-stub
     chmod +x $out/bin/isq-simulator-stub
   '';
+  passthru.availablePlugins = availablePlugins;
 }
 )

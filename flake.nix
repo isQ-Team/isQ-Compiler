@@ -40,6 +40,7 @@
           isqc-driver = (final.callPackage ./isqc { });
           isq-opt = (final.callPackage ./mlir { });
           isq-simulator = (final.callPackage ./simulator { });
+          isq-simulator-cuda = (final.callPackage ./simulator { enabledPlugins = ["qcis" "cuda"]; });
           isqc1 = (final.callPackage ./frontend { });
           isqc-docs = (final.callPackage ./docs { });
           buildISQCEnv =
@@ -104,6 +105,7 @@
         "isq-opt"
         "isqc-driver"
         "isq-simulator"
+        "isq-simulator-cuda"
         "isqc"
         "isqc-docs"
         "isqcTarball"
