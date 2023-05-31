@@ -1,0 +1,5 @@
+import a;
+
+int b() {
+    return a();
+}

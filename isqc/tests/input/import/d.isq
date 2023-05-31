@@ -1,0 +1,7 @@
+import b;
+import c;
+
+procedure main()
+{
+    print b();
+}

@@ -18,15 +18,6 @@ procedure mul(qbit a[], qbit b[], qbit c[])
     }
 }
 
-procedure set(qbit q[], int val)
-{
-    for i in 0:q.length {
-        if (((val >> i) & 1) == 1) {
-            X(q[i]);
-        }
-    }
-}
-
 procedure main()
 {
     int width = 2;

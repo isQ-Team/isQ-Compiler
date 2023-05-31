@@ -50,3 +50,12 @@ procedure __sub(qbit a[], qbit b[])
     CNOT(a[1:], a[2:len]);
     CNOT(a[1:len], b[1:]);
 }
+
+procedure set(qbit q[], int val)
+{
+    for i in 0:q.length {
+        if (((val >> i) & 1) == 1) {
+            X(q[i]);
+        }
+    }
+}

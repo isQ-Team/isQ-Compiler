@@ -187,7 +187,8 @@ fileToTcast incPath froms file = do
                 Right str -> do
                     ast <- parseToAST file str
                     tuple <- doImport incPath froms file ast
-                    let newStl = Map.insert file (snd tuple) stl
+                    stl' <- gets symbolTable
+                    let newStl = Map.insert file (snd tuple) stl'
                     modify' (\x->x{symbolTable = newStl})
                     return $ tuple
 

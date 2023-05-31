@@ -1,10 +1,42 @@
 import std;
-import lib;
 
-procedure main() {
-    qbit q[2];
-    H(q);
-    qft(q);
+procedure R(int k, qbit q) {
+    double phase = pi / 2 ** (k - 1);
+    ctrl GPhase(phase, q);
+} deriving gate
+
+procedure qft(qbit q[]) {
+    int len = q.length;
+    for i in len-1:-1:-1 {
+        H(q[i]);
+        for j in 0:i {
+            ctrl R(i-j+1, q[j], q[i]);
+        }
+    }
+    for i in 0:len/2 {
+        SWAP(q[i], q[len-i-1]);
+    }
+}
+
+// The inverse of qft
+procedure qft_dagger(qbit q[]) {
+    int len = q.length;
+    for i in 0:len/2 {
+        SWAP(q[i], q[len-i-1]);
+    }
+    for i in 0:len {
+        for j in 0:i {
+            ctrl inv R(i-j+1, q[j], q[i]);
+        }
+        H(q[i]);
+    }
+}
+
+procedure main()
+{
+    qbit q[6];
+    //H(q[:4]);
+    //qft(q);
     qft_dagger(q);
-    bp;
+    print M(q);
 }

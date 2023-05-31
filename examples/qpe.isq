@@ -1,5 +1,5 @@
 import std;
-import lib;
+import qft; // include qft_dagger
 
 int x = 23;
 int n = 6;
@@ -23,7 +23,7 @@ int phase_estimation(int n, qbit ev) {
     qbit anc[n];
     for i in 0:n {
         H(anc[i]);
-        pow2_ctrlU(n - 1 - i, anc[i], ev);
+        pow2_ctrlU(i, anc[i], ev);
     }
     qft_dagger(anc);
     return M(anc);
