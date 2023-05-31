@@ -1,4 +1,6 @@
+{caterpillar, ...}:
 pkgs: final: prev: {
+  caterpillar = (final.callPackage caterpillar {});
   mlir = (final.callPackage ./mlir { });
   nix-user-chroot = (final.callPackage ./nix-user-chroot { });
   buildTarball = { name, drv, entry }:

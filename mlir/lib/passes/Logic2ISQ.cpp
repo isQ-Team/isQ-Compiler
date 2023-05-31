@@ -12,15 +12,15 @@
 
 #include "mockturtle/algorithms/simulation.hpp"
 #include "mockturtle/networks/xag.hpp"
-#include "caterpiller/synthesis/lhrs_oracle.hpp"
-#include "caterpiller/synthesis/strategies/bennett_mapping_strategy.hpp"
-#include "caterpiller/synthesis/strategies/eager_mapping_strategy.hpp"
-#include "caterpiller/synthesis/strategies/greedy_pebbling_mapping_strategy.hpp"
+#include "isq/passes/LHRSOracle.hpp"
+#include "caterpillar/synthesis/strategies/bennett_mapping_strategy.hpp"
+#include "caterpillar/synthesis/strategies/eager_mapping_strategy.hpp"
+#include "isq/passes/GreedyPebbling.hpp"
 #include "mockturtle/algorithms/lut_mapping.hpp"
 #include "mockturtle/algorithms/collapse_mapped.hpp"
 #include "mockturtle/networks/klut.hpp"
 #include "mockturtle/views/mapping_view.hpp"
-
+#undef X // ghack.hpp fix
 #include "logic/IR.h"
 #include "isq/IR.h"
 
@@ -73,8 +73,8 @@ public:
         }
 
         // Binary operator processing template
-        auto binary = [&](mlir::Value lhs, mlir::Value rhs, mlir::Value res,
-            mockturtle::xag_network::signal(mockturtle::xag_network::*create)(mockturtle::xag_network::signal, mockturtle::xag_network::signal)) {
+        auto binary = [&]<typename T>(mlir::Value lhs, mlir::Value rhs, mlir::Value res,
+            T create) {
             std::string lname = value2str(lhs);
             std::string rname = value2str(rhs);
             std::string res_name = value2str(res);
@@ -82,8 +82,8 @@ public:
         };
 
         // Binary vector operator processing template
-        auto vec_binary = [&](mlir::Value lhs, mlir::Value rhs, mlir::Value res,
-            mockturtle::xag_network::signal(mockturtle::xag_network::*create)(mockturtle::xag_network::signal, mockturtle::xag_network::signal)) {
+        auto vec_binary = [&]<typename T>(mlir::Value lhs, mlir::Value rhs, mlir::Value res,
+            T create) {
             std::string lname = value2str(lhs);
             std::string rname = value2str(rhs);
             std::string res_name = value2str(res);
@@ -92,6 +92,7 @@ public:
                 symbol_table[{res_name, j}] = (xag.*create)(symbol_table[{lname, j}], symbol_table[{rname, j}]);
             }
         };
+        
 
         // Process each statement in the funciton body.
         for (mlir::Operation &it : op.getRegion().getOps()) {
@@ -113,19 +114,19 @@ public:
                 binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_and);
             }
             else if (logic::ir::OrOp binop = llvm::dyn_cast<logic::ir::OrOp>(it)) {
-                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_or_no_const);
+                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_or);
             }
             else if (logic::ir::XorOp binop = llvm::dyn_cast<logic::ir::XorOp>(it)) {
                 binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xor);
             }
             else if (logic::ir::XnorOp binop = llvm::dyn_cast<logic::ir::XnorOp>(it)) {
-                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xnor_no_const);
+                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xnor);
             }
             else if (logic::ir::AndvOp binop = llvm::dyn_cast<logic::ir::AndvOp>(it)) {
                 vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_and);
             }
             else if (logic::ir::OrvOp binop = llvm::dyn_cast<logic::ir::OrvOp>(it)) {
-                vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_or_no_const);
+                vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_or);
             }
             else if (logic::ir::XorvOp binop = llvm::dyn_cast<logic::ir::XorvOp>(it)) {
                 vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xor);

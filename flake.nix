@@ -12,13 +12,18 @@
     };
     gitignore.url = "github:hercules-ci/gitignore.nix";
     gitignore.inputs.nixpkgs.follows = "nixpkgs";
+    # Flakified vendor dependencies.
+    caterpillar = {
+      url = "github:arclight-quantum/caterpillar";
+      flake = false;
+    };
   };
   nixConfig = {
     bash-prompt-prefix = "(nix-isqc:$ISQC_DEV_ENV)";
     extra-substituters = [ "https://arclight-quantum.cachix.org" ];
     extra-trusted-public-keys = [ "arclight-quantum.cachix.org-1:DiMhc4M3H1Z3gBiJMBTpF7+HyTwXMOPmLVkjREzF404=" ];
   };
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat, gitignore }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat, gitignore, ...}@flakeInputs:
     let
       lib = nixpkgs.lib;
       base = import ./base/isq-flake.nix { inherit nixpkgs; inherit flake-utils; };
@@ -27,7 +32,7 @@
       inherit self;
       overlay =
         (base.isqc-override (pkgs: final: prev: rec {
-          vendor = (import ./vendor pkgs final prev) // rec {
+          vendor = (import ./vendor flakeInputs pkgs final prev) // rec {
             gitignoreSource = gitignore.lib.gitignoreSource;
             rust = pkgs.rust-bin.fromRustupToolchainFile
               ./vendor/rust-toolchain;

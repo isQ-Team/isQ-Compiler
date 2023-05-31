@@ -1,73 +1,22 @@
-/*------------------------------------------------------------------------------
-| This file is distributed under the MIT License.
-| See accompanying file /LICENSE for details.
-| Author(s): Mathias Soeken
-| Author(s): Giulia Meuli
-*-----------------------------------------------------------------------------*/
 #pragma once
-#include "../structures/stg_gate.hpp"
-#include "strategies/mapping_strategy.hpp"
-
-#include <array>
-#include <cstdint>
-#include <fmt/format.h>
-#include <mockturtle/algorithms/cut_enumeration/spectr_cut.hpp>
-#include <mockturtle/traits.hpp>
-#include <mockturtle/utils/node_map.hpp>
-#include <mockturtle/utils/stopwatch.hpp>
-#include <mockturtle/views/topo_view.hpp>
-#include <tweedledum/algorithms/synthesis/stg.hpp>
-#include <stack>
-#include <fmt/format.h>
-#include <variant>
-#include <vector>
+#include <set>
+#include "caterpillar/synthesis/lhrs.hpp"
 
 using Qubit = tweedledum::qubit_id;
 using SetQubits = std::vector<Qubit>;
 
-namespace caterpillar
-{
+namespace caterpillar {
 
 namespace mt = mockturtle;
 
-struct logic_network_synthesis_params
-{
-  /*! \brief Be verbose. */
-  bool verbose{false};
-
-  bool low_tdepth_AND{false};
-
-};
-
-struct logic_network_synthesis_stats
-{
-  /*! \brief Total runtime. */
-  mockturtle::stopwatch<>::duration time_total{0};
-
-  /*! \brief Required number of ancilla. */
-  uint32_t required_ancillae{0u};
-
-  /*! \brief output qubits. */
-  std::vector<uint32_t> o_indexes;
-
-  /*! \brief input qubits. */
-  std::vector<uint32_t> i_indexes;
-
-  void report() const
-  {
-    std::cout << fmt::format( "[i] total time = {:>5.2f} secs\n", mockturtle::to_seconds( time_total ) );
-  }
-};
-
-namespace detail
-{
+namespace detail {
 
 template<class QuantumNetwork, class LogicNetwork, class SingleTargetGateSynthesisFn>
-class logic_network_synthesis_impl
+class logic_network_synthesis_impl_oracle
 {
   using node_t = typename LogicNetwork::node;
 public:
-  logic_network_synthesis_impl( QuantumNetwork& qnet, LogicNetwork const& ntk,
+  logic_network_synthesis_impl_oracle( QuantumNetwork& qnet, LogicNetwork const& ntk,
                                 mapping_strategy<LogicNetwork>& strategy,
                                 SingleTargetGateSynthesisFn const& stg_fn,
                                 logic_network_synthesis_params const& ps,
@@ -81,6 +30,7 @@ public:
     mockturtle::stopwatch t( st.time_total );
     prepare_inputs();
     prepare_constant( false );
+    record_pipos();
     if ( ntk.get_node( ntk.get_constant( false ) ) != ntk.get_node( ntk.get_constant( true ) ) )
       prepare_constant( true );
 
@@ -95,7 +45,7 @@ public:
           overloaded{
               []( auto ) {},
               [&]( compute_action const& action ) {
-                const auto t = request_ancilla();
+                const auto t = (pos.count(node) ? request_clean_ancilla() : request_ancilla());
                 node_to_qubit[node].push(t);
                 if ( ps.verbose )
                 {
@@ -237,6 +187,16 @@ private:
       qnet.add_gate( tweedledum::gate::pauli_x, node_to_qubit[n].top() );
   }
 
+  void record_pipos() {
+    ntk.foreach_pi( [&]( auto n ) {
+      pis.insert(n);
+    } );
+    ntk.foreach_po( [&]( auto s ) {
+      auto node = ntk.get_node(s);
+      pos.insert(node);
+    } );
+  }
+
   uint32_t request_ancilla()
   {
     if ( free_ancillae.empty() )
@@ -254,15 +214,23 @@ private:
     }
   }
 
+  uint32_t request_clean_ancilla()
+  {
+    const auto r = qnet.num_qubits();
+    st.required_ancillae++;
+    qnet.add_qubit();
+    return r;
+  }
+
   void prepare_outputs()
   {
     std::unordered_map<mt::node<LogicNetwork>, mt::signal<LogicNetwork>> node_to_signals;
     ntk.foreach_po( [&]( auto s ) {
       auto node = ntk.get_node( s );
 
-      if ( const auto it = node_to_signals.find( node ); it != node_to_signals.end() ) //node previously referred
+      if ( const auto it = node_to_signals.find( node ); it != node_to_signals.end() || pis.count(node) ) //node previously referred or node is a primary input
       {
-        auto new_i = request_ancilla();
+        auto new_i = request_clean_ancilla();
 
         qnet.add_gate( tweedledum::gate::cx, node_to_qubit[ntk.node_to_index( node )].top(), new_i );
         if ( ntk.is_complemented( s ) != ntk.is_complemented( node_to_signals[node] ) )
@@ -860,25 +828,17 @@ private:
   logic_network_synthesis_stats& st;
   std::unordered_map<uint32_t, std::stack<uint32_t>> node_to_qubit;
   std::stack<uint32_t> free_ancillae;
+  std::set<uint32_t> pis;
+  std::set<uint32_t> pos;
   /* stores for each root of the cone a queue of qubits where its copies are and its previous location */
   std::unordered_map<uint32_t, std::queue<uint32_t>> copies;
 }; // namespace detail
 
-} // namespace detail
+}
 
-/*! \brief Hierarchical synthesis based on a logic network
- *
- * This algorithm used hierarchical synthesis and computes a reversible network
- * for each gate in the circuit and computes the intermediate result to an
- * ancilla line.  The node may be computed out-of-place or in-place.  The
- * order in which nodes are computed and uncomputed, and whether they are
- * computed out-of-place or in-place is determined by a separate mapper
- * component `MappingStrategy` that is passed as template parameter to the
- * function.
- */
 template<class QuantumNetwork, class LogicNetwork,
          class SingleTargetGateSynthesisFn = tweedledum::stg_from_pprm>
-bool logic_network_synthesis( QuantumNetwork& qnet, LogicNetwork const& ntk,
+bool logic_network_synthesis_oracle( QuantumNetwork& qnet, LogicNetwork const& ntk,
                               mapping_strategy<LogicNetwork>& strategy,
                               SingleTargetGateSynthesisFn const& stg_fn = {},
                               logic_network_synthesis_params const& ps = {},
@@ -887,7 +847,7 @@ bool logic_network_synthesis( QuantumNetwork& qnet, LogicNetwork const& ntk,
   static_assert( mt::is_network_type_v<LogicNetwork>, "LogicNetwork is not a network type" );
 
   logic_network_synthesis_stats st;
-  detail::logic_network_synthesis_impl<QuantumNetwork, LogicNetwork, SingleTargetGateSynthesisFn> impl( qnet,
+  detail::logic_network_synthesis_impl_oracle<QuantumNetwork, LogicNetwork, SingleTargetGateSynthesisFn> impl( qnet,
                                                                                                         ntk,
                                                                                                         strategy,
                                                                                                         stg_fn,
@@ -906,4 +866,4 @@ bool logic_network_synthesis( QuantumNetwork& qnet, LogicNetwork const& ntk,
   return result;
 }
 
-} /* namespace caterpillar */
+}

@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "caterpillar": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1685531839,
+        "narHash": "sha256-L8w9gxegDNeJzqcN3EOMBH4KPCvdQa3y27q23y9cKGU=",
+        "owner": "arclight-quantum",
+        "repo": "caterpillar",
+        "rev": "07f6bed428fa710b63b3ec61a3bdbc101bd6c5a6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "arclight-quantum",
+        "repo": "caterpillar",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -72,6 +88,7 @@
     },
     "root": {
       "inputs": {
+        "caterpillar": "caterpillar",
         "flake-compat": "flake-compat",
         "flake-utils": "flake-utils",
         "gitignore": "gitignore",
