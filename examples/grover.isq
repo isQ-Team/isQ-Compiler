@@ -16,36 +16,26 @@ oracle G(3,1) = [0,1,0,0,0,0,0,0];
 qbit q[3];
 qbit anc;
 
-procedure hardmard(){
-    H(q[0]);
-    H(q[1]);
-    H(q[2]);
-}
-
-procedure init(){
-    hardmard();
+int grover_search() {
+    // Initialize
+    H(q);
     X(anc);
     H(anc);
-}
 
-procedure grover_search(){
-    G(q[0], q[1], q[2], anc);
-    hardmard();
-    U(q[0], q[1], q[2]);
-    hardmard();
+    // Grover iterations
+    for i in 0:2 {
+        G(q[2], q[1], q[0], anc);
+        H(q);
+        U(q[2], q[1], q[0]);
+        H(q);
+    }
+
+    // Finilize
+    H(anc);
+    X(anc);
+    return M(q);
 }
 
 procedure main(){
-    init();
-    int a = 2;
-    while a > 0{
-        grover_search();
-        a = a - 1;
-    }
-    H(anc);
-
-    for i in 0:3{
-        int x = M(q[i]);
-        print x;
-    }
+    print grover_search();
 }

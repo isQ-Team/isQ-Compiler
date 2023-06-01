@@ -7,6 +7,7 @@ use std::path::Path;
 use test_case::test_case;
 
 #[test_case("init", &merge(&["4", "5", "6"]))]
+#[test_case("global", &merge(&["7"]))]
 #[test_case("length", &merge(&["5", "5", "5", "5"]))]
 #[test_case("measure", &merge(&["4", "5"]))]
 #[test_case("slice", &merge(&["3", "0", "3", "6"]))]

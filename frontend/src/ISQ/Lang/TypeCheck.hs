@@ -420,19 +420,24 @@ definedRefType x = Type () Ref [x]
 
 getBaseFromArray :: TCExpr -> TCExpr
 getBaseFromArray x@(EResolvedIdent _ _) = x
+getBaseFromArray x@(EGlobalName _ _) = x
 getBaseFromArray (ESubscript ann base _) = base
 getBaseFromArray _ = error "Unreachable."
 
-getRangeFromArray :: TCExpr -> TypeCheck TCExpr
-getRangeFromArray array@(EResolvedIdent ann _) = do
+generateRange :: TCExpr -> TypeCheckData -> TypeCheck TCExpr
+generateRange symbol ann = do
     let pos = sourcePos ann
     init_id <- nextId
     let init = EIntLit (TypeCheckData pos (intType ()) init_id) 0
     hi_id <- nextId
-    let hi = EArrayLen (TypeCheckData pos (intType ()) hi_id) array
+    let hi = EArrayLen (TypeCheckData pos (intType ()) hi_id) symbol
     step_id <- nextId
     let step = EIntLit (TypeCheckData pos (intType ()) step_id) 1
     return $ ERange ann (Just init) (Just hi) (Just step)
+
+getRangeFromArray :: TCExpr -> TypeCheck TCExpr
+getRangeFromArray array@(EResolvedIdent ann _) = generateRange array ann
+getRangeFromArray array@(EGlobalName ann _) = generateRange array ann
 getRangeFromArray (ESubscript ann _ subscript) = return $ subscript
 getRangeFromArray x = error "Unreachable."
 
@@ -440,7 +445,8 @@ generateIteratorDef :: TCExpr -> TypeCheck [Maybe TCAST]
 generateIteratorDef (ERange ann lo hi step) = do
     int0_id <- nextId
     let c0 = EIntLit (TypeCheckData (sourcePos ann) (intType ()) int0_id) 0
-    let it_def = Just $ NResolvedDefvar ann [(refIntType (), termId ann, Just c0)]
+    it_id <- nextId
+    let it_def = Just $ NResolvedDefvar ann [(refIntType (), it_id, Just c0)]
     lo_id <- nextId
     let lo_def = Just $ NResolvedDefvar ann [(refIntType (), lo_id, lo)]
     hi_def <- case hi of
@@ -507,7 +513,12 @@ getItemFromArray pos (base, it_id, lo_id, step_id) = do
     let add = EBinary (TypeCheckData pos (intType ()) add_ssa) Add lo mul
     let subtype = head $ subTypes $ astType base
     ssa <- nextId
-    return $ ESubscript (TypeCheckData pos subtype ssa) base add
+    base' <- case base of
+            EGlobalName (TypeCheckData pos ty _) name -> do
+                new_id <- nextId
+                return $ EGlobalName (TypeCheckData pos ty new_id) name
+            other -> return other
+    return $ ESubscript (TypeCheckData pos subtype ssa) base' add
 
 typeCheckAST' :: (AST Pos->TypeCheck (AST TypeCheckData))->AST Pos->TypeCheck (AST TypeCheckData)
 typeCheckAST' f (NBlock pos lis) = do
