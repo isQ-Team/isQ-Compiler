@@ -24,9 +24,9 @@ int grover_search() {
 
     // Grover iterations
     for i in 0:2 {
-        U_omega(q[2], q[1], q[0], anc);
+        G(q[2], q[1], q[0], anc);
         H(q);
-        U0(q[2], q[1], q[0]);
+        U(q[2], q[1], q[0]);
         H(q);
     }
 
