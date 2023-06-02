@@ -339,6 +339,10 @@ emitStatement' f (NIf ann cond bthen belse) = do
 emitStatement' f NFor{} = error "unreachable"
 emitStatement' f NEmpty{} = return ()
 emitStatement' f NPass{} = return ()
+emitStatement' f (NAssert ann exp) = do
+    pos <- mpos ann
+    exp' <- emitExpr exp
+    pushOp $ MAssert pos exp'
 emitStatement' f (NBp ann) = do
     pos<-mpos ann
     let Pos x y f = sourcePos ann

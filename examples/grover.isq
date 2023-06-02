@@ -1,6 +1,6 @@
 import std;
 
-defgate U = [
+defgate U0 = [
     1, 0, 0, 0, 0, 0, 0, 0;
     0, -1, 0, 0, 0, 0, 0, 0;
     0, 0, -1, 0, 0, 0, 0, 0;
@@ -11,7 +11,7 @@ defgate U = [
     0, 0, 0, 0, 0, 0, 0, -1
 ];
 
-oracle G(3,1) = [0,1,0,0,0,0,0,0];
+oracle U_omega(3,1) = [0,1,0,0,0,0,0,0];
 
 qbit q[3];
 qbit anc;
@@ -24,9 +24,9 @@ int grover_search() {
 
     // Grover iterations
     for i in 0:2 {
-        G(q[2], q[1], q[0], anc);
+        U_omega(q[2], q[1], q[0], anc);
         H(q);
-        U(q[2], q[1], q[0]);
+        U0(q[2], q[1], q[0]);
         H(q);
     }
 

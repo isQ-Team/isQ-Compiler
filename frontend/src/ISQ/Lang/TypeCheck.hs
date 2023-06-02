@@ -546,6 +546,10 @@ typeCheckAST' f (NFor pos v r b) = do
     return $  NResolvedFor (okStmt pos) v' r'' b'
 typeCheckAST' f (NEmpty pos) = return $ NEmpty (okStmt pos)
 typeCheckAST' f (NPass pos) = return $ NPass (okStmt pos)
+typeCheckAST' f (NAssert pos exp) = do
+    exp' <- typeCheckExpr exp
+    exp'' <- matchType [Exact (boolType ())] exp'
+    return $ NAssert (okStmt pos) exp''
 typeCheckAST' f (NBp pos) = do
     temp_ssa<-nextId
     let annotation = TypeCheckData pos (unitType ()) temp_ssa

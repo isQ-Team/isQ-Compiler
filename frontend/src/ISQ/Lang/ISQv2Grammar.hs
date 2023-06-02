@@ -64,6 +64,7 @@ data AST ann =
      | NFor { annotationAST :: ann, forVar :: Ident, forRange :: Expr ann, body :: ASTBlock ann}
      | NEmpty { annotationAST :: ann }
      | NPass { annotationAST :: ann }
+     | NAssert { annotationAST :: ann, condition :: Expr ann }
      | NBp { annotationAST :: ann }
      | NWhile { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann}
      | NCall { annotationAST :: ann, callExpr :: Expr ann}

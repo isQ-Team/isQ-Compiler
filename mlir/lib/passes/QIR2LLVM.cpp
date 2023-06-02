@@ -107,6 +107,7 @@ public:
         switch (code) {
         case 1: return getOrCreateGlobalString(loc, builder, "__msg1", mlir::StringRef("Error: divide 0\0", 16), module);
         case 2: return getOrCreateGlobalString(loc, builder, "__msg2", mlir::StringRef("Error: index out of bound\0", 26), module);
+        case 3: return getOrCreateGlobalString(loc, builder, "__msg3", mlir::StringRef("Error: failed assertion\0", 24), module);
         default: return getOrCreateGlobalString(loc, builder, "__msg0", mlir::StringRef("Error: unknown error code\0", 26), module);
         }
     }

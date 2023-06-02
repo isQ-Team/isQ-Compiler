@@ -29,6 +29,7 @@ import Control.Monad (void)
     return { TokenReservedId $$ "return" }
     package { TokenReservedId $$ "package" }
     import { TokenReservedId $$ "import" }
+    assert { TokenReservedId $$ "assert" }
     ctrl { TokenReservedId $$ "ctrl" }
     nctrl { TokenReservedId $$ "nctrl" }
     inv { TokenReservedId $$ "inv" }
@@ -241,6 +242,8 @@ IfStatement : if Expr Statement { NIf $1 $2 [$3] [] }
             | if Expr Statement else Statement  { NIf $1 $2 [$3] [$5] }
 PassStatement :: {LAST}
 PassStatement : pass { NPass $1 }
+AssertStatement :: {LAST}
+AssertStatement : assert Expr { NAssert $1 $2 }
 BpStatement :: {LAST}
 BpStatement : bp { NBp $1 }
 
@@ -312,6 +315,7 @@ BreakStatement : break { NBreak $1 }
 Statement :: {LAST}
 Statement : ';' { NEmpty $1 }
           | PassStatement ';' { $1 }
+          | AssertStatement ';' { $1 }
           | BpStatement ';' { $1 }
           | BlockStatement { $1 }
           | IfStatement { $1 }
