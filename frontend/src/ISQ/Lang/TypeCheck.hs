@@ -73,6 +73,7 @@ data DefinedSymbol = DefinedSymbol{
     definedType :: EType,
     definedSSA :: Int,
     isGlobal :: Bool,
+    isDerive :: Bool,
     qualifiedName :: String
 } deriving (Show)
 
@@ -93,11 +94,11 @@ getSym pos k = do
 defineSym :: Symbol->Pos->EType->TypeCheck Int
 defineSym a b c= do
     ssa<-nextId
-    addSym a (DefinedSymbol b c ssa False "")
+    addSym a (DefinedSymbol b c ssa False False "")
     return ssa
 
-defineGlobalSym :: String -> String -> Pos -> EType -> Bool -> TypeCheck Int
-defineGlobalSym prefix name b c logic = do
+defineGlobalSym :: String -> String -> Pos -> EType -> Bool -> Bool -> TypeCheck Int
+defineGlobalSym prefix name b c logic d = do
     ssa<-nextId
     when (name == "main" && c /= Type () FuncTy [Type () Unit []] && c /= Type () FuncTy [Type () Unit [], Type () (Array 0) [intType ()], Type () (Array 0) [doubleType ()]]) $ do
         throwError $ BadMainSignature c
@@ -105,8 +106,8 @@ defineGlobalSym prefix name b c logic = do
         modify' (\x->x{mainDefined = True})
     let qualifiedName = prefix ++ name
     let qualifiedName' = if logic then qualifiedName ++ logicSuffix else qualifiedName
-    addSym (SymVar name) (DefinedSymbol b c ssa True qualifiedName')
-    addSym (SymVar qualifiedName) (DefinedSymbol b c ssa True qualifiedName')
+    addSym (SymVar name) (DefinedSymbol b c ssa True d qualifiedName')
+    addSym (SymVar qualifiedName) (DefinedSymbol b c ssa True d qualifiedName')
     return ssa
 
 setSym :: Symbol -> Pos -> TypeCheckData -> TypeCheck Int
@@ -114,7 +115,7 @@ setSym sym pos (TypeCheckData _ ty rid) = do
     sym_tables <- gets symbolTable
     let cur_table = head sym_tables
     let deleted = MultiMap.delete sym cur_table
-    let new_data = DefinedSymbol pos ty rid False ""
+    let new_data = DefinedSymbol pos ty rid False False ""
     let new_curr = MultiMap.insert sym new_data deleted
     modify' (\x -> x{symbolTable=new_curr : tail sym_tables})
     return rid
@@ -566,6 +567,15 @@ typeCheckAST' f (NCall pos c@(ECall _ callee args)) = do
         Gate _ -> f (NCoreUnitary pos callee args [])
         Logic _ -> f (NCoreUnitary pos callee args [])
         _ -> undefined
+typeCheckAST' f (NCallWithInv pos c@(ECall _ callee args) mods) = do
+    callee'<-typeCheckExpr callee
+    callee''<-matchType [AnyFunc, AnyGate] callee'
+    let callee_ty = astType callee''
+    case ty $ callee_ty of
+        FuncTy -> throwError $ UnsupportedType pos callee_ty
+        Gate _ -> f (NCoreUnitary pos callee args mods)
+        Logic _ -> throwError $ UnsupportedType pos callee_ty
+        _ -> undefined
 typeCheckAST' f (NCall pos c) = error "unreachable"
 typeCheckAST' f (NDefvar pos defs) = do
     in_oracle <- gets inOracle
@@ -696,12 +706,21 @@ typeCheckAST' f (NReturn pos expr) = do
     expr' <- typeCheckExpr expr
     return $ NReturn (okStmt pos) expr'
 typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
-    gate'<-typeCheckExpr gate
+    let go Inv (l, fv) = (l, not fv)
+        go y@(Ctrl x i) (l, fv) =  ([y]++l, fv)
+        (cm, fv) = foldr go ([], False) modifiers
+
+    sym <- getSym pos (SymVar (identName gate))
+    let (modifiers', new_gate) = case ((isDerive sym), fv) of
+            (True, True)->(cm, EIdent (annotationExpr gate) ((identName gate)++"_inv"))
+            (_, _)->(modifiers, gate)
+
+    gate'<-typeCheckExpr new_gate
     gate''<-matchType [AnyGate] gate'
     let (x, extra) = case astType gate'' of
             Type _ (Gate x) extra -> (x, extra)
             Type _ (Logic x) extra -> (x, extra)
-    let total_qubits = sum (map addedQubits modifiers) + x
+    let total_qubits = sum (map addedQubits modifiers') + x
     let total_operands = length extra + total_qubits
     when (total_operands /= length operands) $ throwError $ ArgNumberMismatch pos total_qubits (length operands)
     operands'<-mapM typeCheckExpr operands
@@ -709,14 +728,14 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
     op_extra'<-zipWithM (\x y->matchType [Exact x] y) extra op_extra
     case null op_qubits of
         -- GPhase has no qubit operand
-        True -> return $ NCoreUnitary (okStmt pos) gate'' op_extra' modifiers
+        True -> return $ NCoreUnitary (okStmt pos) gate'' op_extra' modifiers'
         False -> do
             is_qubit <- matchType' [Exact (refType () $ qbitType ())] $ head op_qubits
             case is_qubit of
                 Just _ -> do
                     op_qubits' <- mapM (matchType [Exact (refType () $ qbitType ())]) op_qubits
                     let operands'' = op_extra' ++ op_qubits'
-                    return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers
+                    return $ NCoreUnitary (okStmt pos) gate'' operands'' modifiers'
                 Nothing -> do
                     -- Bundle operation
                     op_qubits' <- mapM (matchType [ArrayType $ Exact $ qbitType ()]) op_qubits
@@ -740,7 +759,7 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     apply_cond <- mapM (andRangeCondition pos cond_id) $ zip it_ids hi_ids
                     let bases = map getBaseFromArray op_qubits'
                     qubits <- mapM (getItemFromArray pos) $ zip4 bases it_ids lo_ids step_ids
-                    let apply_unitary = NCoreUnitary (okStmt pos) gate'' qubits modifiers
+                    let apply_unitary = NCoreUnitary (okStmt pos) gate'' qubits modifiers'
                     inc_its <- mapM (increaseIterator pos) $ it_ids
                     apply_cond2 <- mapM (andRangeCondition pos cond_id) $ zip it_ids hi_ids
                     let while_body = apply_unitary : inc_its ++ apply_cond2
@@ -859,20 +878,20 @@ typeCheckToplevel isMain prefix ast = do
     resolved_headers<-mapM (\node->case node of
             Right x->return (Right x)
             Left (NResolvedGatedef pos name matrix size qir) -> do
-                defineGlobalSym prefix name pos (Type () (Gate size) []) False
+                defineGlobalSym prefix name pos (Type () (Gate size) []) False False
                 return $ Right (NResolvedGatedef (okStmt pos) (prefix ++ name) matrix size qir)
             Left (NExternGate pos name extra size qirname) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym prefix name pos (Type () (Gate size) extra') False
+                defineGlobalSym prefix name pos (Type () (Gate size) extra') False False
                 return $ Right $ NResolvedExternGate (okStmt pos) (prefix ++ name) (fmap void extra) size qirname
             Left (NOracleTable pos name source value size) -> do
-                defineGlobalSym prefix name pos (Type () (Gate size) []) False
+                defineGlobalSym prefix name pos (Type () (Gate size) []) False False
                 return $ Right (NOracleTable (okStmt pos) (prefix ++ name) (prefix ++ source) value size)
             Left (NOracleLogic pos ty name args body) -> do
                 let bool2qbit (Type () (Array x) [Type () Bool []]) = (Type () (Array x) [Type () Qbit []])
                 let arg_types = map fst args
                 let arg_types' = map bool2qbit $ arg_types ++ [ty]
-                defineGlobalSym prefix name pos (Type () FuncTy $ unitType() : arg_types') True
+                defineGlobalSym prefix name pos (Type () FuncTy $ unitType() : arg_types') True False
                 scope
                 ids <- mapM (\(ty, i) -> defineSym (SymVar i) pos ty) args
                 modify' (\x->x{inOracle = True})
@@ -882,11 +901,11 @@ typeCheckToplevel isMain prefix ast = do
                 return $ Right (NResolvedOracleLogic (okStmt pos) (Type () FuncTy $ ty:arg_types) (prefix ++ name) (zip arg_types ids) body')
             Left x@(NDerivedGatedef pos name source extra size) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym prefix name pos (Type () (Gate size) extra') False
+                defineGlobalSym prefix name pos (Type () (Gate size) extra') False True
                 return $ Right (NDerivedGatedef (okStmt pos) (prefix ++ name) (prefix ++ source) extra' size)
             Left x@(NDerivedOracle pos name source extra size)->do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
-                defineGlobalSym prefix name pos (Type () (Gate size) extra') False
+                defineGlobalSym prefix name pos (Type () (Gate size) extra') False False
                 return $ Right (NDerivedOracle (okStmt pos) (prefix ++ name) (prefix ++ source) extra size)
             Left (NProcedureWithRet pos ty name args body ret) -> do
                 -- check arg types and return types
@@ -898,7 +917,7 @@ typeCheckToplevel isMain prefix ast = do
                     _ -> throwError $ BadProcedureReturnType pos (void ty, name)
                 let new_args = if name == "main" && (length args) == 0 then [(Type pos (Array 0) [intType pos], "main$par1"), (Type pos (Array 0) [doubleType pos], "main$par2")] else args
                 args'<-mapM (uncurry argType) new_args
-                defineGlobalSym prefix name (annotation ty) (Type () FuncTy (ty':args')) False
+                defineGlobalSym prefix name (annotation ty) (Type () FuncTy (ty':args')) False False
                 -- NTempvar a (void b, procRet, Nothing)
                 let procName = case name of {"main" -> "main"; x -> prefix ++ name}
                 return $ Left (pos, ty', procName, zip args' (fmap snd new_args), body, ret)

@@ -68,6 +68,7 @@ data AST ann =
      | NBp { annotationAST :: ann }
      | NWhile { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann}
      | NCall { annotationAST :: ann, callExpr :: Expr ann}
+     | NCallWithInv { annotationAST :: ann, callExpr :: Expr ann, gateModifiers :: [GateModifier]}
      -- The tuple elements are: type, identifier, initilizer, length (only valid for array)
      | NDefvar { annotationAST :: ann, definitions :: [(Type ann, Ident, Maybe (Expr ann), Maybe (Expr ann))]}
      | NAssign { annotationAST :: ann, assignLhs :: Expr ann, assignRhs :: Expr ann, operator :: AssignOperator}
