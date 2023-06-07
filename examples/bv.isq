@@ -1,19 +1,19 @@
 import std;
 
+oracle bool[1] g(bool a[6]) {
+    bool s[] = {true, true, true, false, true, true};
+    bool ba[] = s & a;
+    bool res[1];
+    res[0] = ba[0] != ba[1] != ba[2] != ba[3] != ba[4] != ba[5];
+    return res;
+}
+
 procedure main(){
-    qbit q[6];
-    qbit res;
+    qbit q[6], res[1];
     X(res);
     H(res);
     H(q);
-
-    // Implements f(x) = 110111 * x
-    CNOT(q[5], res);
-    CNOT(q[4], res);
-    CNOT(q[2], res);
-    CNOT(q[1], res);
-    CNOT(q[0], res);
-
+    g(q, res);
     H(q); 
     print M(q); // should print 55 (=0x110111)
 }
