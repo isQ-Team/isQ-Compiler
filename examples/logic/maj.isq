@@ -1,0 +1,30 @@
+/*
+* Based on paper: Cuccaro, Steven A., et al. "A new quantum ripple-carry addition circuit."
+* arXiv preprint quant-ph/0410184 (2004).
+*/
+package logic;
+import std;
+
+/*
+* Majority gate
+*
+* The output of the gate are a^b, a^c, maj.
+* when the inputs contain two or three 1s, maj = 1; otherwise, 0.
+*/
+procedure maj(qbit a, qbit b, qbit c) {
+    CNOT(c, a);
+    CNOT(c, b);
+    Toffoli(a, b, c);
+} deriving gate
+
+procedure main()
+{
+    qbit q[3];
+    for i in 0:8 {
+        set(q, i);
+        maj(q[0], q[1], q[2]);
+        print M(q);
+        inv maj(q[0], q[1], q[2]);
+        set(q, i);
+    }
+}

@@ -1,0 +1,34 @@
+/*
+* Based on paper: Cuccaro, Steven A., et al. "A new quantum ripple-carry addition circuit."
+* arXiv preprint quant-ph/0410184 (2004).
+*/
+package arith;
+import std;
+import logic.maj;
+import arith.uma;
+
+/*
+* Four-bit adder
+*/
+procedure adder4(qbit a0, qbit a1, qbit a2, qbit a3, qbit b0, qbit b1, qbit b2, qbit b3) {
+    qbit anc;
+    maj(anc, a0, b0);
+    maj(b0, a1, b1);
+    maj(b1, a2, b2);
+    maj(b2, a3, b3);
+
+    uma(b2, a3, b3);
+    uma(b1, a2, b2);
+    uma(b0, a1, b1);
+    uma(anc, a0, b0);
+} deriving gate
+
+procedure main()
+{
+    qbit a[4], b[4];
+    X(a[:3]);
+    X(b[2]);
+    adder4(a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3]);
+    print M(a);
+    print M(b);
+}

@@ -1,0 +1,76 @@
+package arith;
+
+import std;
+import arith.adder4;
+import arith.carrier;
+
+procedure add13(qbit a0, qbit a1, qbit a2, qbit a3) {
+    qbit b0, b1, b2, b3;
+
+    // set b = |13>
+    X(b0);
+    X(b2);
+    X(b3);
+
+    adder4(a0, a1, a2, a3, b0, b1, b2, b3);
+
+    X(b0);
+    X(b2);
+    X(b3);
+} deriving gate
+
+procedure add14(qbit a0, qbit a1, qbit a2, qbit a3) {
+    qbit b0, b1, b2, b3;
+
+    // set b = |14>
+    X(b3);
+    X(b1);
+    X(b2);
+
+    adder4(a0, a1, a2, a3, b0, b1, b2, b3);
+
+    X(b3);
+    X(b1);
+    X(b2);
+} deriving gate
+
+// 28 = 13 (mod 15)
+procedure add28mod15(qbit a0, qbit a1, qbit a2, qbit a3) {
+    qbit b0, b1, b2, b3, c;
+
+    // set b = |14>
+    X(b1);
+    X(b2);
+    X(b3);
+
+    // Test whether a + 13 >= 15
+    carrier4(a0, a1, a2, a3, b0, b1, b2, b3, c);
+
+    // If true, add 13 then subtract 15, i.e., subtract 2, i.e., add 14
+    ctrl add14(c, a0, a1, a2, a3);
+
+    // If false, add 13 directly
+    X(c);
+    ctrl add13(c, a0, a1, a2, a3);
+
+    // Uncompute
+    X(b0);
+    X(b2);
+    X(b3);
+    carrier4(a0, a1, a2, a3, b0, b1, b2, b3, c);
+    X(b0);
+    X(b1);
+} deriving gate
+
+procedure main()
+{
+    qbit q[4];
+    for i in 0:16 {
+        set(q, i);
+        add28mod15(q[0], q[1], q[2], q[3]);
+        print M(q);
+        inv add28mod15(q[0], q[1], q[2], q[3]);
+        set(q, i);
+        print M(q);
+    }
+}

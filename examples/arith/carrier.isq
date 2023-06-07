@@ -1,0 +1,50 @@
+package arith;
+import std;
+import logic.maj;
+
+procedure carrier4(qbit a0, qbit a1, qbit a2, qbit a3, qbit b0, qbit b1, qbit b2, qbit b3, qbit c) {
+    qbit anc;
+    maj(anc, a0, b0);
+    maj(b0, a1, b1);
+    maj(b1, a2, b2);
+    maj(b2, a3, b3);
+
+    // Copy out the result
+    CNOT(b3, c);
+
+    // Uncompute
+    inv maj(b2, a3, b3);
+    inv maj(b1, a2, b2);
+    inv maj(b0, a1, b1);
+    inv maj(anc, a0, b0);
+} deriving gate
+
+procedure carrier(qbit a[], qbit b[], qbit c) {
+    int len = a.length;
+    qbit anc;
+    maj(anc, a[0], b[0]);
+    maj(b[:len-1], a[1:], b[1:]);
+
+    // Copy out the result
+    CNOT(b[len - 1], c);
+
+    // Uncompute
+    inv maj(b[len-2: -1: -1], a[len-1: 0: -1], b[len-1: 0: -1]);
+    inv maj(anc, a[0], b[0]);
+}
+
+procedure main()
+{
+    qbit anc, a[4], b[4], c;
+    X(a[1:]);
+    for i in 0:16 {
+        set(b, i);
+        carrier4(a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3], c);
+        print M(a);
+        print M(b);
+        print M(c);
+        inv carrier4(a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3], c);
+        set(b, i);
+    }
+    X(b);
+}

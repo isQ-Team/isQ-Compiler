@@ -1,0 +1,79 @@
+package arith;
+
+import std;
+import logic.maj;
+import arith.uma;
+import arith.adder4;
+import arith.carrier;
+
+procedure add8(qbit a0, qbit a1, qbit a2, qbit a3) {
+    qbit b0, b1, b2, b3;
+    X(b3); // set b = |8>
+    adder4(a0, a1, a2, a3, b0, b1, b2, b3);
+    X(b3);
+} deriving gate
+
+procedure test_add8() {
+    qbit q[4];
+    for i in 0:16 {
+        set(q, i);
+        add8(q[0], q[1], q[2], q[3]);
+        print M(q);
+        inv add8(q[0], q[1], q[2], q[3]);
+        set(q, i);
+    }
+}
+
+procedure add7(qbit a0, qbit a1, qbit a2, qbit a3) {
+    qbit b0, b1, b2, b3;
+
+    // set b = |7>
+    X(b0);
+    X(b1);
+    X(b2);
+
+    adder4(a0, a1, a2, a3, b0, b1, b2, b3);
+
+    X(b0);
+    X(b1);
+    X(b2);
+} deriving gate
+
+procedure add7mod15(qbit a0, qbit a1, qbit a2, qbit a3) {
+    qbit b0, b1, b2, b3, c;
+
+    X(b3); // set b = |8>
+
+    // Test whether a + 7 >= 15
+    carrier4(a0, a1, a2, a3, b0, b1, b2, b3, c);
+
+    // If true, add 7 then subtract 15, i.e., subtract 8, i.e., add 8
+    ctrl add8(c, a0, a1, a2, a3);
+
+    // If false, add 7 directly
+    X(c);
+    ctrl add7(c, a0, a1, a2, a3);
+
+    // Uncompute
+    X(b0);
+    carrier4(a0, a1, a2, a3, b0, b1, b2, b3, c);
+    X(b0);
+    X(b3);
+} deriving gate
+
+procedure test_add7mod15() {
+    qbit q[4];
+    for i in 0:16 {
+        set(q, i);
+        add7mod15(q[0], q[1], q[2], q[3]);
+        print M(q);
+        inv add7mod15(q[0], q[1], q[2], q[3]);
+        set(q, i);
+        print M(q);
+    }
+}
+
+procedure main()
+{
+    test_add7mod15();
+}
