@@ -1,0 +1,56 @@
+import std;
+import qft;
+import arith.mul4mod15;
+import arith.mul7mod15;
+
+//oracle mul7mod15(4, 4) = [0, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2, 9, 1, 8, 0];
+//oracle mul4mod15(4, 4) = [0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 0];
+
+procedure swap4(qbit a0, qbit a1, qbit a2, qbit a3, qbit b0, qbit b1, qbit b2, qbit b3) {
+    SWAP(a0, b0);
+    SWAP(a1, b1);
+    SWAP(a2, b2);
+    SWAP(a3, b3);
+} deriving gate
+
+/*
+* Calculate f(p, a) = a * 7^(2^p) (mod 15)
+*
+* |p> -> |p>
+* |a> -> |a>
+* |b> -> |f(p, a)> XOR |b>
+*/
+procedure pow7mod15(qbit p[], qbit a[4], qbit b[4]) {
+    qbit anc[8];
+
+    // 7^(2^0) = 7 (mod 15)
+    ctrl mul7mod15(p[0], a[3], a[2], a[1], a[0], anc[3], anc[2], anc[1], anc[0]);
+    ctrl swap4(p[0], a[3], a[2], a[1], a[0], anc[3], anc[2], anc[1], anc[0]);
+
+    // 7^(2^1) = 4 (mod 15)
+    ctrl mul4mod15(p[1], a[3], a[2], a[1], a[0], anc[7], anc[6], anc[5], anc[4]);
+    ctrl swap4(p[1], a[3], a[2], a[1], a[0], anc[7], anc[6], anc[5], anc[4]);
+
+    // Copy out the result
+    CNOT(a, b);
+
+    // Uncompute
+    ctrl swap4(p[1], a[3], a[2], a[1], a[0], anc[7], anc[6], anc[5], anc[4]);
+    ctrl inv mul4mod15(p[1], a[3], a[2], a[1], a[0], anc[7], anc[6], anc[5], anc[4]);
+    ctrl swap4(p[0], a[3], a[2], a[1], a[0], anc[3], anc[2], anc[1], anc[0]);
+    ctrl inv mul7mod15(p[0], a[3], a[2], a[1], a[0], anc[3], anc[2], anc[1], anc[0]);
+}
+
+int find_order() {
+    qbit k[6], a[4], b[4];
+    H(k);
+    X(a[0]);    // set |a> = |1>
+    pow7mod15(k, a, b);
+    qft_dagger(k);
+    return M(k);
+}
+
+procedure main()
+{
+    print find_order();
+}

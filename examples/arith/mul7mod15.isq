@@ -3,14 +3,18 @@ package arith;
 import std;
 import arith.add7mod15;
 import arith.add14mod15;
-import arith.add28mod15;
-import arith.add56mod15;
+import arith.add13mod15;
+import arith.add11mod15;
 
 procedure mul7mod15(qbit a0, qbit a1, qbit a2, qbit a3, qbit b0, qbit b1, qbit b2, qbit b3) {
     ctrl add7mod15(a0, b0, b1, b2, b3);
     ctrl add14mod15(a1, b0, b1, b2, b3);
-    ctrl add28mod15(a2, b0, b1, b2, b3);
-    ctrl add56mod15(a3, b0, b1, b2, b3);
+    ctrl add13mod15(a2, b0, b1, b2, b3);
+    ctrl add11mod15(a3, b0, b1, b2, b3);
+    SWAP(a0, b0);
+    SWAP(a1, b1);
+    SWAP(a2, b2);
+    SWAP(a3, b3);
 } deriving gate
 
 procedure main()

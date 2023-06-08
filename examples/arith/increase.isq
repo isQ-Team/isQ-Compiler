@@ -1,0 +1,20 @@
+import std;
+
+procedure increse(qbit a[]) {
+    int len = a.length;
+    qbit b[len];
+    X(b[0]);
+    a += b;
+}
+
+procedure main()
+{
+    qbit a[3];
+    X(a[1]);
+    increse(a);
+    print M(a);
+    increse(a);
+    print M(a);
+    increse(a);
+    print M(a);
+}
