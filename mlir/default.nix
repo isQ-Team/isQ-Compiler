@@ -7,7 +7,7 @@
 , git
 , lld
 , eigen
-, llvmPackages
+, llvmPackages_16
 , nlohmann_json
 , mkShell
 , clang-tools
@@ -18,8 +18,9 @@
 , fmt
 }:
 let
+  stdenv = vendor.stdenvLLVM;
   isq-opt =
-    llvmPackages.stdenv.mkDerivation {
+    stdenv.mkDerivation {
       name = "isq-opt";
       nativeBuildInputs = [ cmake ninja doxygen graphviz python3 which git lld ];
       buildInputs = [ 
@@ -31,7 +32,7 @@ let
       ];
       src = gitignoreSource ./.;
       cmakeFlags = [ "-DISQ_OPT_ENABLE_ASSERTIONS=1" ];
-      passthru.isQDevShell = mkShell.override { stdenv = llvmPackages.stdenv; } {
+      passthru.isQDevShell = mkShell.override { stdenv = stdenv; } {
         inputsFrom = [ isq-opt ];
         nativeBuildInputs = [ clang-tools ];
       };

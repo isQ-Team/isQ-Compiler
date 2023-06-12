@@ -1,6 +1,6 @@
-{ llvmPackages, lld, cmake, fetchurl, ninja, python3, git }:
+{ cmake, fetchurl, ninja, python3, git, vendor }:
 let
-  stdenv = llvmPackages.stdenv;
+  stdenv = vendor.stdenvLLVM;
 in
 stdenv.mkDerivation {
   pname = "mlir";
@@ -10,7 +10,7 @@ stdenv.mkDerivation {
     url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.7/llvm-project-15.0.7.src.tar.xz";
     sha256 = "1ipaxl6jhd6jhnl6skjl7k5jk9xix0643fdhy56z130jnhjcnpwb";
   };
-  buildInputs = [ cmake ninja python3 git lld ];
+  buildInputs = [ cmake ninja python3 git ];
   cmakeFlags = with stdenv; [
     "-DLLVM_ENABLE_PROJECTS=llvm;mlir;lld"
     "-DLLVM_BUILD_EXAMPLES=OFF"
@@ -22,6 +22,9 @@ stdenv.mkDerivation {
     "-DLLVM_ENABLE_LLD=ON"
   ];
   cmakeBuildType = "RelWithDebInfo";
-  dontStrip = true;
+  separateDebugInfo = true;
+  postFixup = ''
+    mkdir -p $debug
+  '';
   cmakeDir = "../llvm";
 }

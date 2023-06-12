@@ -24,7 +24,6 @@ public:
       : qnet( qnet ), ntk( ntk ), strategy( strategy ), stg_fn( stg_fn ), ps( ps ), st( st )
   {
   }
-
   bool run()
   {
     mockturtle::stopwatch t( st.time_total );

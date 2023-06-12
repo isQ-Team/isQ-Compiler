@@ -1,7 +1,7 @@
 {
   description = "isQ Compiler";
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
@@ -32,6 +32,10 @@
       inherit self;
       overlay =
         (base.isqc-override (pkgs: final: prev: rec {
+          vendorPkgs = {
+            inherit (vendor) mlir;
+            inherit (vendor) nix-user-chroot;
+          };
           vendor = (import ./vendor flakeInputs pkgs final prev) // rec {
             gitignoreSource = gitignore.lib.gitignoreSource;
             rust = pkgs.rust-bin.fromRustupToolchainFile
@@ -116,10 +120,11 @@
         "isqcTarball"
         "isqcImage"
         "isqcImageWithUbuntu"
+        "vendorPkgs"
       ];
       defaultComponent = "isqc";
       preOverlays = [ rust-overlay.overlays.default ];
-      shell = { pkgs, system }: pkgs.mkShell.override { stdenv = pkgs.llvmPackages.stdenv; } {
+      shell = { pkgs, system }: pkgs.mkShell.override { stdenv = pkgs.isqc.vendor.stdenvLLVM; } {
         inputsFrom = map (component: if component ? passthru && component.passthru ? isQDevShell then component.passthru.isQDevShell else component) (with pkgs.isqc; [ isqc1 isq-opt isqc-driver isq-simulator isqc-docs ]);
         # https://github.com/NixOS/nix/issues/6982
         nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp pkgs.isqc.vendor.rust ];

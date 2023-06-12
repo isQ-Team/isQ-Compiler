@@ -5,7 +5,7 @@ import Control.Monad.Except
 import Control.Monad.Extra (concatMapM)
 import Control.Monad (void)
 import Control.Monad.State.Lazy (evalState, get, put, State)
-import Data.Bits
+import Data.Bits hiding (And, Or)
 import Data.Complex
 import Data.List (null)
 --import Data.Either.Combinators (mapRight)
