@@ -237,4 +237,8 @@ impl QDevice for QSimKernelSimulator{
     fn get_measure_res(&mut self) -> String {
         return self.0.measure_res.clone();
     }
+
+    fn print_state(&mut self) {
+        self.0.dump();
+    }
 }
