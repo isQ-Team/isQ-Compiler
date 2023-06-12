@@ -22,7 +22,7 @@ frontend test:
   stage: test
   script:
     - cd frontend
-    - nix develop -c stack test
+    - nix develop -c cabal test
 
 integration test:
   stage: test
