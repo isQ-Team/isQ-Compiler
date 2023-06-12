@@ -9,6 +9,7 @@ build:
     - nix build
   artifacts:
     paths:
+      - frontend/isq1.cabal
       - result
 
 sanity test:

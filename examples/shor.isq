@@ -44,11 +44,41 @@ procedure mul4mod15(qbit a3, qbit a2, qbit a1, qbit a0, qbit b3, qbit b2, qbit b
     ctrl inv add2mod15(a3, anc[0], anc[1], anc[2], anc[3]);
 } deriving gate
 
+procedure mul13mod15(qbit a3, qbit a2, qbit a1, qbit a0, qbit b3, qbit b2, qbit b1, qbit b0) {
+    qbit anc[4];
+    ctrl add13mod15(a0, anc[0], anc[1], anc[2], anc[3]);
+    ctrl add11mod15(a1, anc[0], anc[1], anc[2], anc[3]);
+    ctrl add7mod15(a2, anc[0], anc[1], anc[2], anc[3]);
+    ctrl add14mod15(a3, anc[0], anc[1], anc[2], anc[3]);
+    CNOT(anc[0], b0);
+    CNOT(anc[1], b1);
+    CNOT(anc[2], b2);
+    CNOT(anc[3], b3);
+    ctrl inv add13mod15(a0, anc[0], anc[1], anc[2], anc[3]);
+    ctrl inv add11mod15(a1, anc[0], anc[1], anc[2], anc[3]);
+    ctrl inv add7mod15(a2, anc[0], anc[1], anc[2], anc[3]);
+    ctrl inv add14mod15(a3, anc[0], anc[1], anc[2], anc[3]);
+} deriving gate
+
 procedure swap4(qbit a0, qbit a1, qbit a2, qbit a3, qbit b0, qbit b1, qbit b2, qbit b3) {
     SWAP(a0, b0);
     SWAP(a1, b1);
     SWAP(a2, b2);
     SWAP(a3, b3);
+} deriving gate
+
+procedure mul7mod15_u(qbit a3, qbit a2, qbit a1, qbit a0) {
+    qbit anc[4];
+    mul7mod15(a3, a2, a1, a0, anc[3], anc[2], anc[1], anc[0]);
+    swap4(a3, a2, a1, a0, anc[3], anc[2], anc[1], anc[0]);
+    inv mul13mod15(a3, a2, a1, a0, anc[3], anc[2], anc[1], anc[0]);
+} deriving gate
+
+procedure mul4mod15_u(qbit a3, qbit a2, qbit a1, qbit a0) {
+    qbit anc[4];
+    mul4mod15(a3, a2, a1, a0, anc[3], anc[2], anc[1], anc[0]);
+    swap4(a3, a2, a1, a0, anc[3], anc[2], anc[1], anc[0]);
+    inv mul4mod15(a3, a2, a1, a0, anc[3], anc[2], anc[1], anc[0]);
 } deriving gate
 
 /*
@@ -58,30 +88,19 @@ procedure swap4(qbit a0, qbit a1, qbit a2, qbit a3, qbit b0, qbit b1, qbit b2, q
 * |a> -> |a>
 * |b> -> |f(p, a)> XOR |b>
 */
-procedure pow7mod15(qbit p[], qbit a[4], qbit b[4]) {
+procedure pow7mod15(qbit p[], qbit a[4]) {
     // 7^(2^0) = 7 (mod 15)
-    ctrl mul7mod15(p[0], a[3], a[2], a[1], a[0], b[3], b[2], b[1], b[0]);
-    ctrl swap4(p[0], a[3], a[2], a[1], a[0], b[3], b[2], b[1], b[0]);
+    ctrl mul7mod15_u(p[0], a[3], a[2], a[1], a[0]);
 
     // 7^(2^1) = 4 (mod 15)
-    ctrl mul4mod15(p[1], a[3], a[2], a[1], a[0], b[3], b[2], b[1], b[0]);
-    ctrl swap4(p[1], a[3], a[2], a[1], a[0], b[3], b[2], b[1], b[0]);
-
-    // Copy out the result
-    CNOT(a, b);
-
-    // Uncompute
-    ctrl swap4(p[1], a[3], a[2], a[1], a[0], b[3], b[2], b[1], b[0]);
-    ctrl inv mul4mod15(p[1], a[3], a[2], a[1], a[0], b[3], b[2], b[1], b[0]);
-    ctrl swap4(p[0], a[3], a[2], a[1], a[0], b[3], b[2], b[1], b[0]);
-    ctrl inv mul7mod15(p[0], a[3], a[2], a[1], a[0], b[3], b[2], b[1], b[0]);
+    ctrl mul4mod15_u(p[1], a[3], a[2], a[1], a[0]);
 }
 
 int find_order(qbit k[6]) {
-    qbit a[4], b[4];
+    qbit a[4];
     H(k);
     X(a[0]);    // set |a> = |1>
-    pow7mod15(k, a, b);
+    pow7mod15(k, a);
     qft_dagger(k);
 }
 

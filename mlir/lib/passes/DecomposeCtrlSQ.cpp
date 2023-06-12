@@ -262,7 +262,7 @@ struct MergeAdjointIntoGPhaseRule : public mlir::OpRewritePattern<DecorateOp>{
         // Pull adjoint into gphase.
         auto theta = usegate_op.parameters()[0];
         auto new_theta = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), theta);
-        auto new_used_gate = emitUseBuiltinGate(rewriter, 1, "GPhase", {new_theta}, op.ctrl(), false);
+        auto new_used_gate = emitUseBuiltinGate(rewriter, 0, "GPhase", {new_theta}, op.ctrl(), false);
         rewriter.replaceOp(op, {new_used_gate});
         return mlir::success();
     }

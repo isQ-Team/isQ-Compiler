@@ -49,7 +49,7 @@ procedure mul7mod15_u(qbit a3, qbit a2, qbit a1, qbit a0) {
     qbit anc[4];
     mul7mod15(a3, a2, a1, a0, anc[3], anc[2], anc[1], anc[0]);
     swap4(a3, a2, a1, a0, anc[3], anc[2], anc[1], anc[0]);
-    inv mul13mod15(anc[3], anc[2], anc[1], anc[0], a3, a2, a1, a0);
+    inv mul13mod15(a3, a2, a1, a0, anc[3], anc[2], anc[1], anc[0]);
 } deriving gate
 
 procedure main()
