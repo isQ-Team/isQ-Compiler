@@ -146,7 +146,7 @@ fn resolve_input_path<'a>(input: &'a str, extension: &str)->miette::Result<(&'a 
 fn main()->miette::Result<()> {
     let cli = Arguments::parse();
     let root = std::env::var("ISQ_ROOT").map_err(|_| NoISQv2RootError)?;
-    let llvm_root = std::env::var("MLIR_ROOT");
+    let llvm_root = std::env::var("LLVM_ROOT");
     let llvm_tool = |s: &str|{
         if let Ok(root) = &llvm_root{
             format!("{}/bin/{}", root, s)
