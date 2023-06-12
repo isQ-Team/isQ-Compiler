@@ -22,7 +22,7 @@ frontend test:
   stage: test
   script:
     - cd frontend
-    - stack test
+    - nix develop -c stack test
 
 integration test:
   stage: test
@@ -30,7 +30,7 @@ integration test:
     - export ISQ_ROOT=`pwd`/result
     - export MLIR_ROOT=`pwd`/result
     - cd isqc
-    - cargo test
+    - nix develop -c cargo test
   dependencies:
     - build
     - sanity test
