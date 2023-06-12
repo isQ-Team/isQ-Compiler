@@ -23,7 +23,7 @@
     extra-substituters = [ "https://arclight-quantum.cachix.org" ];
     extra-trusted-public-keys = [ "arclight-quantum.cachix.org-1:DiMhc4M3H1Z3gBiJMBTpF7+HyTwXMOPmLVkjREzF404=" ];
   };
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat, gitignore, ...}@flakeInputs:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat, gitignore, ... }@flakeInputs:
     let
       lib = nixpkgs.lib;
       base = import ./base/isq-flake.nix { inherit nixpkgs; inherit flake-utils; };
@@ -45,6 +45,7 @@
           isqc-driver = (final.callPackage ./isqc { });
           isq-opt = (final.callPackage ./mlir { });
           isq-simulator = (final.callPackage ./simulator { });
+          isq-simulator-cuda = (final.callPackage ./simulator { enabledPlugins = [ "qcis" "cuda" ]; });
           isqc1 = (final.callPackage ./frontend { });
           isqc-docs = (final.callPackage ./docs { });
           buildISQCEnv =
@@ -109,6 +110,7 @@
         "isq-opt"
         "isqc-driver"
         "isq-simulator"
+        "isq-simulator-cuda"
         "isqc"
         "isqc-docs"
         "isqcTarball"
