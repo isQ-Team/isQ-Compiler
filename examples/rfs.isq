@@ -39,4 +39,3 @@ procedure main(){
     int g = M<p[0]>;    
     print g;
 }
-

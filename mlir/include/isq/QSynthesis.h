@@ -72,6 +72,7 @@ using namespace Eigen;
 
     DecomposedGates mcdecompose_u(UnitaryVector uvector, std::string ctrl);
     DecomposedGates mcdecompose_addone(int n);
+
 }    
 
     //DecomposedGates Universal(int n, UnitaryVector uvector);

@@ -677,9 +677,13 @@ generateMLIRModule file (xs, ssa) =
         main = _mainModule builder
         initialize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_initialize") Nothing [MLIRBlock (fromBlockName 1) [] (reverse (_globalInitializers builder) ++[MReturnUnit MLIRPosUnknown])]
         finalize = MFunc MLIRPosUnknown (fromFuncName "__isq__global_finalize") Nothing [MLIRBlock (fromBlockName 1) [] [MReturnUnit MLIRPosUnknown]]
-        args = [(Memref Nothing Index,SSA {unSsa = "%ssa_1"}),(Memref Nothing M.Double,SSA {unSsa = "%ssa_2"})]
-        entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) args [
+        ssa_arg_rank = SSA {unSsa = "%rank"}
+        args = [(Memref Nothing Index, SSA {unSsa = "%ssa_1"}), (Memref Nothing M.Double, SSA {unSsa = "%ssa_2"})]
+        ssa_rank = SSA {unSsa = "%r"}
+        entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) (args ++ [(Index, ssa_arg_rank)]) [
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [] False,
+                MUseGlobalMemref MLIRPosUnknown ssa_rank (fromFuncName ".__qmpi_rank") (BorrowedRef Index),
+                MStore MLIRPosUnknown (BorrowedRef Index, ssa_rank) ssa_arg_rank,
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") args False,
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_finalize") [] False,
                 MReturnUnit MLIRPosUnknown 

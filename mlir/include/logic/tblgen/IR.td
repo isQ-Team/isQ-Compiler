@@ -27,14 +27,14 @@ def Logic_FuncOp : Logic_Op<"func", [FunctionOpInterface]> {
     let summary = "Define a logic function.";
     let arguments = (ins
         SymbolNameAttr: $sym_name,
-        TypeAttr: $type
+        TypeAttrOf<FunctionType>: $function_type
     );
     let regions = (region AnyRegion: $body);
     let extraClassDeclaration = [{
         /// Returns the type of this function.
         /// FIXME: We should drive this via the ODS `type` param.
-        ::mlir::FunctionType getType() {
-            return getTypeAttr().getValue().cast<::mlir::FunctionType>();
+        ::mlir::FunctionType getFunctionType() {
+            return function_type();
         }
 
         /// Returns the region on the current operation that is callable. This may
@@ -44,26 +44,16 @@ def Logic_FuncOp : Logic_Op<"func", [FunctionOpInterface]> {
 
         /// Returns the results types that the callable region produces when
         /// executed.
-        ::mlir::ArrayRef<::mlir::Type> getCallableResults() { return getType().getResults(); }
+        ::mlir::ArrayRef<::mlir::Type> getCallableResults() { return getFunctionType().getResults(); }
 
         /// Returns the argument types of this function.
-        ::mlir::ArrayRef<::mlir::Type> getArgumentTypes() { return getType().getInputs(); }
+        ::mlir::ArrayRef<::mlir::Type> getArgumentTypes() { return getFunctionType().getInputs(); }
 
         /// Returns the result types of this function.
-        ::mlir::ArrayRef<::mlir::Type> getResultTypes() { return getType().getResults(); }
-
-        /// Verify the type attribute of this function. Returns failure and emits
-        /// an error if the attribute is invalid.
-        ::mlir::LogicalResult verifyType() {
-            auto type = getTypeAttr().getValue();
-            if (!type.isa<::mlir::FunctionType>())
-                return emitOpError("requires '" + getTypeAttrName() +
-                                "' attribute of function type");
-            return ::mlir::success();
-        }
+        ::mlir::ArrayRef<::mlir::Type> getResultTypes() { return getFunctionType().getResults(); }
     }];
     let assemblyFormat = [{
-        $sym_name `:` $type $body attr-dict
+        $sym_name `:` $function_type $body attr-dict
     }];
 }
 

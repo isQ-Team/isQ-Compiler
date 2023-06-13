@@ -2,6 +2,11 @@
 #define ISQ_TBLGEN_ISQOPS_TD_
 
 include "isq/tblgen/ISQBase.td"
+//include "mlir/Dialect/Shape/IR/ShapeBase.td"
+
+////////////////////////////////////
+// Operations
+////////////////////////////////////
 
 def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
     let summary = "Defines or declares an array of gates.";
@@ -57,19 +62,21 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolU
         TypeArrayAttr: $parameters
     );
     let results = (outs);
-    
+    let hasCustomAssemblyFormat = 1;
+    let hasVerifier = 1;
     /*
     let assemblyFormat = [{
         custom<GateVisibility>($sym_visibility) $sym_name (`(` $parameters^ `)`)? ( $shape^ )? attr-dict `:` $type
     }];
     */
-    
+    /*
     let parser = [{return $cppClass::parseIR(parser, result);}];
     let printer = [{return this->printIR(p);}];
     
     let verifier = [{
         return this->verifyIR();
     }];
+    */
     let extraClassDeclaration = [{
         bool isGateArray();
         bool isDeclaration();
@@ -121,9 +128,11 @@ def ISQ_DeclareQOpOp : ISQ_Op<"declare_qop", [Symbol]>{
         $sym_name attr-dict `:` `[` $size `]` $signature
     }];
     */
+    let hasCustomAssemblyFormat = 1;
+    /*
     let parser = [{return $cppClass::parseIR(parser, result);}];
     let printer = [{return this->printIR(p);}];
-    
+    */
     let extraClassDeclaration = [{
         ::mlir::Type getTypeWhenUsed();
         bool isDeclaration();
@@ -239,9 +248,12 @@ def ISQ_ApplyGateOp : ISQ_Op<"apply", [
     let assemblyFormat = [{
         $gate `(` $args `)` attr-dict `:` qualified(type($gate))
     }];
+    let hasVerifier = 1;
+    /*
     let verifier = [{
         return this->verifyIR();
     }];
+    */
     let extraClassDeclaration = [{
         ::mlir::LogicalResult verifyIR();
     }];
@@ -287,9 +299,11 @@ def ISQ_CallQOpOp: ISQ_Op<"call_qop", [DeclareOpInterfaceMethods<SymbolUserOpInt
         static ::mlir::ParseResult parseIR(::mlir::OpAsmParser& parser, ::mlir::OperationState& result);
         void printIR(::mlir::OpAsmPrinter& p);
     }];
+    /*
     let parser = [{return $cppClass::parseIR(parser, result);}];
     let printer = [{return this->printIR(p);}];
-
+    */
+    let hasCustomAssemblyFormat = 1;
 
     /*
     let assemblyFormat = [{
@@ -328,9 +342,12 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
     let assemblyFormat = [{
         `(` $args `:` qualified(type($args)) `)` attr-dict `:`qualified(type(results))
     }];
+    /*
     let verifier = [{
         return ::isq::ir::verify(*this);
     }];
+    */
+    let hasVerifier = 1;
     let hasCanonicalizer = 1;
 }
 
@@ -352,9 +369,11 @@ def ISQ_DecorateOp: ISQ_Op<"decorate", [NoSideEffect]>{
     public:
         static GateTrait computePostDecorateTrait(GateTrait attr, int ctrl, bool adj, bool ctrl_all_one);
     }];
+    /*
     let verifier = [{
         return ::isq::ir::verify(*this);
-    }];
+    }];*/
+    let hasVerifier = 1;
     let hasCanonicalizer = 1;
 }
 
@@ -377,6 +396,136 @@ def ISQ_AssertOp: ISQ_Op<"assert">{
     let assemblyFormat = [{
         $cond `:` qualified(type($cond)) `,` $error_num attr-dict
     }];
+}
+
+
+/// QMPI
+
+
+// Consider an MPI interface with multiple implementations.
+def ISQ_QMPI_Comm : TypeDef<ISQ_Dialect, "MPIComm", [MemRefElementTypeInterface]>{
+    let mnemonic = "qmpi.comm";
+}
+def ISQ_QMPI_World : ISQ_Op<"qmpi.world">{
+    let results = (outs 
+        ISQ_QMPI_Comm: $comm
+    );
+}
+
+def ISQ_QMPI_Me : ISQ_Op<"qmpi.me">{
+    let arguments = (ins
+        ISQ_QMPI_Comm: $comm
+    );
+    let results = (outs 
+        Builtin_Index: $rank
+    );
+}
+
+def ISQ_QMPI_CommSize : ISQ_Op<"qmpi.commsize">{
+    let arguments = (ins
+        ISQ_QMPI_Comm: $comm
+    );
+    let results = (outs 
+        Builtin_Index: $size
+    );
+}
+
+def ISQ_QMPI_EPR : ISQ_Op<"qmpi.epr">{
+    let arguments = (ins
+        ISQ_QState : $qin,
+        Builtin_Index : $peer,
+        ISQ_QMPI_Comm: $comm
+    );
+    let results = (outs
+        ISQ_QState: $qout
+    );
+}
+
+def ISQ_QMPI_CSend : ISQ_Op<"qmpi.csend">{
+    let arguments = (ins
+        Builtin_Index: $value,
+        Builtin_Index : $peer,
+        ISQ_QMPI_Comm: $comm
+    );
+}
+def ISQ_QMPI_CRecv : ISQ_Op<"qmpi.crecv">{
+    let arguments = (ins
+        Builtin_Index : $peer,
+        ISQ_QMPI_Comm: $comm
+    );
+    let results = (outs
+        Builtin_Index: $value
+    );
+}
+
+
+class ISQ_QMPI_Blocking_P2P<string mnemonic> : ISQ_Op<mnemonic>{
+    let arguments = (ins
+        BoolAttr : $move,
+        ISQ_QState : $qin,
+        Builtin_Index : $peer,
+        ISQ_QMPI_Comm: $comm
+    );
+    let results = (outs
+        ISQ_QState: $qout
+    );
+}
+def ISQ_QMPI_Blocking_Send : ISQ_QMPI_Blocking_P2P<"qmpi.blocking.send">;
+def ISQ_QMPI_Blocking_Unsend : ISQ_QMPI_Blocking_P2P<"qmpi.blocking.unsend">;
+def ISQ_QMPI_Blocking_Recv : ISQ_QMPI_Blocking_P2P<"qmpi.blocking.recv">;
+def ISQ_QMPI_Blocking_Unrecv : ISQ_QMPI_Blocking_P2P<"qmpi.blocking.unrecv">;
+
+def ISQ_QMPI_Blocking_Bcast : ISQ_Op<"qmpi.blocking.bcast">{
+    let arguments = (ins
+        ISQ_QState : $qin,
+        Builtin_Index : $root,
+        ISQ_QMPI_Comm: $comm
+    );
+    let results = (outs
+        ISQ_QState: $qout
+    );
+}
+def ISQ_QMPI_Blocking_Gather : ISQ_Op<"qmpi.blocking.gather">{
+    let arguments = (ins
+        BoolAttr : $move,
+        ISQ_QState : $qsend,
+        MemRefRankOf<[ISQ_QState], [1]> : $qrecvbuf,
+        Builtin_Index : $root,
+        ISQ_QMPI_Comm: $comm
+    );
+    let results = (outs
+        ISQ_QState: $qsendout
+    );
+}
+def ISQ_QMPI_Blocking_Scatter : ISQ_Op<"qmpi.blocking.scatter">{
+    let arguments = (ins
+        BoolAttr : $move,
+        ISQ_QState : $qrecv,
+        MemRefRankOf<[ISQ_QState], [1]> : $qsend,
+        Builtin_Index : $root,
+        ISQ_QMPI_Comm: $comm
+    );
+    let results = (outs
+        ISQ_QState: $qrecvout
+    );
+}
+def ISQ_QMPI_Blocking_AllToAll : ISQ_Op<"qmpi.blocking.alltoall">{
+    let arguments = (ins
+        ISQ_QState : $qin,
+        MemRefRankOf<[ISQ_QState], [1]> : $buffer,
+        ISQ_QMPI_Comm: $comm
+    );
+    let results = (outs
+        ISQ_QState : $qout
+    );
+}
+def ISQ_QMPI_Blocking_AllToAllMove : ISQ_Op<"qmpi.blocking.alltoall_move">{
+    let arguments = (ins
+        MemRefRankOf<[ISQ_QState], [1]> : $buffer,
+        ISQ_QMPI_Comm: $comm
+    );
+    let results = (outs
+    );
 }
 
 #endif

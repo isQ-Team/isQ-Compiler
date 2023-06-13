@@ -45,10 +45,9 @@ procedure test(qbit p, qbit t){
 	H<t>;
 } deriving gate
 
-procedure test2(qbit x[]){
+procedure test2(qbit x[], double c){
 	H<x[1]>;
 }
-
 
 procedure main(){
 
@@ -65,17 +64,17 @@ procedure main(){
 	}
 	int d[5];
 	a = d[c]+2;
-	test2(q);
-    a = M<q[0]>;
-	CNOT<p, q[0]>;
+    test(p, q[0]);
+	test2(q, a);
+    a = M(q[0]);
+	CNOT(p, q[0]);
 	
 	nctrl inv H(q[0], p);
 	nctrl ctrl Rt2(q[0], q[2], p, q[1]);
 	dd = 0.7;
-	Rx(a+0.3)<p>;
-	ctrl<2> Rz(dd)<p, q[0], q[1]>;
-	u3(0.1, 0.3, dd)<p>;
-	ctrl nctrl u3(0.2, dd, 0.3)<p, q[0], q[1]>;
+	Rx(a+0.3, p);
+	ctrl<2> Rz(dd, p, q[0], q[1]);
+	u3(0.1, 0.3, dd, p);
 	while (a < 2){
 		a = a + 1;
 	}

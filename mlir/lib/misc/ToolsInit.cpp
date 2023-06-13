@@ -31,6 +31,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     isq::contrib::mlir::registerAffineScalarReplacementPass();
     mlir::registerAllDialects(registry);
     registry.insert<isq::ir::ISQDialect>();
+    registry.insert<isq::extra::ISQExtraDialect>();
     registry.insert<logic::ir::LogicDialect>();
 }
 } // namespace ir

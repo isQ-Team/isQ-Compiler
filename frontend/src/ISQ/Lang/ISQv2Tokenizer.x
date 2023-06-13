@@ -24,7 +24,7 @@ $idrestchar   = [$alpha $digit \_]
 @reservedid = 
 	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|bp|return|package|import|assert|
     ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue|double|as|extern|gate|deriving|oracle|pi
-@reservedop = "|0>"|"=="|"="|"+"|"+="|"-"|"-="|"*"|"/"|"<"|">"|"<="|">="|"!="|and|"&&"|or|"||"|not|"!"|"%"|"&"|"|"|"^"|"~"
+@reservedop = "|0>"|"=="|"="|"+"|"+="|"-"|"-="|"*"|"*="|"/"|"/="|"<"|">"|"<="|">="|"!="|and|"&&"|or|"||"|not|"!"|"%"|"%="|"&"|"|"|"^"|"~"
               |">>"|"<<"|","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"|"**"|".length"
 
 tokens :-
@@ -42,8 +42,8 @@ tokens :-
     <0> @decimal { tokenNatural }
     <0> @decimal \. @decimal @exponent?
       | @decimal @exponent  { tokenFloat }
-    <0> @decimal [ij]
-      | @decimal \. @decimal @exponent? [ij]
+    <0> @decimal j
+      | @decimal \. @decimal @exponent? j
       | @decimal @exponent j  { tokenImagPart }
     <0> @ident {tokenIdent}
     <0> @qualify {tokenQualified}

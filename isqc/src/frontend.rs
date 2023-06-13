@@ -190,12 +190,12 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                             return Err(TypeMismatchError{expected, actual, src, pos})?;
                         }
                         "UnsupportedType"=>{
-                            let (src,pos) = parsePos(&content["pos"])?;
-                            let actual = parseType(&content["actualType"]);
+                            let (src,pos) = parse_pos(&content["pos"])?;
+                            let actual = parse_type(&content["actualType"]);
                             return Err(SyntaxError{reason: "unsupported type: ".to_string() + actual.as_str(), src, pos: pos})?;
                         }
                         "UnsupportedLeftSide"=>{
-                            let (src,pos) = parsePos(&content["pos"])?;
+                            let (src,pos) = parse_pos(&content["pos"])?;
                             return Err(SyntaxError{reason: "unsupported left side".to_string(), src, pos: pos})?;
                         }
                         "ViolateNonCloningTheorem"=>{

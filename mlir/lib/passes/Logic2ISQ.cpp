@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/AsmState.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypes.h>
@@ -27,7 +28,7 @@
 namespace isq {
 namespace ir {
 namespace passes {
-namespace {
+namespace logic_to_isq{
 
 // debug helper function
 template<typename Ty>
@@ -235,7 +236,7 @@ public:
         std::cout << "num_qubits: " << circ.num_qubits() << std::endl;
         */
         // Create a FuncOp that represent the quantum circuit.
-        mlir::FuncOp funcop = rewriter.create<mlir::FuncOp>(loc, op.sym_name(), functype);
+        mlir::func::FuncOp funcop = rewriter.create<mlir::func::FuncOp>(loc, op.sym_name(), functype);
         mlir::Block *entry_block = funcop.addEntryBlock(); // Arguments are automatically created based on the function signature.
         mlir::OpBuilder builder(entry_block, entry_block->begin());
         
@@ -341,7 +342,7 @@ public:
             }
         }
         builder.create<mlir::memref::DeallocOp>(loc, ancillas);
-        builder.create<mlir::ReturnOp>(loc); // dummy terminator
+        builder.create<mlir::func::ReturnOp>(loc); // dummy terminator
 
         //std::cout.rdbuf(oldcout);
         //fout.close();
@@ -362,7 +363,7 @@ public:
     RuleReplaceLogicCall(mlir::MLIRContext *ctx): mlir::OpRewritePattern<logic::ir::CallOp>(ctx, 1) {}
     mlir::LogicalResult matchAndRewrite(logic::ir::CallOp op, mlir::PatternRewriter &rewriter) const override {
         auto ctx = op.getContext();
-        rewriter.create<mlir::CallOp>(mlir::UnknownLoc::get(ctx), op.callee(), (mlir::TypeRange){}, op.operands());
+        rewriter.create<mlir::func::CallOp>(mlir::UnknownLoc::get(ctx), op.callee(), (mlir::TypeRange){}, op.operands());
 
         rewriter.eraseOp(op);
         return mlir::success();
@@ -374,7 +375,7 @@ public:
     RuleReplaceLogicReturn(mlir::MLIRContext *ctx): mlir::OpRewritePattern<logic::ir::ReturnOp>(ctx, 1) {}
     mlir::LogicalResult matchAndRewrite(logic::ir::ReturnOp op, mlir::PatternRewriter &rewriter) const override {
         auto ctx = op.getContext();
-        rewriter.create<mlir::ReturnOp>(mlir::UnknownLoc::get(ctx));
+        rewriter.create<mlir::func::ReturnOp>(mlir::UnknownLoc::get(ctx));
 
         rewriter.eraseOp(op);
         return mlir::success();
@@ -435,7 +436,7 @@ struct LogicToISQPass : public mlir::PassWrapper<LogicToISQPass, mlir::Operation
 }
 
 void registerLogicToISQ() {
-    mlir::PassRegistration<LogicToISQPass>();
+    mlir::PassRegistration<logic_to_isq::LogicToISQPass>();
 }
 
 }
