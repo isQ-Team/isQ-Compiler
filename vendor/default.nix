@@ -22,15 +22,16 @@ let llvmPackages = pkgs.llvmPackages_16; in
           exportReferencesGraph = map (x: [ ("closure-" + baseNameOf x) x ]) targets;
           buildCommand = ''
             storePaths=$(perl ${pathsFromGraph} ./closure-*)
-            cp ${entryScriptPath} /build/${name}
-            chmod +x /build/${name}
+            export BUILD=`pwd`/;
+            cp ${entryScriptPath} $BUILD/${name}
+            chmod +x $BUILD/${name}
             echo $storePaths
             tar -cvf - \
               --owner=0 --group=0 --mode=u+rw,uga+r \
               --hard-dereference \
-              $storePaths > /build/temp.tar
-            tar -C /build -rf /build/temp.tar ${name}
-            cat /build/temp.tar | gzip -9 > $out
+              $storePaths > $BUILD/temp.tar
+            tar -C $BUILD -rf $BUILD/temp.tar ${name}
+            cat $BUILD/temp.tar | gzip -9 > $out
           '';
         };
     in
