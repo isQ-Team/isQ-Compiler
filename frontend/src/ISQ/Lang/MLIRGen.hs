@@ -296,8 +296,10 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
     pushOp $ MQApplyGate pos outs ins decorated_gate
     zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs qubit_ssa
 emitStatement' f NCoreUnitary{} = error "first-class gate unsupported"
-{-
-emitStatement' f (NCoreU3 ann (EGlobalName ann2 name) ops angles) = do
+emitStatement' f (NCoreU3 ann (EGlobalName ann2 name) ops mods angles) = do
+    let go Inv (l, f) = (l, not f)
+        go (Ctrl x i) (l, f) = (replicate i x ++ l, f)
+        folded_mods = foldr go ([], False) mods
     ops'<-mapM emitExpr ops
     angles' <- mapM emitExpr angles
     pos<-mpos ann
@@ -306,8 +308,14 @@ emitStatement' f (NCoreU3 ann (EGlobalName ann2 name) ops angles) = do
     let used_gate = i;
     let gate_type@(M.Gate gate_size) = mType ann2;
     pushOp $ MQUseU3Gate pos used_gate (fromFuncName "__isq__builtin__u3") gate_type angles'
+    decorated_gate<-case folded_mods of
+            ([], False)->return i
+            (ctrls, adj)->do
+                let decorated_gate = SSA $ unSsa i ++ "_decorated"
+                pushOp $ MQDecorate pos decorated_gate used_gate folded_mods gate_size
+                return $ decorated_gate
     zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins ops'
-    pushOp $ MQApplyGate pos outs ins used_gate
+    pushOp $ MQApplyGate pos outs ins decorated_gate
     zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs ops'
 -}
 emitStatement' f (NCoreReset ann operand) = do

@@ -66,7 +66,7 @@ data AST ann =
      | NGatedef { annotationAST :: ann, gateName :: String, gateRhs :: [[Expr ann]], externQirName :: Maybe String}
      | NReturn { annotationAST :: ann, returnedVal :: Expr ann}
      | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier], rotation :: Maybe ([Expr ann])}
-     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], angle :: [Expr ann]}
+     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier], angle :: [Expr ann]}
      | NCoreReset { annotationAST :: ann, resetOperands :: Expr ann}
      | NCorePrint { annotationAST :: ann, printOperands :: Expr ann}
      | NCoreMeasure {annotationAST :: ann, measExpr :: Expr ann}
