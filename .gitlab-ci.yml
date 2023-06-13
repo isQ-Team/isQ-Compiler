@@ -22,7 +22,7 @@ frontend test:
   stage: test
   script:
     - cd frontend
-    - nix develop -c make test
+    - nix develop -c make configure build test
 
 integration test:
   stage: test
