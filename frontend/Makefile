@@ -1,8 +1,10 @@
 all: configure build
 configure: isqc1.cabal
-	runhaskell Setup.hs configure
+	runhaskell Setup.hs configure --enable-tests
 build: isqc1.cabal
 	runhaskell Setup.hs build
+test: isqc1.cabal
+	runhaskell Setup.hs test
 isqc1.cabal: package.yaml
 	hpack
 

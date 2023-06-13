@@ -22,8 +22,7 @@ frontend test:
   stage: test
   script:
     - cd frontend
-    - nix develop -c hpack
-    - nix develop -c cabal test
+    - nix develop -c make test
 
 integration test:
   stage: test
