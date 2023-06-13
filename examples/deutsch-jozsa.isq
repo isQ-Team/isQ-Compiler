@@ -1,0 +1,17 @@
+import std;
+
+oracle bool[1] constant(bool a[4]) {
+    bool res[] = {true};
+    return res;
+}
+
+procedure main()
+{
+    qbit q[4], anc[1];
+    X(anc[0]);
+    H(q);
+    H(anc[0]);
+    constant(q, anc);
+    H(q);
+    print M(q);
+}

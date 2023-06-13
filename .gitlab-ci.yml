@@ -9,7 +9,6 @@ build:
     - nix build
   artifacts:
     paths:
-      - frontend/isqc1.cabal
       - result
 
 sanity test:
@@ -23,6 +22,7 @@ frontend test:
   stage: test
   script:
     - cd frontend
+    - nix develop -c hpack
     - nix develop -c cabal test
 
 integration test:
