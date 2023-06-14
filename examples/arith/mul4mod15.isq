@@ -7,19 +7,10 @@ import arith.add1mod15;
 import arith.add2mod15;
 
 procedure mul4mod15(qbit a3, qbit a2, qbit a1, qbit a0, qbit b3, qbit b2, qbit b1, qbit b0) {
-    qbit anc[4];
-    ctrl add4mod15(a0, anc[0], anc[1], anc[2], anc[3]);
-    ctrl add8mod15(a1, anc[0], anc[1], anc[2], anc[3]);
-    ctrl add1mod15(a2, anc[0], anc[1], anc[2], anc[3]);
-    ctrl add2mod15(a3, anc[0], anc[1], anc[2], anc[3]);
-    CNOT(anc[0], b0);
-    CNOT(anc[1], b1);
-    CNOT(anc[2], b2);
-    CNOT(anc[3], b3);
-    ctrl inv add4mod15(a0, anc[0], anc[1], anc[2], anc[3]);
-    ctrl inv add8mod15(a1, anc[0], anc[1], anc[2], anc[3]);
-    ctrl inv add1mod15(a2, anc[0], anc[1], anc[2], anc[3]);
-    ctrl inv add2mod15(a3, anc[0], anc[1], anc[2], anc[3]);
+    ctrl add4mod15(a0, b0, b1, b2, b3);
+    ctrl add8mod15(a1, b0, b1, b2, b3);
+    ctrl add1mod15(a2, b0, b1, b2, b3);
+    ctrl add2mod15(a3, b0, b1, b2, b3);
 } deriving gate
 
 procedure swap4(qbit a0, qbit a1, qbit a2, qbit a3, qbit b0, qbit b1, qbit b2, qbit b3) {
