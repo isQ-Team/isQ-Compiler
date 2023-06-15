@@ -113,10 +113,16 @@ fn main() -> std::io::Result<()> {
         Some(x) => x,
         None => vec![]
     };
+    let par_int_size = par_int.len() as i64;
+    let par_int_ptr = par_int.as_ptr();
+
     let par_double = match args.double_par{
         Some(x) => x,
         None => vec![]
     };
+    let par_double_size:i64 = par_double.len() as i64;
+    let par_double_ptr = par_double.as_ptr();
+
 
     let mut res_map: HashMap<String, i32> = HashMap::new();
     for i in 0..shots{
@@ -185,7 +191,7 @@ fn main() -> std::io::Result<()> {
 
                     let entrypoint = rx_string.recv().unwrap();
                     let proc = library.get::<SimulatorEntry>(entrypoint.as_bytes()).unwrap();
-                    (proc)(par_int_ptr, par_int_ptr, 0, 0, 0, par_double_ptr, par_double_ptr, 0, 0, 0, rank);
+                    (proc)(par_int_ptr, par_int_ptr, 0, par_int_size, 0, par_double_ptr, par_double_ptr, 0, par_double_size, 0, rank);
                 });
                 for v in &par_int {
                     tx_int.send(*v).unwrap();
