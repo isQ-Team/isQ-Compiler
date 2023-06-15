@@ -141,7 +141,7 @@ def ISQ_DeclareQOpOp : ISQ_Op<"declare_qop", [Symbol]>{
     }];
 
 }
-def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
+def ISQ_UseGateOp : ISQ_Op<"use", [Pure, DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
     let summary = "Use gate array";
     let description = [{
         Fetching a declared/defined global gate or gate array.
@@ -176,7 +176,7 @@ def ISQ_UseGateOp : ISQ_Op<"use", [NoSideEffect, DeclareOpInterfaceMethods<Symbo
     
 }
 
-def ISQ_ContribUndef : ISQ_Op<"contrib.memref.undef", [NoSideEffect]>{
+def ISQ_ContribUndef : ISQ_Op<"contrib.memref.undef", [Pure]>{
     let summary = "Undef value for a memref.";
     let description = [{
         The value that you will obtain by reading from an uninitialized memory.
@@ -218,7 +218,7 @@ def ISQ_AccumulateGPhase : ISQ_Op<"accumulate_gphase", []>{
 }
 
 def ISQ_ApplyGateOp : ISQ_Op<"apply", [
-    NoSideEffect,
+    Pure,
     TypesMatchWith<
         "args equivalence", "gate", "args", "::isq::ir::getGateParameterType($_self.cast<::isq::ir::GateType>())"
     >,TypesMatchWith<
@@ -313,7 +313,7 @@ def ISQ_CallQOpOp: ISQ_Op<"call_qop", [DeclareOpInterfaceMethods<SymbolUserOpInt
 
 }
 
-def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
+def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [Pure]>{
     let summary = "Downgrade a gate by removing its traits.`";
     let description = [{
         This operation is used to perform safe gate reference type casting.
@@ -351,7 +351,7 @@ def ISQ_DowngradeGateOp: ISQ_Op<"downgrade", [NoSideEffect]>{
     let hasCanonicalizer = 1;
 }
 
-def ISQ_DecorateOp: ISQ_Op<"decorate", [NoSideEffect]>{
+def ISQ_DecorateOp: ISQ_Op<"decorate", [Pure]>{
     let summary = "Decorate a gate by adding controlled and adjoint markers.";
     let description = [{
         This operations is used to derive a controlled / inverse gate from a used gate.

@@ -32,6 +32,10 @@
       inherit self;
       overlay =
         (base.isqc-override (pkgs: final: prev: rec {
+          version = {
+              semver = "0.1.0";
+              rev = self.rev;
+          };
           vendorPkgs = {
             inherit (vendor) mlir;
             inherit (vendor) nix-user-chroot;

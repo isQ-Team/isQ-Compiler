@@ -3,12 +3,12 @@ let
   stdenv = vendor.stdenvLLVM;
 in
 stdenv.mkDerivation {
-  pname = "mlir";
-  version = "15.0.7";
+  pname = "llvm-mlir";
+  version = "16.0.6";
   #builder = ./builder.sh;
   src = fetchurl {
-    url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.7/llvm-project-15.0.7.src.tar.xz";
-    sha256 = "1ipaxl6jhd6jhnl6skjl7k5jk9xix0643fdhy56z130jnhjcnpwb";
+    url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.6/llvm-project-16.0.6.src.tar.xz";
+    sha256 = "13h2qd9brdpyn4i89rxpiw7k1f849f6a5kybsy39xkhp3l472pnf";
   };
   buildInputs = [ cmake ninja python3 git ];
   cmakeFlags = with stdenv; [

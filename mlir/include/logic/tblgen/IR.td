@@ -59,7 +59,7 @@ def Logic_FuncOp : Logic_Op<"func", [FunctionOpInterface]> {
 
 // Base class for unary and binary logic ops
 class Logic_LogicalOp<string mnemonic, list<Trait> traits = []>:
-    Logic_Op<mnemonic, traits # [NoSideEffect, SameOperandsAndResultType]>;
+    Logic_Op<mnemonic, traits # [Pure, SameOperandsAndResultType]>;
 
 class Logic_BinaryOp<string mnemonic, list<Trait> traits = []>:
     Logic_LogicalOp<mnemonic, traits> {
@@ -147,7 +147,7 @@ def Logic_UseGateOp : Logic_Op<"use"> {
 }
 
 def Logic_ApplyGateOp : Logic_Op<"apply", [
-        NoSideEffect,
+        Pure,
         TypesMatchWith<
             "args equivalence", "gate", "args", "::isq::ir::getGateParameterType($_self.cast<::isq::ir::GateType>())"
         >,TypesMatchWith<
