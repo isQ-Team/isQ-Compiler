@@ -1,0 +1,17 @@
+import std;
+import adder3;
+procedure main()
+{
+    qbit a[3], b[3];
+
+    // Set |a> = |7>
+    X(a);
+
+    // Set |b> = |1>
+    X(b[0]);
+
+    inv adder3(a[0], a[1], a[2], b[0], b[1], b[2]);
+
+    print M(a);     // should be 6
+    print M(b);     // should be 1
+}

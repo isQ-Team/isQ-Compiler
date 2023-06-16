@@ -6,9 +6,9 @@ procedure main()
     qbit q[3];
     X(p[0:2]);
     q += p;
-    print M(q);
+    print M(q); // should print 3
     q += p;
-    print M(q);
+    print M(q); // should print 6
     q += p;
-    print M(q);
+    print M(q); // should print 9
 }

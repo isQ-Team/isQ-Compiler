@@ -1,0 +1,55 @@
+import std;
+
+/*
+* Majority gate
+*
+* |a_i>|b_i>|c_i> -> |c_{i+1}>|b_i^a_i>|c_i^a_i>.
+* when the inputs contain two or three 1s, c_{i+1} = 1; otherwise, 0.
+*/
+procedure maj(qbit a, qbit b, qbit c) {
+    CNOT(c, a);
+    CNOT(c, b);
+    Toffoli(a, b, c);
+} deriving gate
+
+/*
+* UMA (UnMaj-and-Add) gate
+*
+* |c_i^a_i>|b_i^a_i>|c_{i+1}> -> |c_i>|s_i>|a_i>
+* s_i is the addition result of a_i, b_i, and c_i.
+*/
+procedure uma(qbit ca, qbit ba, qbit c)
+{
+    Toffoli(ca, ba, c);
+    CNOT(c, ca);
+    CNOT(ca, ba);
+} deriving gate
+
+/*
+* 3-bit adder
+* |a>|b> -> |a+b>|a>
+*/
+procedure adder3(qbit a0, qbit a1, qbit a2, qbit b0, qbit b1, qbit b2) {
+    qbit anc;
+    maj(anc, a0, b0);
+    maj(b0, a1, b1);
+    maj(b1, a2, b2);
+
+    uma(b1, a2, b2);
+    uma(b0, a1, b1);
+    uma(anc, a0, b0);
+} deriving gate
+
+procedure main()
+{
+    qbit a[3], b[3];
+    X(b[2]);
+    for i in 0:8 {
+        set(a, i);
+        adder3(a[0], a[1], a[2], b[0], b[1], b[2]);
+        print M(a);
+        inv adder3(a[0], a[1], a[2], b[0], b[1], b[2]);
+        set(a, i);
+        print M(a);
+    }
+}

@@ -1,17 +1,23 @@
 import std;
 
+// |a>|b>|c> -> |a>|b>|c+a*b>
 procedure mul(qbit a[], qbit b[], qbit c[])
 {
+    // Check the length of qubit arrays
     int len = a.length;
-    for i in 0:len {
-        Toffoli(a[0], b[i], c[i]);
-    }
+    assert(len == b.length);
+    assert(len * 2 == c.length);
+
     qbit anc[len * 2];
-    for i in 1:len {
+    for i in 0:len {
+        // anc = b << i
         for j in 0:len {
             Toffoli(a[i], b[j], anc[i + j]);
         }
+        
         c += anc;
+
+        // anc = 0
         for j in 0:len {
             Toffoli(a[i], b[j], anc[i + j]);
         }

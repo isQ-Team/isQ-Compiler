@@ -1,0 +1,22 @@
+import std;
+import adder3;
+
+procedure increse(qbit a0, qbit a1, qbit a2) {
+    qbit b0, b1, b2;
+    X(b0);
+    adder3(a0, a1, a2, b0, b1, b2);
+    X(b0);
+} deriving gate
+
+procedure main()
+{
+    qbit a[3];
+    for i in 0:8 {
+        set(a, i);
+        increse(a[0], a[1], a[2]);
+        print M(a);
+        inv increse(a[0], a[1], a[2]);
+        set(a, i);
+        print M(a);
+    }
+}

@@ -23,6 +23,10 @@ procedure SWAP(qbit a, qbit b) {
     CNOT(a, b);
 } deriving gate
 
+/*
+* Follow paper: Y. Takahashi, S. Tani, and N. Kunihiro, "Quantum Addition 
+* Circuits and Unbounded Fan-Out." arXiv preprint 0910.2530, 2009.
+*/
 procedure __add(qbit a[], qbit b[])
 {
     int len = a.length;

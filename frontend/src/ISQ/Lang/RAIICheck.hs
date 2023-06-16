@@ -149,7 +149,7 @@ eliminateNonAffineForStmts' f (NFor (s1, ann) v elist@(EList (s2, eann) lis) bod
     let len = length lis
     let lis' = map eraseSafe lis
     let def = NDefvar ann [(Type ann (Array len) [Type ann Int []], array_name, Just $ EList eann lis', Nothing)]
-    for <- f $NFor (s1, ann) v (EIdent (Safe, eann) array_name) body
+    for <- f $ NFor (s1, ann) v (EIdent (Safe, eann) array_name) body
     return [NBlock ann $ def : for]
 eliminateNonAffineForStmts' f (NFor (Safe, ann) v expr body) = do
     b' <- mapM f body;
