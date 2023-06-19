@@ -68,6 +68,7 @@ using namespace Eigen;
         private:
             void AddDecomposedGate(Gate gate);
             GateSequence remain_gates;
+            bool QSDBody();
     };
 
     DecomposedGates mcdecompose_u(UnitaryVector uvector, std::string ctrl);

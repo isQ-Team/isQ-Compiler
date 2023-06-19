@@ -27,9 +27,12 @@ QSynthesis::QSynthesis(int n, UnitaryVector uvector, double e) {
     QSD();
 }
 
-void QSynthesis::QSD() {
+void QSynthesis::QSD(){
+    while(QSDBody()) {};
+}
+bool QSynthesis::QSDBody() {
     using namespace std;
-    if (remain_gates.size() == 0) return;
+    if (remain_gates.size() == 0) return false;
 
     Gate gate = remain_gates.back();
     remain_gates.pop_back();
@@ -41,7 +44,7 @@ void QSynthesis::QSD() {
     if (gtype == NONE) {
         if (n == 1) {
             AddDecomposedGate(gate);
-            return QSD();
+            return true;
         } else {
             CSD csdofgate(get<2>(gate));
             ComplexSchur<MatrixXcd> schurofa1b1(csdofgate.A1 * csdofgate.B1.conjugate().transpose());
@@ -64,19 +67,19 @@ void QSynthesis::QSD() {
             remain_gates.push_back(Gate(NONE, dlocation, V2, 0.));
             remain_gates.push_back(Gate(MZ, glocation, -2. * D2.diagonal().array().arg().matrix().asDiagonal(), get<3>(gate)));
             remain_gates.push_back(Gate(NONE, dlocation, W2, 0.));
-            return QSD();
+            return true;
         }
     }
 
     if (gtype == CNOT) {
         AddDecomposedGate(gate);
-        return QSD();
+        return true;
     }
 
     // Multiplexed-Pauli Decomposition
     if (n == 1) {
         AddDecomposedGate(gate);
-        return QSD();
+        return true;
     }
 
     ArrayXcd A = get<2>(gate).diagonal().array();
@@ -102,7 +105,7 @@ void QSynthesis::QSD() {
             AddDecomposedGate(Gate(RY, ulocation, B2.matrix().asDiagonal(), 0.));
             AddDecomposedGate(Gate(CNOT, clocation, Matrix2cd(), 0.));
         }
-        return QSD();
+        return true;
     }
 
     ArrayXcd C1 = B1(seqN(0,1<<(n-3),2));
@@ -132,7 +135,7 @@ void QSynthesis::QSD() {
     remain_gates.push_back(Gate(CNOT, c2location, GateMatrix(), 0.));
     remain_gates.push_back(Gate(gtype, u2location, D1.matrix().asDiagonal(), get<3>(gate)));
 
-    return QSD();
+    return true;
 }
 
 void QSynthesis::AddDecomposedGate(Gate gate) {
