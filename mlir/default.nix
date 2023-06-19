@@ -23,7 +23,7 @@ let
     stdenv.mkDerivation {
       name = "isq-opt";
       nativeBuildInputs = [ cmake ninja doxygen graphviz python3 which git lld ];
-      buildInputs = [ 
+      buildInputs = [
         eigen
         mlir
         nlohmann_json
@@ -34,7 +34,7 @@ let
       cmakeFlags = [ "-DISQ_OPT_ENABLE_ASSERTIONS=1" ];
       passthru.isQDevShell = mkShell.override { stdenv = stdenv; } {
         inputsFrom = [ isq-opt ];
-        nativeBuildInputs = [ clang-tools ];
+        nativeBuildInputs = [ vendor.clang-tools ];
       };
       inherit mlir;
     };

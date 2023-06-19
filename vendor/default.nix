@@ -1,8 +1,10 @@
-{caterpillar, ...}:
+{ caterpillar, ... }:
 pkgs: final: prev:
-let llvmPackages = pkgs.llvmPackages_16; in
+let
+  llvmPackages = pkgs.llvmPackages_16;
+in
 {
-  caterpillar = (final.callPackage caterpillar {});
+  caterpillar = (final.callPackage caterpillar { });
   mlir = (final.callPackage ./mlir { });
   nix-user-chroot = (final.callPackage ./nix-user-chroot { });
   buildTarball = { name, drv, entry }:
@@ -36,6 +38,7 @@ let llvmPackages = pkgs.llvmPackages_16; in
         };
     in
     maketar { targets = [ drv final.vendor.nix-user-chroot ]; };
-    llvmPackages = llvmPackages;
-    stdenvLLVM = pkgs.overrideCC llvmPackages.stdenv (llvmPackages.stdenv.cc.override { inherit (llvmPackages) bintools; });
+  inherit llvmPackages;
+  clang-tools = pkgs.clang-tools_16;
+  stdenvLLVM = pkgs.overrideCC llvmPackages.stdenv (llvmPackages.stdenv.cc.override { inherit (llvmPackages) bintools; });
 }

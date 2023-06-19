@@ -46,7 +46,7 @@ const DenseComplexF64MatrixAttr::MatrixVal& MatrixDefinition::getMatrix() const{
     return this->mat;
 }
 ::mlir::LogicalResult MatrixDefinition::verify(::isq::ir::DefgateOp op, int id, ::isq::ir::GateType ty, ::mlir::Attribute attribute) {
-    if(op.shape()){
+    if(op.getShape()){
         op->emitError()
             << "Definition #" << id << " is a matrix definition and should not be used with gate arrays.";
         return mlir::failure();
@@ -62,12 +62,12 @@ const DenseComplexF64MatrixAttr::MatrixVal& MatrixDefinition::getMatrix() const{
     math::InputSmallMatrix wrapper;
     wrapper.body = std::make_unique<math::InputSmallMatrix::Ty>(std::move(mat));
     auto dim = math::checkDimensionality(wrapper);
-    if (!dim.hasValue()) {
+    if (!dim.has_value()) {
         op->emitError()
             << "Definition #" << id << " input is not a square matrix.";
         return mlir::failure();
     }
-    auto dimension = dim.getValue();
+    auto dimension = dim.value();
     if (dimension != (1 << ty.getSize())) {
         op->emitError() << "Definition #" << id
                         << " matrix dimensionality and gate size mismatch.";
@@ -84,21 +84,21 @@ const DenseComplexF64MatrixAttr::MatrixVal& MatrixDefinition::getMatrix() const{
         return mlir::failure();
     }
     auto hints = ty.getHints();
-    if (bitEnumContains(hints, GateTrait::Hermitian)) {
+    if (bitEnumContainsAll(hints, GateTrait::Hermitian)) {
         if (!math::isHermitian(*math_mat)) {
             op->emitError()
                 << "Definition #" << id << " matrix seems not hermitian.";
             return mlir::failure();
         }
     }
-    if (bitEnumContains(hints, GateTrait::Diagonal)) {
+    if (bitEnumContainsAll(hints, GateTrait::Diagonal)) {
         if (!math::isDiagonal(*math_mat)) {
             op->emitError()
                 << "Definition #" << id << " matrix seems not diagonal.";
             return mlir::failure();
         }
     }
-    if (bitEnumContains(hints, GateTrait::Antidiagonal)) {
+    if (bitEnumContainsAll(hints, GateTrait::Antidiagonal)) {
         if (!math::isAntiDiagonal(*math_mat)) {
             op->emitError() << "Definition #" << id
                             << " matrix seems not antidiagonal.";
@@ -146,7 +146,7 @@ mlir::func::FuncOp DecompositionDefinition::getDecomposedFunc(){
     // construct func signature.
     ::mlir::SmallVector<::mlir::Type> argtypes;
     ::mlir::SmallVector<::mlir::Type> returntypes;
-    for(auto extra_arg: op.parameters()){
+    for(auto extra_arg: op.getParameters()){
         argtypes.push_back(extra_arg.cast<mlir::TypeAttr>().getValue());
     }
     for(auto i=0; i<ty.getSize(); i++){
@@ -198,7 +198,7 @@ mlir::func::FuncOp DecompositionRawDefinition::getDecomposedFunc(){
     // construct func signature.
     ::mlir::SmallVector<::mlir::Type> argtypes;
     ::mlir::SmallVector<::mlir::Type> returntypes;
-    for(auto extra_arg: op.parameters()){
+    for(auto extra_arg: op.getParameters()){
         argtypes.push_back(extra_arg.cast<mlir::TypeAttr>().getValue());
     }
     mlir::AffineExpr d0, s0;

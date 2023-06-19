@@ -40,10 +40,10 @@ mlir::Value traceBackwardQState(mlir::Value val){
         if(!val_result) break;
         mlir::TypeSwitch<mlir::Operation*, void>(val.getDefiningOp()).Case<ApplyGateOp>([&](ApplyGateOp op){
             auto id = val_result.getResultNumber();
-            val = op.args()[id];
+            val = op.getArgs()[id];
         }).Case<CallQOpOp>([&](CallQOpOp op){
             auto id = val_result.getResultNumber();
-            val = op.args()[id];
+            val = op.getArgs()[id];
         }).Default([&](auto op){
             is_drain = true;
         });

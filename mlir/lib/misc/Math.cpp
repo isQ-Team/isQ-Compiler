@@ -30,9 +30,9 @@ template<FwdMatDouble Vec>
 template<FwdMatDouble Vec>
 std::unique_ptr<Mat, MatDel> toEigenMatrixGeneric(Vec& mat){
     auto sz = checkDimensionality(mat);
-    if (!sz.hasValue())
+    if (!sz.has_value())
         return {};
-    auto s = sz.getValue();
+    auto s = sz.value();
     Mat::Ty *m = new Mat::Ty(s, s);
     for (auto i = 0; i < s; i++) {
         for (auto j = 0; j < s; j++) {
