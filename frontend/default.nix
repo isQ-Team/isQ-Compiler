@@ -1,4 +1,6 @@
-{ pkgs, vendor ? null, gitignoreSource ? vendor.gitignoreSource }:
+{ pkgs, vendor ? null, gitignoreSource ? vendor.gitignoreSource
+, isQVersion
+}:
 let
   src = gitignoreSource ./.;
   isqc1 = (pkgs.haskellPackages.callCabal2nix "isqc1" src { });

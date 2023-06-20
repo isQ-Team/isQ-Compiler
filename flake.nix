@@ -32,9 +32,10 @@
       inherit self;
       overlay =
         (base.isqc-override (pkgs: final: prev: rec {
-          version = {
-              semver = "0.1.0";
-              rev = self.rev;
+          versionInfo = rec {
+              semver = "0.2.0";
+              rev = if (self ? rev) then self.rev else "dirty";
+              version = "${semver}-${rev}";
           };
           vendorPkgs = {
             inherit (vendor) mlir;
@@ -50,12 +51,15 @@
                 rustc = rust;
               };
           };
-          isqc-driver = (final.callPackage ./isqc { });
-          isq-opt = (final.callPackage ./mlir { });
-          isq-simulator = (final.callPackage ./simulator { });
+          isqc-driver = (final.callPackage ./isqc { isQVersion = versionInfo; });
+          isq-opt = (final.callPackage ./mlir { isQVersion = versionInfo; });
+          isq-simulator = (final.callPackage ./simulator { isQVersion = versionInfo; });
           isq-simulator-cuda = (final.callPackage ./simulator { enabledPlugins = [ "qcis" "cuda" ]; });
-          isqc1 = (final.callPackage ./frontend { });
-          isqc-docs = (final.callPackage ./docs { });
+          isqc1 = (final.callPackage ./frontend { isQVersion = versionInfo; });
+          isqc-docs = (final.callPackage ./docs { isQVersion = versionInfo; });
+          isqc = (final.buildISQCEnv { });
+
+
           buildISQCEnv =
             { isqc1 ? final.isqc1
             , isq-opt ? final.isq-opt
@@ -69,7 +73,7 @@
                 wrapProgram $out/bin/isqc --set ISQ_ROOT $out --set LLVM_ROOT ${final.vendor.mlir}
               '';
             };
-          isqc = (final.buildISQCEnv { });
+          
           isqcTarball = final.vendor.buildTarball {
             name = "isqc";
             drv = isqc;

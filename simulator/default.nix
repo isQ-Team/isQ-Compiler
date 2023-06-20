@@ -4,6 +4,7 @@
 , gitignoreSource ? vendor.gitignoreSource
 , mlir ? vendor.mlir
 , callPackage
+, isQVersion
 }:
 let
   rustPlatform = vendor.rustPlatform;
@@ -25,7 +26,7 @@ let
 in
 rustPlatform.buildRustPackage ((pluginExports) // rec {
   pname = "isq-simulator";
-  version = "0.1.0";
+  inherit (isQVersion) version;
   nativeBuildInputs = [ llvm_tools ];
   #buildInputs = (builtins.concatLists [
   #  (addInput build_cuda_plugin (pkgs.lib.getLib cudaPlugin))

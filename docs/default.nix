@@ -3,10 +3,11 @@
 , stdenvNoCC
 , vendor ? null
 , gitignoreSource ? vendor.gitignoreSource
+, isQVersion
 }:
 stdenvNoCC.mkDerivation {
   pname = "isqc-docs";
-  version = "0.1.0";
+  inherit (isQVersion) version;
   buildInputs = [ mkdocs python3Packages.mkdocs-material ];
   src = gitignoreSource ./.;
 }
