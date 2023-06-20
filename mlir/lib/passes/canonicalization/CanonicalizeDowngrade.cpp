@@ -15,7 +15,7 @@ namespace canonicalize{
 
 MergeDowngrade::MergeDowngrade(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::DowngradeGateOp>(ctx, 1){}
 mlir::LogicalResult MergeDowngrade::matchAndRewrite(isq::ir::DowngradeGateOp op,  mlir::PatternRewriter &rewriter) const{
-    if(auto parent = mlir::dyn_cast_or_null<isq::ir::DowngradeGateOp>(op.args().getDefiningOp())){
+    if(auto parent = mlir::dyn_cast_or_null<isq::ir::DowngradeGateOp>(op.getArgs().getDefiningOp())){
         rewriter.updateRootInPlace(op, [&](){
             op.setOperand(parent->getOperand(0));
         });
@@ -26,8 +26,8 @@ mlir::LogicalResult MergeDowngrade::matchAndRewrite(isq::ir::DowngradeGateOp op,
 
 EliminateUselessDowngrade::EliminateUselessDowngrade(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::DowngradeGateOp>(ctx, 1){}
 mlir::LogicalResult EliminateUselessDowngrade::matchAndRewrite(isq::ir::DowngradeGateOp op,  mlir::PatternRewriter &rewriter) const{
-    if(op.args().getType() == op.getResult().getType()){
-        rewriter.replaceOp(op, op.args());
+    if(op.getArgs().getType() == op.getResult().getType()){
+        rewriter.replaceOp(op, op.getArgs());
         return mlir::success();
     }
     return mlir::failure();

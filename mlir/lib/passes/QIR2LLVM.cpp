@@ -4,14 +4,14 @@
 #include "isq/QTypes.h"
 #include "isq/GateDefTypes.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
-#include "mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h"
+#include "mlir/Conversion/ArithToLLVM/ArithToLLVM.h"
 #include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -26,7 +26,7 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
 #include "llvm/Support/raw_ostream.h"
-#include <mlir/Dialect/Arithmetic/Transforms/Passes.h>
+#include <mlir/Dialect/Arith/Transforms/Passes.h>
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
 namespace isq{
@@ -119,7 +119,7 @@ public:
         auto printfRef = getOrInsertPrintf(rewriter, parentModule);
         auto exitRef = getOrInsertExit(rewriter, parentModule);
         mlir::Location loc = op->getLoc();
-        auto ifOp = rewriter.create<mlir::scf::IfOp>(loc, op.cond(), true);
+        auto ifOp = rewriter.create<mlir::scf::IfOp>(loc, op.getCond(), true);
         rewriter.eraseOp(op);
         rewriter.updateRootInPlace(ifOp, [&]{
             rewriter.setInsertionPointToStart(ifOp.elseBlock());
@@ -141,7 +141,7 @@ public:
                 llvm::ArrayRef<mlir::Value>({locStr, sourcePos, line, column}));
 
             // Print error message
-            auto errorNum = op.error_num();
+            auto errorNum = op.getErrorNum();
             mlir::Value messageCst = getErrorMessage(loc, rewriter, errorNum, parentModule);
             rewriter.create<mlir::func::CallOp>(loc, printfRef, rewriter.getIntegerType(32), llvm::ArrayRef<mlir::Value>({messageCst}));
             auto attr = rewriter.getIntegerAttr(rewriter.getIntegerType(32), errorNum);
@@ -174,8 +174,8 @@ struct QIRRepToLLVMPass : public mlir::PassWrapper<QIRRepToLLVMPass, mlir::Opera
         populateAffineToStdConversionPatterns(patterns);
         populateSCFToControlFlowConversionPatterns(patterns);
         populateMemRefToLLVMConversionPatterns(typeConverter, patterns);
-        arith::populateArithmeticExpandOpsPatterns(patterns);
-        arith::populateArithmeticToLLVMConversionPatterns(typeConverter, patterns);
+        arith::populateArithExpandOpsPatterns(patterns);
+        arith::populateArithToLLVMConversionPatterns(typeConverter, patterns);
         cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
         populateFuncToLLVMConversionPatterns(typeConverter, patterns);
         //populateStdToLLVMConversionPatterns(typeConverter, patterns);

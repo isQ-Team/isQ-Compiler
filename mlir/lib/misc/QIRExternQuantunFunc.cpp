@@ -1,6 +1,6 @@
 #include "isq/Lower.h"
 #include "isq/QTypes.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "llvm/Support/raw_ostream.h"
 #include <mlir/Dialect/Func/IR/FuncOps.h>
@@ -47,7 +47,7 @@ using mlir::func::CallOp;
 using mlir::func::ReturnOp;
 void createExternOp(::mlir::PatternRewriter& rewriter, ::mlir::MLIRContext* ctx, ::mlir::StringRef externOpName, ::mlir::ArrayRef<::mlir::Type> argsType, ::mlir::ArrayRef<::mlir::Type> returnType){
     auto fntype = FunctionType::get(ctx, argsType, returnType);
-    rewriter.create<FuncOp>(UnknownLoc::get(ctx), externOpName, fntype, ::mlir::StringAttr::get(ctx, "private"));
+    rewriter.create<FuncOp>(UnknownLoc::get(ctx), externOpName, fntype, ::mlir::StringAttr::get(ctx, "private"), nullptr, nullptr);
 }
 
 CallOp callExternOp(::mlir::PatternRewriter& rewriter, ::mlir::Location loc, ::mlir::StringRef externOpName, ::mlir::ArrayRef<::mlir::Value> args, ::mlir::ArrayRef<::mlir::Type> returnType){

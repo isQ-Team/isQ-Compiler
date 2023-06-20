@@ -27,15 +27,13 @@ def Logic_FuncOp : Logic_Op<"func", [FunctionOpInterface]> {
     let summary = "Define a logic function.";
     let arguments = (ins
         SymbolNameAttr: $sym_name,
-        TypeAttrOf<FunctionType>: $function_type
+        TypeAttrOf<FunctionType>: $function_type,
+        OptionalAttr<DictArrayAttr>:$arg_attrs,
+        OptionalAttr<DictArrayAttr>:$res_attrs,
+        OptionalAttr<StrAttr>:$sym_visibility
     );
     let regions = (region AnyRegion: $body);
     let extraClassDeclaration = [{
-        /// Returns the type of this function.
-        /// FIXME: We should drive this via the ODS `type` param.
-        ::mlir::FunctionType getFunctionType() {
-            return function_type();
-        }
 
         /// Returns the region on the current operation that is callable. This may
         /// return null in the case of an external callable object, e.g. an external

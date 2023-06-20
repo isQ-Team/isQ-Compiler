@@ -2,7 +2,7 @@
 #include "isq/Operations.h"
 #include "isq/QSynthesis.h"
 #include "isq/QTypes.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -71,7 +71,7 @@ public:
                 auto apply_cnot_gate = rewriter.create<ApplyGateOp>(
                     ::mlir::UnknownLoc::get(ctx),
                     ::mlir::ArrayRef<::mlir::Type>{qst, qst},
-                    use_cnot_gate.result(),
+                    use_cnot_gate.getResult(),
                     ::mlir::ArrayRef{qubits[pos[0]], qubits[pos[1]]}
                 );
                 qubits[pos[0]]=apply_cnot_gate.getResult(0);
@@ -98,7 +98,7 @@ public:
                 auto apply_u3_gate = rewriter.create<ApplyGateOp>(
                     ::mlir::UnknownLoc::get(ctx),
                     ::mlir::ArrayRef<::mlir::Type>{qst},
-                    use_u3_gate.result(),
+                    use_u3_gate.getResult(),
                     ::mlir::ArrayRef{qubits[pos[0]]}
                 );
                 qubits[pos[0]]=apply_u3_gate.getResult(0);
@@ -109,21 +109,21 @@ public:
         return mlir::success();
     }
     mlir::LogicalResult matchAndRewrite(isq::ir::DefgateOp defgate,  mlir::PatternRewriter &rewriter) const override{
-        if(this->ignore_sq && defgate.type().getSize()==1){
+        if(this->ignore_sq && defgate.getType().getSize()==1){
             return mlir::failure();
         }
-        if(!defgate.definition()) return mlir::failure();
+        if(!defgate.getDefinition()) return mlir::failure();
         int id = 0;
         bool added_new_definition = false;
-        for(auto def: defgate.definition()->getAsRange<GateDefinition>()){
-            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
+        for(auto def: defgate.getDefinition()->getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.getType(), def);
             if(d==std::nullopt) return mlir::failure();
             auto mat = llvm::dyn_cast_or_null<MatrixDefinition>(&**d);
             if(!mat){
                 id++;
                 continue;
             }
-            auto qsd_decomp_name = std::string(defgate.sym_name())+"__qsd__decomposition";
+            auto qsd_decomp_name = std::string(defgate.getSymName())+"__qsd__decomposition";
             // construct new matrix name.
             auto qsd_decomp_sym = mlir::FlatSymbolRefAttr::get(mlir::StringAttr::get(rewriter.getContext(), qsd_decomp_name));
             auto qsd_decomp = mlir::SymbolTable::lookupNearestSymbolFrom<mlir::func::FuncOp>(defgate, qsd_decomp_sym);
@@ -135,7 +135,7 @@ public:
                     return mlir::failure();
                 }
                 rewriter.updateRootInPlace(defgate, [&]{
-                    auto defs = *defgate.definition();
+                    auto defs = *defgate.getDefinition();
                     ::mlir::SmallVector<::mlir::Attribute> new_defs;
                     auto r = defs.getAsRange<::mlir::Attribute>();
                     new_defs.append(r.begin(), r.end());

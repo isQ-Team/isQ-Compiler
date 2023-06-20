@@ -4,7 +4,7 @@
 #include "isq/passes/Passes.h"
 #include <algorithm>
 #include <llvm/Support/Casting.h>
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -227,22 +227,22 @@ struct MergeAdjointIntoU3Rule : public mlir::OpRewritePattern<DecorateOp>{
     MergeAdjointIntoU3Rule(mlir::MLIRContext* ctx): mlir::OpRewritePattern<DecorateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(DecorateOp op, mlir::PatternRewriter& rewriter) const override{
         auto ctx = op->getContext();
-        auto usegate_op = llvm::dyn_cast<UseGateOp>(op.args().getDefiningOp());
+        auto usegate_op = llvm::dyn_cast<UseGateOp>(op.getArgs().getDefiningOp());
         if(!usegate_op) return mlir::failure();
-        auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate_op, usegate_op.name()));
+        auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate_op, usegate_op.getName()));
         if(!gatedef) return mlir::failure();
         if(!isFamousGate(gatedef, "U3")) return mlir::failure();
-        if(!op.adjoint()){
+        if(!op.getAdjoint()){
             return mlir::failure();
         }
         // Pull adjoint into u3.
-        auto theta = usegate_op.parameters()[0];
-        auto phi = usegate_op.parameters()[1];
-        auto lam = usegate_op.parameters()[2];
+        auto theta = usegate_op.getParameters()[0];
+        auto phi = usegate_op.getParameters()[1];
+        auto lam = usegate_op.getParameters()[2];
         auto new_theta = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), theta);
         auto new_phi = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), lam);
         auto new_lam = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), phi);
-        auto new_used_gate = emitUseBuiltinGate(rewriter, 1, "U3", {new_theta, new_phi, new_lam}, op.ctrl(), false);
+        auto new_used_gate = emitUseBuiltinGate(rewriter, 1, "U3", {new_theta, new_phi, new_lam}, op.getCtrl(), false);
         rewriter.replaceOp(op, {new_used_gate});
         return mlir::success();
     }
@@ -251,18 +251,18 @@ struct MergeAdjointIntoGPhaseRule : public mlir::OpRewritePattern<DecorateOp>{
     MergeAdjointIntoGPhaseRule(mlir::MLIRContext* ctx): mlir::OpRewritePattern<DecorateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(DecorateOp op, mlir::PatternRewriter& rewriter) const override{
         auto ctx = op->getContext();
-        auto usegate_op = llvm::dyn_cast<UseGateOp>(op.args().getDefiningOp());
+        auto usegate_op = llvm::dyn_cast<UseGateOp>(op.getArgs().getDefiningOp());
         if(!usegate_op) return mlir::failure();
-        auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate_op, usegate_op.name()));
+        auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate_op, usegate_op.getName()));
         if(!gatedef) return mlir::failure();
         if(!isFamousGate(gatedef, "GPhase")) return mlir::failure();
-        if(!op.adjoint()){
+        if(!op.getAdjoint()){
             return mlir::failure();
         }
         // Pull adjoint into gphase.
-        auto theta = usegate_op.parameters()[0];
+        auto theta = usegate_op.getParameters()[0];
         auto new_theta = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), theta);
-        auto new_used_gate = emitUseBuiltinGate(rewriter, 0, "GPhase", {new_theta}, op.ctrl(), false);
+        auto new_used_gate = emitUseBuiltinGate(rewriter, 0, "GPhase", {new_theta}, op.getCtrl(), false);
         rewriter.replaceOp(op, {new_used_gate});
         return mlir::success();
     }
@@ -272,29 +272,29 @@ struct DecomposeCtrlKnownSQRule : public mlir::OpRewritePattern<ApplyGateOp>{
     DecomposeCtrlKnownSQRule(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(ApplyGateOp op, mlir::PatternRewriter& rewriter) const override{
         auto ctx = op->getContext();
-        auto decorate_op = llvm::dyn_cast<DecorateOp>(op.gate().getDefiningOp());
+        auto decorate_op = llvm::dyn_cast<DecorateOp>(op.getGate().getDefiningOp());
         if(!decorate_op) return mlir::failure();
-        auto usegate_op = llvm::dyn_cast<UseGateOp>(decorate_op.args().getDefiningOp());
+        auto usegate_op = llvm::dyn_cast<UseGateOp>(decorate_op.getArgs().getDefiningOp());
         if(!usegate_op) return mlir::failure();
         if(usegate_op.getType().cast<GateType>().getSize()!=1) return mlir::failure();
-        auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate_op, usegate_op.name()));
+        auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate_op, usegate_op.getName()));
         if(!gatedef) return mlir::failure();
-        if(gatedef.type().getSize()!=1) return mlir::failure();
-        if(decorate_op.ctrl().size()==0) return mlir::failure();
+        if(gatedef.getType().getSize()!=1) return mlir::failure();
+        if(decorate_op.getCtrl().size()==0) return mlir::failure();
         std::optional<synthesis::UnitaryVector> requiredMatrix;
         auto id=0;
-        for(auto def: gatedef.definition()->getAsRange<GateDefinition>()){
-            auto d = AllGateDefs::parseGateDefinition(gatedef, id, gatedef.type(), def);
+        for(auto def: gatedef.getDefinition()->getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(gatedef, id, gatedef.getType(), def);
             if(d==std::nullopt) return mlir::failure();
             if(auto mat = llvm::dyn_cast_or_null<MatrixDefinition>(&**d)){
                 auto& matrix = mat->getMatrix();
                 requiredMatrix = synthesis::UnitaryVector();
                 for(auto i=0; i<2; i++){
                     for(auto j=0; j<2; j++){
-                        requiredMatrix->push_back(std::make_pair(matrix[i][j].real(), (decorate_op.adjoint()?-1.0:1.0)*matrix[i][j].imag()));
+                        requiredMatrix->push_back(std::make_pair(matrix[i][j].real(), (decorate_op.getAdjoint()?-1.0:1.0)*matrix[i][j].imag()));
                     }
                 }
-                if(decorate_op.adjoint()){
+                if(decorate_op.getAdjoint()){
                     std::swap((*requiredMatrix)[1], (*requiredMatrix)[2]);
                 }
             }
@@ -302,11 +302,11 @@ struct DecomposeCtrlKnownSQRule : public mlir::OpRewritePattern<ApplyGateOp>{
         }
         if(!requiredMatrix) return mlir::failure();
         mlir::SmallVector<mlir::Value> operands;
-        for(auto v: op.args()){
+        for(auto v: op.getArgs()){
             operands.push_back(v);
         }
         std::string ctrl="";
-        for(auto c: decorate_op.ctrl().getAsValueRange<mlir::BoolAttr>()){
+        for(auto c: decorate_op.getCtrl().getAsValueRange<mlir::BoolAttr>()){
             ctrl+=c?"t":"f";
         }
         auto multi_ctrl_x = synthesis::mcdecompose_u(*requiredMatrix, ctrl);
@@ -319,31 +319,31 @@ struct DecomposeCtrlU3Rule : public mlir::OpRewritePattern<ApplyGateOp>{
     DecomposeCtrlU3Rule(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(ApplyGateOp op, mlir::PatternRewriter& rewriter) const override{
         auto ctx = op->getContext();
-        auto decorate_op = llvm::dyn_cast<DecorateOp>(op.gate().getDefiningOp());
+        auto decorate_op = llvm::dyn_cast<DecorateOp>(op.getGate().getDefiningOp());
         if(!decorate_op) return mlir::failure();
-        auto usegate_op = llvm::dyn_cast<UseGateOp>(decorate_op.args().getDefiningOp());
+        auto usegate_op = llvm::dyn_cast<UseGateOp>(decorate_op.getArgs().getDefiningOp());
         if(!usegate_op) return mlir::failure();
-        auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate_op, usegate_op.name()));
+        auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate_op, usegate_op.getName()));
         if(!gatedef) return mlir::failure();
         mlir::SmallVector<mlir::Value> operands;
-        for(auto v: op.args()){
+        for(auto v: op.getArgs()){
             operands.push_back(v);
         }
-        if (decorate_op.adjoint()){
+        if (decorate_op.getAdjoint()){
             return mlir::failure();
         }
-        if (decorate_op.ctrl().size()==0){
+        if (decorate_op.getCtrl().size()==0){
             return mlir::failure();
         }
-        if (!llvm::all_of(decorate_op.ctrl().getAsValueRange<mlir::BoolAttr>(), [](bool x){
+        if (!llvm::all_of(decorate_op.getCtrl().getAsValueRange<mlir::BoolAttr>(), [](bool x){
             return x;
         })){
             return mlir::failure();
         }
         if(isFamousGate(gatedef, "U3")){
-            auto theta = usegate_op.parameters()[0];
-            auto phi = usegate_op.parameters()[1];
-            auto lam = usegate_op.parameters()[2];
+            auto theta = usegate_op.getParameters()[0];
+            auto phi = usegate_op.getParameters()[1];
+            auto lam = usegate_op.getParameters()[2];
 
             
             auto zero = rewriter.create<mlir::arith::ConstantFloatOp>(
@@ -375,13 +375,13 @@ struct DecomposeCtrlU3Rule : public mlir::OpRewritePattern<ApplyGateOp>{
             auto c_sub = rewriter.create<mlir::arith::SubFOp>(::mlir::UnknownLoc::get(ctx), lam, phi);
             auto c_angle = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), c_sub, half);
             emitBuiltinGate(rewriter, "Rz", {&operands[operands.size()-1]}, {c_angle});
-            addMultiRx(decorate_op.ctrl(), operands, rewriter);
+            addMultiRx(decorate_op.getCtrl(), operands, rewriter);
             auto b_theta = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), theta, neghalf);
             auto b_add = rewriter.create<mlir::arith::AddFOp>(::mlir::UnknownLoc::get(ctx), lam, phi);
             auto b_angle = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), b_add, neghalf);
             emitBuiltinGate(rewriter, "Rz", {&operands[operands.size()-1]}, {b_angle});
             emitBuiltinGate(rewriter, "Ry", {&operands[operands.size()-1]}, {b_theta});
-            addMultiRx(decorate_op.ctrl(), operands, rewriter);
+            addMultiRx(decorate_op.getCtrl(), operands, rewriter);
             auto a_theta = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), theta, half);
             emitBuiltinGate(rewriter, "Ry", {&operands[operands.size()-1]}, {a_theta});
             emitBuiltinGate(rewriter, "Rz", {&operands[operands.size()-1]}, {phi});
@@ -389,7 +389,7 @@ struct DecomposeCtrlU3Rule : public mlir::OpRewritePattern<ApplyGateOp>{
             addMultiRz(lambda_plus_phi, operands, rewriter);
             rewriter.replaceOp(op, operands);
         }else if(isFamousGate(gatedef, "GPhase")){
-            addMultiRz(usegate_op.parameters()[0], operands, rewriter, false);
+            addMultiRz(usegate_op.getParameters()[0], operands, rewriter, false);
             rewriter.replaceOp(op, operands);
         }else{
             return mlir::failure();

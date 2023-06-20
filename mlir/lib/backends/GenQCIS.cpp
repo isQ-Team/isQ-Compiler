@@ -13,7 +13,7 @@
 #include "isq/Operations.h"
 #include "isq/QAttrs.h"
 #include "isq/utils/Decomposition.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/IR/Attributes.h"
@@ -335,8 +335,8 @@ private:
 
     mlir::LogicalResult visitOp(mlir::memref::GlobalOp op) override{
         // store global var to symbolTable
-        auto id = op.sym_name();
-        auto type = op.type();
+        auto id = op.getSymName();
+        auto type = op.getType();
         int size = type.getShape()[0];
         map<int, varValue> vmap;
         if (type.getElementType().isa<QStateType>()){
@@ -355,9 +355,10 @@ private:
     mlir::LogicalResult visitOp(DefgateOp op) override{
         // user can not define gate in qcis
         // deriving gate is allowed, save func name in gateMap
-        auto gate_name = op.sym_name().str();
-        if (op.definition()){
-            for(auto& def_ : *op.definition()){
+        auto gate_name = op.getSymName().str();
+        if (op.getDefinition()){
+            auto defs = *op.getDefinition();
+            for(auto& def_ : defs){
                 auto def = def_.cast<GateDefinition>();
                 if(def.getType()=="unitary") return error(op.getLoc(), "sorry, qcis can not define gate.");
                 if (def.getType() == "decomposition_raw"){
@@ -373,8 +374,8 @@ private:
         auto func_name = func_op.getSymName().str();
         auto visibility = func_op.getSymVisibility();
         llvm::StringRef s = "public";
-        if(visibility.hasValue()){
-            s = visibility.getValue();
+        if(visibility.has_value()){
+            s = *visibility;
         }
         if (s == "private") return mlir::success();
         auto func_block = func_op.getBody().getBlocks().begin();
@@ -382,9 +383,9 @@ private:
     }
 
     mlir::LogicalResult visitOp(mlir::memref::GetGlobalOp op) override{
-        auto attr = op.nameAttr();
-        auto type = op.result().getType().dyn_cast<mlir::MemRefType>();
-        auto code = size_t(mlir::hash_value(op.result()));
+        auto attr = op.getNameAttr();
+        auto type = op.getResult().getType().dyn_cast<mlir::MemRefType>();
+        auto code = size_t(mlir::hash_value(op.getResult()));
         indexTable[code] = make_pair(attr.getValue().str(), 0);
         return mlir::success();
     }
@@ -464,9 +465,9 @@ private:
 
     mlir::LogicalResult visitOp(mlir::memref::SubViewOp op) override{
         // update index in indexTable
-        auto scode = mlir::hash_value(op.source());
+        auto scode = mlir::hash_value(op.getSource());
         auto fcode = mlir::hash_value(op.offsets()[0]);
-        auto rcode = mlir::hash_value(op.result());
+        auto rcode = mlir::hash_value(op.getResult());
         auto s_i = getIndex(scode);
         if (s_i.second == -1) return error(op.getLoc(), "get var error");
         auto f_v = getValue(fcode);
@@ -602,11 +603,11 @@ private:
 
     mlir::LogicalResult visitOp(UseGateOp op) override{
         // save gate name in gateTable
-        auto attr = op.nameAttr();
+        auto attr = op.getNameAttr();
         auto gate = attr.getLeafReference().str();
         auto rcode = mlir::hash_value(op.getResult());
         vector<double> angle;
-        for (auto par : op.parameters()){
+        for (auto par : op.getParameters()){
             size_t code = size_t(mlir::hash_value(par));
             auto b_f = getValue(code);
             if (b_f.first == false) return error(op.getLoc(), "gate need a determined angle");
@@ -617,13 +618,13 @@ private:
     }
 
     mlir::LogicalResult visitOp(DecorateOp op) override{
-        if (op.ctrl().size()!=0) return error(op.getLoc(), "qcis don't support 'ctrl' and 'nctrl' decorate");
-        auto usegate_op = llvm::dyn_cast<UseGateOp>(op.args().getDefiningOp());
+        if (op.getCtrl().size()!=0) return error(op.getLoc(), "qcis don't support 'ctrl' and 'nctrl' decorate");
+        auto usegate_op = llvm::dyn_cast<UseGateOp>(op.getArgs().getDefiningOp());
         if(!usegate_op) return mlir::failure();
-        auto gate = usegate_op.nameAttr().getLeafReference().str();
+        auto gate = usegate_op.getNameAttr().getLeafReference().str();
         auto rcode = mlir::hash_value(op.getResult());
         vector<double> angle;
-        if (op.adjoint() == true){    
+        if (op.getAdjoint() == true){    
             if (gate == "T"){
                 gateTable[rcode] = make_pair("TD", angle);
             }else if (gate == "S"){
@@ -638,12 +639,12 @@ private:
 
     mlir::LogicalResult visitOp(ApplyGateOp op) override{
 
-        auto gate = gateTable[mlir::hash_value(op.gate())].first;
+        auto gate = gateTable[mlir::hash_value(op.getGate())].first;
         // get args
         // qbit <memref> : get value from symbolTable
         // if qbit has already measured, error
         vector<varValue> args;
-        for (auto indexed_operand : ::llvm::enumerate(op.args())){
+        for (auto indexed_operand : ::llvm::enumerate(op.getArgs())){
             auto index = indexed_operand.index();
             auto operand = indexed_operand.value();
             auto b_i = getValue(mlir::hash_value(operand));
@@ -664,7 +665,7 @@ private:
             visitFunc.erase(func_name);
         }else{
             if (gate == "Rx" || gate == "Ry"){
-                auto angle = gateTable[mlir::hash_value(op.gate())].second[0];
+                auto angle = gateTable[mlir::hash_value(op.getGate())].second[0];
                 if (abs(abs(angle) - M_PI / 2) < EPS){
                     if (gate == "Rx"){
                         if (angle > 0) QcisPrint("X2P", args);
@@ -680,7 +681,7 @@ private:
             return error(op.getLoc(), "gate "+gate+" is not support in qcis.");
         }
 
-        for (auto indexed_result : ::llvm::enumerate(op.r())){
+        for (auto indexed_result : ::llvm::enumerate(op->getResults())){
             auto index = indexed_result.index();
             auto result = indexed_result.value();
             auto code = mlir::hash_value(result);

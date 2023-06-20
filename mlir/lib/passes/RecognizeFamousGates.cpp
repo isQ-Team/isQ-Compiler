@@ -44,9 +44,9 @@ struct RewritePreferFamousGate : public mlir::OpRewritePattern<UseGateOp>{
     RewritePreferFamousGate(mlir::ModuleOp rootModule, const std::vector<FamousGateDef>& famousGates): mlir::OpRewritePattern<UseGateOp>(rootModule->getContext(), 1), rootModule(rootModule), famousGates(famousGates){
     }
     mlir::LogicalResult matchAndRewrite(UseGateOp use, mlir::PatternRewriter& rewriter) const override{
-        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(use, use.name()));
+        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(use, use.getName()));
         if(!defgate) return mlir::failure();
-        auto defs = *defgate.definition();
+        auto defs = *defgate.getDefinition();
         if(!defs) return mlir::failure();
         for(auto attr: defs.getValue()){
             auto def = attr.cast<GateDefinition>();
@@ -54,9 +54,9 @@ struct RewritePreferFamousGate : public mlir::OpRewritePattern<UseGateOp>{
                 auto flat_symbol = def.getValue().cast<mlir::FlatSymbolRefAttr>();
                 for(auto& famousGate: famousGates){
                     if(flat_symbol.getValue() == famousGate.qir_name){
-                        if(getFamousName(famousGate.famous_name) != defgate.sym_name()){
+                        if(getFamousName(famousGate.famous_name) != defgate.getSymName()){
                             rewriter.updateRootInPlace(use, [&](){
-                                use.nameAttr(mlir::FlatSymbolRefAttr::get(rewriter.getStringAttr(getFamousName(famousGate.famous_name))));
+                                use.setNameAttr(mlir::FlatSymbolRefAttr::get(rewriter.getStringAttr(getFamousName(famousGate.famous_name))));
                             });
                             return mlir::success();
                         }else{
@@ -175,7 +175,7 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
         mlir::SmallVector<mlir::Type> toffoliArgType;
         toffoliArgType.append(3, QStateType::get(ctx));
         auto funcType = mlir::FunctionType::get(ctx, toffoliArgType, toffoliArgType);
-        auto funcop = builder.create<mlir::func::FuncOp>(mlir::NameLoc::get(builder.getStringAttr("<builtin>")), BUILTIN_TOFFOLI_DECOMPOSITION, funcType, builder.getStringAttr("public"));
+        auto funcop = builder.create<mlir::func::FuncOp>(mlir::NameLoc::get(builder.getStringAttr("<builtin>")), BUILTIN_TOFFOLI_DECOMPOSITION, funcType, builder.getStringAttr("public"), nullptr, nullptr);
         auto body = funcop.addEntryBlock();
         builder.setInsertionPointToStart(body);
         mlir::SmallVector<mlir::Value> qubits;
@@ -229,7 +229,7 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
             // add the qir operation as well.
             paramTypes.append(famousGate.gate_size, QIRQubitType::get(ctx));
             auto funcType = mlir::FunctionType::get(ctx, paramTypes, (mlir::TypeRange){});
-            builder.create<mlir::func::FuncOp>(mlir::NameLoc::get(builder.getStringAttr("<builtin>")), famousGate.qir_name, funcType, builder.getStringAttr("private"));
+            builder.create<mlir::func::FuncOp>(mlir::NameLoc::get(builder.getStringAttr("<builtin>")), famousGate.qir_name, funcType, builder.getStringAttr("private"), nullptr, nullptr);
         }
         // toffoli: special handling
         if(famousGate.famous_name == mlir::StringRef("toffoli")){
@@ -251,7 +251,7 @@ struct RecognizeFamousGatePass : public mlir::PassWrapper<RecognizeFamousGatePas
         addLegalizeTraitsRules(rps);
         mlir::FrozenRewritePatternSet frps(std::move(rps));
         mlir::GreedyRewriteConfig  config;
-        //config.maxIterations=mlir::GreedyRewriteConfig::kNoIterationLimit;
+        //config.maxIterations=mlir::GreedyRewriteConfig::kNoLimit;
         (void)mlir::applyPatternsAndFoldGreedily(moduleOp, frps, config);
 
         
@@ -308,7 +308,7 @@ mlir::Value emitUseBuiltinGate(mlir::OpBuilder& builder, int original_size, cons
     auto famous_gate_def = findFamousGate(famous_gate);
     auto gate_type = GateType::get(ctx, original_size, famous_gate_def->gate_trait);
     auto use_gate = builder.create<UseGateOp>(mlir::UnknownLoc::get(ctx), gate_type, mlir::FlatSymbolRefAttr::get(ctx, getFamousName(famous_gate)), params);
-    auto used_gate = use_gate.result();
+    auto used_gate = use_gate.getResult();
     if((ctrl && ctrl.size()>0) || adjoint){
         auto ctrls = ctrl.getAsValueRange<mlir::BoolAttr>();
         auto all_one = std::all_of(ctrls.begin(), ctrls.end(), [](auto x){return x;});

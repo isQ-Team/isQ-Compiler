@@ -5,7 +5,7 @@
 #include "isq/QTypes.h"
 #include "isq/passes/Passes.h"
 #include <llvm/Support/Casting.h>
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/IR/BuiltinAttributes.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/PatternMatch.h>
@@ -28,13 +28,13 @@ public:
 
 
     mlir::LogicalResult matchAndRewrite(UseGateOp use, mlir::PatternRewriter& rewriter) const override{
-        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(use, use.name()));
+        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(use, use.getName()));
         if(!defgate) return mlir::failure();
         auto ctx = rewriter.getContext();
         
         
         if(isFamousGate(defgate, "Rx")){
-            auto theta = use.parameters()[0];
+            auto theta = use.getParameters()[0];
             auto pi_2 = rewriter.create<mlir::arith::ConstantFloatOp>(
                     ::mlir::UnknownLoc::get(ctx),
                     ::llvm::APFloat(M_PI / 2),
@@ -55,7 +55,7 @@ public:
             return mlir::success();
         }
         if(isFamousGate(defgate, "Ry")){
-            auto theta = use.parameters()[0];
+            auto theta = use.getParameters()[0];
             auto zero = rewriter.create<mlir::arith::ConstantFloatOp>(
                 ::mlir::UnknownLoc::get(ctx),
                 ::llvm::APFloat(0.0),
@@ -71,7 +71,7 @@ public:
             return mlir::success();
         }
         if(isFamousGate(defgate, "Rz")){
-            auto theta = use.parameters()[0];
+            auto theta = use.getParameters()[0];
             auto zero = rewriter.create<mlir::arith::ConstantFloatOp>(
                 ::mlir::UnknownLoc::get(ctx),
                 ::llvm::APFloat(0.0),

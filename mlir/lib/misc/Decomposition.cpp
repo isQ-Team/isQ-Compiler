@@ -42,7 +42,7 @@ namespace isq{
                 {1, -1i, 0, 0}
             };
             magic = magic * 0.70710678;
-            auto ab = magic * mat * magic.adjoint();
+            auto ab = magic * mat * magic.getAdjoint();
 
         }
         */

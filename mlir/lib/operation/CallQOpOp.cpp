@@ -7,11 +7,11 @@ namespace ir {
 ::mlir::LogicalResult
 CallQOpOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
     auto symbol_def =
-        symbolTable.lookupNearestSymbolFrom(*this, this->callee());
+        symbolTable.lookupNearestSymbolFrom(*this, this->getCallee());
     if (auto qop = llvm::dyn_cast_or_null<DeclareQOpOp>(symbol_def)) {
 
         auto fn =
-            mlir::FunctionType::get(this->getContext(), this->args().getTypes(),
+            mlir::FunctionType::get(this->getContext(), this->getArgs().getTypes(),
                                     this->getResults().getTypes());
         if (fn == qop.getTypeWhenUsed()) {
             return mlir::success();
@@ -21,7 +21,7 @@ CallQOpOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
             return mlir::failure();
         }
     }
-    this->emitOpError() << "symbol `" << this->callee()
+    this->emitOpError() << "symbol `" << this->getCallee()
                         << "` not found or has wrong type";
     return mlir::failure();
 }
@@ -89,17 +89,17 @@ CallQOpOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
 void CallQOpOp::printIR(::mlir::OpAsmPrinter &p) {
     //p << "isq.call_qop";
     p << ' ';
-    p.printAttributeWithoutType(calleeAttr());
+    p.printAttributeWithoutType(getCalleeAttr());
     p << "(";
-    p << args();
+    p << getArgs();
     p << ")";
     p.printOptionalAttrDict((*this)->getAttrs(), /*elidedAttrs=*/{"callee", "size", "signature"});
     p << ' ' << ":";
     p << ' ' << "[";
-    p.printAttributeWithoutType(sizeAttr());
+    p.printAttributeWithoutType(getSizeAttr());
     p << "]";
     p << ' ';
-    p.printAttributeWithoutType(signatureAttr());
+    p.printAttributeWithoutType(getSignatureAttr());
 }
 
 

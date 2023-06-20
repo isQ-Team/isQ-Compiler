@@ -9,7 +9,7 @@ struct LegalizeUseGate : public mlir::OpRewritePattern<UseGateOp>{
         
     }
     mlir::LogicalResult matchAndRewrite(UseGateOp op, mlir::PatternRewriter& rewriter) const override{
-        auto used_op = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(op, op.name()));
+        auto used_op = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(op, op.getName()));
         assert(used_op);
         auto used_type = used_op.getTypeWhenUsed();
         if(used_type==op.getType()){
@@ -24,10 +24,10 @@ struct LegalizeUseGate : public mlir::OpRewritePattern<UseGateOp>{
 struct LegalizeDecorateGate : public mlir::OpRewritePattern<DecorateOp>{
     LegalizeDecorateGate(mlir::MLIRContext* ctx): mlir::OpRewritePattern<DecorateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(DecorateOp op, mlir::PatternRewriter& rewriter) const override{
-        auto old_type = op.args().getType().cast<GateType>();
-        auto ctrls = op.ctrl().getAsValueRange<mlir::BoolAttr>();
+        auto old_type = op.getArgs().getType().cast<GateType>();
+        auto ctrls = op.getCtrl().getAsValueRange<mlir::BoolAttr>();
         auto all_one = std::all_of(ctrls.begin(), ctrls.end(), [](auto x){return x;});
-        auto required_hint = DecorateOp::computePostDecorateTrait(old_type.getHints(), op.ctrl().size(), op.adjoint(), all_one);
+        auto required_hint = DecorateOp::computePostDecorateTrait(old_type.getHints(), op.getCtrl().size(), op.getAdjoint(), all_one);
         auto found_hint = op.getType().getHints();
         if(required_hint==found_hint) return mlir::failure();
         rewriter.updateRootInPlace(op,[&](){

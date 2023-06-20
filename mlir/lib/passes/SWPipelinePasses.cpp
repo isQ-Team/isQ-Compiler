@@ -76,7 +76,7 @@ namespace isq::ir::passes{
         mlir::LogicalResult matchAndRewrite(mlir::memref::AllocOp op, mlir::PatternRewriter& rewriter) const override{
             if(op->hasAttr(ISQ_ALLOC_ID)) return mlir::failure();
             if(!llvm::isa<mlir::func::FuncOp>(op->getParentOp())) return mlir::failure();
-            if(op.memref().getType().cast<mlir::MemRefType>().getElementType() == QStateType::get(this->getContext())){
+            if(op.getMemref().getType().cast<mlir::MemRefType>().getElementType() == QStateType::get(this->getContext())){
                 rewriter.startRootUpdate(op);
                 op->setAttr(ISQ_ALLOC_ID,rewriter.getIndexAttr(state->next_alloc(op)));
                 rewriter.finalizeRootUpdate(op);
@@ -102,7 +102,7 @@ namespace isq::ir::passes{
         }
         mlir::LogicalResult matchAndRewrite(mlir::AffineLoadOp op, mlir::PatternRewriter& rewriter) const override{
             if(op->hasAttr(ISQ_AFFINE_LOADED)) return mlir::failure();
-            auto src = llvm::dyn_cast_or_null<mlir::memref::AllocOp>(op.getMemref().getDefiningOp());
+            auto src = llvm::dyn_cast_or_null<mlir::memref::AllocOp>(op.getMemRef().getDefiningOp());
             if(!src) return mlir::failure();
             if(!src->hasAttr(ISQ_ALLOC_ID)) return mlir::failure();
             auto alloc_id = src->getAttr(ISQ_ALLOC_ID).cast<mlir::IntegerAttr>().getInt();
@@ -132,12 +132,12 @@ namespace isq::ir::passes{
         mlir::LogicalResult matchAndRewrite(ApplyGateOp op, mlir::PatternRewriter& rewriter) const override{
             if(op->hasAttr(ISQ_AFFINE_SRC)) return mlir::failure();
             mlir::SmallVector<mlir::Attribute> affine_exprs;
-            auto gate = op.gate();
+            auto gate = op.getGate();
             auto gate_use = mlir::dyn_cast_or_null<UseGateOp>(gate.getDefiningOp());
             if(!gate_use) return mlir::failure();
-            affine_exprs.push_back(gate_use.name());
+            affine_exprs.push_back(gate_use.getName());
             //auto id = 0;
-            for(auto q : op.args()){
+            for(auto q : op.getArgs()){
                 auto val = q;
                 auto src = val.getDefiningOp();
                 if(!src) return mlir::failure();
@@ -291,7 +291,7 @@ namespace isq::ir::passes{
                 rps.add<PropagateApply>(ctx);
                 mlir::FrozenRewritePatternSet frps(std::move(rps));
                 mlir::GreedyRewriteConfig config;
-                config.maxIterations = config.kNoIterationLimit;
+                config.maxIterations = mlir::GreedyRewriteConfig::kNoLimit;
                 (void)mlir::applyPatternsAndFoldGreedily(func, frps, config);
             }while(0);
             // collect all allocate ops.

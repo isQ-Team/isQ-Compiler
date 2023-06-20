@@ -1,7 +1,7 @@
 #include "isq/GateDefTypes.h"
 #include "isq/Operations.h"
 #include "isq/QTypes.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -105,15 +105,15 @@ public:
     }
 
     mlir::LogicalResult matchAndRewrite(isq::ir::DefgateOp defgate,  mlir::PatternRewriter &rewriter) const override{
-        if (!defgate.definition()) return mlir::failure();
-        if (defgate.definition()->size() != 2) return mlir::failure();
+        if (!defgate.getDefinition()) return mlir::failure();
+        if (defgate.getDefinition()->size() != 2) return mlir::failure();
         
         int id = 0;
         mlir::func::FuncOp fop;
         std::vector<std::vector<int>> value;
         bool hasfunc = false, hasval = false;
-        for (auto def: defgate.definition()->getAsRange<GateDefinition>()){
-            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
+        for (auto def: defgate.getDefinition()->getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.getType(), def);
             if (d == std::nullopt) return mlir::failure();
             if (auto raw = llvm::dyn_cast_or_null<DecompositionRawDefinition>(&**d)){
                 fop = raw->getDecomposedFunc();
@@ -127,7 +127,7 @@ public:
 
         if (hasfunc && hasval){
             auto ctx = rewriter.getContext();
-            if (mlir::failed(decomposeOracle(rewriter, fop, value, defgate.type().getSize()))){
+            if (mlir::failed(decomposeOracle(rewriter, fop, value, defgate.getType().getSize()))){
                 defgate->emitError() << "decompose oracle failed";
                 return mlir::failure();
             }

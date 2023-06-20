@@ -28,11 +28,11 @@ bool GateParsePrint::isa(::mlir::Type me) const { return me.isa<GateType>(); }
             return nullptr;
         }
         auto e = symbolizeEnum<GateTrait>(kw);
-        if (!e.hasValue())
+        if (!e.has_value())
             return nullptr;
-        if (e.getValue() == GateTrait::General)
+        if (e.value() == GateTrait::General)
             return nullptr;
-        tr = tr | e.getValue();
+        tr = tr | e.value();
     }
     if (parser.parseGreater()) {
         return nullptr;

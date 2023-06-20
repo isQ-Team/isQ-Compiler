@@ -6,7 +6,7 @@ namespace isq {
 namespace ir {
 ::mlir::LogicalResult
 UseGateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
-    auto symbol_def = symbolTable.lookupNearestSymbolFrom(*this, this->name());
+    auto symbol_def = symbolTable.lookupNearestSymbolFrom(*this, this->getName());
     if (auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(symbol_def)) {
         
         if (this->getResult().getType() != gatedef.getTypeWhenUsed()) {
@@ -15,10 +15,10 @@ UseGateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
             return mlir::failure();
         }
         
-        if(gatedef.parameters()){
-            auto params = gatedef.parameters();
+        if(gatedef.getParameters()){
+            auto params = gatedef.getParameters();
             ::mlir::SmallVector<::mlir::Type> curr_params_list;
-            for(auto param : this->parameters().getTypes()){
+            for(auto param : this->getParameters().getTypes()){
                 curr_params_list.push_back(param);
             }
             ::mlir::SmallVector<::mlir::Type> expected_params_list;
@@ -36,7 +36,7 @@ UseGateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
         
         return mlir::success();
     }
-    this->emitOpError() << "symbol `" << this->name()
+    this->emitOpError() << "symbol `" << this->getName()
                         << "` not found or has wrong type";
     return mlir::failure();
 }
@@ -44,7 +44,7 @@ UseGateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
 
 /*
 mlir::LogicalResult verify(GateOp op) {
-if (op.gate_type() != op.getResult().getType()) {
+if (op.gate_getType() != op.getResult().getType()) {
     op.emitOpError("gate dimension or trait mismatch.");
     return mlir::failure();
 }

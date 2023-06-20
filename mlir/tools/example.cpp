@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
     // Define function.
     auto qstate_type = QStateType::get(ctx);
     auto func_type = mlir::FunctionType::get(ctx, {qstate_type, qstate_type}, {qstate_type, qstate_type});
-    auto func = bld.create<mlir::func::FuncOp>(loc, "bell", func_type, mlir::StringAttr::get(ctx, "public"));
+    auto func = bld.create<mlir::func::FuncOp>(loc, "bell", func_type, mlir::StringAttr::get(ctx, "public"), nullptr, nullptr);
     auto blk = func.addEntryBlock();
     mlir::Value q0 = blk->getArgument(0);
     mlir::Value q1 = blk->getArgument(1);
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     
     auto gate_h = bld.create<UseGateOp>(loc, gatetype, mlir::FlatSymbolRefAttr::get(ctx, "hadamard"),  mlir::ValueRange{});
     
-    q0 = (bld.create<ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate_type}, gate_h.result(), mlir::ValueRange{q0}))->getResult(0);
+    q0 = (bld.create<ApplyGateOp>(loc, mlir::ArrayRef<mlir::Type>{qstate_type}, gate_h.getResult(), mlir::ValueRange{q0}))->getResult(0);
     bld.create<mlir::func::ReturnOp>(loc, mlir::ValueRange{q0, q1});
     bld.create<isq::extra::Schedule>(loc, mlir::TypeRange{});
     

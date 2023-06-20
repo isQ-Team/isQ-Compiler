@@ -26,10 +26,10 @@ public:
 
     }
     bool hasDecomposition(DefgateOp op) const{
-        auto defs = *op.definition();
+        auto defs = *op.getDefinition();
         auto id=0;
         for(auto def: defs.getAsRange<GateDefinition>()){
-            auto d = AllGateDefs::parseGateDefinition(op, id, op.type(), def);
+            auto d = AllGateDefs::parseGateDefinition(op, id, op.getType(), def);
             if(d==std::nullopt) {
                 llvm_unreachable("bad");
             }
@@ -41,21 +41,21 @@ public:
         return false;
     }
     mlir::LogicalResult matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const override{
-        auto use_op = mlir::dyn_cast_or_null<UseGateOp>(op.gate().getDefiningOp());
+        auto use_op = mlir::dyn_cast_or_null<UseGateOp>(op.getGate().getDefiningOp());
         if(!use_op) return mlir::failure();
-        auto defgate = mlir::SymbolTable::lookupNearestSymbolFrom<DefgateOp>(use_op.getOperation(), use_op.name());
+        auto defgate = mlir::SymbolTable::lookupNearestSymbolFrom<DefgateOp>(use_op.getOperation(), use_op.getName());
         assert(defgate);
-        if(!defgate.definition()) return mlir::failure();
+        if(!defgate.getDefinition()) return mlir::failure();
         /*
         auto has_decomp = this->hasDecomposition(defgate);
-        if(!has_decomp && use_op.parameters().size()>0){
+        if(!has_decomp && use_op.getParameters().size()>0){
             return mlir::failure(); // Only matrix-gates are supported.
         }
         */
         
         int id = 0;
-        for(auto def: defgate.definition()->getAsRange<GateDefinition>()){
-            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
+        for(auto def: defgate.getDefinition()->getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.getType(), def);
             if(d==std::nullopt) return mlir::failure();
             if(llvm::dyn_cast_or_null<QIRDefinition>(&**d)){
                 // A QIR implementation is good enough.
@@ -65,8 +65,8 @@ public:
             id++;
         }
         id=0;
-        for(auto def: defgate.definition()->getAsRange<GateDefinition>()){
-            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
+        for(auto def: defgate.getDefinition()->getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.getType(), def);
             if(d==std::nullopt) return mlir::failure();
             auto decomp = llvm::dyn_cast_or_null<DecompositionDefinition>(&**d);
             if(!decomp){
@@ -75,8 +75,8 @@ public:
             }
             auto decomp_f = decomp->getDecomposedFunc();
             mlir::SmallVector<mlir::Value> calling_args;
-            calling_args.append(use_op.parameters().begin(), use_op.parameters().end());
-            calling_args.append(op.args().begin(), op.args().end());
+            calling_args.append(use_op.getParameters().begin(), use_op.getParameters().end());
+            calling_args.append(op.getArgs().begin(), op.getArgs().end());
             rewriter.replaceOpWithNewOp<mlir::func::CallOp>(op.getOperation(), decomp_f, calling_args);
             return mlir::success();
 

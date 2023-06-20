@@ -32,8 +32,8 @@ bool DeclareQOpOp::isDeclaration() { return true; }
     return ::mlir::FunctionType::get(ctx, inputs, outputs);
 }
 ::mlir::Type DeclareQOpOp::getTypeWhenUsed() {
-    return getExpandedFunctionType(this->getContext(), this->size(),
-                                   this->signature());
+    return getExpandedFunctionType(this->getContext(), this->getSize(),
+                                   this->getSignature());
 }
 mlir::LogicalResult DeclareQOpOp::parseIR(::mlir::OpAsmParser &parser,
                                           ::mlir::OperationState &result) {
@@ -85,16 +85,16 @@ mlir::LogicalResult DeclareQOpOp::parseIR(::mlir::OpAsmParser &parser,
 void DeclareQOpOp::printIR(::mlir::OpAsmPrinter &p) {
     //p << "isq.declare_qop";
     p << ' ';
-    p.printSymbolName(sym_nameAttr().getValue());
+    p.printSymbolName(getSymNameAttr().getValue());
     p.printOptionalAttrDict(
         (*this)->getAttrs(),
         /*elidedAttrs=*/{"sym_name", "size", "signature", "sym_visibility"});
     p << ' ' << ":";
     p << ' ' << "[";
-    p.printAttributeWithoutType(sizeAttr());
+    p.printAttributeWithoutType(getSizeAttr());
     p << "]";
     p << ' ';
-    p.printAttributeWithoutType(signatureAttr());
+    p.printAttributeWithoutType(getSignatureAttr());
 }
 /*
 mlir::LogicalResult verify(DeclareOp op) {

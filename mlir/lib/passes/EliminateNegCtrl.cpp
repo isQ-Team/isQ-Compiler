@@ -11,10 +11,10 @@ struct EliminateNegCtrlRule : public mlir::OpRewritePattern<ApplyGateOp>{
     EliminateNegCtrlRule(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(ApplyGateOp op, mlir::PatternRewriter& rewriter) const override{
         auto ctx = op->getContext();
-        auto decorate_op = llvm::dyn_cast<DecorateOp>(op.gate().getDefiningOp());
+        auto decorate_op = llvm::dyn_cast<DecorateOp>(op.getGate().getDefiningOp());
         if(!decorate_op) return mlir::failure();
         mlir::SmallVector<bool> flags;
-        for(auto flag: decorate_op.ctrl().getAsValueRange<mlir::BoolAttr>()){
+        for(auto flag: decorate_op.getCtrl().getAsValueRange<mlir::BoolAttr>()){
             flags.push_back(flag);
         }
         if(llvm::all_of(flags, [](bool x){return x;})){
@@ -27,13 +27,13 @@ struct EliminateNegCtrlRule : public mlir::OpRewritePattern<ApplyGateOp>{
         // create x before gate.
         for(auto i=0; i<flags.size(); i++){
             auto flag = flags[i];
-            new_operands.push_back(op.args()[i]);
+            new_operands.push_back(op.getArgs()[i]);
             if(flag) continue;
             
             emitBuiltinGate(rewriter, "X",{&new_operands[i]});
         }
-        for(auto i=flags.size(); i<op.args().size(); i++){
-            new_operands.push_back(op.args()[i]);
+        for(auto i=flags.size(); i<op.getArgs().size(); i++){
+            new_operands.push_back(op.getArgs()[i]);
         }
         // create x after gate.
         rewriter.setInsertionPointAfter(op);
@@ -58,11 +58,11 @@ struct EliminateNegCtrlRule : public mlir::OpRewritePattern<ApplyGateOp>{
         rewriter.setInsertionPoint(op);
         auto new_decorate = llvm::cast<DecorateOp>(rewriter.clone(*decorate_op));
         rewriter.updateRootInPlace(new_decorate, [&](){
-            new_decorate.ctrlAttr(new_ctrl);
+            new_decorate.setCtrlAttr(new_ctrl);
         });
         rewriter.updateRootInPlace(op, [&](){
-            op.argsMutable().assign(new_operands);
-            op.gateMutable().assign(new_decorate);
+            op.getArgsMutable().assign(new_operands);
+            op.getGateMutable().assign(new_decorate);
         });
         return mlir::success();
     }

@@ -16,25 +16,25 @@
 namespace isq {
 namespace ir {
 bool DefgateOp::isDeclaration() {
-    auto defs = this->definition();
-    return !defs.hasValue();
+    auto defs = this->getDefinition();
+    return !defs.has_value();
 }
 bool DefgateOp::isGateArray() {
-    auto shape = this->shape();
-    return shape.hasValue();
+    auto shape = this->getShape();
+    return shape.has_value();
 }
 ::mlir::Type DefgateOp::getTypeWhenUsed() {
-    auto shape = this->shape();
-    if (shape.hasValue()) {
+    auto shape = this->getShape();
+    if (shape.has_value()) {
         auto arr = shape->getValue();
         ::mlir::SmallVector<int64_t> tmp;
         for (auto iter = arr.begin(); iter != arr.end(); iter++) {
             auto i = iter->dyn_cast<::mlir::IntegerAttr>();
             tmp.push_back(i.getInt());
         }
-        return ::mlir::MemRefType::get(tmp, this->type());
+        return ::mlir::MemRefType::get(tmp, this->getType());
     } else {
-        return this->type();
+        return this->getType();
     }
 }
 
@@ -62,7 +62,7 @@ bool DefgateOp::isGateArray() {
         }
     } else {
         ::mlir::OptionalParseResult parseResult = parser.parseOptionalAttribute(shapeAttr, parser.getBuilder().getType<::mlir::NoneType>(), "shape", result.attributes);
-        if(parseResult.hasValue() && mlir::failed(*parseResult)){
+        if(parseResult.has_value() && mlir::failed(*parseResult)){
             return ::mlir::failure();
         }
     }
@@ -102,31 +102,31 @@ bool DefgateOp::isGateArray() {
 void DefgateOp::printIR(::mlir::OpAsmPrinter &p) {
     //p << "isq.defgate";
     p << ' ';
-    p.printSymbolName(sym_nameAttr().getValue());
-    if(parameters().size()){
+    p.printSymbolName(getSymNameAttr().getValue());
+    if(getParameters().size()){
         p<<'(';
         bool flag=false;
-        for(auto& pa: parameters()){
+        for(auto& pa: getParameters()){
             if(flag) p<<", ";
             p.printType(pa.cast<mlir::TypeAttr>().getValue());
             flag=true;
         }
         p<<')';
     }
-    if(shape()){
-        p.printAttributeWithoutType(*shape());
+    if(getShape()){
+        p.printAttributeWithoutType(*getShape());
     }
     p.printOptionalAttrDict(
         (*this)->getAttrs(),
         /*elidedAttrs=*/{"sym_name", "type", "sym_visibility", "shape", "parameters"});
     p << ' ' << ":";
     p << ' ';
-    p.printAttributeWithoutType(typeAttr());
+    p.printAttributeWithoutType(getTypeAttr());
 }
 mlir::LogicalResult
 DefgateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
-    if (this->definition().hasValue()) {
-        auto defs = this->definition()->getValue();
+    if (this->getDefinition().has_value()) {
+        auto defs = this->getDefinition()->getValue();
         for (auto i = 0; i < defs.size(); i++) {
             auto id = i;
             auto def = defs[i].dyn_cast<GateDefinition>();
@@ -135,7 +135,7 @@ DefgateOp::verifySymbolUses(::mlir::SymbolTableCollection &symbolTable) {
                     << "Definition #" << id << " should be GateDefinition";
                 return mlir::failure();
             }
-            auto result = AllGateDefs::verifySymTable(*this, i, this->type(), def, symbolTable);
+            auto result = AllGateDefs::verifySymTable(*this, i, this->getType(), def, symbolTable);
             if(::mlir::failed(result)) {
                 return ::mlir::failure();
             }
@@ -178,12 +178,12 @@ mlir::LogicalResult verifyGateDefinition(DefgateOp op, int id,
     return mlir::success(AllGateDefs::parseGateDefinition(op, id, ty, def) != std::nullopt);
 }
 ::mlir::LogicalResult DefgateOp::verifyIR() {
-    if (this->definition().hasValue()) {
-        auto defs = this->definition()->getValue();
+    if (this->getDefinition().has_value()) {
+        auto defs = *this->getDefinition();
         for (auto i = 0; i < defs.size(); i++) {
             auto def = defs[i];
             if (mlir::failed(verifyGateDefinition(
-                    *this, i, def.dyn_cast<GateDefinition>(), this->type()))) {
+                    *this, i, def.dyn_cast<GateDefinition>(), this->getType()))) {
                 return mlir::failure();
             }
         }

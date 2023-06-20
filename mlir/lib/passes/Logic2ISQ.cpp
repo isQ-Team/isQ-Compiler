@@ -98,13 +98,13 @@ public:
         // Process each statement in the funciton body.
         for (mlir::Operation &it : op.getRegion().getOps()) {
             if (logic::ir::NotOp notop = llvm::dyn_cast<logic::ir::NotOp>(it)) {
-                std::string operand = value2str(notop.operand());
-                std::string res = value2str(notop.result());
+                std::string operand = value2str(notop.getOperand());
+                std::string res = value2str(notop.getResult());
                 symbol_table[{res, -1}] = xag.create_not(symbol_table[{operand, -1}]);
             }
             else if (logic::ir::NotvOp notvop = llvm::dyn_cast<logic::ir::NotvOp>(it)) {
-                std::string operand = value2str(notvop.operand());
-                mlir::Value result = notvop.result();
+                std::string operand = value2str(notvop.getOperand());
+                mlir::Value result = notvop.getResult();
                 std::string res = value2str(result);
                 int width = getBitWidth(result);
                 for (int i=0; i<width; i++) {
@@ -112,25 +112,25 @@ public:
                 }
             }
             else if (logic::ir::AndOp binop = llvm::dyn_cast<logic::ir::AndOp>(it)) {
-                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_and);
+                binary(binop.getLhs(), binop.getRhs(), binop.getResult(), &mockturtle::xag_network::create_and);
             }
             else if (logic::ir::OrOp binop = llvm::dyn_cast<logic::ir::OrOp>(it)) {
-                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_or);
+                binary(binop.getLhs(), binop.getRhs(), binop.getResult(), &mockturtle::xag_network::create_or);
             }
             else if (logic::ir::XorOp binop = llvm::dyn_cast<logic::ir::XorOp>(it)) {
-                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xor);
+                binary(binop.getLhs(), binop.getRhs(), binop.getResult(), &mockturtle::xag_network::create_xor);
             }
             else if (logic::ir::XnorOp binop = llvm::dyn_cast<logic::ir::XnorOp>(it)) {
-                binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xnor);
+                binary(binop.getLhs(), binop.getRhs(), binop.getResult(), &mockturtle::xag_network::create_xnor);
             }
             else if (logic::ir::AndvOp binop = llvm::dyn_cast<logic::ir::AndvOp>(it)) {
-                vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_and);
+                vec_binary(binop.getLhs(), binop.getRhs(), binop.getResult(), &mockturtle::xag_network::create_and);
             }
             else if (logic::ir::OrvOp binop = llvm::dyn_cast<logic::ir::OrvOp>(it)) {
-                vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_or);
+                vec_binary(binop.getLhs(), binop.getRhs(), binop.getResult(), &mockturtle::xag_network::create_or);
             }
             else if (logic::ir::XorvOp binop = llvm::dyn_cast<logic::ir::XorvOp>(it)) {
-                vec_binary(binop.lhs(), binop.rhs(), binop.result(), &mockturtle::xag_network::create_xor);
+                vec_binary(binop.getLhs(), binop.getRhs(), binop.getResult(), &mockturtle::xag_network::create_xor);
             }
             // Only process boolean values (with type `i1`), leaving other arith.constant (array index) untouched.
             else if (mlir::arith::ConstantOp con = llvm::dyn_cast<mlir::arith::ConstantOp>(it)) {
@@ -140,19 +140,19 @@ public:
                 }
             }
             else if (mlir::memref::LoadOp load = llvm::dyn_cast<mlir::memref::LoadOp>(it)) {
-                mlir::Value voffset = *load.indices().begin();
+                mlir::Value voffset = *load.getIndices().begin();
                 mlir::arith::ConstantOp ooffset = voffset.getDefiningOp<mlir::arith::ConstantOp>();
                 int ioffset = ooffset.getValue().dyn_cast<mlir::IntegerAttr>().getInt();
-                std::string res = value2str(load.result());
-                std::string memref = value2str(load.memref());
+                std::string res = value2str(load.getResult());
+                std::string memref = value2str(load.getMemref());
                 symbol_table[{res, -1}] = symbol_table[{memref, ioffset}];
             }
             else if (mlir::memref::StoreOp store = llvm::dyn_cast<mlir::memref::StoreOp>(it)) {
-                mlir::Value voffset = *store.indices().begin();
+                mlir::Value voffset = *store.getIndices().begin();
                 mlir::arith::ConstantOp ooffset = voffset.getDefiningOp<mlir::arith::ConstantOp>();
                 int ioffset = ooffset.getValue().dyn_cast<mlir::IntegerAttr>().getInt();
-                std::string val = value2str(store.value());
-                std::string memref = value2str(store.memref());
+                std::string val = value2str(store.getValue());
+                std::string memref = value2str(store.getMemref());
                 symbol_table[{memref, ioffset}] = symbol_table[{val, -1}];
             }
             else if (logic::ir::ReturnOp ret = llvm::dyn_cast<logic::ir::ReturnOp>(it)) {
@@ -236,7 +236,7 @@ public:
         std::cout << "num_qubits: " << circ.num_qubits() << std::endl;
         */
         // Create a FuncOp that represent the quantum circuit.
-        mlir::func::FuncOp funcop = rewriter.create<mlir::func::FuncOp>(loc, op.sym_name(), functype);
+        mlir::func::FuncOp funcop = rewriter.create<mlir::func::FuncOp>(loc, op.getSymName(), functype);
         mlir::Block *entry_block = funcop.addEntryBlock(); // Arguments are automatically created based on the function signature.
         mlir::OpBuilder builder(entry_block, entry_block->begin());
         
@@ -363,7 +363,7 @@ public:
     RuleReplaceLogicCall(mlir::MLIRContext *ctx): mlir::OpRewritePattern<logic::ir::CallOp>(ctx, 1) {}
     mlir::LogicalResult matchAndRewrite(logic::ir::CallOp op, mlir::PatternRewriter &rewriter) const override {
         auto ctx = op.getContext();
-        rewriter.create<mlir::func::CallOp>(mlir::UnknownLoc::get(ctx), op.callee(), (mlir::TypeRange){}, op.operands());
+        rewriter.create<mlir::func::CallOp>(mlir::UnknownLoc::get(ctx), op.getCallee(), (mlir::TypeRange){}, op.getOperands());
 
         rewriter.eraseOp(op);
         return mlir::success();
@@ -390,7 +390,7 @@ public:
         auto qst = QStateType::get(rewriter.getContext());
         mlir::SmallVector<mlir::Type> types;
         types.push_back(qst);
-        rewriter.replaceOpWithNewOp<isq::ir::ApplyGateOp, mlir::ArrayRef<mlir::Type>, ::mlir::Value, ::mlir::ValueRange>(op, types, op.gate(), op.args());
+        rewriter.replaceOpWithNewOp<isq::ir::ApplyGateOp, mlir::ArrayRef<mlir::Type>, ::mlir::Value, ::mlir::ValueRange>(op, types, op.getGate(), op.getArgs());
         return mlir::success();
     }
 };
@@ -401,8 +401,8 @@ public:
     mlir::LogicalResult matchAndRewrite(logic::ir::UseGateOp op, mlir::PatternRewriter &rewriter) const override {
         auto ctx = op.getContext();
         //auto gate_type = ;
-        //rewriter.create<isq::ir::UseGateOp>(mlir::UnknownLoc::get(ctx), op.result(), op.name(), op.parameters());
-        rewriter.replaceOpWithNewOp<isq::ir::UseGateOp, isq::ir::GateType, ::mlir::SymbolRefAttr, ::mlir::ValueRange>(op, isq::ir::GateType::get(ctx, 1, GateTrait::General), op.name(), op.parameters());
+        //rewriter.create<isq::ir::UseGateOp>(mlir::UnknownLoc::get(ctx), op.getResult(), op.getName(), op.getParameters());
+        rewriter.replaceOpWithNewOp<isq::ir::UseGateOp, isq::ir::GateType, ::mlir::SymbolRefAttr, ::mlir::ValueRange>(op, isq::ir::GateType::get(ctx, 1, GateTrait::General), op.getName(), op.getParameters());
         return mlir::success();
     }
 };

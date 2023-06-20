@@ -1,7 +1,7 @@
 #include "isq/Operations.h"
 #include "isq/passes/Passes.h"
 #include <llvm/Support/Casting.h>
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinAttributes.h>
@@ -21,9 +21,9 @@ struct SWAP2CX : mlir::OpRewritePattern<ApplyGateOp>{
 public:
     SWAP2CX(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(ApplyGateOp apply, mlir::PatternRewriter& rewriter) const override{
-        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.gate().getDefiningOp());
+        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.getGate().getDefiningOp());
         if(!usegate) return mlir::failure();
-        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.getName()));
         if(!defgate) return mlir::failure();
         auto ctx = rewriter.getContext();
         if(isFamousGate(defgate, "swap")){
@@ -42,9 +42,9 @@ struct CX2HCZH : mlir::OpRewritePattern<ApplyGateOp>{
 public:
     CX2HCZH(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(ApplyGateOp apply, mlir::PatternRewriter& rewriter) const override{
-        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.gate().getDefiningOp());
+        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.getGate().getDefiningOp());
         if(!usegate) return mlir::failure();
-        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.getName()));
         if(!defgate) return mlir::failure();
         auto ctx = rewriter.getContext();
         if(isFamousGate(defgate, "cnot")){
@@ -64,9 +64,9 @@ struct U3ToZYZ : mlir::OpRewritePattern<ApplyGateOp>{
 public:
     U3ToZYZ(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(ApplyGateOp apply, mlir::PatternRewriter& rewriter) const override{
-        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.gate().getDefiningOp());
+        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.getGate().getDefiningOp());
         if(!usegate) return mlir::failure();
-        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.getName()));
         if(!defgate) return mlir::failure();
         auto ctx = rewriter.getContext();
         if(isFamousGate(defgate, "u3")){
@@ -90,9 +90,9 @@ struct RZRecog : mlir::OpRewritePattern<ApplyGateOp>{
 public:
     RZRecog(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(ApplyGateOp apply, mlir::PatternRewriter& rewriter) const override{
-        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.gate().getDefiningOp());
+        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.getGate().getDefiningOp());
         if(!usegate) return mlir::failure();
-        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.getName()));
         if(!defgate) return mlir::failure();
         auto ctx = rewriter.getContext();
         if(isFamousGate(defgate, "Rz")){
@@ -104,7 +104,7 @@ public:
             double pi = 3.141592653589793;
             if(std::abs(theta)<eps){
                 // identity
-                rewriter.replaceOp(apply, apply.args());
+                rewriter.replaceOp(apply, apply.getArgs());
                 return mlir::success();
             }
             mlir::Value v1 = apply->getOperand(1);
@@ -126,7 +126,7 @@ public:
             }else if(std::abs(theta-pi*7/4)<eps){
                 emitBuiltinGate(rewriter, "T", {&v1}, {}, {}, true);
             }else if(std::abs(theta-pi*2)<eps){
-                rewriter.replaceOp(apply, apply.args());
+                rewriter.replaceOp(apply, apply.getArgs());
                 return mlir::success();
             }else{
                 return mlir::failure();
@@ -142,13 +142,13 @@ struct InvTSRecog : mlir::OpRewritePattern<ApplyGateOp>{
 public:
     InvTSRecog(mlir::MLIRContext* ctx): mlir::OpRewritePattern<ApplyGateOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(ApplyGateOp apply, mlir::PatternRewriter& rewriter) const override{
-        auto decorate = llvm::dyn_cast_or_null<DecorateOp>(apply.gate().getDefiningOp());
+        auto decorate = llvm::dyn_cast_or_null<DecorateOp>(apply.getGate().getDefiningOp());
         if(!decorate) return mlir::failure();
-        if(!decorate.adjoint()) return mlir::failure();
-        if(decorate.ctrl().size()) return mlir::failure();
-        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(decorate.args().getDefiningOp());
+        if(!decorate.getAdjoint()) return mlir::failure();
+        if(decorate.getCtrl().size()) return mlir::failure();
+        auto usegate = llvm::dyn_cast_or_null<UseGateOp>(decorate.getArgs().getDefiningOp());
         if(!usegate) return mlir::failure();
-        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+        auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.getName()));
         if(!defgate) return mlir::failure();
         auto ctx = rewriter.getContext();
         if(isFamousGate(defgate, "T")){
@@ -173,13 +173,13 @@ class TargetQCISSetPass : public mlir::PassWrapper<TargetQCISSetPass, mlir::Oper
         // first check measurements.
         bool failed = false;
         m->walk([&](CallQOpOp op){
-            if(op.callee().getLeafReference().getValue()=="__isq__builtin__measure"){
+            if(op.getCallee().getLeafReference().getValue()=="__isq__builtin__measure"){
                 auto uses = op->getResult(1).getUses();
                 if(!uses.empty()){
                     op->emitOpError("result should not be used for feedback control.");
                     failed=true;
                 }
-            }else if(op.callee().getLeafReference().getValue()=="__isq__builtin__reset"){
+            }else if(op.getCallee().getLeafReference().getValue()=="__isq__builtin__reset"){
                 op->emitOpError("is not supported for QCIS.");
                 failed = true;
             }
@@ -205,7 +205,7 @@ class TargetQCISSetPass : public mlir::PassWrapper<TargetQCISSetPass, mlir::Oper
         auto builtin_loc = mlir::NameLoc::get(builder.getStringAttr("<builtin>"));
         if(!mlir::SymbolTable::lookupSymbolIn(m, finalize_qir_name)){
             auto funcType = mlir::FunctionType::get(ctx, (mlir::TypeRange){}, (mlir::TypeRange){});
-            builder.create<mlir::func::FuncOp>(builtin_loc, finalize_qir_name, funcType, builder.getStringAttr("private"));
+            builder.create<mlir::func::FuncOp>(builtin_loc, finalize_qir_name, funcType, builder.getStringAttr("private"), nullptr, nullptr);
         }
         auto isq_entry = llvm::dyn_cast_or_null<mlir::func::FuncOp>(mlir::SymbolTable::lookupSymbolIn(m, isq_entry_name));
         if(isq_entry){

@@ -26,7 +26,7 @@ namespace{
         /// inline into the given call. For Toy this hook can simply return
         /// true, as the Toy Call operation is always inlinable.
         bool isLegalToInline(Operation *call, Operation *callable,
-                             bool wouldBeCloned) const final {
+                             bool wouldBeCloned) const final override{
             return true;
         }
 
@@ -34,7 +34,7 @@ namespace{
         /// into the given region. For Toy this hook can simply return true, as
         /// all Toy operations are inlinable.
         bool isLegalToInline(Operation *, Region *, bool,
-                             BlockAndValueMapping &) const final {
+                             IRMapping &) const final override{
             return true;
         }
 
@@ -43,7 +43,7 @@ namespace{
         /// functions. For Toy, any function can be inlined, so we simply return
         /// true.
         bool isLegalToInline(Region *dest, Region *src, bool wouldBeCloned,
-                             BlockAndValueMapping &valueMapping) const final {
+                             IRMapping &valueMapping) const final override{
             return true;
         }
 
@@ -53,7 +53,7 @@ namespace{
         /// previously returned by the call operation with the operands of the
         /// return.
         void handleTerminator(Operation *op,
-                              ArrayRef<Value> valuesToRepl) const final {
+                              ArrayRef<Value> valuesToRepl) const final override{
             llvm_unreachable("We don't have terminator ops.");
         }
     };
@@ -83,7 +83,7 @@ mlir::Type ISQDialect::parseType(mlir::DialectAsmParser &parser) const {
     mlir::Type ty;
     auto ret =
         generatedTypeParser(parser, &kw, ty);
-    if (!ret.hasValue()) {
+    if (!ret.has_value()) {
         parser.emitError(kwLoc, "unrecognized type");
         return nullptr;
     }
@@ -112,7 +112,7 @@ mlir::Attribute ISQDialect::parseAttribute(::mlir::DialectAsmParser &parser,
     mlir::StringRef kw;
     mlir::Attribute attr;
     auto ret = generatedAttributeParser(parser, &kw, type, attr);
-    if (!ret.hasValue()) {
+    if (!ret.has_value()) {
         parser.emitError(kwLoc, "unrecognized attribute");
         return nullptr;
     }

@@ -37,8 +37,8 @@ mlir::LogicalResult ApplyGateOp::verifyIR() {
             return mlir::failure();
         }
     }
-    for (auto i = 0; i < this->args().size(); i++) {
-        mlir::Value arg = this->args()[i];
+    for (auto i = 0; i < this->getArgs().size(); i++) {
+        mlir::Value arg = this->getArgs()[i];
         if (!(arg.hasOneUse())) {
             this->emitError()
                 << "Argument #" << i << " is used more than once and is not undef.";

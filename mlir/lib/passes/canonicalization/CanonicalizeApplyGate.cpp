@@ -19,7 +19,7 @@ namespace canonicalize{
 
 NoDowngradeApply::NoDowngradeApply(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1){}
 mlir::LogicalResult NoDowngradeApply::matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const{
-    if(auto parent = mlir::dyn_cast_or_null<isq::ir::DowngradeGateOp>(op.gate().getDefiningOp())){
+    if(auto parent = mlir::dyn_cast_or_null<isq::ir::DowngradeGateOp>(op.getGate().getDefiningOp())){
         rewriter.updateRootInPlace(op, [&](){
             op.setOperand(0, parent->getOperand(0));
         });
@@ -30,22 +30,22 @@ mlir::LogicalResult NoDowngradeApply::matchAndRewrite(isq::ir::ApplyGateOp op,  
 
 CorrectSymmetryApplyOrder::CorrectSymmetryApplyOrder(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1){}
 mlir::LogicalResult CorrectSymmetryApplyOrder::matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const{
-    if(op.args().size()==0) return mlir::failure();
-    if((op.gate().getType().cast<GateType>().getHints() & GateTrait::Symmetric) != GateTrait::Symmetric){
+    if(op.getArgs().size()==0) return mlir::failure();
+    if((op.getGate().getType().cast<GateType>().getHints() & GateTrait::Symmetric) != GateTrait::Symmetric){
         return mlir::failure();
     }
-    auto prev_op = op.args()[0].getDefiningOp<ApplyGateOp>();
+    auto prev_op = op.getArgs()[0].getDefiningOp<ApplyGateOp>();
     if(!prev_op) return mlir::failure();
-    for(auto arg: op.args()){
+    for(auto arg: op.getArgs()){
         if(arg.getDefiningOp()!=prev_op){
             return mlir::failure();
         }
     }
     // reconstruct operations.
-    ::mlir::SmallVector<int> curr_to_index_in_prev_output(op.args().size());
+    ::mlir::SmallVector<int> curr_to_index_in_prev_output(op.getArgs().size());
     ::mlir::SmallVector<int> prev_output_to_index_in_curr(prev_op.getResults().size(), -1);
-    for(auto i=0; i<op.args().size(); i++){
-        auto curr_arg = op.args()[i];
+    for(auto i=0; i<op.getArgs().size(); i++){
+        auto curr_arg = op.getArgs()[i];
         for(auto j=0; j<prev_op.getResults().size(); j++){
             if(curr_arg == prev_op.getResult(j)){
                 curr_to_index_in_prev_output[i]=j;
@@ -66,7 +66,7 @@ mlir::LogicalResult CorrectSymmetryApplyOrder::matchAndRewrite(isq::ir::ApplyGat
         j++;
     }
     if(already_ordered){
-        assert(j==op.args().size());
+        assert(j==op.getArgs().size());
         return mlir::failure();
     }
     auto new_apply = rewriter.clone(*op);
@@ -79,7 +79,7 @@ mlir::LogicalResult CorrectSymmetryApplyOrder::matchAndRewrite(isq::ir::ApplyGat
         prev_output_to_index_in_curr[i] = j;
         j++;
     }
-    assert(j == op.args().size());
+    assert(j == op.getArgs().size());
     rewriter.finalizeRootUpdate(new_apply);
     for(auto i=0; i<curr_to_index_in_prev_output.size(); i++){
         op.getResult(i).replaceAllUsesWith(new_apply->getResult(prev_output_to_index_in_curr[curr_to_index_in_prev_output[i]]));
@@ -91,14 +91,14 @@ mlir::LogicalResult CorrectSymmetryApplyOrder::matchAndRewrite(isq::ir::ApplyGat
 
 CancelUV::CancelUV(mlir::MLIRContext* ctx): mlir::OpRewritePattern<isq::ir::ApplyGateOp>(ctx, 1){}
 mlir::LogicalResult CancelUV::matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const{
-    if(op.args().size()==0) return mlir::failure();
-    auto prev_op = op.args()[0].getDefiningOp<ApplyGateOp>();
+    if(op.getArgs().size()==0) return mlir::failure();
+    auto prev_op = op.getArgs()[0].getDefiningOp<ApplyGateOp>();
     if(!prev_op) return mlir::failure();
-    if(op.args().size()!=prev_op.args().size()){
+    if(op.getArgs().size()!=prev_op.getArgs().size()){
         return mlir::failure();
     }
-    for(auto i=0; i<op.args().size(); i++){
-        if(op.args()[i] != prev_op->getResult(i)){
+    for(auto i=0; i<op.getArgs().size(); i++){
+        if(op.getArgs()[i] != prev_op->getResult(i)){
             return mlir::failure();
         }
     }
@@ -108,17 +108,17 @@ mlir::LogicalResult CancelUV::matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::Pa
 CancelUUAdj::CancelUUAdj(mlir::MLIRContext* ctx): CancelUV(ctx){}
 mlir::LogicalResult CancelUUAdj::tryCancel(isq::ir::ApplyGateOp curr, isq::ir::ApplyGateOp prev, mlir::PatternRewriter& rewriter) const{
     bool erase = false;
-    if(auto curr_decorate = curr.gate().getDefiningOp<DecorateOp>()){
-        if(curr_decorate.adjoint() && curr_decorate.args()==prev.gate()){
+    if(auto curr_decorate = curr.getGate().getDefiningOp<DecorateOp>()){
+        if(curr_decorate.getAdjoint() && curr_decorate.getArgs()==prev.getGate()){
             erase = true;
         }
-    }else if(auto prev_decorate = prev.gate().getDefiningOp<DecorateOp>()){
-        if(prev_decorate.adjoint() && prev_decorate.args()==curr.gate()){
+    }else if(auto prev_decorate = prev.getGate().getDefiningOp<DecorateOp>()){
+        if(prev_decorate.getAdjoint() && prev_decorate.getArgs()==curr.getGate()){
             erase = true;
         }
     }
     if(erase){
-        rewriter.replaceOp(curr, prev.args());
+        rewriter.replaceOp(curr, prev.getArgs());
         return mlir::success();
     }
     return mlir::failure();
@@ -126,8 +126,8 @@ mlir::LogicalResult CancelUUAdj::tryCancel(isq::ir::ApplyGateOp curr, isq::ir::A
 
 CancelHermitianUU::CancelHermitianUU(mlir::MLIRContext* ctx): CancelUV(ctx){}
 mlir::LogicalResult CancelHermitianUU::tryCancel(isq::ir::ApplyGateOp curr, isq::ir::ApplyGateOp prev, mlir::PatternRewriter& rewriter) const{
-    if(curr.gate()==prev.gate() && (curr.gate().getType().cast<GateType>().getHints() & GateTrait::Hermitian) == GateTrait::Hermitian){
-        rewriter.replaceOp(curr, prev.args());
+    if(curr.getGate()==prev.getGate() && (curr.getGate().getType().cast<GateType>().getHints() & GateTrait::Hermitian) == GateTrait::Hermitian){
+        rewriter.replaceOp(curr, prev.getArgs());
         mlir::SmallVector<mlir::Operation*> oo(prev->getUsers().begin(), prev->getUsers().end());
         for(auto user: oo){
             if(llvm::isa<mlir::AffineStoreOp>(user)){
@@ -146,12 +146,12 @@ CancelRemoteCZ::CancelRemoteCZ(mlir::MLIRContext* ctx): mlir::OpRewritePattern<i
 // 0 for CZ, 1 for other diagonal, 2 for nothing.
 static int isCZGate(ApplyGateOp apply){
     int fallback = 2;
-    if((apply.gate().getType().cast<GateType>().getHints() & GateTrait::Diagonal) == GateTrait::Diagonal){
+    if((apply.getGate().getType().cast<GateType>().getHints() & GateTrait::Diagonal) == GateTrait::Diagonal){
         fallback = 1;
     }
-    auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.gate().getDefiningOp());
+    auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.getGate().getDefiningOp());
     if(!usegate) return fallback;
-    auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+    auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.getName()));
     if(!defgate) return fallback;
     if(isFamousGate(defgate, "cz")){
         return 0;
@@ -161,12 +161,12 @@ static int isCZGate(ApplyGateOp apply){
 // 0 for CX, 1 for sq antidiagonal, 2 for nothing.
 static int isCXorADGate(ApplyGateOp apply){
     int fallback = 2;
-    if((apply.gate().getType().cast<GateType>().getHints() & GateTrait::Antidiagonal) == GateTrait::Antidiagonal){
+    if((apply.getGate().getType().cast<GateType>().getHints() & GateTrait::Antidiagonal) == GateTrait::Antidiagonal){
         fallback = 1;
     }
-    auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.gate().getDefiningOp());
+    auto usegate = llvm::dyn_cast_or_null<UseGateOp>(apply.getGate().getDefiningOp());
     if(!usegate) return fallback;
-    auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.name()));
+    auto defgate = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate, usegate.getName()));
     if(!defgate) return fallback;
     if(isFamousGate(defgate, "cnot")){
         return 0;
@@ -175,8 +175,8 @@ static int isCXorADGate(ApplyGateOp apply){
 }
 
 static mlir::Value getCorrespondingResult(mlir::Value value, isq::ir::ApplyGateOp apply){
-    for(auto i=0; i<apply.args().size(); i++){
-        if(value==apply.args()[i]){
+    for(auto i=0; i<apply.getArgs().size(); i++){
+        if(value==apply.getArgs()[i]){
             return apply.getResult(i);
         }
     }
@@ -185,7 +185,7 @@ static mlir::Value getCorrespondingResult(mlir::Value value, isq::ir::ApplyGateO
 static mlir::Value getCorrespondingArg(mlir::Value value, isq::ir::ApplyGateOp apply){
     for(auto i=0; i<apply.getNumResults(); i++){
         if(value==apply->getResult(i)){
-            return apply.args()[i];
+            return apply.getArgs()[i];
         }
     }
     assert(0 && "not result!");
@@ -196,7 +196,7 @@ mlir::LogicalResult CancelRemoteCZ::matchAndRewrite(isq::ir::ApplyGateOp op, mli
     const int NEITHER = 2;
     auto is_cz = isCZGate(op);
     if(is_cz!=IS_CZ) return mlir::failure();
-    mlir::Value fst = op.args()[0];
+    mlir::Value fst = op.getArgs()[0];
     mlir::SmallPtrSet<mlir::Operation*, 16> ops;
     while(true){
         auto fst_def = mlir::dyn_cast_or_null<ApplyGateOp>(fst.getDefiningOp());
@@ -208,7 +208,7 @@ mlir::LogicalResult CancelRemoteCZ::matchAndRewrite(isq::ir::ApplyGateOp op, mli
         }
         fst = getCorrespondingArg(fst, fst_def);
     }
-    mlir::Value snd = op.args()[1];
+    mlir::Value snd = op.getArgs()[1];
     while(true){
         auto snd_def = mlir::dyn_cast_or_null<ApplyGateOp>(snd.getDefiningOp());
         if(!snd_def) break;
@@ -218,8 +218,8 @@ mlir::LogicalResult CancelRemoteCZ::matchAndRewrite(isq::ir::ApplyGateOp op, mli
             if(ops.contains(snd_def)){
                 // snd_def has an operand of both op's operands.
                 // erase both.
-                rewriter.replaceOp(op, op.args());
-                rewriter.replaceOp(snd_def, snd_def.args());
+                rewriter.replaceOp(op, op.getArgs());
+                rewriter.replaceOp(snd_def, snd_def.getArgs());
                 return mlir::success();
             }
         }
@@ -239,7 +239,7 @@ mlir::LogicalResult CancelRemoteCX::matchAndRewrite(isq::ir::ApplyGateOp op, mli
     const int NEITHER = 2;
     auto is_cx = isCXorADGate(op);
     if(is_cx!=IS_CX) return mlir::failure();
-    mlir::Value controller = op.args()[0];
+    mlir::Value controller = op.getArgs()[0];
     mlir::SmallPtrSet<mlir::Operation*, 16> ops;
     while(true){
         auto fst_def = mlir::dyn_cast_or_null<ApplyGateOp>(controller.getDefiningOp());
@@ -259,7 +259,7 @@ mlir::LogicalResult CancelRemoteCX::matchAndRewrite(isq::ir::ApplyGateOp op, mli
         }
         controller = getCorrespondingArg(controller, fst_def);
     }
-    mlir::Value snd = op.args()[1];
+    mlir::Value snd = op.getArgs()[1];
     while(true){
         auto snd_def = mlir::dyn_cast_or_null<ApplyGateOp>(snd.getDefiningOp());
         if(!snd_def) break;
@@ -271,16 +271,16 @@ mlir::LogicalResult CancelRemoteCX::matchAndRewrite(isq::ir::ApplyGateOp op, mli
                 // first, insert the X gate.
                 if(need_extra_x){
                     rewriter.setInsertionPoint(snd_def);
-                    mlir::Value controllee = snd_def.args()[1];
+                    mlir::Value controllee = snd_def.getArgs()[1];
                     emitBuiltinGate(rewriter, "x", {&controllee});
                     rewriter.startRootUpdate(snd_def);
-                    snd_def.argsMutable()[1] = controllee;
+                    snd_def.getArgsMutable()[1] = controllee;
                     rewriter.finalizeRootUpdate(snd_def);
                 }
                 
                 // erase both.
-                rewriter.replaceOp(op, op.args());
-                rewriter.replaceOp(snd_def, snd_def.args());
+                rewriter.replaceOp(op, op.getArgs());
+                rewriter.replaceOp(snd_def, snd_def.getArgs());
                 return mlir::success();
             }
         }

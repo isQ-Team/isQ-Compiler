@@ -16,7 +16,7 @@ class RuleRemoveDealloc : public mlir::OpRewritePattern<mlir::memref::DeallocOp>
 public:
     RuleRemoveDealloc(mlir::MLIRContext* ctx): mlir::OpRewritePattern<mlir::memref::DeallocOp>(ctx, 1){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::DeallocOp op,  mlir::PatternRewriter &rewriter) const override{
-        auto val_type = op.memref().getType().dyn_cast<mlir::MemRefType>();
+        auto val_type = op.getMemref().getType().dyn_cast<mlir::MemRefType>();
         if(!val_type) return mlir::failure();
         if(!val_type.getElementType().isa<QIRQubitType>()) return mlir::failure();
         rewriter.eraseOp(op);

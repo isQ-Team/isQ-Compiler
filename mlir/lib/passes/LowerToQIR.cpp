@@ -5,7 +5,7 @@
 #include "isq/GateDefTypes.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -131,7 +131,7 @@ public:
         rewriter.updateRootInPlace(loop, [&]{
             rewriter.setInsertionPointToEnd(loop.getBody());
             auto alloc_qubit = utils.allocQubit(loc, rewriter, rootModule);
-            auto store = rewriter.create<mlir::memref::StoreOp>(loc, qubit_unref(loc, rewriter, alloc_qubit), op.memref(), mlir::ValueRange{loop.getInductionVar()});
+            auto store = rewriter.create<mlir::memref::StoreOp>(loc, qubit_unref(loc, rewriter, alloc_qubit), op.getMemref(), mlir::ValueRange{loop.getInductionVar()});
             store->setAttr(ISQ_FIRST_STORE, ::mlir::UnitAttr::get(ctx));
             rewriter.create<mlir::scf::YieldOp>(loc);
         });
@@ -145,7 +145,7 @@ public:
     mlir::LogicalResult matchAndRewrite(mlir::memref::DeallocOp op,  mlir::PatternRewriter &rewriter) const override{
         lower::QIRExternQuantumFunc utils;
         auto ctx = op->getContext();
-        auto memrefty = op.memref().getType().dyn_cast<mlir::MemRefType>();
+        auto memrefty = op.getMemref().getType().dyn_cast<mlir::MemRefType>();
         assert(memrefty);
         if(!memrefty) return mlir::failure();
         if(!memrefty.getElementType().isa<QStateType>() && !memrefty.getElementType().isa<QIRQubitType>()) return mlir::failure();
@@ -163,14 +163,14 @@ public:
         auto loc = op.getLoc();
         // Create an `scf.for` op. 
         auto lo = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 0);
-        auto hi = rewriter.create<mlir::memref::DimOp>(loc, op.memref(), 0);
+        auto hi = rewriter.create<mlir::memref::DimOp>(loc, op.getMemref(), 0);
         auto step = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 1);
         auto loop =
           rewriter.create<mlir::scf::ForOp>(loc, lo, hi, step, mlir::ValueRange{}, [&](mlir::OpBuilder& b, mlir::Location loc, mlir::Value iv, mlir::ValueRange iterArgs){
         });
         rewriter.updateRootInPlace(loop, [&]{
             rewriter.setInsertionPointToEnd(loop.getBody());
-            auto load = rewriter.create<mlir::memref::LoadOp>(loc, utils.getQStateType(ctx), op.memref(), mlir::ValueRange{loop.getInductionVar()});
+            auto load = rewriter.create<mlir::memref::LoadOp>(loc, utils.getQStateType(ctx), op.getMemref(), mlir::ValueRange{loop.getInductionVar()});
             utils.releaseQubit(loc, rewriter, rootModule, qubit_ref(loc, rewriter, load));
             rewriter.create<mlir::scf::YieldOp>(loc);
         });
@@ -185,7 +185,7 @@ public:
     mlir::LogicalResult matchAndRewrite(mlir::memref::GlobalOp op,  mlir::PatternRewriter &rewriter) const override{
         lower::QIRExternQuantumFunc utils;
         auto ctx = op->getContext();
-        auto memrefty = op.type().dyn_cast<mlir::MemRefType>();
+        auto memrefty = op.getType().dyn_cast<mlir::MemRefType>();
         assert(memrefty);
         if(!memrefty) return mlir::failure();
         if(!memrefty.getElementType().isa<QStateType>()) return mlir::failure();
@@ -210,7 +210,7 @@ public:
         auto ctor = rootModule.lookupSymbol<mlir::func::FuncOp>("__isq__global_initialize");
         //assert(ctor);
         rewriter.setInsertionPointToStart(&*ctor.getBody().begin());
-        auto ctor_used_memref = rewriter.create<mlir::memref::GetGlobalOp>(loc, op.type(), op.sym_name());
+        auto ctor_used_memref = rewriter.create<mlir::memref::GetGlobalOp>(loc, op.getType(), op.getSymName());
         auto ctor_lo = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 0);
         auto ctor_hi = rewriter.create<mlir::arith::ConstantIndexOp>(loc, memrefty.getDimSize(0));
         auto ctor_step = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 1);
@@ -221,7 +221,7 @@ public:
         rewriter.updateRootInPlace(ctor_loop, [&]{
             rewriter.setInsertionPointToEnd(ctor_loop.getBody());
             auto alloc_qubit = utils.allocQubit(loc, rewriter, rootModule);
-            auto store = rewriter.create<mlir::memref::StoreOp>(loc, qubit_unref(loc, rewriter, alloc_qubit), ctor_used_memref.result(), mlir::ValueRange{ctor_loop.getInductionVar()});
+            auto store = rewriter.create<mlir::memref::StoreOp>(loc, qubit_unref(loc, rewriter, alloc_qubit), ctor_used_memref.getResult(), mlir::ValueRange{ctor_loop.getInductionVar()});
             store->setAttr(ISQ_FIRST_STORE, ::mlir::UnitAttr::get(ctx));
             rewriter.create<mlir::scf::YieldOp>(loc);
         });
@@ -232,7 +232,7 @@ public:
         auto dtor = rootModule.lookupSymbol<mlir::func::FuncOp>("__isq__global_finalize");
         //assert(dtor);
         rewriter.setInsertionPointToStart(&*dtor.getBody().begin());
-        auto dtor_used_memref = rewriter.create<mlir::memref::GetGlobalOp>(loc, op.type(), op.sym_name());
+        auto dtor_used_memref = rewriter.create<mlir::memref::GetGlobalOp>(loc, op.getType(), op.getSymName());
         auto dtor_lo = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 0);
         auto dtor_hi = rewriter.create<mlir::arith::ConstantIndexOp>(loc, memrefty.getDimSize(0));
         auto dtor_step = rewriter.create<mlir::arith::ConstantIndexOp>(loc, 1);
@@ -242,7 +242,7 @@ public:
         });
         rewriter.updateRootInPlace(dtor_loop, [&]{
             rewriter.setInsertionPointToEnd(dtor_loop.getBody());
-            auto load = rewriter.create<mlir::memref::LoadOp>(loc, utils.getQStateType(ctx), dtor_used_memref.result(), mlir::ValueRange{dtor_loop.getInductionVar()});
+            auto load = rewriter.create<mlir::memref::LoadOp>(loc, utils.getQStateType(ctx), dtor_used_memref.getResult(), mlir::ValueRange{dtor_loop.getInductionVar()});
             utils.releaseQubit(loc, rewriter, rootModule, qubit_ref(loc, rewriter, load));
             rewriter.create<mlir::scf::YieldOp>(loc);
         });
@@ -258,15 +258,15 @@ public:
 
     }
     mlir::LogicalResult matchAndRewrite(isq::ir::ApplyGateOp op,  mlir::PatternRewriter &rewriter) const override{
-        auto use_op = mlir::dyn_cast_or_null<UseGateOp>(op.gate().getDefiningOp());
+        auto use_op = mlir::dyn_cast_or_null<UseGateOp>(op.getGate().getDefiningOp());
         auto ctx = op->getContext();
         if(!use_op) return mlir::failure();
-        auto defgate = mlir::SymbolTable::lookupNearestSymbolFrom<DefgateOp>(use_op.getOperation(), use_op.name());
+        auto defgate = mlir::SymbolTable::lookupNearestSymbolFrom<DefgateOp>(use_op.getOperation(), use_op.getName());
         assert(defgate);
-        if(!defgate.definition()) return mlir::failure();
+        if(!defgate.getDefinition()) return mlir::failure();
         int id = 0;
-        for(auto def: defgate.definition()->getAsRange<GateDefinition>()){
-            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.type(), def);
+        for(auto def: defgate.getDefinition()->getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(defgate, id, defgate.getType(), def);
             if(d==std::nullopt) llvm_unreachable("bad");
             auto qirf= llvm::dyn_cast_or_null<QIRDefinition>(&**d);
             if(!qirf){
@@ -276,11 +276,11 @@ public:
             
             auto qir_name = qirf->getQIRName();
             mlir::SmallVector<mlir::Value> new_args;
-            for(auto used_args : use_op.parameters()){
+            for(auto used_args : use_op.getParameters()){
                 new_args.push_back(used_args);
             }
-            for(auto i=0; i<op.args().size(); i++){
-                auto qarg = op.args()[i];
+            for(auto i=0; i<op.getArgs().size(); i++){
+                auto qarg = op.getArgs()[i];
                 auto qout = op.getResult(i);
                 qout.replaceAllUsesWith(qarg);
                 auto qref = qubit_ref(op->getLoc(), rewriter, qarg);
@@ -303,59 +303,59 @@ public:
     mlir::PatternRewriter &rewriter) const override{
         lower::QIRExternQuantumFunc utils;
         auto rootModule = this->rootModule;
-        auto qop = rootModule.lookupSymbol<DeclareQOpOp>(op.callee());
+        auto qop = rootModule.lookupSymbol<DeclareQOpOp>(op.getCallee());
         assert(qop);
         // First, we unwire next ops.
         #define UNWIRE \
-        for(auto i=0; i<op.size(); i++){ \
+        for(auto i=0; i<op.getSize(); i++){ \
             auto output = op->getResult(i); \
             auto input = op->getOperand(i); \
             output.replaceAllUsesWith(input); \
         }
         auto loc = op->getLoc();
-        if(qop.sym_name() == "__isq__builtin__measure"){
+        if(qop.getSymName() == "__isq__builtin__measure"){
             UNWIRE;
             auto meas_result = utils.measureQubit(loc, rewriter, rootModule, qubit_ref(loc, rewriter, op->getOperand(0)));
             op->getResult(1).replaceAllUsesWith(meas_result);
             rewriter.eraseOp(op);
             return mlir::success();
         }
-        if(qop.sym_name() == "__isq__builtin__reset"){
+        if(qop.getSymName() == "__isq__builtin__reset"){
             UNWIRE;
             utils.reset(loc, rewriter, rootModule, qubit_ref(loc, rewriter, op->getOperand(0)));
             rewriter.eraseOp(op);
             return mlir::success();
         }
-        if(qop.sym_name() == "__isq__builtin__bp"){
+        if(qop.getSymName() == "__isq__builtin__bp"){
             // Don't unwire.
             utils.breakPoint(loc, rewriter, rootModule, op.getOperand(0));
             rewriter.eraseOp(op);
             return mlir::success();
         }
-        if(qop.sym_name() == "__isq__builtin__print_int"){
+        if(qop.getSymName() == "__isq__builtin__print_int"){
             // Don't unwire.
             utils.printInt(loc, rewriter, rootModule, op.getOperand(0));
             rewriter.eraseOp(op);
             return mlir::success();
         }
-        if(qop.sym_name() == "__isq__builtin__print_double"){
+        if(qop.getSymName() == "__isq__builtin__print_double"){
             // Don't unwire.
             utils.printFloat(loc, rewriter, rootModule, op.getOperand(0));
             rewriter.eraseOp(op);
             return mlir::success();
         }
-        if (qop.sym_name() == "__isq__qmpiprim__csend") {
+        if (qop.getSymName() == "__isq__qmpiprim__csend") {
             utils.qmpiCsend(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1), op.getOperand(2));
             rewriter.eraseOp(op);
             return mlir::success();
         }
-        if (qop.sym_name() == "__isq__qmpiprim__crecv") {
+        if (qop.getSymName() == "__isq__qmpiprim__crecv") {
             auto val = utils.qmpiCrecv(loc, rewriter, rootModule, op.getOperand(0), op.getOperand(1));
             op->getResult(0).replaceAllUsesWith(val);
             rewriter.eraseOp(op);
             return mlir::success();
         }
-        if (qop.sym_name() == "__isq__qmpiprim__size") {
+        if (qop.getSymName() == "__isq__qmpiprim__size") {
             auto val = utils.qmpiSize(loc, rewriter, rootModule);
             op->getResult(0).replaceAllUsesWith(val);
             rewriter.eraseOp(op);
@@ -372,7 +372,7 @@ public:
 
     }
     mlir::LogicalResult matchAndRewrite(mlir::memref::StoreOp op,  mlir::PatternRewriter &rewriter) const override{
-        if(op.value().getType().isa<QStateType>() && !op->hasAttr(ISQ_FIRST_STORE)){
+        if(op.getValue().getType().isa<QStateType>() && !op->hasAttr(ISQ_FIRST_STORE)){
             rewriter.eraseOp(op);
             return mlir::success();
         }
@@ -458,8 +458,8 @@ public:
     LowerLoad(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::LoadOp>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::LoadOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
         rewriter.startRootUpdate(op);
-        op.setMemRef(adaptor.memref());
-        op.result().setType(converter.convertType(op.result().getType()));
+        op.setMemRef(adaptor.getMemref());
+        op.getResult().setType(converter.convertType(op.getResult().getType()));
         rewriter.finalizeRootUpdate(op);
         return mlir::success();
     }
@@ -469,9 +469,9 @@ public:
     LowerStore(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::StoreOp>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::StoreOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
         rewriter.startRootUpdate(op);
-        auto new_value = this->legalize(op->getLoc(), rewriter, adaptor.value());
-        op.valueMutable().assign(new_value.getResult(0));
-        op.setMemRef(adaptor.memref());
+        auto new_value = this->legalize(op->getLoc(), rewriter, adaptor.getValue());
+        op.getValueMutable().assign(new_value.getResult(0));
+        op.setMemRef(adaptor.getMemref());
         rewriter.finalizeRootUpdate(op);
         return mlir::success();
     }
@@ -484,7 +484,7 @@ public:
     LowerAllocLike(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<T>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(T op, typename TypeReplacer<T>::OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
         rewriter.startRootUpdate(op);
-        op.memref().setType(this->converter.convertType(op.memref().getType()));
+        op.getMemref().setType(this->converter.convertType(op.getMemref().getType()));
         rewriter.finalizeRootUpdate(op);
         return mlir::success();
     }
@@ -499,7 +499,7 @@ public:
         
         rewriter.startRootUpdate(op);
         op->setOperands(adaptor.getOperands());
-        op.result().setType(this->converter.convertType(op.result().getType()));
+        op.getResult().setType(this->converter.convertType(op.getResult().getType()));
         rewriter.finalizeRootUpdate(op);
         return mlir::success();
     }
@@ -519,9 +519,9 @@ class LowerGlobal : public TypeReplacer<mlir::memref::GlobalOp>{
 public:
     LowerGlobal(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::GlobalOp>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::GlobalOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
-        auto old_type = op.type();
+        auto old_type = op.getType();
         rewriter.startRootUpdate(op);
-        op.typeAttr(::mlir::TypeAttr::get(converter.convertType(old_type)));
+        op.setTypeAttr(::mlir::TypeAttr::get(converter.convertType(old_type)));
         rewriter.finalizeRootUpdate(op);
         return mlir::success();
     }
@@ -531,7 +531,7 @@ public:
     LowerGetGlobal(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::GetGlobalOp>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::GetGlobalOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
         rewriter.startRootUpdate(op);
-        op.result().setType(this->converter.convertType(op.result().getType()));
+        op.getResult().setType(this->converter.convertType(op.getResult().getType()));
         rewriter.finalizeRootUpdate(op);
         return mlir::success();
     }
@@ -541,8 +541,8 @@ public:
     LowerDim(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::memref::DimOp>(ctx, converter){}
     mlir::LogicalResult matchAndRewrite(mlir::memref::DimOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
         rewriter.startRootUpdate(op);
-        auto new_value = this->legalize(op->getLoc(), rewriter, adaptor.source());
-        op.sourceMutable().assign(new_value.getResult(0));
+        auto new_value = this->legalize(op->getLoc(), rewriter, adaptor.getSource());
+        op.getSourceMutable().assign(new_value.getResult(0));
         rewriter.finalizeRootUpdate(op);
         return mlir::success();
     }
@@ -599,7 +599,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
                 return QIRQubitType::get(ctx);
             });
             converter.addConversion([&](mlir::FunctionType ty){
-                return llvm::None;
+                return std::nullopt;
             });
             converter.addConversion([&](mlir::MemRefType ty){
                 return mlir::MemRefType::get(ty.getShape(), converter.convertType(ty.getElementType()), ty.getLayout(), ty.getMemorySpace());
@@ -625,7 +625,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
             mlir::ConversionTarget target(*ctx);
             target.addIllegalDialect<ISQDialect>();
             target.addLegalOp<AssertOp>();
-            target.addLegalDialect<mlir::arith::ArithmeticDialect>();
+            target.addLegalDialect<mlir::arith::ArithDialect>();
             target.addLegalOp<mlir::UnrealizedConversionCastOp>();
             target.addDynamicallyLegalOp<mlir::func::FuncOp>(
                 [&](mlir::func::FuncOp op) { return converter.isSignatureLegal(op.getFunctionType()); });
@@ -636,7 +636,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
             });
             target.addDynamicallyLegalDialect<mlir::memref::MemRefDialect>([&](mlir::Operation* op){
                 if(auto global = mlir::dyn_cast<mlir::memref::GlobalOp>(op)){
-                    return converter.isLegal(global.type());
+                    return converter.isLegal(global.getType());
                 }
                 return converter.isLegal(op);
             });

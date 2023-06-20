@@ -68,8 +68,8 @@ public:
         op->setAttr(mlir::StringAttr::get(ctx, ISQ_PURE_GATE), mlir::UnitAttr::get(ctx));
         rewriter.finalizeRootUpdate(op);
         int id = 0;
-        for(auto def: op.definition()->getAsRange<GateDefinition>()){
-            auto d = AllGateDefs::parseGateDefinition(op, id, op.type(), def);
+        for(auto def: op.getDefinition()->getAsRange<GateDefinition>()){
+            auto d = AllGateDefs::parseGateDefinition(op, id, op.getType(), def);
             if(d==std::nullopt) return mlir::failure();
             if(auto def = llvm::dyn_cast_or_null<DecompositionRawDefinition>(&**d)){
                 pureSymbols.insert(def->getDecomposedFunc().getSymNameAttr());
@@ -116,9 +116,9 @@ public:
             return mlir::failure();
         }
         rewriter.startRootUpdate(op);
-        if(op.definition()){
+        if(op.getDefinition()){
             mlir::SmallVector<mlir::Attribute> attrs; 
-            auto defs = *op.definition();
+            auto defs = *op.getDefinition();
             for(auto def: defs){
                 
                 auto gatedef = def.cast<GateDefinition>();
@@ -128,7 +128,7 @@ public:
                     attrs.push_back(gatedef);
                 }
             }
-            op.definitionAttr(mlir::ArrayAttr::get(ctx, attrs));
+            op.setDefinitionAttr(mlir::ArrayAttr::get(ctx, attrs));
         }
         op->removeAttr(ISQ_PURE_GATE);
         rewriter.finalizeRootUpdate(op);

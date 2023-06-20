@@ -5,7 +5,7 @@
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
-#include <mlir/Dialect/Arithmetic/IR/Arithmetic.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
@@ -139,7 +139,7 @@ namespace isq::ir::passes{
             auto first_loaded_value = traceBackwardQState(qstate);
             auto first_load = qstate.getDefiningOp<mlir::AffineLoadOp>();
             if(!first_load) return nullptr;
-            auto memref = first_load.getMemref();
+            auto memref = first_load.getMemRef();
             if(memref){
                 if(cast_mapping.count(memref)){
                     return cast_mapping[memref];
@@ -165,17 +165,17 @@ namespace isq::ir::passes{
             }
         }
         mlir::LogicalResult visit(mlir::IRRewriter& rewriter, mlir::memref::CastOp cast_op, mlir::SmallVector<ReusableQubit>& measured_qubits){
-            cast_mapping.insert(std::make_pair(cast_op.getResult(), cast_op.source()));
+            cast_mapping.insert(std::make_pair(cast_op.getResult(), cast_op.getSource()));
             return mlir::success();
         }
         mlir::LogicalResult visit(mlir::IRRewriter& rewriter, CallQOpOp call_qop, mlir::SmallVector<ReusableQubit>& measured_qubits){
             llvm::outs()<<"visit callqop\n";
-            for(auto arg: call_qop.args()){
+            for(auto arg: call_qop.getArgs()){
                 taintQState(arg, measured_qubits);
             }
             // check if it is measurement.
-            if(call_qop.callee().getLeafReference().getValue()=="__isq__builtin__measure"){
-                auto memref = traceMemref(call_qop.args()[0]);
+            if(call_qop.getCallee().getLeafReference().getValue()=="__isq__builtin__measure"){
+                auto memref = traceMemref(call_qop.getArgs()[0]);
                 if(memref && memref.isa<mlir::BlockArgument>()){
                     measured_qubits.push_back(ReusableQubit{
                         .memref = memref,
@@ -186,7 +186,7 @@ namespace isq::ir::passes{
             return mlir::success();
         }
         mlir::LogicalResult visit(mlir::IRRewriter& rewriter, ApplyGateOp call_qop, mlir::SmallVector<ReusableQubit>& measured_qubits){
-            for(auto arg: call_qop.args()){
+            for(auto arg: call_qop.getArgs()){
                 taintQState(arg, measured_qubits);
             }
             return mlir::success();

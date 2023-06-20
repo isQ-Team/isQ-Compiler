@@ -31,8 +31,8 @@ mlir::LogicalResult verify(DecorateOp op) {
     auto vr = result.getHints();
     auto vo = operand.getHints();
     
-    auto ctrl = op.ctrl();
-    auto adjoint = op.adjoint();
+    auto ctrl = op.getCtrl();
+    auto adjoint = op.getAdjoint();
     auto ctrls = ctrl.getAsValueRange<mlir::BoolAttr>();
     auto all_one = std::all_of(ctrls.begin(), ctrls.end(), [](auto x){return x;});
     auto expected_vr = DecorateOp::computePostDecorateTrait(result.getHints(), ctrl.size(), adjoint, all_one);

@@ -11,7 +11,7 @@
 #include "isq/Operations.h"
 #include "isq/QAttrs.h"
 #include "isq/utils/Decomposition.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -329,12 +329,12 @@ private:
 
         auto globalop = mlir::dyn_cast_or_null<mlir::memref::GlobalOp>(op);
         if (globalop != nullptr){
-            auto name = globalop.sym_name().str();
+            auto name = globalop.getSymName().str();
             if (name != ".__qmpi_rank") {
                 auto var_name = getQasmName(name);
-                int size = globalop.type().getShape()[0];
+                int size = globalop.getType().getShape()[0];
                 string var_type;
-                TRY(getVarType(globalop.type().getElementType(), var_type, op->getLoc()))
+                TRY(getVarType(globalop.getType().getElementType(), var_type, op->getLoc()))
                 openQasmVarDefine(var_name, var_type, size);
             }
         }
@@ -604,8 +604,8 @@ private:
     
     /*
     mlir::LogicalResult visitOp(mlir::memref::GlobalOp op) override{
-        auto id = op.sym_name();
-        auto type = op.type();
+        auto id = op.getSymName();
+        auto type = op.getType();
         string var_type = "int";
         int size = type.getShape()[0];
         if (type.getElementType().isa<QStateType>()){
@@ -616,10 +616,10 @@ private:
     }*/
 
     mlir::LogicalResult visitOp(mlir::memref::GetGlobalOp op) override{
-        auto attr = op.nameAttr();
+        auto attr = op.getNameAttr();
         //os << "global var: " << attr.getValue().str() << endl;
-        auto type = op.result().getType().dyn_cast<mlir::MemRefType>();
-        return symbolInsert(size_t(mlir::hash_value(op.result())), OpType::VAR, type.getShape()[0], getQasmName(attr.getValue().str()));
+        auto type = op.getResult().getType().dyn_cast<mlir::MemRefType>();
+        return symbolInsert(size_t(mlir::hash_value(op.getResult())), OpType::VAR, type.getShape()[0], getQasmName(attr.getValue().str()));
     }
     mlir::LogicalResult visitOp(mlir::arith::ConstantOp op) override{
         auto ci_attr = op.getValueAttr().dyn_cast<mlir::IntegerAttr>();
@@ -778,13 +778,13 @@ private:
         return visitBinaryOp(OpType::DIV, '/', op.getLhs(), op.getRhs(), op.getResult());
     }
     mlir::LogicalResult visitOp(UseGateOp op) override{
-        auto attr = op.nameAttr();
+        auto attr = op.getNameAttr();
         //os << "use gate: " << attr.getLeafReference().str() << endl;
         auto leaf = attr.getLeafReference().str();
         auto gate = getGateName(leaf);
-        if (op.parameters().size() > 0){
+        if (op.getParameters().size() > 0){
             gate += "(";
-            for (auto param : ::llvm::enumerate(op.parameters())){
+            for (auto param : ::llvm::enumerate(op.getParameters())){
                 auto index = param.index();
                 auto operand = param.value();
                 if (index > 0){
@@ -798,8 +798,8 @@ private:
     }
     mlir::LogicalResult visitOp(DecorateOp op) override{
         auto modifiers = std::string();
-        if(op.adjoint()) modifiers += "inv @ ";
-        for(auto flag: op.ctrl()){
+        if(op.getAdjoint()) modifiers += "inv @ ";
+        for(auto flag: op.getCtrl()){
             if(flag){
                 modifiers += "ctrl @ ";
             }else{
@@ -814,8 +814,8 @@ private:
         bool inv = false;
         int ctrl = 0, nctrl = 0;
         string gate_name_with_modifier = "";
-        gate_name_with_modifier = get<2>(getSymbol(op.gate()));
-        for (auto indexed_operand : ::llvm::enumerate(op.args())){
+        gate_name_with_modifier = get<2>(getSymbol(op.getGate()));
+        for (auto indexed_operand : ::llvm::enumerate(op.getArgs())){
             auto index = indexed_operand.index();
             auto operand = indexed_operand.value();
             auto res = getSymbol(operand);
@@ -884,14 +884,14 @@ private:
             auto result_range = op->getResults();
 
             // First N operands: build qubit mapping for results
-            for (auto indexed_operand: llvm::enumerate(op.getOperands().take_front(op.size()))){
+            for (auto indexed_operand: llvm::enumerate(op.getOperands().take_front(op.getSize()))){
                 auto index = indexed_operand.index();
                 auto operand = indexed_operand.value();
                 auto res = getSymbol(operand);
                 TRY(symbolInsert(op.getResult(index), OpType::VAR, 1, get<2>(getSymbol(operand))));
             }
             // Rest results: assign integer.
-            for (auto indexResult: result_range.drop_front(result_range.size()-op.size())){
+            for (auto indexResult: result_range.drop_front(result_range.size()-op.getSize())){
                 auto result = indexResult;
                 // Only consider measure.
                 if (result.getType().isa<mlir::IntegerType>()){
@@ -921,17 +921,17 @@ private:
         return mlir::success();
     }
     mlir::LogicalResult visitOp(DefgateOp op) override{
-        string gate_name = op.sym_name().str();
-        int shape = op.type().getSize();
+        string gate_name = op.getSymName().str();
+        int shape = op.getType().getSize();
         if(shape!=1){
             op->emitOpError("with shape > 1 not supported in this codegen. Decompose first.");
             return mlir::failure();
         }
-        if (!op.definition()){
+        if (!op.getDefinition()){
             op.emitOpError("without definition not supported.");
             return mlir::failure();
         }
-        for(auto& def_ : *op.definition()){
+        for(auto& def_ : *op.getDefinition()){
             auto def = def_.cast<GateDefinition>();
             if(def.getType()=="unitary"){
                 auto mat = def.getValue().cast<DenseComplexF64MatrixAttr>();
@@ -999,10 +999,9 @@ private:
         //openQasmAssign(temp_bool, cmp_str);
         return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, cmp_str);
     }
-    string memrefObtainArg(mlir::Operation::operand_range args, mlir::ArrayAttr static_args, size_t index){
+    string memrefObtainArg(mlir::Operation::operand_range args, mlir::ArrayRef<int64_t> static_args, size_t index){
         if(index>=args.size()){
-            auto constant = static_args[index-args.size()].cast<mlir::IntegerAttr>();
-            auto cval = constant.getInt();
+            auto cval = static_args[index-args.size()];
             auto temp_constant = next_tempInt();
             openQasmAssign(temp_constant+"[0]", to_string(cval));
             return temp_constant+"[0]";
@@ -1012,8 +1011,8 @@ private:
 
     }
     mlir::LogicalResult visitOp(mlir::memref::SubViewOp op) override{
-        auto arr_in = op.source();
-        auto arr_out = op.result();
+        auto arr_in = op.getSource();
+        auto arr_out = op.getResult();
         auto arr_in_ty = op.getSourceType();
         auto arr_out_ty = arr_out.getType().cast<mlir::MemRefType>();
         if(arr_in_ty.getRank()!=1 || arr_out_ty.getRank()!=1){
@@ -1029,8 +1028,8 @@ private:
             if (op.offsets().size() > 0){
                 offset = get<2>(getSymbol(op.offsets()[0]));
             }else{
-                auto attr = op.static_offsets()[0].dyn_cast_or_null<mlir::IntegerAttr>();
-                offset = to_string(int(attr.getInt()));
+                auto offset_val = op.static_offsets()[0];
+                offset = to_string(offset_val);
             }
             return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, get<2>(source_var)+"["+offset+"]");
         }
@@ -1057,7 +1056,7 @@ private:
     }
     mlir::LogicalResult visitOp(mlir::memref::CastOp op) override{
         // todo: we hope it is identical cast.
-        auto symbol = getSymbol(op.source());
+        auto symbol = getSymbol(op.getSource());
         return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), get<0>(symbol), get<1>(symbol), get<2>(symbol));
     }
     mlir::LogicalResult visitOp(mlir::Operation* op) override{

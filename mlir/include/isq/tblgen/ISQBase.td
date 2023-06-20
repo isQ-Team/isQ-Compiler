@@ -22,7 +22,7 @@ def ISQ_Dialect: Dialect{
     let description = [{
         MLIR Dialect for expressing and optimization ranging from low-level quantum circuits, to high level quantum programs with complicated control structures.
     }];
-    let dependentDialects = ["::mlir::memref::MemRefDialect", "::mlir::AffineDialect", "::mlir::arith::ArithmeticDialect", "::mlir::scf::SCFDialect", "::mlir::LLVM::LLVMDialect",
+    let dependentDialects = ["::mlir::memref::MemRefDialect", "::mlir::AffineDialect", "::mlir::arith::ArithDialect", "::mlir::scf::SCFDialect", "::mlir::LLVM::LLVMDialect",
     "::mlir::func::FuncDialect", "::mlir::cf::ControlFlowDialect",
     "::mlir::complex::ComplexDialect"];
     let hasCanonicalizer = 1;
