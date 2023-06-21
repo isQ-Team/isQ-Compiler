@@ -34,9 +34,11 @@ rustPlatform.buildRustPackage ((pluginExports) // rec {
   #  (addInput build_qcis_plugin routingPlugin)
   #]);
   buildInputs = pluginDeps;
-  src = gitignoreSource ./.;
+  src = gitignoreSource ../.;
+  cargoBuildFlags = "-p isq-simulator";
+  cargoTestFlags = "-p isq-simulator";
   cargoLock = {
-    lockFile = ./Cargo.lock;
+    lockFile = ../Cargo.lock;
   };
   buildFeatures = pluginFeatures;
   buildNoDefaultFeatures = true;
@@ -46,10 +48,11 @@ rustPlatform.buildRustPackage ((pluginExports) // rec {
   #];
   postInstall = ''
     mkdir -p $out/share/isq-simulator
-    ${llvm_tools}/bin/llvm-link ${src}/src/facades/qir/shim/qir_builtin/shim.ll \
-    ${src}/src/facades/qir/shim/qsharp_core/shim.ll  \
-    ${src}/src/facades/qir/shim/qsharp_foundation/shim.ll \
-    ${src}/src/facades/qir/shim/isq/shim.ll -o $out/share/isq-simulator/isq-simulator.bc
+    src=${src}/simulator
+    ${llvm_tools}/bin/llvm-link $src/src/facades/qir/shim/qir_builtin/shim.ll \
+    $src/src/facades/qir/shim/qsharp_core/shim.ll  \
+    $src/src/facades/qir/shim/qsharp_foundation/shim.ll \
+    $src/src/facades/qir/shim/isq/shim.ll -o $out/share/isq-simulator/isq-simulator.bc
     echo "#!/usr/bin/env bash" > $out/bin/isq-simulator-stub
     echo "echo $out/share/isq-simulator/isq-simulator.bc" >> $out/bin/isq-simulator-stub
     chmod +x $out/bin/isq-simulator-stub

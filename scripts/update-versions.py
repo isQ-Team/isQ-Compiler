@@ -23,7 +23,6 @@ def update_cargo_toml(file):
     proj_path = os.path.dirname(file_abs)
     v = version["version"]
     system_output(f'sed -i -e "s/^version\\s*=\\s*\\"[^\\"]*\\"/version = \\"{v}\\"/"  {file_abs}')
-    system_output("cargo update -w", proj_path)
 def update_package_yaml(file):
     file_abs = os.path.join(root, file)
     v = version["version"]
@@ -31,5 +30,6 @@ def update_package_yaml(file):
 
 for cargo_toml in all_cargo_tomls:
     update_cargo_toml(cargo_toml)
+system_output("cargo update -w --offline", root)
 for package_toml in all_package_yamls:
     update_package_yaml(package_toml)
