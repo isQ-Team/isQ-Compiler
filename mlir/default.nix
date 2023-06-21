@@ -17,6 +17,7 @@
 , caterpillar ? vendor.caterpillar
 , fmt
 , isQVersion
+, isQVersionHook
 }:
 let
   stdenv = vendor.stdenvLLVM;
@@ -24,7 +25,7 @@ let
     stdenv.mkDerivation {
       pname = "isq-opt";
       inherit (isQVersion) version;
-      nativeBuildInputs = [ cmake ninja doxygen graphviz python3 which git lld ];
+      nativeBuildInputs = [ cmake ninja doxygen graphviz python3 which git lld isQVersionHook ];
       buildInputs = [
         eigen
         mlir

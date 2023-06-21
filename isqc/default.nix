@@ -1,6 +1,7 @@
 { vendor ? null
 , gitignoreSource ? vendor.gitignoreSource
 , isQVersion
+, isQVersionHook
 }:
 let
   rustPlatform = vendor.rustPlatform;
@@ -9,6 +10,7 @@ rustPlatform.buildRustPackage rec {
   pname = "isqc-driver";
   inherit (isQVersion) version;
   src = gitignoreSource ./.;
+  nativeBuildInputs = [ isQVersionHook ];
   cargoLock = {
     lockFile = ./Cargo.lock;
   };

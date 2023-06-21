@@ -5,6 +5,7 @@
 , mlir ? vendor.mlir
 , callPackage
 , isQVersion
+, isQVersionHook
 }:
 let
   rustPlatform = vendor.rustPlatform;
@@ -27,7 +28,7 @@ in
 rustPlatform.buildRustPackage ((pluginExports) // rec {
   pname = "isq-simulator";
   inherit (isQVersion) version;
-  nativeBuildInputs = [ llvm_tools ];
+  nativeBuildInputs = [ llvm_tools isQVersionHook ];
   #buildInputs = (builtins.concatLists [
   #  (addInput build_cuda_plugin (pkgs.lib.getLib cudaPlugin))
   #  (addInput build_qcis_plugin routingPlugin)

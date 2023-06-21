@@ -1,4 +1,7 @@
-{ pkgs, vendor ? null, gitignoreSource ? vendor.gitignoreSource
+{ pkgs
+, vendor ? null
+, gitignoreSource ? vendor.gitignoreSource
+, isQVersionHook
 , isQVersion
 }:
 let
@@ -7,7 +10,8 @@ let
   inherit (pkgs.haskell.lib) justStaticExecutables;
   isqc1Static = justStaticExecutables isqc1;
 in
-isqc1Static.overrideAttrs (prev: final: {
+isqc1Static.overrideAttrs (final: prev: {
+  nativeBuildInputs = prev.nativeBuildInputs ++ [ isQVersionHook ];
   passthru.isQDevShell =
     let
       hs_shell = pkgs.haskellPackages.shellFor {
