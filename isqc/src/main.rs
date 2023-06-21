@@ -13,46 +13,22 @@ use std::str::FromStr;
 
 use crate::frontend::resolve_isqc1_output;
 
-fn opt_level(s: &str) -> Result<(), String> {
-    usize::from_str(s)
-        .map(|o: usize| o<=3)
-        .map_err(|e| e.to_string())
-        .and_then(|result| match result {
-            true => Ok(()),
-            false => Err(format!(
-                "Optimization level should be within 0-3"
-            )),
-        })
-}
-fn get_name()->String{
-    
-    "isq".to_owned()
-}
 #[derive(Parser)]
-#[clap(name = "isQ Compiler", version = ISQVersion::build_semver(), global_setting = AppSettings::NoAutoVersion)]
+#[clap(name = "isQ Compiler", version = ISQVersion::build_semver(),
+long_version = Arguments::long_version(), 
+about = "isQ Compiler")]
 pub struct Arguments {
-    #[clap(short='V', long, help = "Print version")]
-    version: bool,
     #[clap(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
-
 impl Arguments{
-    pub fn parse_all()->Self{
-        let result = Self::parse();
-        if result.version{
-            println!("isQ Compiler {}", ISQVersion::build_semver());
-            println!("Git revision: {}", ISQVersion::build_rev());
-            exit(0);
-        }
-        if result.command.is_none(){
-            Self::command().print_help().unwrap();
-            exit(0);
-        }
-        result
+    fn long_version()->String{
+        format!("{}\nGit revision: {}", ISQVersion::build_semver(),
+        ISQVersion::build_rev())
     }
 }
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum EmitMode {
     MLIR,
     MLIRQIR,
@@ -61,7 +37,7 @@ pub enum EmitMode {
     Binary,
     Out
 }
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum CompileTarget{
     QIR,
     OpenQASM3,
@@ -75,19 +51,19 @@ pub enum Commands{
         input: String,
         #[clap(long, short)]
         output: Option<String>,
-        #[clap(long, short='O', validator = opt_level)]
-        opt_level: Option<usize>,
-        #[clap(long, arg_enum, default_value = "out")]
+        #[arg(long, short='O', value_parser = value_parser!(u64).range(0..=3))]
+        opt_level: Option<u64>,
+        #[clap(long, value_enum, default_value = "out")]
         emit: EmitMode,
-        #[clap(long, arg_enum, default_value = "qir")]
+        #[clap(long, value_enum, default_value = "qir")]
         target: CompileTarget,
         #[clap(long)]
         qcis_config: Option<String>,
-        #[clap(long, short='I', multiple_occurrences(true))]
+        #[clap(long, short='I', action=ArgAction::Append)]
         inc_path: Option<Vec<String>>,
-        #[clap(long, short, multiple_occurrences(true))]
+        #[clap(long, short, action=ArgAction::Append)]
         int_par: Option<Vec<i64>>,
-        #[clap(long, short, multiple_occurrences(true))]
+        #[clap(long, short, action=ArgAction::Append)]
         double_par: Option<Vec<f64>>
     },
     #[clap(group(
@@ -106,15 +82,15 @@ pub enum Commands{
         shots: Option<i64>,
         #[clap(long)]
         debug: bool,
-        #[clap(long, short, multiple_occurrences(true))]
+        #[clap(long, short, action=ArgAction::Append)]
         int_par: Option<Vec<i64>>,
-        #[clap(long, short, multiple_occurrences(true))]
+        #[clap(long, short, action=ArgAction::Append)]
         double_par: Option<Vec<f64>>,
         #[clap(long, short, default_value = "1")]
         np: i64
     },
     Exec{
-        #[clap(multiple_occurrences(true), required(true))]
+        #[clap(action=ArgAction::Append, required(true))]
         exec_command: Vec<String>
     },
     Run{
@@ -166,7 +142,7 @@ fn resolve_input_path<'a>(input: &'a str, extension: &str)->miette::Result<(&'a 
 }
 
 fn main()->miette::Result<()> {
-    let cli = Arguments::parse_all();
+    let cli = Arguments::parse();
     let root = std::env::var("ISQ_ROOT").map_err(|_| NoISQv2RootError)?;
     let llvm_root = std::env::var("LLVM_ROOT");
     let llvm_tool = |s: &str|{
@@ -177,7 +153,7 @@ fn main()->miette::Result<()> {
         }
         
     };
-    let mut queue = VecDeque::from([cli.command.unwrap()]);
+    let mut queue = VecDeque::from([cli.command]);
     while !queue.is_empty() {
         let cmd = queue.pop_front().unwrap();
         match cmd{
