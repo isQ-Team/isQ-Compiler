@@ -45,7 +45,7 @@
               rev = if (self ? rev) then self.rev else "unknown";
               frozen = json.versionJSON.frozen;
               metadata = lib.concatStringsSep "." (builtins.concatLists [
-                (lib.optional (!frozen) rev)
+                (lib.optional (!frozen) (builtins.substring 0 9 rev))
                 (lib.optional dirty "dirty")
               ]);
               semVer = if metadata == "" then version else "${version}+${metadata}";

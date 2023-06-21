@@ -1,14 +1,26 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+#![feature(const_option)]
+#![feature(const_option_ext)]
+#![feature(const_trait_impl)]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub const ISQ_BUILD_VERSION: Option<&'static str> = option_env!("ISQ_BUILD_VERSION");
+pub const ISQ_BUILD_SEMVER : Option<&'static str> = option_env!("ISQ_BUILD_SEMVER");
+pub const ISQ_BUILD_REV : Option<&'static str> = option_env!("ISQ_BUILD_REV");
+pub const ISQ_BUILD_FROZEN : Option<&'static str> = option_env!("ISQ_BUILD_FROZEN");
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+
+pub struct ISQVersion;
+
+impl ISQVersion{
+    pub const fn build_version()->&'static str{
+        ISQ_BUILD_VERSION.unwrap_or("0.0.0")
+    }
+    pub const fn build_semver()->&'static str{
+        ISQ_BUILD_SEMVER.unwrap_or("0.0.0+unknown.badver")
+    }
+    pub const fn build_rev()->&'static str{
+        ISQ_BUILD_REV.unwrap_or("unknown")
+    }
+    pub fn build_frozen()->bool{
+        ISQ_BUILD_FROZEN==Some("1")
     }
 }

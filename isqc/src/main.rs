@@ -3,10 +3,11 @@ extern crate clap;
 mod exec;
 mod frontend;
 mod error;
-use std::{fs::File, io::Write, path::{Path, PathBuf}, ffi::OsStr, collections::VecDeque};
+use std::{fs::File, io::Write, path::{Path, PathBuf}, ffi::OsStr, collections::VecDeque, process::exit};
 
 use clap::*;
 use error::*;
+use isq_version::ISQVersion;
 
 use std::str::FromStr;
 
@@ -23,12 +24,33 @@ fn opt_level(s: &str) -> Result<(), String> {
             )),
         })
 }
-
+fn get_name()->String{
+    
+    "isq".to_owned()
+}
 #[derive(Parser)]
-#[clap(author, version, about)]
+#[clap(name = "isQ Compiler", version = ISQVersion::build_semver(), global_setting = AppSettings::NoAutoVersion)]
 pub struct Arguments {
+    #[clap(short='V', long, help = "Print version")]
+    version: bool,
     #[clap(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
+}
+
+impl Arguments{
+    pub fn parse_all()->Self{
+        let result = Self::parse();
+        if result.version{
+            println!("isQ Compiler {}", ISQVersion::build_semver());
+            println!("Git revision: {}", ISQVersion::build_rev());
+            exit(0);
+        }
+        if result.command.is_none(){
+            Self::command().print_help().unwrap();
+            exit(0);
+        }
+        result
+    }
 }
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum EmitMode {
@@ -144,7 +166,7 @@ fn resolve_input_path<'a>(input: &'a str, extension: &str)->miette::Result<(&'a 
 }
 
 fn main()->miette::Result<()> {
-    let cli = Arguments::parse();
+    let cli = Arguments::parse_all();
     let root = std::env::var("ISQ_ROOT").map_err(|_| NoISQv2RootError)?;
     let llvm_root = std::env::var("LLVM_ROOT");
     let llvm_tool = |s: &str|{
@@ -155,7 +177,7 @@ fn main()->miette::Result<()> {
         }
         
     };
-    let mut queue = VecDeque::from([cli.command]);
+    let mut queue = VecDeque::from([cli.command.unwrap()]);
     while !queue.is_empty() {
         let cmd = queue.pop_front().unwrap();
         match cmd{

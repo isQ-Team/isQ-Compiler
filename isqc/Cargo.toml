@@ -14,3 +14,4 @@ tempfile = "3.3.0"
 assert_cmd = "2.0"
 predicates = "2.1"
 test-case = "2.2.1"
+isq-version = { version = "0.1.1", path = "../utils/isq-version" }
