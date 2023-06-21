@@ -17,13 +17,16 @@
       url = "github:arclight-quantum/caterpillar";
       flake = false;
     };
+    pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
+    pre-commit-hooks.inputs.nixpkgs.follows = "nixpkgs";
+    pre-commit-hooks.inputs.flake-utils.follows = "flake-utils";
   };
   nixConfig = {
     bash-prompt-prefix = "(nix-isqc:$ISQC_DEV_ENV)";
-    extra-substituters = [ "https://arclight-quantum.cachix.org" ];
-    extra-trusted-public-keys = [ "arclight-quantum.cachix.org-1:DiMhc4M3H1Z3gBiJMBTpF7+HyTwXMOPmLVkjREzF404=" ];
+    extra-substituters = [ "https://arclight-quantum.cachix.org" "https://pre-commit-hooks.cachix.org" ];
+    extra-trusted-public-keys = [ "arclight-quantum.cachix.org-1:DiMhc4M3H1Z3gBiJMBTpF7+HyTwXMOPmLVkjREzF404=" "pre-commit-hooks.cachix.org-1:Pkk3Panw5AW24TOv6kz3PvLhlH8puAsJTBbOPmBo7Rc=" ];
   };
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat, gitignore, ... }@flakeInputs:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat, gitignore, pre-commit-hooks, ... }@flakeInputs:
     let
       lib = nixpkgs.lib;
       base = import ./base/isq-flake.nix { inherit nixpkgs; inherit flake-utils; };
@@ -159,6 +162,7 @@
         # https://github.com/NixOS/nix/issues/6982
         nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp pkgs.isqc.vendor.rust pkgs.isqc.isQVersionHook ];
         ISQC_DEV_ENV = "dev";
+        inherit (self.checks.${system}.pre-commit-check) shellHook;
       };
       extraShells = { pkgs, system }:
         let defaultShell = shell { inherit pkgs; inherit system; };
@@ -170,6 +174,19 @@
         };
       extra = { pkgs, system }: {
         formatter = pkgs.nixpkgs-fmt;
+        checks = {
+          pre-commit-check = pre-commit-hooks.lib.${system}.run {
+            src = ./.;
+            hooks = {
+              nixpkgs-fmt.enable = true;
+              update-isq-version = {
+                enable = true;
+                name = "Update isQ version in different subprojects";
+                entry = "./scripts/update-versions.py";
+              };
+            };
+          };
+        };
       };
     }) // {
       templates = {
