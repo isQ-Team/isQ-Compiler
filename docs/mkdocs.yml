@@ -3,13 +3,15 @@ theme:
   name: 'material'
 
 nav:
-  - Content:
-    - Home: index.md
+  - Home: index.md
+  - User Manual:
     - Installation: install.md
     - Usage: usage.md
     - isQ Programming Language: grammar.md
     - Examples: example.md
+  - Developer Manual:
     - Development Setup: devsetup.md
+    - Versioning: versioning.md
 
 markdown_extensions:
   - admonition
