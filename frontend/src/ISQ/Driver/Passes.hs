@@ -42,7 +42,8 @@ syntaxError file x =
 data ImportEnv = ImportEnv {
     globalTable :: SymbolTableLayer,
     symbolTable :: Map.Map String SymbolTableLayer,
-    ssaId :: Int
+    ssaId :: Int,
+    qcis :: Bool
 }
 
 type PassMonad = ExceptT CompileError (StateT ImportEnv IO)
@@ -74,8 +75,8 @@ compileRAII ast = runExcept $ do
     ast_raii <- pass $ raiiCheck ast_verify_top_vardef
     return ast_raii
 
-processGlobal :: String -> ([TCAST], SymbolTableLayer, Int)
-processGlobal s = do
+processGlobal :: String -> Bool -> ([TCAST], SymbolTableLayer, Int)
+processGlobal s qcis = do
     case tokenize s of
         Left _ -> error "Global code pass error"
         Right tokens -> do
@@ -83,7 +84,7 @@ processGlobal s = do
             case compileRAII ast of
                 Left _ -> error "Global code RAII error"
                 Right raii -> do
-                    case typeCheckTop False "." raii MultiMap.empty 0 of
+                    case typeCheckTop False "." raii MultiMap.empty 0 qcis of
                         Left x -> error $ "Global code type check error: " ++ (show $ encode x)
                         Right x -> x
 
@@ -160,7 +161,8 @@ doImport incPath froms file node = do
                                 Right raii -> do
                                     --liftIO $ BS.hPut stdout (encode raii) -- for debug
                                     oldId <- gets ssaId
-                                    let errOrTuple = typeCheckTop isMain prefix raii importTable oldId
+                                    qcis <- gets qcis
+                                    let errOrTuple = typeCheckTop isMain prefix raii importTable oldId qcis
                                     case errOrTuple of
                                         Left x -> throwError $ fromError x
                                         Right (tcast, table, newId) -> do
@@ -225,12 +227,12 @@ generateTcast incPathStr inputFileName qcis = do
     let gc = case qcis of
             True -> globalSourceQcis
             False -> globalSource
-    let (globalTcasts, globalTable, ssaId) = processGlobal (gc ++ globalQmpiSource)
+    let (globalTcasts, globalTable, ssaId) = processGlobal (gc ++ globalQmpiSource) qcis
     absolutPath <- canonicalizePath inputFileName
     let splitedPath = splitOn ":" incPathStr
     incPath <- mapM canonicalizePath splitedPath
-    let env = ImportEnv globalTable Map.empty ssaId
-    (errOrTuple, (ImportEnv _ _ ssa)) <- runStateT (runExceptT $ fileToTcast incPath [] absolutPath) env
+    let env = ImportEnv globalTable Map.empty ssaId qcis
+    (errOrTuple, (ImportEnv _ _ ssa _)) <- runStateT (runExceptT $ fileToTcast incPath [] absolutPath) env
     case errOrTuple of
         Left x -> return $ Left x
         Right tuple -> return $ Right (globalTcasts ++ fst tuple, ssa)

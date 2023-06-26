@@ -1,5 +1,7 @@
 extern crate std;
-use std::{thread, time, println};
+use std::{thread, time, println, slice, string::String};
+
+use alloc::string::ToString;
 
 use super::super::super::context::get_current_context as context;
 use super::types::*;
@@ -26,6 +28,54 @@ pub fn isq_qir_shim_qis_rz_body(x0: f64, x1: K<QIRQubit>)->() {
     let mut ctx = rctx.lock().unwrap();
     let device = ctx.get_device_mut();
     device.controlled_qop(Rz, &[], &[&x1.key], &[x0]);
+}
+pub fn isq_qir_shim_qis_rxp_body(x0: *mut u8, x1: usize, x2: i64, x3: K<QIRQubit>)->() {
+
+    unsafe{
+        let param: &[u8] = slice::from_raw_parts(x0, x1);
+        let mut theta = String::from(std::str::from_utf8(param).unwrap());
+
+        if x2 >= 0 {
+            theta += &format!("[{}]", x2).to_string();
+        }
+        let rctx = context();
+        let mut ctx = rctx.lock().unwrap();
+        let device = ctx.get_device_mut();
+        device.param_qop(Rx, &[&x3.key], theta);
+    }
+    
+}
+pub fn isq_qir_shim_qis_ryp_body(x0: *mut u8, x1: usize, x2: i64, x3: K<QIRQubit>)->() {
+
+    unsafe{
+        let param: &[u8] = slice::from_raw_parts(x0, x1);
+        let mut theta = String::from(std::str::from_utf8(param).unwrap());
+
+        if x2 >= 0 {
+            theta += &format!("[{}]", x2).to_string();
+        }
+        let rctx = context();
+        let mut ctx = rctx.lock().unwrap();
+        let device = ctx.get_device_mut();
+        device.param_qop(Ry, &[&x3.key], theta);
+    }
+    
+}
+pub fn isq_qir_shim_qis_rzp_body(x0: *mut u8, x1: usize, x2: i64, x3: K<QIRQubit>)->() {
+
+    unsafe{
+        let param: &[u8] = slice::from_raw_parts(x0, x1);
+        let mut theta = String::from(std::str::from_utf8(param).unwrap());
+
+        if x2 >= 0 {
+            theta += &format!("[{}]", x2).to_string();
+        }
+        let rctx = context();
+        let mut ctx = rctx.lock().unwrap();
+        let device = ctx.get_device_mut();
+        device.param_qop(Rz, &[&x3.key], theta);
+    }
+    
 }
 pub fn isq_qir_shim_qis_x2p(x0: K<QIRQubit>)->() {
     trace!(

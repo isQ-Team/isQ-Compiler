@@ -143,7 +143,7 @@ impl QCISCodegen{
         Self{qcis_qubit_counter: 0, finalized: false, generated_code: vec![]}
     }
     pub fn append_op(&mut self, op: &str, args: &[&usize]){
-        let args_separated = args.iter().map(|x| format!("Q{}", **x+1)).join(" ");
+        let args_separated = args.iter().map(|x| format!("Q{}", x)).join(" ");
         self.generated_code.push(format!("{} {}", op, args_separated));
     }
     pub fn finalize_route(&mut self){
@@ -191,7 +191,7 @@ impl QDevice for QCISCodegen{
         }
         if let Rz = op_type{
             let op = format!("RZ");
-            let args_separated = qubits.iter().map(|x| format!("Q{}", **x+1)).join(" ");
+            let args_separated = qubits.iter().map(|x| format!("Q{}", x)).join(" ");
             self.generated_code.push(format!("{} {} {}", op, args_separated, parameters[0]));
             return;
         }
@@ -204,6 +204,30 @@ impl QDevice for QCISCodegen{
             _ => panic!("bad op type {:?}", op_type)
         };
         self.append_op(op_name, qubits);
+    }
+
+    fn param_qop(
+        &mut self,
+        op_type: crate::qdevice::QuantumOp,
+        qubits: &[&Self::Qubit],
+        parameters: String
+    ){
+        use crate::qdevice::QuantumOp::*;
+        if let QcisFinalize = op_type{
+            if !self.finalized{
+                self.finalized=true;
+                self.finalize_route();
+            }
+            
+            return;
+        }
+        let op_name = match op_type{
+            Rx=>"RX", Ry=>"RY", Rz=>"RZ",
+            _ => panic!("bad op type {:?}", op_type)
+        };
+        let args_separated = qubits.iter().map(|x| format!("Q{}", x)).join(" ");
+        self.generated_code.push(format!("{} {} {}", op_name, args_separated, parameters));
+        return;
     }
     
 }

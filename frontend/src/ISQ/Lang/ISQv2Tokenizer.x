@@ -23,7 +23,7 @@ $idrestchar   = [$alpha $digit \_]
 
 @reservedid = 
 	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|bp|return|package|import|assert|
-    ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue|double|as|extern|gate|deriving|oracle|pi
+    ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue|double|as|extern|gate|deriving|oracle|pi|param
 @reservedop = "|0>"|"=="|"="|"+"|"+="|"-"|"-="|"*"|"*="|"/"|"/="|"<"|">"|"<="|">="|"!="|and|"&&"|or|"||"|not|"!"|"%"|"%="|"&"|"|"|"^"|"~"
               |">>"|"<<"|","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"|"**"|".length"
 

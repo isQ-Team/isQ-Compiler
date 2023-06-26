@@ -111,5 +111,11 @@ pub trait QDevice {
         "".into()
     }
     fn print_state(&mut self) {}
+    fn param_qop(
+        &mut self,
+        op_type: QuantumOp,
+        qubits: &[&Self::Qubit],
+        parameters: String
+    ){}
 }
 

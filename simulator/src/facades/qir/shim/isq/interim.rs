@@ -11,6 +11,21 @@ pub extern "C" fn __isq__qir__shim__qis__rz__body(x0: f64, x1: *mut i8)->() {
     unsafe { t(isq_qir_shim_qis_rz_body(t::<_, f64>(x0), t::<_, K<QIRQubit>>(x1)))}
 }
 #[no_mangle]
+pub extern "C" fn __isq__qir__shim__qis__rxp__body(x0: *mut i8, x1: i64, x2: i64, x3: *mut i8)->() {
+    use core::mem::transmute as t;
+    unsafe { t(isq_qir_shim_qis_rxp_body(t::<_, *mut u8>(x0), t::<_, usize>(x1), t::<_, i64>(x2), t::<_, K<QIRQubit>>(x3)))}
+}
+#[no_mangle]
+pub extern "C" fn __isq__qir__shim__qis__ryp__body(x0: *mut i8, x1: i64, x2: i64, x3: *mut i8)->() {
+    use core::mem::transmute as t;
+    unsafe { t(isq_qir_shim_qis_ryp_body(t::<_, *mut u8>(x0), t::<_, usize>(x1), t::<_, i64>(x2), t::<_, K<QIRQubit>>(x3)))}
+}
+#[no_mangle]
+pub extern "C" fn __isq__qir__shim__qis__rzp__body(x0: *mut i8, x1: i64, x2: i64, x3: *mut i8)->() {
+    use core::mem::transmute as t;
+    unsafe { t(isq_qir_shim_qis_rzp_body(t::<_, *mut u8>(x0), t::<_, usize>(x1), t::<_, i64>(x2), t::<_, K<QIRQubit>>(x3)))}
+}
+#[no_mangle]
 pub extern "C" fn __isq__qir__shim__qis__x2p(x0: *mut i8)->() {
     use core::mem::transmute as t;
     unsafe { t(isq_qir_shim_qis_x2p(t::<_, K<QIRQubit>>(x0)))}

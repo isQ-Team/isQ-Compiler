@@ -4,7 +4,7 @@ use serde_json::*;
 use crate::error::*;
 use serde_json::Value as V;
 
-use std::{fs::File, io::{Read}};
+use std::{fs::File, io::{Read}, fmt::format};
 
 
 pub fn parse_type(input: &Value)->String{
@@ -18,6 +18,7 @@ pub fn parse_type(input: &Value)->String{
         "Bool"=>format!("bool"),
         "Double"=>format!("double"),
         "Complex"=>format!("complex"),
+        "Param"=>format!("param"),
         "Array"=>format!("[{};{}]", parse_type(&subtypes[0]), input["ty"]["contents"].as_i64().unwrap()),
         "UserType"=>format!("{}<{}>", input["ty"]["contents"].as_str().unwrap(), subtypes.iter().map(parse_type).collect::<Vec<_>>().join(", ")),
         "IntRange"=>format!("range"),

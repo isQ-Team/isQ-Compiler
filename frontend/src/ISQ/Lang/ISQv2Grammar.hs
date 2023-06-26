@@ -8,7 +8,7 @@ import qualified Data.Map.Lazy as Map
 import Control.Monad.Fix
 type Ident = String
 type ASTBlock ann = [AST ann]
-data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | Array Int | UserType String | IntRange | Gate Int | Logic Int | FuncTy deriving (Show, Eq)
+data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | Array Int | UserType String | IntRange | Gate Int | Logic Int | FuncTy | Param deriving (Show, Eq)
 data Type ann = Type { annotationType :: ann, ty :: BuiltinType, subTypes :: [Type ann]} deriving (Show,Functor, Eq)
 
 intType ann = Type ann Int []
@@ -20,6 +20,7 @@ unitType ann = Type ann Unit []
 refType ann s = Type ann Ref [s]
 refIntType ann = Type ann Ref [intType ann]
 refBoolType ann = Type ann Ref [boolType ann]
+paramType ann = Type ann Param []
 
 data CmpType = Equal | NEqual | Greater | Less | GreaterEq | LessEq deriving (Eq, Show)
 data BinaryOperator = Add | Sub | Mul | Div | CeilDiv | Mod | And | Or | Andi | Ori | Xori | Cmp CmpType | Pow | Shl | Shr deriving (Eq, Show)
@@ -118,6 +119,8 @@ data AST ann =
      | NOracleFunc { annotationAST :: ann, gateName :: String, oracleN :: Int, oracleM :: Int, inVar :: String, procBody :: [AST ann] }
      | NOracleLogic { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, logicArgs :: [(Type (), Ident)], procBody :: [AST ann] }
      | NResolvedOracleLogic { annotationAST :: ann, resolvedProcReturnType :: Type (), procName :: String, resolvedProcArgs :: [(Type (), Int)], procBody :: [AST ann] }
+     | NDefParam { annotationAST :: ann, paramList :: [(Ident, Maybe Pos)] }
+     | NResolvedDefParam { annotationAST :: ann, resolvedParamList :: [(Ident, Ident)]}
      deriving (Eq, Show, Functor)
 
 data GateModifier = Inv | Ctrl Bool Int deriving (Show, Eq)

@@ -33,6 +33,14 @@ pub struct NoISQv2RootError;
 pub struct QCISConfigNotSpecified;
 
 #[derive(Error, Debug, Diagnostic)]
+#[error("qcis generate error.")]
+#[diagnostic(
+    code(isqv2::qcis_invalid_output),
+    help("{0}")
+)]
+pub struct QCISGenerateError(pub String);
+
+#[derive(Error, Debug, Diagnostic)]
 #[error("Invalid output from frontend compiler.")]
 #[diagnostic(
     code(isqv2::isqc1_invalid_output),

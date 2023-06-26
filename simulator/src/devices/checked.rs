@@ -99,4 +99,17 @@ impl<Q, T: QDevice<Qubit = Q>> QDevice for CheckedDevice<Q, T> {
         self.device.get_measure_res()
     }
     fn print_state(&mut self) { self.device.print_state(); }
+    fn param_qop(
+            &mut self,
+            op_type: QuantumOp,
+            qubits: &[&Self::Qubit],
+            parameters: alloc::string::String
+        ) {
+        let m = &mut self.qubit_mapping;
+        let real_qubits = qubits
+            .iter()
+            .map(|x| m.get(&x).expect(&format!("Qubit #{} does not exist", x)))
+            .collect::<Vec<_>>();
+        self.device.param_qop(op_type, &real_qubits, parameters)
+    }
 }
