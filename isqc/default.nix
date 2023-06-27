@@ -2,19 +2,8 @@
 , gitignoreSource ? vendor.gitignoreSource
 , isQVersion
 , isQVersionHook
+, isQRustPackages
 }:
-let
-  rustPlatform = vendor.rustPlatform;
-in
-rustPlatform.buildRustPackage rec {
-  pname = "isqc-driver";
-  inherit (isQVersion) version;
-  src = gitignoreSource ../.;
-  cargoBuildFlags = "-p isqc";
-  cargoTestFlags = "-p isqc";
-  nativeBuildInputs = [ isQVersionHook ];
-  cargoLock = {
-    lockFile = ../Cargo.lock;
-  };
-  doCheck = false; # TODO: move tests out of the crate.
-}
+(isQRustPackages.workspace."isqc" { }).overrideAttrs (final: prev: {
+  nativeBuildInputs = prev.nativeBuildInputs ++ [ isQVersionHook ];
+})

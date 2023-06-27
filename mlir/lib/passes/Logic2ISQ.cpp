@@ -1,3 +1,4 @@
+#include <llvm/ADT/Hashing.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -56,10 +57,7 @@ public:
         // A helper function that get the SSA identifier linked to a value
         mlir::AsmState state(op);
         auto value2str = [&](mlir::Value value) -> std::string {
-            std::string res;
-            llvm::raw_string_ostream output(res);
-            value.printAsOperand(output, state);
-            return res;
+            return std::to_string((size_t)llvm::hash_value(value.getImpl()));
         };
 
         // Create input signals based on the function inputs.
@@ -79,7 +77,7 @@ public:
             std::string lname = value2str(lhs);
             std::string rname = value2str(rhs);
             std::string res_name = value2str(res);
-            symbol_table[{res_name, -1}] = (xag.*create)(symbol_table[{lname, -1}], symbol_table[{rname, -1}]);
+            symbol_table[{res_name, -1}] = (xag.*create)(symbol_table.at({lname, -1}), symbol_table.at({rname, -1}));
         };
 
         // Binary vector operator processing template
@@ -90,7 +88,7 @@ public:
             std::string res_name = value2str(res);
             int width = getBitWidth(res);
             for (int j=0; j<width; j++) {
-                symbol_table[{res_name, j}] = (xag.*create)(symbol_table[{lname, j}], symbol_table[{rname, j}]);
+                symbol_table[{res_name, j}] = (xag.*create)(symbol_table.at({lname, j}), symbol_table.at({rname, j}));
             }
         };
         
@@ -100,7 +98,7 @@ public:
             if (logic::ir::NotOp notop = llvm::dyn_cast<logic::ir::NotOp>(it)) {
                 std::string operand = value2str(notop.getOperand());
                 std::string res = value2str(notop.getResult());
-                symbol_table[{res, -1}] = xag.create_not(symbol_table[{operand, -1}]);
+                symbol_table[{res, -1}] = xag.create_not(symbol_table.at({operand, -1}));
             }
             else if (logic::ir::NotvOp notvop = llvm::dyn_cast<logic::ir::NotvOp>(it)) {
                 std::string operand = value2str(notvop.getOperand());
@@ -108,7 +106,7 @@ public:
                 std::string res = value2str(result);
                 int width = getBitWidth(result);
                 for (int i=0; i<width; i++) {
-                    symbol_table[{res, i}] = xag.create_not(symbol_table[{operand, i}]);
+                    symbol_table[{res, i}] = xag.create_not(symbol_table.at({operand, i}));
                 }
             }
             else if (logic::ir::AndOp binop = llvm::dyn_cast<logic::ir::AndOp>(it)) {
@@ -145,7 +143,7 @@ public:
                 int ioffset = ooffset.getValue().dyn_cast<mlir::IntegerAttr>().getInt();
                 std::string res = value2str(load.getResult());
                 std::string memref = value2str(load.getMemref());
-                symbol_table[{res, -1}] = symbol_table[{memref, ioffset}];
+                symbol_table[{res, -1}] = symbol_table.at({memref, ioffset});
             }
             else if (mlir::memref::StoreOp store = llvm::dyn_cast<mlir::memref::StoreOp>(it)) {
                 mlir::Value voffset = *store.getIndices().begin();
@@ -153,14 +151,14 @@ public:
                 int ioffset = ooffset.getValue().dyn_cast<mlir::IntegerAttr>().getInt();
                 std::string val = value2str(store.getValue());
                 std::string memref = value2str(store.getMemref());
-                symbol_table[{memref, ioffset}] = symbol_table[{val, -1}];
+                symbol_table[{memref, ioffset}] = symbol_table.at({val, -1});
             }
             else if (logic::ir::ReturnOp ret = llvm::dyn_cast<logic::ir::ReturnOp>(it)) {
                 mlir::Value oprand = ret.getOperand(0);
                 std::string str = value2str(oprand);
                 int width = getBitWidth(oprand);
                 for (int i=0; i<width; i++) {
-                    mockturtle::xag_network::signal sig = symbol_table[{str, i}];
+                    mockturtle::xag_network::signal sig = symbol_table.at({str, i});
                     xag.create_po(sig);
                 }
             }
@@ -171,8 +169,10 @@ public:
         caterpillar::greedy_pebbling_mapping_strategy<mockturtle::xag_network> strategy;
         tweedledum::netlist<caterpillar::stg_gate> circ;
         caterpillar::logic_network_synthesis_stats stats;
+        tweedledum::stg_from_pprm stg_fn;
+        caterpillar::logic_network_synthesis_params ps;
         caterpillar::detail::logic_network_synthesis_impl_oracle<tweedledum::netlist<caterpillar::stg_gate>, 
-            mockturtle::xag_network, tweedledum::stg_from_pprm> impl( circ, xag, strategy, {}, {}, stats );
+            mockturtle::xag_network, tweedledum::stg_from_pprm> impl( circ, xag, strategy, stg_fn, ps, stats );
         impl.run();
         
         // Construct MLIR-style circuit. 
@@ -412,13 +412,20 @@ struct LogicToISQPass : public mlir::PassWrapper<LogicToISQPass, mlir::Operation
         mlir::ModuleOp m = this->getOperation();
         auto ctx = m->getContext();
 
-        mlir::RewritePatternSet rps(ctx);
-        rps.add<RuleReplaceLogicReturn>(ctx);
-        rps.add<RuleReplaceLogicFunc>(ctx);
-        rps.add<RuleReplaceLogicApply>(ctx);
-        rps.add<RuleReplaceLogicUse>(ctx);
-        mlir::FrozenRewritePatternSet frps(std::move(rps));
-        (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+        do{
+            mlir::RewritePatternSet rps(ctx);
+            rps.add<RuleReplaceLogicFunc>(ctx);
+            mlir::FrozenRewritePatternSet frps(std::move(rps));
+            (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+        }while(0);
+        do{
+            mlir::RewritePatternSet rps(ctx);
+            rps.add<RuleReplaceLogicReturn>(ctx);
+            rps.add<RuleReplaceLogicApply>(ctx);
+            rps.add<RuleReplaceLogicUse>(ctx);
+            mlir::FrozenRewritePatternSet frps(std::move(rps));
+            (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+        }while(0);
 
         mlir::RewritePatternSet rps2(ctx);
         rps2.add<RuleReplaceLogicCall>(ctx);

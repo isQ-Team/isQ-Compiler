@@ -46,6 +46,9 @@ upload:
 	| jq -r '.[].outputs | to_entries[].value' \
 	| cachix push arclight-quantum
 
+cargo2nix:
+	yes yes | cargo2nix
+	nixpkgs-fmt Cargo.nix
 clean: check-env
 	rm .build -r
 	mkdir -p .build

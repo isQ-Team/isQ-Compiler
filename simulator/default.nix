@@ -6,6 +6,7 @@
 , callPackage
 , isQVersion
 , isQVersionHook
+, isQRustPackages
 }:
 let
   rustPlatform = vendor.rustPlatform;
@@ -25,30 +26,14 @@ let
   pluginFeatures = lib.catAttrs "feature" plugins;
   pluginExports = builtins.foldl' (x: y: x // y) { } (lib.catAttrs "exports" plugins);
 in
-rustPlatform.buildRustPackage ((pluginExports) // rec {
-  pname = "isq-simulator";
-  inherit (isQVersion) version;
-  nativeBuildInputs = [ llvm_tools isQVersionHook ];
-  #buildInputs = (builtins.concatLists [
-  #  (addInput build_cuda_plugin (pkgs.lib.getLib cudaPlugin))
-  #  (addInput build_qcis_plugin routingPlugin)
-  #]);
-  buildInputs = pluginDeps;
-  src = gitignoreSource ../.;
-  cargoBuildFlags = "-p isq-simulator";
-  cargoTestFlags = "-p isq-simulator";
-  cargoLock = {
-    lockFile = ../Cargo.lock;
-  };
-  buildFeatures = pluginFeatures;
-  buildNoDefaultFeatures = true;
-  #buildFeatures = builtins.concatLists [
-  #  (addInput build_cuda_plugin "cuda")
-  #  (addInput build_qcis_plugin "qcis")
-  #];
+((isQRustPackages.workspace."isq-simulator" { }).override {
+  features = pluginFeatures;
+}).overrideAttrs (final: prev: ((pluginExports) // rec {
+  buildInputs = prev.buildInputs ++ pluginDeps;
+  nativeBuildInputs = prev.nativeBuildInputs ++ [ llvm_tools isQVersionHook ];
   postInstall = ''
+    src=${final.src};
     mkdir -p $out/share/isq-simulator
-    src=${src}/simulator
     ${llvm_tools}/bin/llvm-link $src/src/facades/qir/shim/qir_builtin/shim.ll \
     $src/src/facades/qir/shim/qsharp_core/shim.ll  \
     $src/src/facades/qir/shim/qsharp_foundation/shim.ll \
@@ -59,4 +44,4 @@ rustPlatform.buildRustPackage ((pluginExports) // rec {
   '';
   passthru.availablePlugins = availablePlugins;
 }
-)
+))

@@ -46,7 +46,7 @@ if(ISQ_OPT_ENABLE_ASSERTIONS)
 endif()
 
 
-# SET(CMAKE_BUILD_TYPE "Release")
+SET(CMAKE_BUILD_TYPE "Release")
 set (CMAKE_CXX_STANDARD 20)
 add_compile_options(-fno-rtti)
 add_compile_options(-g)
@@ -85,6 +85,8 @@ add_subdirectory(include)
 add_definitions(${LLVM_DEFINITIONS})
 add_subdirectory(lib)
 get_property(mlir_libs GLOBAL PROPERTY MLIR_ALL_LIBS)
+get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 add_subdirectory(tools)
 
 #add_custom_target(qir-doc ALL)

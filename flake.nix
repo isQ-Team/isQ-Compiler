@@ -1,6 +1,11 @@
 {
   description = "isQ Compiler";
   inputs = {
+    cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.11.0";
+    cargo2nix.inputs.nixpkgs.follows = "nixpkgs";
+    cargo2nix.inputs.flake-utils.follows = "flake-utils";
+    cargo2nix.inputs.rust-overlay.follows = "rust-overlay";
+
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
@@ -26,7 +31,7 @@
     extra-substituters = [ "https://arclight-quantum.cachix.org" "https://pre-commit-hooks.cachix.org" ];
     extra-trusted-public-keys = [ "arclight-quantum.cachix.org-1:DiMhc4M3H1Z3gBiJMBTpF7+HyTwXMOPmLVkjREzF404=" "pre-commit-hooks.cachix.org-1:Pkk3Panw5AW24TOv6kz3PvLhlH8puAsJTBbOPmBo7Rc=" ];
   };
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat, gitignore, pre-commit-hooks, ... }@flakeInputs:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat, gitignore, pre-commit-hooks, cargo2nix, ... }@flakeInputs:
     let
       lib = nixpkgs.lib;
       base = import ./base/isq-flake.nix { inherit nixpkgs; inherit flake-utils; };
@@ -75,12 +80,24 @@
                 rustc = rust;
               };
           };
-          isqc-driver = (final.callPackage ./isqc { isQVersion = versionInfo; });
+
           isq-opt = (final.callPackage ./mlir { isQVersion = versionInfo; });
-          isq-simulator = (final.callPackage ./simulator { isQVersion = versionInfo; });
-          isq-simulator-cuda = (final.callPackage ./simulator { enabledPlugins = [ "qcis" "cuda" ]; });
-          isqc1 = (final.callPackage ./frontend { isQVersion = versionInfo; });
           isqc-docs = (final.callPackage ./docs { isQVersion = versionInfo; });
+
+          # Rust packages are placed in one workspace.
+          # Workspace.
+          isQRustPackages = pkgs.rustBuilder.makePackageSet {
+            rustToolchain = final.vendor.rust;
+            packageFun = import ./Cargo.nix;
+          };
+          # Rust packages.
+          isqc-driver = (final.callPackage ./isqc { inherit isQRustPackages; isQVersion = versionInfo; });
+          isq-simulator = (final.callPackage ./simulator { inherit isQRustPackages; isQVersion = versionInfo; });
+          isq-simulator-cuda = (final.callPackage ./simulator { inherit isQRustPackages; isQVersion = versionInfo; enabledPlugins = [ "qcis" "cuda" ]; });
+
+
+          isqc1 = (final.callPackage ./frontend { isQVersion = versionInfo; });
+
           isqc = (final.buildISQCEnv { });
 
 
@@ -91,7 +108,7 @@
             , isq-simulator ? final.isq-simulator
             }: pkgs.buildEnv {
               name = "isqc";
-              paths = [ ./sysroot isqc1 isq-opt isqc-driver isq-simulator isq-opt.mlir ];
+              paths = [ ./sysroot isqc1 isq-opt isqc-driver isq-simulator.out isq-opt.mlir ];
               nativeBuildInputs = [ pkgs.makeWrapper ];
               postBuild = ''
                 wrapProgram $out/bin/isqc --set ISQ_ROOT $out --set LLVM_ROOT ${final.vendor.mlir}
@@ -156,11 +173,18 @@
         "isQVersionHook"
       ];
       defaultComponent = "isqc";
-      preOverlays = [ rust-overlay.overlays.default ];
+      preOverlays = [ cargo2nix.overlays.default ];
       shell = { pkgs, system }: pkgs.mkShell.override { stdenv = pkgs.isqc.vendor.stdenvLLVM; } {
         inputsFrom = map (component: if component ? passthru && component.passthru ? isQDevShell then component.passthru.isQDevShell else component) (with pkgs.isqc; [ isqc1 isq-opt isqc-driver isq-simulator isqc-docs ]);
         # https://github.com/NixOS/nix/issues/6982
-        nativeBuildInputs = [ pkgs.bashInteractive pkgs.nixpkgs-fmt pkgs.rnix-lsp pkgs.isqc.vendor.rust pkgs.isqc.isQVersionHook ];
+        nativeBuildInputs = [
+          pkgs.bashInteractive
+          pkgs.nixpkgs-fmt
+          pkgs.rnix-lsp
+          pkgs.isqc.vendor.rust
+          pkgs.isqc.isQVersionHook
+          cargo2nix.packages.${system}.default
+        ];
         ISQC_DEV_ENV = "dev";
         inherit (self.checks.${system}.pre-commit-check) shellHook;
       };
@@ -183,6 +207,11 @@
                 enable = true;
                 name = "Update isQ version in different subprojects";
                 entry = "./scripts/update-versions.py";
+              };
+              cargo2nix = {
+                enable = true;
+                name = "Run cargo2nix";
+                entry = "make cargo2nix";
               };
             };
           };

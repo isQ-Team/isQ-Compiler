@@ -931,7 +931,8 @@ private:
             op.emitOpError("without definition not supported.");
             return mlir::failure();
         }
-        for(auto& def_ : *op.getDefinition()){
+        auto def = op.getDefinition();
+        for(auto& def_ : *def){
             auto def = def_.cast<GateDefinition>();
             if(def.getType()=="unitary"){
                 auto mat = def.getValue().cast<DenseComplexF64MatrixAttr>();

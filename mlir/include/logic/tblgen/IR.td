@@ -23,7 +23,7 @@ def Logic_Dialect: Dialect {
 class Logic_Op<string mnemonic, list<Trait> traits = []> :
     Op<Logic_Dialect, mnemonic, traits> {}
 
-def Logic_FuncOp : Logic_Op<"func", [FunctionOpInterface]> {
+def Logic_FuncOp : Logic_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
     let summary = "Define a logic function.";
     let arguments = (ins
         SymbolNameAttr: $sym_name,

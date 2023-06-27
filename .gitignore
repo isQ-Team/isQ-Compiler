@@ -20,3 +20,4 @@ build/
 /.pre-commit-config.yaml
 /.build
 /target
+/result-bin

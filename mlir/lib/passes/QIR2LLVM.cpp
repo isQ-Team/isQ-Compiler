@@ -162,7 +162,6 @@ struct QIRRepToLLVMPass : public mlir::PassWrapper<QIRRepToLLVMPass, mlir::Opera
         LLVMTypeConverter typeConverter(&getContext());
         //llvm::errs() << "Host index bit width: " <<typeConverter.getIndexTypeBitwidth() << "\n";
         
-
         typeConverter.addConversion([&](isq::ir::QIRQubitType type) {
             return LLVM::LLVMPointerType::get(LLVM::LLVMStructType::getOpaque(StringRef("Qubit"), &getContext()));
         });
