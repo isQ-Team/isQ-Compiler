@@ -46,11 +46,16 @@ if(ISQ_OPT_ENABLE_ASSERTIONS)
 endif()
 
 
-SET(CMAKE_BUILD_TYPE "Release")
 set (CMAKE_CXX_STANDARD 20)
 add_compile_options(-fno-rtti)
 add_compile_options(-g)
 add_compile_options(-Wno-error=ambiguous-reversed-operator)
+add_compile_definitions(ISQ_OPT_BUILD_TYPE=${CMAKE_BUILD_TYPE})
+add_compile_definitions(ISQ_BUILD_FROZEN=$ENV{ISQ_BUILD_FROZEN})
+add_compile_definitions(ISQ_BUILD_SEMVER=$ENV{ISQ_BUILD_SEMVER})
+add_compile_definitions(ISQ_BUILD_REV=$ENV{ISQ_BUILD_REV})
+add_compile_definitions(ISQ_BUILD_VERSION=$ENV{ISQ_BUILD_VERSION})
+
 find_package(LLVM 16.0.6 REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
