@@ -6,7 +6,7 @@ use std::process::Command; // Run programs
 fn unrecognized_command() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("isqc")?;
     cmd.arg("unknown");
-    cmd.assert().failure().stderr(predicate::str::contains("which wasn't expected"));
+    cmd.assert().failure().stderr(predicate::str::contains("unrecognized subcommand"));
     Ok(())
 }
 
@@ -14,7 +14,7 @@ fn unrecognized_command() -> Result<(), Box<dyn std::error::Error>> {
 fn help_command() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("isqc")?;
     cmd.arg("-h");
-    cmd.assert().success().stdout(predicate::str::contains("Print help information"));
+    cmd.assert().success().stdout(predicate::str::contains("Print help"));
     Ok(())
 }
 

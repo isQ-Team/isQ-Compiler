@@ -18,7 +18,7 @@ fn test_assert_stdout(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-#[test_case("length_mismatch", "op requires the same shape")]
+#[test_case("length_mismatch", "are cast incompatible")]
 fn test_assert_stderr(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
     let folder = Path::new("tests").join("input").join("assert");
