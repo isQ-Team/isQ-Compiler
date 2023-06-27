@@ -1,7 +1,6 @@
 import numpy as np
 import math
 
-n = 6
 
 def next2pow(n):
     return pow(2, math.ceil(math.log(n)/math.log(2)))
@@ -24,7 +23,6 @@ def generate_subspace_unitary(n, d, indices):
     
     return U
 
-graph = np.array([[1, 1, 1, 0, 0, 0], [1, 1, 0, 1, 1, 0], [1, 0, 1, 1, 1, 0], [0, 1, 1, 1, 0, 1], [0, 1, 1, 0, 1, 1], [0, 0, 0, 1, 1, 1]], np.int32)
 
 def print_isq_gate(U, name):
 
@@ -126,6 +124,7 @@ def gen_walk_proc(qubit_count, nameA, nameB):
     
     return code
 
+
 def gen_main(qubit_count, nameA, nameB, steps):
     indent = "\t"
     code = ""
@@ -140,25 +139,29 @@ def gen_main(qubit_count, nameA, nameB, steps):
     code += "}\n"
     return code
 
+
+def gen_isq_for_arcrev_walk(n, graph, nameA, nameB, steps):
+    
+    extended = next2pow(n)
+    qubit_count = math.ceil(math.log2(extended))
+    
+    program = ""
+
+    program += "import std;\n\n"
+
+    program += generate_coin_operator(n, graph, nameA, nameB)
+    program += gen_rev_arc_proc(qubit_count, nameA, nameB)
+    program += gen_walk_proc(qubit_count, nameA, nameB)
+    program += gen_main(qubit_count, nameA, nameB, steps)
+
+    return program
+
+n = 6
+graph = np.array([[1, 1, 1, 0, 0, 0], [1, 1, 0, 1, 1, 0], [1, 0, 1, 1, 1, 0], [0, 1, 1, 1, 0, 1], [0, 1, 1, 0, 1, 1], [0, 0, 0, 1, 1, 1]], np.int32)
+
 nameA = "U_"
 nameB = "V_"
 
-extended = next2pow(n)
-qubit_count = math.ceil(math.log2(extended))
+steps =3
 
-steps = 3
-
-program = ""
-
-program += "import std;\n\n"
-
-
-program += generate_coin_operator(n, graph, nameA, nameB)
-
-program += gen_rev_arc_proc(qubit_count, nameA, nameB)
-
-program += gen_walk_proc(qubit_count, nameA, nameB)
-
-program += gen_main(qubit_count, nameA, nameB, steps)
-
-print(program)
+print(gen_isq_for_arcrev_walk(n, graph, nameA, nameB, steps))
