@@ -52,6 +52,8 @@ using std::to_string;
 using std::tuple;
 using std::get;
 using std::make_tuple;
+using std::pair;
+using std::make_pair;
 //using namespace std;
 
 enum class OpType : uint32_t {
@@ -74,17 +76,15 @@ using namespace mlir::arith;
 using namespace mlir::memref;
 using namespace mlir::scf;
 using CodegenOpVisitor = OpVisitor<
-    mlir::func::FuncOp, AffineIfOp, AffineForOp,
+    mlir::func::FuncOp, scf::IfOp, scf::ForOp, scf::ExecuteRegionOp,
     GetGlobalOp, GlobalOp,
-    mlir::arith::ConstantOp, AllocaOp,
-    AffineLoadOp, AffineStoreOp,
-    IndexCastOp, CmpIOp,
-    AddIOp, SubIOp, MulIOp, DivSIOp,
-    UseGateOp, DecorateOp,
-    ApplyGateOp, CallQOpOp,
-    mlir::func::CallOp, mlir::func::ReturnOp,DefgateOp, WhileOp, ConditionOp,
-    ModuleOp, SubViewOp, PassOp, AffineYieldOp, scf::YieldOp,
-    memref::CastOp, mlir::scf::IfOp
+    mlir::arith::ConstantOp, mlir::arith::ExtUIOp, mlir::arith::IndexCastOp, mlir::arith::SIToFPOp,
+    AllocOp, DeallocOp, memref::LoadOp, memref::StoreOp, SubViewOp, memref::CastOp, CmpIOp,
+    AddIOp, SubIOp, MulIOp, DivSIOp, RemSIOp, AddFOp, SubFOp, MulFOp, DivFOp, NegFOp, AndIOp,
+    UseGateOp, DecorateOp, ApplyGateOp, CallQOpOp, AccumulateGPhase, DeclareQOpOp, AssertOp,
+    mlir::func::CallOp, mlir::func::ReturnOp, DefgateOp, scf::WhileOp, scf::ConditionOp,
+    ModuleOp, PassOp, AffineYieldOp, scf::YieldOp,
+    mlir::cf::CondBranchOp, mlir::cf::BranchOp, AffineLoadOp, AffineStoreOp
     >;
 }
 
@@ -103,7 +103,7 @@ public:
         argCnt = 1;
         tmpVarCnt = 1;
         qVarCnt = 1;
-        tmpVarHead = "tmp_i_";
+        tmpVarHead = "tmp_c_";
         qVarHead = "tmp_q_";
         nowBlockOp = "";
         funcName = "";
@@ -111,9 +111,23 @@ public:
         //printOperation(theModule->getOperation());
         //isqtool.initTools(context);
         initGate();
-        openQasmHead();
         initializeIntegerSets();
-        return visitOperation(theModule->getOperation());
+
+        openQasmHead();
+
+        TRY(traverseOperation(theModule->getOperation()));
+        buildCallDic();
+        
+
+        for (auto f: callfunc){
+            nowfunc = f;
+            if (nowfunc == "__isq__main") continue;
+            TRY(visitOp(funcMap[nowfunc].second));
+        }
+        
+        nowfunc = "__isq__main";
+        TRY(visitOp(funcMap[nowfunc].second));
+        return mlir::success();
     }
 
 private:
@@ -151,6 +165,15 @@ private:
     set<size_t> argSet;
     map<size_t, tuple<OpType, int, string>> symbolTable;
     map<size_t, tuple<bool, int, int>> ctrlGate;
+
+
+    map<string, pair<set<string>, mlir::func::FuncOp>> funcMap;
+    map<string, int> globalSymbol;
+    set<string> callfunc;
+    string nowfunc;
+
+    size_t yieldRes;
+    string whileCond;
 
     //isqTools isqtool;
 
@@ -256,6 +279,121 @@ private:
         }
 
     }
+
+    mlir::LogicalResult traverseRegion(mlir::Region& region){
+
+        for (auto &b : region.getBlocks()){
+            TRY(traverseBlock(b));
+        }
+        return mlir::success();
+    }
+
+    mlir::LogicalResult traverseBlock(mlir::Block& block){
+        for (auto &p : block.getOperations()){
+            auto fop = mlir::dyn_cast_or_null<mlir::func::FuncOp>(&p);
+            if (fop != nullptr){
+                set<string> funcs;
+                nowfunc = fop.getSymName().str();
+                funcMap.insert(make_pair(nowfunc, make_pair(funcs, fop)));
+            }
+            TRY(traverseOperation(&p));
+        }
+        return mlir::success();
+    }
+
+    mlir::LogicalResult getVarType(mlir::Type ty, string& var_type, mlir::Location loc){
+
+        var_type = "int";
+        if (ty.isa<QStateType>()){
+            var_type = "qubit";
+        }else if (ty.isa<mlir::IndexType>() || ty.isa<mlir::IntegerType>()){
+            auto ity = ty.dyn_cast_or_null<mlir::IntegerType>();
+            if (ity != nullptr){
+                auto width = ity.getWidth();
+                if (width == 1) var_type = "bool";
+            }
+        }else if (ty.isa<mlir::Float64Type>()){
+            var_type = "float";
+        }else{
+            return error(loc, "invalid type in OpenQASM3");
+        }
+        return mlir::success();
+    }
+
+    mlir::LogicalResult traverseOperation(mlir::Operation* op){
+        auto callop = mlir::dyn_cast_or_null<mlir::func::CallOp>(op);
+        if (callop != nullptr){
+            auto name = callop.getCallee().str();
+            funcMap[nowfunc].first.insert(name);
+        }
+
+        auto globalop = mlir::dyn_cast_or_null<mlir::memref::GlobalOp>(op);
+        if (globalop != nullptr){
+            auto name = globalop.sym_name().str();
+            if (name != ".__qmpi_rank") {
+                int size = globalop.type().getShape()[0];
+                string var_type;
+                TRY(getVarType(globalop.type().getElementType(), var_type, op->getLoc()))
+                openQasmVarDefine(name, var_type, size);
+            }
+        }
+
+        for (auto &r:op->getRegions()){
+            TRY(traverseRegion(r));
+        }
+        return mlir::success();
+    }
+
+    void buildCallDic(){
+        callfunc.insert("__isq__main");
+        set<string> now = {"__isq__main"};
+        while (!now.empty()){
+            set<string> tmp;
+            for (auto fn: now){
+                for (auto nfn: funcMap[fn].first){
+                    if (callfunc.count(nfn) == 0){
+                        tmp.insert(nfn);
+                        callfunc.insert(nfn);
+                    }
+                }
+            }
+            now = tmp;
+        }
+    }
+
+    mlir::LogicalResult error(mlir::Location loc, string msg){
+        emitError(loc, msg);
+        return mlir::failure();
+    }
+
+    string getGateName(string gate){
+        int n = gate.size();
+        int pos = 0;
+        for(int i = n-1; i>=0; i--){
+            if (gate[i] == '_'){
+                pos = i+1;
+                break;
+            }
+        }
+        string gn = gate.substr(pos, n-pos);
+        string gn_up = gn;
+        transform(gn.begin(), gn.end(), gn_up.begin(), ::tolower);
+        return gn_up;
+    }
+
+    string getFuncName(string func){
+        int n = func.size();
+        int pos = 0;
+        for(int i = n-1; i>=0; i--){
+            if (func[i] == '.'){
+                pos = i+1;
+                break;
+            }
+        }
+        if (func[pos] == '$') pos += 1;
+        return func.substr(pos, n-pos);
+    }
+
     // First we handle blockful ops, i.e. operations with blocks.
     // Modules, If, While, For, Function.
     mlir::LogicalResult visitBlock(mlir::Block* block){
@@ -278,95 +416,100 @@ private:
         TRY(visitBlock(curr_module.getBody()));
         return mlir::success();
     }
+
     mlir::LogicalResult visitOp(mlir::scf::IfOp if_stmt) override{
-        llvm_unreachable("TODO");
-        return mlir::failure();
-    }
-    mlir::LogicalResult visitOp(mlir::AffineIfOp if_stmt) override{
         // update_symbol_use_operation
-        auto condition = if_stmt.getIntegerSet();
+        
+        auto condition = if_stmt.getCondition();
 
-        string asso, lval, rval;
-
-        if (condition == sgt){
-            asso = ">";
-        }else if (condition == sge){
-            asso = ">=";
-        }else if (condition == eq){
-            asso = "==";
-        }else if (condition == sle){
-            asso = "<=";
-        }else if(condition == slt){
-            asso = "<";
-        }else{
-            if_stmt.emitError("Unsupported affine condition.");
-            return mlir::failure();
-        }
-
-        for (auto indexOperand : llvm::enumerate(if_stmt->getOperands())){
-            auto operand = indexOperand.value();
-            size_t code = size_t(mlir::hash_value(operand));
-            auto res = getSymbol(code);
-            if (indexOperand.index() == 0){
-                lval = get<2>(res);
-            }else{
-                rval = get<2>(res);
-            }
-        }
-        if(!if_stmt.getResults().empty()){
-            if_stmt.emitError("If-stmt with yielded value not supported.");
-            return mlir::failure();
-        }
-        openQasmIf(lval, rval, asso);
-        printIndent()<< "{\n";
+        openQasmIf(get<2>(getSymbol(condition)));
+        os << "{\n";
         indent += 1;
-        TRY(visitBlock(if_stmt.getThenBlock()));
+        TRY(visitBlock(if_stmt.thenBlock()));
         // update_symbol_use_operation
         indent-=1;
-        openQasmNewLine();
-        printIndent()<<"}\n";
-        if(if_stmt.hasElse()){
-            printIndent()<<"else\n";
-            printIndent()<<"{\n";
+        printIndent()<<"}";
+        if(if_stmt.elseBlock()){
+            printIndent()<<"else{\n";
             indent++;
-            TRY(visitBlock(if_stmt.getElseBlock()));
+            TRY(visitBlock(if_stmt.elseBlock()));
             indent--;
-            printIndent()<<"}\n";
+            printIndent()<<"}";
         }
-        openQasmNewLine();
+        os << '\n';
+        
         return mlir::success();
     }
     
     mlir::LogicalResult visitOp(mlir::scf::WhileOp while_stmt) override{
         // Generate while-statement using manual guard.
+        auto cond_block = while_stmt.getBefore().getBlocks().begin();
+        TRY(visitBlock(&*cond_block));
+        openQasmWhile(whileCond);
+        os << "{\n";
+        indent++;
+        auto while_body = while_stmt.getAfter().getBlocks().begin();
+        TRY(visitBlock(&*while_body));
+        indent--;
+        printIndent()<<"}\n";
         return mlir::success();
     }
+
+    mlir::LogicalResult visitOp(mlir::scf::ExecuteRegionOp op) override{
+        
+        int cnt = 0;
+        for (auto pb = op.getRegion().getBlocks().begin(); pb != op.getRegion().getBlocks().end(); ++pb){
+            if (cnt == 1){
+                TRY(visitBlock(&*pb));
+                auto var = getSymbol(yieldRes);
+                TRY(symbolInsert(mlir::hash_value(op->getOpResult(0)), OpType::VAR, 1, get<2>(var)));
+            }
+            cnt += 1;
+        }
+        return mlir::success();
+    }
+
+    mlir::LogicalResult visitOp(mlir::scf::ConditionOp op) override{
+        auto var = getSymbol(op.getCondition());
+        if (get<0>(var) != OpType::VAR){
+            op->emitError("get condition failed");
+        }
+        whileCond = get<2>(var);
+        return mlir::success();
+    }
+
     mlir::LogicalResult visitOp(mlir::func::FuncOp func_op) override{
         // update_symbol_use_operation
+        os << "\n";
         tmpVarCnt = 1;
         qVarCnt = 1;
         argCnt = 1;
         hasRes = false;
+        string rty;
 
         auto attr = func_op.getSymNameAttr();
         
-        funcName = attr.getValue().str();
+        funcName = getFuncName(attr.getValue().str());
 
         auto res_type = func_op.getFunctionType();
+
         for (auto &type: res_type.getResults()){
-            if (type.isa<mlir::IntegerType>()){
-                hasRes = true;
-                break;
+            if (mlir::succeeded(getVarType(type, rty, func_op.getLoc()))){
+                if (rty != "qubit"){
+                    hasRes = true;
+                    break;
+                }
             }
         }
         // update_region
-        auto not_main = func_op.getSymName() != "main";
+        auto not_main = func_op.getSymName() != "__isq__main";
         set<size_t> block_args;
         auto& func_body = func_op.getBody();
+        /*
         if(!func_body.hasOneBlock()) {
             func_op.emitError("OpenQASM codegen only supports functions with exactly one basic block.");
             return mlir::failure();
-        }
+        }*/
         auto func_block = func_body.getBlocks().begin();
         if(not_main){
             vector<tuple<string, string, int>> arglist;
@@ -377,13 +520,13 @@ private:
                 string var_type = "int";
                 if (type.isa<mlir::MemRefType>()){
                     shape = type.dyn_cast<mlir::MemRefType>().getShape()[0];
-                    if (type.dyn_cast<mlir::MemRefType>().getElementType().isa<QStateType>()){
-                        var_type = "qubit";
+                    if (shape == -1){
+                        func_op.emitError("OpenQASM3 codegen only supports parameter with exactly size.");
+                        return mlir::failure();
                     }
-                }else if (type.isa<QStateType>()){
-                    var_type = "qubit";
+                    type = type.dyn_cast<mlir::MemRefType>().getElementType();
                 }
-
+                TRY(getVarType(type, var_type, func_op.getLoc()));
                 arglist.push_back(make_tuple("arg"+to_string(argCnt), var_type, shape));
 
                 size_t code = size_t(mlir::hash_value(arg));
@@ -392,60 +535,50 @@ private:
                 TRY(symbolInsert(code, OpType::VAR, shape, "arg"+to_string(argCnt++)));
             }
 
-            openQasmFunc(funcName, arglist);
+            openQasmFunc(funcName, arglist, rty);
             
             indent += 1;
         }
-        TRY(visitBlock(&*func_block));
+
+        for (auto &block: func_op.getBlocks()){
+            TRY(visitBlock(&block));
+        }
+
         if(not_main){
             indent -= 1;
             for (auto code: block_args){
                 argSet.erase(code);
             }
             openQasmNewLine();
-            os << "}\n\n";
+            os << "}\n";
         }
         return mlir::success();
     }
-    mlir::LogicalResult visitOp(mlir::AffineForOp for_stmt) override{
-        // update_symbol_use_operation
-        string lval, rval;
-        int idx = 0;
-        
-        auto lmap = for_stmt.getLowerBoundMap();
-        if (lmap != singleSymbol){
-            lval = to_string(lmap.getSingleConstantResult());
-        }else{
-            size_t opcode = size_t(mlir::hash_value(for_stmt.getLowerBound().getOperand(0)));
-            auto res = getSymbol(opcode);
-            lval = get<2>(res);
-            idx += 1;
-        }
 
-        auto rmap = for_stmt.getUpperBoundMap();
-        if (rmap != singleSymbol){
-            rval = to_string(rmap.getSingleConstantResult());
-        }else{
-            size_t opcode = size_t(mlir::hash_value(for_stmt.getUpperBound().getOperand(0)));
-            auto res = getSymbol(opcode);
-            rval = get<2>(res);
-            idx += 1;
-        }
+    mlir::LogicalResult visitOp(mlir::cf::CondBranchOp) override{
+        return mlir::success();
+    }
+
+    mlir::LogicalResult visitOp(mlir::scf::ForOp for_stmt) override{
         
-        openQasmFor(tmpVarHead+to_string(tmpVarCnt), lval, rval);
+        string lval = get<2>(getSymbol(for_stmt.getLowerBound()));
+        string rval = get<2>(getSymbol(for_stmt.getUpperBound()));
+        string step = get<2>(getSymbol(for_stmt.getStep()));
         
+        openQasmFor("arg"+to_string(argCnt), lval, rval, step);
+
         // update_symbol_use_block
-        auto block = for_stmt.getBody();
-        if(block->getNumArguments()!=1){
+        auto block = for_stmt.getLoopBody().getBlocks().begin();
+        if((*block).getNumArguments()!=1){
             for_stmt->emitError("for-loop with more than 1 arguments (a.k.a. for-body yielding) is not supported");
             return mlir::failure();
         }
-        TRY(symbolInsert(size_t(mlir::hash_value(block->getArgument(0))), OpType::VAR, 1, tmpVarHead+to_string(tmpVarCnt++)));
+        TRY(symbolInsert(size_t(mlir::hash_value((*block).getArgument(0))), OpType::VAR, 1, "arg"+to_string(argCnt++)));
         indent += 1;
-        TRY(visitBlock(block));
+        TRY(visitBlock(&*block));
         indent -= 1;
-        openQasmNewLine();
-        os << "}\n";
+        printIndent() << "}\n";
+        
         return mlir::success();
     }
     // Then we handle blockless operations.
@@ -486,10 +619,17 @@ private:
         return symbolInsert(size_t(mlir::hash_value(op.result())), OpType::VAR, type.getShape()[0], attr.getValue().str());
     }
     mlir::LogicalResult visitOp(mlir::arith::ConstantOp op) override{
-        auto attr = op.getValueAttr().dyn_cast<mlir::IntegerAttr>();
-        return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, to_string(attr.getInt()));
+        auto ci_attr = op.getValueAttr().dyn_cast<mlir::IntegerAttr>();
+        if (ci_attr != nullptr){
+            return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, to_string(ci_attr.getInt()));
+        }
+        auto fi_attr = op.getValueAttr().dyn_cast<mlir::FloatAttr>();
+        if (fi_attr != nullptr){
+            return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, to_string(fi_attr.getValueAsDouble()));
+        }
+        op->emitError("invalid value type in OpenQASM3");
     }
-    mlir::LogicalResult visitOp(mlir::memref::AllocaOp op) override{
+    mlir::LogicalResult visitOp(mlir::memref::AllocOp op) override{
         // no use, jump
         auto result = op.getResult();
         if (result.use_empty()){
@@ -514,85 +654,101 @@ private:
             }
         }
 
+        string var_type;
+        string var_name;
+        TRY(getVarType(type.getElementType(), var_type, op->getLoc()));
+        
         if (type.getElementType().isa<QStateType>()){
-            openQasmVarDefine(qVarHead+to_string(qVarCnt), "qubit", type.getShape()[0]);
-            return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, type.getShape()[0], qVarHead+to_string(qVarCnt++));
+            var_name = qVarHead+to_string(qVarCnt++);
         }else{
-            openQasmVarDefine(tmpVarHead+to_string(tmpVarCnt), "int", type.getShape()[0]);
-            return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, type.getShape()[0], tmpVarHead+to_string(tmpVarCnt++));   
+            var_name = tmpVarHead+to_string(tmpVarCnt++);      
         }
+        openQasmVarDefine(var_name, var_type, type.getShape()[0]);
+        return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, type.getShape()[0], var_name);
     }
+
     mlir::LogicalResult visitOp(mlir::AffineLoadOp op) override{
         string loadstr = "";
         for (auto indexOperand : llvm::enumerate(op->getOperands())){
             auto operand = indexOperand.value();
             size_t code = size_t(mlir::hash_value(operand));
             auto res = getSymbol(code);
-            //os << "operand " << indexOperand.index() << ": (" << get<0>(res) << ", " << get<1>(res) << ", " << get<2>(res) << ")";
+            //std::cout << "operand " << indexOperand.index() << ": (" << get<1>(res) << ", " << get<2>(res) << ")\n";
             if (indexOperand.index() == 0){
                 loadstr += get<2>(res);
                 //if (get<1>(res) == 1)
                 //    break;
-            }else{
-                loadstr += "[" + get<2>(res) + "]";
             }
         }
+        /*
         if(op->getOperands().size()==2){
             if(op.getAffineMap().isConstant()){
                 loadstr += "[" + to_string(op.getAffineMap().getConstantResults()[0]) + "]";
             }
-        }
-        //os << "; loadstr: " << loadstr << endl;
-        return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, loadstr);
+        }*/
+        //std::cout << "loadstr: " << loadstr << "\n";
+        return symbolInsert(size_t(mlir::hash_value(op.getResult())), OpType::VAR, 1, loadstr);
     }
     mlir::LogicalResult visitOp(mlir::AffineStoreOp op) override{
         string lval = "", rval = "";
         for (auto indexOperand : llvm::enumerate(op->getOperands())){
             auto operand = indexOperand.value();
+            
+            auto type = operand.getType().dyn_cast<mlir::MemRefType>();
+            if (type != nullptr) if (type.getElementType().isa<QStateType>()) return mlir::success();
+
             size_t code = size_t(mlir::hash_value(operand));
             auto res = getSymbol(code);
-            //os << ", operand " << indexOperand.index() << ": (" << get<0>(res) << ", " << get<1>(res) << ", " << get<2>(res) << ")";
-            
+            //os << ", operand " << indexOperand.index() << ": (" << get<1>(res) << ", " << get<2>(res) << ")";
+
+            /*
             if (get<0>(res) == OpType::EMPTY){
                 op->emitError("Can't backtrace operand ")<<operand;
                 return mlir::failure();
-            }
+            }*/
             
             if (indexOperand.index() == 0){                    
                 rval = get<2>(res);
             }else if (indexOperand.index() == 1){
-
-                if (operand.getType().dyn_cast<mlir::MemRefType>().getElementType().isa<QStateType>()){                         
-                    return mlir::success();
-                }
-
                 lval = get<2>(res);
                 //if (get<1>(res) == 1)
                 //    break;
             }else{
-                lval += "[" + get<2>(res) + "]";
+                if (get<1>(res) > 1){
+                    lval += "[" + get<2>(res) + "]";
+                }
             }
         }
+
+        /*
         if(op->getOperands().size()==2){
             if(op.getAffineMap().isConstant()){
                 lval += "[" + to_string(op.getAffineMap().getConstantResults()[0]) + "]";
             }
-        }
+        }*/
+
         if (lval != rval)
             openQasmAssign(lval, rval);
         return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::arith::IndexCastOp op) override{
-        size_t opcode = size_t(mlir::hash_value(op->getOperand(0)));
-            auto res = getSymbol(opcode);
-        return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, get<2>(res));
+        auto res = getSymbol(op.getIn());
+        return symbolInsert(size_t(mlir::hash_value(op.getOut())), OpType::VAR, 1, get<2>(res));
+    }
+    mlir::LogicalResult visitOp(mlir::arith::ExtUIOp op) override{
+        auto in_var = getSymbol(op.getIn());
+        return symbolInsert(size_t(mlir::hash_value(op.getOut())), OpType::VAR, 1, get<2>(in_var));
+    }
+    mlir::LogicalResult visitOp(mlir::arith::SIToFPOp op) override{
+        auto in_var = getSymbol(op.getIn());
+        return symbolInsert(size_t(mlir::hash_value(op.getOut())), OpType::VAR, 1, get<2>(in_var));
     }
     mlir::LogicalResult visitBinaryOp(OpType op_t, char op, mlir::Value lhs, mlir::Value rhs, mlir::Value ret){
         auto lhs_s = get<2>(getSymbol(mlir::hash_value(lhs)));
         auto rhs_s = get<2>(getSymbol(mlir::hash_value(rhs)));
-        auto temp = next_tempInt();
-        openQasmAssign(temp+"[0]", lhs_s+op+rhs_s);
-        return symbolInsert(ret, op_t, 1, temp+"[0]");
+        //auto temp = next_tempInt();
+        //openQasmAssign(temp, lhs_s+op+rhs_s);
+        return symbolInsert(ret, op_t, 1, "(" + lhs_s + op + rhs_s + ")");
     }
     mlir::LogicalResult visitOp(mlir::arith::AddIOp op) override{
         return visitBinaryOp(OpType::ADD, '+', op.getLhs(), op.getRhs(), op.getResult());
@@ -610,8 +766,20 @@ private:
         auto attr = op.nameAttr();
         //os << "use gate: " << attr.getLeafReference().str() << endl;
         auto leaf = attr.getLeafReference().str();
-
-        return symbolInsert(op.getResult(), OpType::VAR, 0, leaf);
+        auto gate = getGateName(leaf);
+        if (op.parameters().size() > 0){
+            gate += "(";
+            for (auto param : ::llvm::enumerate(op.parameters())){
+                auto index = param.index();
+                auto operand = param.value();
+                if (index > 0){
+                    gate += ",";
+                }
+                gate += get<2>(getSymbol(operand));
+            }
+            gate += ")";
+        }
+        return symbolInsert(op.getResult(), OpType::VAR, 0, gate);
     }
     mlir::LogicalResult visitOp(DecorateOp op) override{
         auto modifiers = std::string();
@@ -643,8 +811,8 @@ private:
         return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::func::CallOp op) override{
-        auto func_name = op.getCalleeAttr();
-        string call_str = func_name.getValue().str() + "(";
+        auto func_name = op.getCalleeAttr().getValue().str();
+        string call_str = getFuncName(func_name) + "(";
         for (auto indexOperand : llvm::enumerate(op->getOperands())){
             auto operand = indexOperand.value();
             size_t code = size_t(mlir::hash_value(operand));
@@ -653,68 +821,79 @@ private:
                 call_str += ", ";
             }
             call_str += get<2>(res);
-            call_str += "[0]";
+            //call_str += "[0]";
         }
         call_str += ")";
         for (auto indexResult : llvm::enumerate(op->getResults())){
-            auto result = indexResult.value();
+            auto result = indexResult.value();            
+            string res_type;
+            TRY(getVarType(result.getType(), res_type, op->getLoc()));
+            if (res_type != "qubit"){
+                if (result.use_empty()){
+                    openQasmCall(call_str);
+                    return mlir::success();
+                }else{
+                    return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, call_str);
+                }
+            }
+            /*
             if (result.getType().isa<mlir::IndexType>()){
                 auto tmp = next_tempInt();
                 openQasmAssign(tmp+"[0]", call_str);
-                return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, tmp+"[0]");
-            }
+                return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, tmp);
+            }*/
         }
-        if(op.getNumResults()==0){
-            openQasmCall(call_str);
-        }else{
-            op->emitError("wtf?");
-            return mlir::failure();
-        }
+
+        openQasmCall(call_str);
+        
         return mlir::success();
     }
+
     mlir::LogicalResult visitOp(CallQOpOp op) override {
         string qop_name = op->getAttr(llvm::StringRef("callee")).dyn_cast<mlir::SymbolRefAttr>().getLeafReference().str();
-        string call_qop_str = qop_name + " ";
 
-        for (auto indexOperand : llvm::enumerate(op->getOperands())){
-            auto operand = indexOperand.value();
-            size_t code = size_t(mlir::hash_value(operand));
-            auto res = getSymbol(code);
-            if (indexOperand.index() > 0){
-                call_qop_str += ", ";
-            }
-            call_qop_str += get<2>(res);
-            call_qop_str += "[0]";
-        }
-        auto result_range = op->getResults();
-
-        // First N operands: build qubit mapping for results
-        for (auto indexed_operand: llvm::enumerate(op.getOperands().take_front(op.size()))){
-            auto index = indexed_operand.index();
-            auto operand = indexed_operand.value();
-            auto res = getSymbol(operand);
-            TRY(symbolInsert(op.getResult(index), OpType::VAR, 1, get<2>(getSymbol(operand))));
-        }
-        // Rest results: assign integer.
-        for (auto indexResult: result_range.drop_front(result_range.size()-op.size())){
-            auto result = indexResult;
-            // Only consider measure.
-            if (result.getType().isa<mlir::IntegerType>()){
-                auto temp_bool = next_tempBit();
-                auto temp_int = next_tempInt();
-                openQasmAssign(temp_bool+"[0]", call_qop_str);
-                openQasmAssign(temp_int+"[0]", (string("(int)"))+temp_bool+"[0]");
-                return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, temp_int+"[0]");
-            }
+        if (qop_name == "__isq__builtin__measure" || qop_name == "__isq__builtin__reset"){
             
-        }
-        // Only consider reset.
-        if(op.getNumResults()==op.size()){
+            string call_qop_str = qop_name.substr(16) + " ";
+
+            for (auto indexOperand : llvm::enumerate(op->getOperands())){
+                auto operand = indexOperand.value();
+                size_t code = size_t(mlir::hash_value(operand));
+                auto res = getSymbol(code);
+                if (indexOperand.index() > 0){
+                    call_qop_str += ", ";
+                }
+                call_qop_str += get<2>(res);
+                //call_qop_str += "[0]";
+            }
+            auto result_range = op->getResults();
+
+            // First N operands: build qubit mapping for results
+            for (auto indexed_operand: llvm::enumerate(op.getOperands().take_front(op.size()))){
+                auto index = indexed_operand.index();
+                auto operand = indexed_operand.value();
+                auto res = getSymbol(operand);
+                TRY(symbolInsert(op.getResult(index), OpType::VAR, 1, get<2>(getSymbol(operand))));
+            }
+            // Rest results: assign integer.
+            for (auto indexResult: result_range.drop_front(result_range.size()-op.size())){
+                auto result = indexResult;
+                // Only consider measure.
+                if (result.getType().isa<mlir::IntegerType>()){
+                    auto temp_bool = tmpVarHead+to_string(tmpVarCnt++);
+                    //auto temp_int = next_tempInt();
+                    openQasmAssign("bit "+temp_bool, call_qop_str);
+                    //openQasmAssign(temp_int+"[0]", (string("(int)"))+temp_bool+"[0]");
+                    return symbolInsert(size_t(mlir::hash_value(result)), OpType::VAR, 1, temp_bool);
+                }
+            }
+            // consider reset
             openQasmCall(call_qop_str);
         }else{
-            op->emitError("wtf?");
+            op->emitOpError("invalid qop in OpenQASM3");
             return mlir::failure();
         }
+
         return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::func::ReturnOp op) override{
@@ -722,9 +901,8 @@ private:
             size_t opcode = size_t(mlir::hash_value(op->getOperand(0)));
             auto res = getSymbol(opcode);
             openQasmReturn(get<2>(res));
-        }else{
-            openQasmReturn("");
         }
+        
         return mlir::success();
     }
     mlir::LogicalResult visitOp(DefgateOp op) override{
@@ -802,9 +980,9 @@ private:
                 cmp_str += asso;
             }
         }
-        auto temp_bool = next_tempBit();
-        openQasmAssign(temp_bool+"[0]", cmp_str);
-        return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, temp_bool+"[0]");
+        //auto temp_bool = next_tempBit();
+        //openQasmAssign(temp_bool, cmp_str);
+        return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, cmp_str);
     }
     string memrefObtainArg(mlir::Operation::operand_range args, mlir::ArrayAttr static_args, size_t index){
         if(index>=args.size()){
@@ -828,12 +1006,27 @@ private:
             return mlir::failure();
         }
         
+        auto source_var = getSymbol(arr_in);
+        if (get<1>(source_var) == 1){
+            return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, get<2>(source_var));
+        }else{
+            string offset;
+            if (op.offsets().size() > 0){
+                offset = get<2>(getSymbol(op.offsets()[0]));
+            }else{
+                auto attr = op.static_offsets()[0].dyn_cast_or_null<mlir::IntegerAttr>();
+                offset = to_string(int(attr.getInt()));
+            }
+            return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, get<2>(source_var)+"["+offset+"]");
+        }
+        /*
         auto offset = memrefObtainArg(op.offsets(), op.static_offsets(), 0);
         auto size = memrefObtainArg(op.sizes(), op.static_sizes(), 0);
         auto stride = memrefObtainArg(op.strides(), op.static_strides(), 0);
         auto temp_val = next_tempName();
         openQasmSlice(temp_val, get<2>(getSymbol(arr_in)), offset, string(offset)+"+"+size, stride);
         return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, -1, temp_val);
+        */
     }
     mlir::LogicalResult visitOp(PassOp op) override{
         return mlir::success();
@@ -841,14 +1034,16 @@ private:
     mlir::LogicalResult visitOp(mlir::AffineYieldOp) override{
         return mlir::success();
     }
-    mlir::LogicalResult visitOp(mlir::scf::YieldOp) override{
+    mlir::LogicalResult visitOp(mlir::scf::YieldOp op) override{
+        for (auto operand: op.getOperands()){
+            yieldRes = mlir::hash_value(operand);
+        }
         return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::memref::CastOp op) override{
         // todo: we hope it is identical cast.
         auto symbol = getSymbol(op.source());
         return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), get<0>(symbol), get<1>(symbol), get<2>(symbol));
-        return mlir::success();
     }
     mlir::LogicalResult visitOp(mlir::Operation* op) override{
         op->emitOpError("is unsupported in code generation");
@@ -883,9 +1078,9 @@ private:
     void openQasmVarDefine(string name, string type, int size){
         openQasmNewLine();
         os << type;
-        //if (size > 1){
-        os << "[" << size << "]";
-        //}
+        if (size > 1){
+            os << "[" << size << "]";
+        }
         os << " " << name << ";\n";
     }
 
@@ -904,7 +1099,7 @@ private:
         os << "};\n";
     }
 
-    void openQasmFunc(string name, vector<tuple<string, string, int>> &arglist){
+    void openQasmFunc(string name, vector<tuple<string, string, int>> &arglist, string rty){
         
         openQasmNewLine();
         os << "def " << name << "(";
@@ -919,7 +1114,7 @@ private:
         }
         os << ")";
         if (hasRes){
-            os << " -> int";
+            os << " -> " << rty;
         }
         os << " {\n";
     }
@@ -942,7 +1137,7 @@ private:
         for (int i = 0; i < qlist.size(); i++){
             if (i > 0)
                 os << ", ";
-            os << qlist[i] << "[0]";
+            os << qlist[i];
         }
         os << ";\n";
     }
@@ -957,14 +1152,16 @@ private:
         os << "return " << res << ";\n";
     }
 
-    void openQasmIf(string lval, string rval, string op){
+    void openQasmIf(string cond){
         openQasmNewLine();
-        os << "if (" << lval << " " << op << " " << rval << ")";
+        os << "if (" << cond << ")";
     }
 
-    void openQasmFor(string arg, string lval, string rval){
+    void openQasmFor(string arg, string lval, string rval, string step){
         openQasmNewLine();
-        os << "for " << arg << " in [" << lval << ":" << rval << "] {\n";
+        os << "for " << arg << " in [" << lval << ":" << rval;
+        if (step != "1") os << ':' << step;
+        os << "] {\n";
     }
 
     void openQasmWhile(string cond){
@@ -983,6 +1180,7 @@ private:
         
         auto iter = symbolTable.find(code);
         if (iter != symbolTable.end()){
+            os << "Error: symbol is already defined\n";
             return mlir::failure();
         }
         
