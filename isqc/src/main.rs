@@ -43,9 +43,9 @@ pub enum EmitMode {
 pub enum CompileTarget{
     QIR,
     OpenQASM3,
-    QCIS
+    QCIS,
+    EQASM
 }
-
 
 #[derive(Subcommand)]
 pub enum Commands{
@@ -220,7 +220,14 @@ fn main()->miette::Result<()> {
             }
             let qcis_flags = "-pass-pipeline=cse,logic-lower-to-isq,func.func(affine-loop-unroll),isq-canonicalize,canonicalize,isq-oracle-decompose,isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-target-qcis,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-target-qcis,isq-expand-decomposition,canonicalize,cse,canonicalize,cse";
             let normal_flags = "-pass-pipeline=cse,logic-lower-to-isq,isq-oracle-decompose,isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,cse";
-            let flags = if let CompileTarget::QCIS = target {qcis_flags} else {normal_flags};
+            let qasm_flags = "-pass-pipeline=cse,logic-lower-to-isq,isq-oracle-decompose,isq-recognize-famous-gates,isq-eliminate-neg-ctrl,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,isq-cancel-redundant,canonicalize,cse";
+            let flags = match target {
+                CompileTarget::QCIS => qcis_flags,
+                CompileTarget::OpenQASM3 => qasm_flags,
+                CompileTarget::EQASM => qasm_flags,
+                _ => normal_flags,
+            };
+            //let flags = if let CompileTarget::QCIS = target {qcis_flags} else {normal_flags};
             let optimized_mlir = exec::exec_command_text(&root, "isq-opt", &[
                 flags,
                 "--mlir-print-debuginfo"
@@ -233,6 +240,38 @@ fn main()->miette::Result<()> {
                 fout.finalize();
                 break 'command;
             }
+
+            if let CompileTarget::EQASM = target{
+                let eqasm_ir = exec::exec_command_text(&root, "isq-opt", &["--target=eqasm"], &optimized_mlir).map_err(io_error_when("Calling isq-opt"))?;
+                if eqasm_ir.trim().is_empty(){
+                    return Err(InternalCompilerError("Generate eqasm failed".to_owned()))?;
+                }
+                if eqasm_ir.contains("Error"){
+                    return Err(EQASMGenerateError(eqasm_ir.to_string()))?
+                }
+                let (_, eqasm_output_path) = resolve_input_path(&input, "eqasm")?;
+                let mut eqasm_out = MayDropFile::new(&eqasm_output_path)?;
+                writeln!(eqasm_out.get_file_mut(), "{}", eqasm_ir).map_err(IoError)?;
+                eqasm_out.finalize(); 
+                break 'command;
+            }
+
+            if let CompileTarget::OpenQASM3 = target{
+                let qasm_ir = exec::exec_command_text(&root, "isq-opt", &["--target=openqasm3"], &optimized_mlir).map_err(io_error_when("Calling isq-opt"))?;
+                if qasm_ir.trim().is_empty(){
+                    return Err(InternalCompilerError("Generate openqasm3 failed".to_owned()))?;
+                }
+                if qasm_ir.contains("Error"){
+                    return Err(OpenQASM3GenerateError(qasm_ir.to_string()))?
+                }
+                let (_, qasm_output_path) = resolve_input_path(&input, "qasm3")?;
+                let mut qasm_out = MayDropFile::new(&qasm_output_path)?;
+                writeln!(qasm_out.get_file_mut(), "{}", qasm_ir).map_err(IoError)?;
+                qasm_out.finalize(); 
+                break 'command;
+            }
+
+
             let llvm_mlir = exec::exec_command_text(&root, "isq-opt", &[
                 // Todo: add symbol-dce pass back
                 //"-pass-pipeline=symbol-dce,cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,builtin.func(convert-math-to-llvm),isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
