@@ -66,6 +66,11 @@ pub extern "C" fn __isq__qir__shim__qis__bp(x0: i64)->() {
     unsafe { t(isq_qir_shim_qis_bp(t::<_, i64>(x0)))}
 }
 #[no_mangle]
+pub extern "C" fn __isq__qir__shim__qis__assert(x0: *mut *mut i8, x1: *mut *mut i8, x2: i64, x3: i64, x4: i64, x5: *mut f64, x6: *mut f64, x7: i64, x8: i64, x9: i64)->() {
+    use core::mem::transmute as t;
+    unsafe { t(isq_qir_shim_qis_assert(t::<_, *mut *mut i8>(x0), t::<_, *mut *mut i8>(x1), t::<_, i64>(x2), t::<_, i64>(x3), t::<_, i64>(x4), t::<_, *mut f64>(x5), t::<_, *mut f64>(x6), t::<_, i64>(x7), t::<_, i64>(x8), t::<_, i64>(x9)))}
+}
+#[no_mangle]
 pub extern "C" fn __isq__qir__shim__qis__isq_print_i64(x0: i64)->() {
     use core::mem::transmute as t;
     unsafe { t(isq_qir_shim_qis_isq_print_i64(t::<_, i64>(x0)))}

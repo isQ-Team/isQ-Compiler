@@ -48,6 +48,41 @@ mlir::MemRefType qubit_ref_type(mlir::MLIRContext* ctx, mlir::Location loc, mlir
     return new_memrefty;
 }
 
+class RuleReplaceAssertQ : public mlir::OpRewritePattern<AssertQOp>{
+    mlir::ModuleOp rootModule;
+public:
+    RuleReplaceAssertQ(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<AssertQOp>(ctx, 1), rootModule(module){}
+
+    mlir::LogicalResult matchAndRewrite(AssertQOp op, mlir::PatternRewriter &rewriter) const override{
+        auto ctx = op->getContext();
+        mlir::Location loc = op->getLoc();
+
+        mlir::Value q = op.cond();
+        ::isq::ir::DenseComplexF64MatrixAttr mat = op.space();
+        auto val = mat.toMatrixVal();
+        int64_t matLen = val.size();
+        mlir::Float64Type floatType = mlir::Float64Type::get(ctx);
+        mlir::MemRefType memrefType = mlir::MemRefType::get(llvm::ArrayRef<int64_t>{-1}, floatType);
+        rewriter.setInsertionPoint(op);
+        mlir::arith::ConstantIndexOp length = rewriter.create<mlir::arith::ConstantIndexOp>(loc, matLen * matLen *2);
+        mlir::Value memref = rewriter.create<mlir::memref::AllocOp>(loc, memrefType, mlir::ValueRange{length});
+        int idx = 0;
+        for (auto row : val) {
+            for (Eigen::dcomplex v : row) {
+                mlir::Value real = rewriter.create<mlir::arith::ConstantFloatOp>(loc, llvm::APFloat(v.real()), floatType);
+                mlir::arith::ConstantIndexOp index = rewriter.create<mlir::arith::ConstantIndexOp>(loc, idx++);
+                rewriter.create<mlir::memref::StoreOp>(loc, real, memref, mlir::ValueRange{index});
+                mlir::Value imag = rewriter.create<mlir::arith::ConstantFloatOp>(loc, llvm::APFloat(v.imag()), floatType);
+                mlir::arith::ConstantIndexOp index2 = rewriter.create<mlir::arith::ConstantIndexOp>(loc, idx++);
+                rewriter.create<mlir::memref::StoreOp>(loc, imag, memref, mlir::ValueRange{index2});
+            }
+        }
+        lower::QIRExternQuantumFunc utils;
+        utils.projectionAssert(loc, rewriter, rootModule, q, memref);
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
 
 // Remove gphase.
 class RuleRemoveGPhaseAux : public mlir::OpRewritePattern<AccumulateGPhase>{
@@ -525,6 +560,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
         
         do{
         mlir::RewritePatternSet rps(ctx);
+        rps.add<RuleReplaceAssertQ>(ctx, m);
         rps.add<RuleRemoveGPhaseAux>(ctx);
         rps.add<RuleInitializeAllocQubit>(ctx, m);
         rps.add<RuleDeinitializeFreeQubit>(ctx, m);

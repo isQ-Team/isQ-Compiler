@@ -25,7 +25,7 @@ int phase_estimation(int n, qbit ev) {
         H(anc[i]);
         pow2_ctrlU(i, anc[i], ev);
     }
-    qft_dagger(anc);
+    qft_inv(anc);
     return M(anc);
 }
 

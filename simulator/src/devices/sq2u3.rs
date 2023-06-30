@@ -160,4 +160,7 @@ impl<Q: Eq, T: QDevice<Qubit = Q>> QDevice for SQ2U3Device<Q, T>{
         self.0.get_measure_res()
     }
     fn print_state(&mut self) { self.0.print_state(); }
+    fn assert(&self, qubits: &[&Self::Qubit], space: &[f64]) -> bool {
+        self.0.assert(qubits, space)
+    }
 }

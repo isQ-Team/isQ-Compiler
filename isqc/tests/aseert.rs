@@ -27,3 +27,14 @@ fn test_assert_stderr(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
     cmd.assert().success().stderr(predicate::str::contains(res));
     Ok(())
 }
+
+#[test_case("projection_assert")]
+#[test_case("shor")]
+fn test_assert_no_error(name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let source_file = name.to_string() + ".isq";
+    let folder = Path::new("tests").join("input").join("assert");
+    let mut cmd = Command::cargo_bin("isqc")?;
+    cmd.arg("run").arg(folder.join(source_file).to_str().to_owned().unwrap());
+    cmd.assert().success().stderr(predicate::str::is_empty());
+    Ok(())
+}

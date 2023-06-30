@@ -18,7 +18,7 @@ int find_order(qbit k[6]) {
     H(k);
     X(a[0]);    // set |a> = |1>
     pow7mod15(k, a);
-    qft_dagger(k);
+    qft_inv(k);
 }
 
 procedure main()

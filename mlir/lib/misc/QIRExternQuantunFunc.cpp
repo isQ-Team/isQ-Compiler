@@ -36,6 +36,7 @@ const std::string qir_reset = "__quantum__qis__reset";
 const std::string qir_gate_head = "__quantum__qis__";
 const std::string isq_decomposed_head = "__isq__decomposed__";
 const std::string qir_bp = "__quantum__qis__bp";
+const std::string qir_assert = "__quantum_qis__assert";
 const std::string qir_print_i64 = "__quantum__qis__isq_print_i64";
 const std::string qir_print_f64 = "__quantum__qis__isq_print_f64";
 const std::string qmpi_csend = "__isq__qir__shim__qmpi__csend";
@@ -101,6 +102,9 @@ void QIRExternQuantumFunc::breakPoint(::mlir::Location loc, PatternRewriter& rew
     assert(i.getType() == getIndexType(module->getContext()));
     auto indexcast = rewriter.create<arith::IndexCastOp>(loc, getI64Type(module.getContext()),i);
     safeCallExternOp(module, rewriter, loc, qir_bp, ArrayRef<Value>{indexcast.getOut()}, ArrayRef<Type>{});
+}
+void QIRExternQuantumFunc::projectionAssert(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value q, Value mat){
+    safeCallExternOp(module, rewriter, loc, qir_assert, ArrayRef<Value>{q, mat}, ArrayRef<Type>{});
 }
 void QIRExternQuantumFunc::printInt(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value i){
     assert(i.getType() == getIndexType(module->getContext()));

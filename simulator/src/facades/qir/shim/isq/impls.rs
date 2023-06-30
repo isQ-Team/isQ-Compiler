@@ -1,5 +1,6 @@
 extern crate std;
-use std::{thread, time, println};
+use std::process::exit;
+use std::{thread, time, println, print};
 
 use super::super::super::context::get_current_context as context;
 use super::types::*;
@@ -148,6 +149,48 @@ pub fn isq_qir_shim_qis_bp(x0: i64)->() {
     std::io::stdin().read_line(&mut buffer).ok().expect("Failed to read line");
     if buffer.trim() == "d" {
         ctx.disable_bp_index(x0);
+    }
+}
+// A Memref object is translated to five LLVM variables. They are probablily
+//    allocated-pointer    aligned-pointer     offset      size     stride
+// Reference: https://github.com/llvm/llvm-project/blob/3b85be3df23cfb8fb4d1f0656eac3214cf400c72/mlir/include/mlir/Conversion/LLVMCommon/MemRefBuilder.h#L131-L157
+pub fn isq_qir_shim_qis_assert(x0: *mut *mut i8, _x1: *mut *mut i8, x2: i64, x3: i64, x4: i64, x5: *mut f64, _x6: *mut f64, x7: i64, x8: i64, x9: i64)->() {
+    trace!("calling isq_qir_shim_qis_assert()");
+    extern crate std;
+    use std::vec::Vec;
+    use core::mem::transmute as t;
+    let rctx = context();
+    let ctx = rctx.lock().unwrap();
+    unsafe {
+        let mut space: Vec<f64> = Vec::new();
+        for i in 0..x8 {
+            //println!("{}", *x5.add(i as usize));
+            space.push(*x5.add((x7 + i * x9) as usize));
+        }
+        let mut uvec: Vec<usize> = Vec::new();
+        let mut qubits: Vec<&usize> = Vec::new();
+        for i in 0..x3 {
+            let q = t::<_, K<QIRQubit>>(*x0.add((x2 + i * x4) as usize));
+            uvec.push(q.key);
+        }
+        for i in 0..x3 {
+            qubits.push(&uvec[i as usize]);
+        }
+        let device = ctx.get_device();
+        let res = device.assert(&qubits, &space);
+        if !res {
+            print!("Qubits are not in space [");
+            let pow = (1 << x3) as usize;
+            for i in 0..pow {
+                print!(" {}+{}i", space[2*(i * pow)], space[2*(i * pow) + 1]);
+                for j in 1..pow {
+                    print!(", {}+{}i", space[2*(i * pow + j)], space[2*(i * pow + j) + 1]);
+                }
+                print!(";")
+            }
+            println!("]!");
+            exit(-1);
+        }
     }
 }
 static WAIT_TIME: time::Duration = time::Duration::from_millis(10);

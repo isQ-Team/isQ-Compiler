@@ -111,5 +111,6 @@ pub trait QDevice {
         "".into()
     }
     fn print_state(&mut self) {}
+    fn assert(&self, _qubits: &[&Self::Qubit], _space: &[f64]) -> bool {true}
 }
 

@@ -155,7 +155,7 @@ data MLIROp =
     | MSCFYield {location :: MLIRPos}
     | MReturn { location :: MLIRPos, returnVal :: TypedSSA, isLogic :: Bool }
     | MReturnUnit {location :: MLIRPos}
-    | MAssert {location :: MLIRPos, value :: SSA}
+    | MAssert {location :: MLIRPos, value :: SSA, assertSpace :: Maybe GateRep}
     | MBp {location :: MLIRPos, bpLine :: SSA}
     | MGlobalMemref {location :: MLIRPos, globalMemrefName :: FuncName, globalMemrefType :: MLIRType}
     | MUseGlobalMemref {location :: MLIRPos, usedVal :: SSA, usedName :: FuncName, globalMemrefType :: MLIRType}
@@ -275,7 +275,8 @@ emitOpStep f env (MQApplyGate loc values [] gate isq) = let dialect = case isq o
 emitOpStep f env (MQApplyGate loc values args gate isq) = let dialect = case isq of {True -> "isq"; False -> "logic"} in indented env $ printf "%s = %s.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) dialect (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
 emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @__isq__builtin__measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qop @__isq__builtin__reset(%s): [1]()->() %s" (unSsa out)  (unSsa arg) (mlirPos loc)
-emitOpStep f env (MAssert loc val) = indented env $ printf "isq.assert %s : i1, 3 %s" (unSsa val) (mlirPos loc)
+emitOpStep f env (MAssert loc val Nothing) = indented env $ printf "isq.assert %s : i1, 3 %s" (unSsa val) (mlirPos loc)
+emitOpStep f env (MAssert loc val (Just (MatrixRep mat))) = indented env $ printf "isq.assertq %s : %s, %s %s" (unSsa val) (mlirType $ Memref Nothing QState) (printMatrixRepNew mat) (mlirPos loc)
 emitOpStep f env (MBp loc arg) = indented env $ printf "isq.call_qop @__isq__builtin__bp(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Index, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_int(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Double, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_double(%s): [0](f64)->() %s" (unSsa arg) (mlirPos loc)

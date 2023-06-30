@@ -64,7 +64,7 @@ data AST ann =
      | NFor { annotationAST :: ann, forVar :: Ident, forRange :: Expr ann, body :: ASTBlock ann}
      | NEmpty { annotationAST :: ann }
      | NPass { annotationAST :: ann }
-     | NAssert { annotationAST :: ann, condition :: Expr ann }
+     | NAssert { annotationAST :: ann, condition :: Expr ann, space :: Maybe [[Expr ann]] }
      | NBp { annotationAST :: ann }
      | NWhile { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann}
      | NCall { annotationAST :: ann, callExpr :: Expr ann}
@@ -99,6 +99,7 @@ data AST ann =
      | NProcedure { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann]}
      | NResolvedFor { annotationAST :: ann, forVarId :: Int, forRange :: Expr ann, body :: ASTBlock ann}
      | NResolvedGatedef { annotationAST :: ann, gateName :: String, resolvedGateRhs :: [[Complex Double]], gateSize :: Int, externQirName :: Maybe String}
+     | NResolvedAssert { annotationAST :: ann, condition :: Expr ann, resolvedSpace :: [[Complex Double]] }
      | NOracleTable {annotationAST :: ann, gateName :: String, sourceProcName :: String, oracleValue :: [[Int]], gateSize :: Int}
      | NWhileWithGuard { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann, breakFlag :: Expr ann}
      | NProcedureWithRet { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann], retVal :: Expr ann}
@@ -185,6 +186,16 @@ passVerifyDefgate = mapM go where
         case checkGateSize new_mat of
           Just sz -> return $ NResolvedGatedef ann name new_mat sz qir
           Nothing -> Left $ BadMatrixShape g
+
+    go (NProcedure ann return_type name arg body) = do
+      body' <- passVerifyDefgate body
+      return $ NProcedure ann return_type name arg body'
+
+    go a@(NAssert ann q (Just mat)) = do
+        new_mat <- mapM (mapM foldConstantComplex') mat
+        case checkGateSize new_mat of
+          Just sz -> return $ NResolvedAssert ann q new_mat
+          Nothing -> Left $ BadMatrixShape a
 
     go x = Right x
 

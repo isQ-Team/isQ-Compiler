@@ -99,4 +99,15 @@ impl<Q, T: QDevice<Qubit = Q>> QDevice for CheckedDevice<Q, T> {
         self.device.get_measure_res()
     }
     fn print_state(&mut self) { self.device.print_state(); }
+    fn assert(&self, qubits: &[&Self::Qubit], space: &[f64]) -> bool {
+        let mut real: Vec<&Q> = Vec::new();
+        for q in qubits {
+            let real_qubit = self
+            .qubit_mapping
+            .get(q)
+            .expect(&format!("Qubit #{} does not exist", *q));
+            real.push(real_qubit);
+        }
+        self.device.assert(&real, space)
+    }
 }

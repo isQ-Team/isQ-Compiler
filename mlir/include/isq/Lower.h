@@ -39,6 +39,7 @@ public:
     mlir::IntegerType getI64Type(::mlir::MLIRContext* ctx);
     mlir::Float64Type getF64Type(::mlir::MLIRContext* ctx);
     void breakPoint(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value i);
+    void projectionAssert(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value q, Value mat);
     void printInt(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value i);
     void printFloat(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value f);
     void qmpiCsend(::mlir::Location loc, PatternRewriter& rewriter, ModuleOp module, Value receiver, Value tag, Value val);

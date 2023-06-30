@@ -104,6 +104,14 @@ entry:
     ret void
 }
 declare dllimport void @__isq__qir__shim__qis__bp(i64)
+define void @__quantum_qis__assert (%Qubit** %qaddr, %Qubit** %qaddr1, i64 %x0, i64 %x1, i64 %x2, double* %saddr, double* %saddr1, i64 %s0, i64 %s1, i64 %s2) alwaysinline {
+entry:
+    %q1 = bitcast %Qubit** %qaddr to i8**
+    %q2 = bitcast %Qubit** %qaddr1 to i8**
+    call void @__isq__qir__shim__qis__assert(i8** %q1, i8** %q2, i64 %x0, i64 %x1, i64 %x2, double* %saddr, double* %saddr1, i64 %s0, i64 %s1, i64 %s2)
+    ret void
+}
+declare dllimport void @__isq__qir__shim__qis__assert(i8**, i8**, i64, i64, i64, double*, double*, i64, i64, i64)
 define void @__quantum__qis__isq_print_i64 (i64 %x0) alwaysinline {
 entry:
     %x1 = bitcast i64 %x0 to i64

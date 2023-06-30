@@ -547,10 +547,15 @@ typeCheckAST' f (NFor pos v r b) = do
     return $  NResolvedFor (okStmt pos) v' r'' b'
 typeCheckAST' f (NEmpty pos) = return $ NEmpty (okStmt pos)
 typeCheckAST' f (NPass pos) = return $ NPass (okStmt pos)
-typeCheckAST' f (NAssert pos exp) = do
+typeCheckAST' f (NAssert pos exp Nothing) = do
     exp' <- typeCheckExpr exp
     exp'' <- matchType [Exact (boolType ())] exp'
-    return $ NAssert (okStmt pos) exp''
+    return $ NAssert (okStmt pos) exp'' Nothing
+typeCheckAST' f (NAssert pos exp _) = error "unreachable"
+typeCheckAST' f (NResolvedAssert pos q space) = do
+    q' <- typeCheckExpr q
+    q'' <- matchType [ArrayType $ Exact (qbitType ())] q'
+    return $ NResolvedAssert (okStmt pos) q'' space
 typeCheckAST' f (NBp pos) = do
     temp_ssa<-nextId
     let annotation = TypeCheckData pos (unitType ()) temp_ssa
@@ -722,7 +727,7 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
             Type _ (Logic x) extra -> (x, extra)
     let total_qubits = sum (map addedQubits modifiers') + x
     let total_operands = length extra + total_qubits
-    when (total_operands /= length operands) $ throwError $ ArgNumberMismatch pos total_qubits (length operands)
+    when (total_operands /= length operands) $ throwError $ ArgNumberMismatch pos total_operands (length operands)
     operands'<-mapM typeCheckExpr operands
     let (op_extra, op_qubits) = splitAt (total_operands - total_qubits) operands'
     op_extra'<-zipWithM (\x y->matchType [Exact x] y) extra op_extra

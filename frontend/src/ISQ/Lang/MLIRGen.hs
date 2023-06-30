@@ -339,10 +339,14 @@ emitStatement' f (NIf ann cond bthen belse) = do
 emitStatement' f NFor{} = error "unreachable"
 emitStatement' f NEmpty{} = return ()
 emitStatement' f NPass{} = return ()
-emitStatement' f (NAssert ann exp) = do
+emitStatement' f (NAssert ann exp Nothing) = do
     pos <- mpos ann
     exp' <- emitExpr exp
-    pushOp $ MAssert pos exp'
+    pushOp $ MAssert pos exp' Nothing
+emitStatement' f (NResolvedAssert ann q mat) = do
+    pos <- mpos ann
+    q' <- emitExpr q
+    pushOp $ MAssert pos q' $ Just $ MatrixRep mat
 emitStatement' f (NBp ann) = do
     pos<-mpos ann
     let Pos x y f = sourcePos ann

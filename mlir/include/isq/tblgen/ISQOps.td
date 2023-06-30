@@ -390,7 +390,7 @@ def ISQ_AssertOp: ISQ_Op<"assert">{
     }];
     let arguments = (ins
         BoolLike: $cond,
-        UI64Attr : $error_num
+        UI64Attr: $error_num
     );
     let results = (outs);
     let assemblyFormat = [{
@@ -398,6 +398,20 @@ def ISQ_AssertOp: ISQ_Op<"assert">{
     }];
 }
 
+def ISQ_AssertQOp: ISQ_Op<"assertq">{
+    let summary = "Validate qubits are in specified Hilbert space.";
+    let description = [{
+        If qubits are not in the specified space, report an error and abort the program execution.
+    }];
+    let arguments = (ins
+        AnyType: $cond,
+        DenseComplexF64MatrixAttr: $space
+    );
+    let results = (outs);
+    let assemblyFormat = [{
+        $cond `:` qualified(type($cond)) `,` $space attr-dict
+    }];
+}
 
 /// QMPI
 

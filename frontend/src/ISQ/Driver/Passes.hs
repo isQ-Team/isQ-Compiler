@@ -10,7 +10,7 @@ import qualified Data.ByteString.Lazy as BS
 import Data.Char (isDigit)
 import Data.Either (lefts, rights)
 import Data.Function (on)
-import Data.List (filter, findIndex, findIndices, groupBy, intercalate, maximumBy)
+import Data.List (filter, findIndex, findIndices, groupBy, intercalate, maximumBy, nub)
 import Data.List.Split (splitOn)
 import qualified Data.Map.Lazy as Map
 import qualified Data.MultiMap as MultiMap
@@ -96,7 +96,7 @@ getImportedFile :: [FilePath] -> [FilePath] -> LAST -> PassMonad FilePath
 getImportedFile froms incPath imp = do
     let dotName = importName imp
     let splited = splitOn "." dotName
-    let names = map (getConcatName splited) incPath
+    let names = nub $ map (getConcatName splited) incPath
     exist <- liftIO $ filterM doesFileExist names
     case exist of
         [] -> throwError $ GrammarError $ ImportNotFound dotName

@@ -1,6 +1,7 @@
 #ifndef _ISQ_OPERATIONS_H
 #define _ISQ_OPERATIONS_H
 #include "./QTypes.h"
+#include "./QAttrs.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Types.h>

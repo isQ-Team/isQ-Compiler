@@ -19,14 +19,14 @@ procedure qft(qbit q[]) {
 }
 
 // The inverse of qft
-procedure qft_dagger(qbit q[]) {
+procedure qft_inv(qbit q[]) {
     int len = q.length;
     for i in 0:len/2 {
         SWAP(q[i], q[len-i-1]);
     }
     for i in 0:len {
         for j in 0:i {
-            ctrl inv R(i-j+1, q[j], q[i]);
+            inv ctrl R(i-j+1, q[j], q[i]);
         }
         H(q[i]);
     }
@@ -34,9 +34,11 @@ procedure qft_dagger(qbit q[]) {
 
 procedure main()
 {
-    qbit q[6];
-    //H(q[:4]);
-    //qft(q);
-    qft_dagger(q);
-    print M(q);
+    qbit p[2], q;
+    H(p[0]);
+    CNOT(p[0], p[1]);
+    H(q);
+    ctrl R(1, p[0], q);
+    H(q);
+    bp;
 }

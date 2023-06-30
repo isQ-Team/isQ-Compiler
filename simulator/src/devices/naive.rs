@@ -6,6 +6,8 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 use num_complex::Complex64;
+extern crate std;
+use std::{println};
 
 #[derive(Clone)]
 pub struct NaiveSimulator {
@@ -215,6 +217,22 @@ fn random_coin(a: f64, b: f64) -> (bool, f64) {
     }
 }
 
+/*fn print_vec<T: core::fmt::Display>(row: &Vec<T>) {
+    print!("[");
+    for v in row {
+        print!("{}, ", v);
+    }
+    println!("]");
+}
+
+fn print_matrix(mat: &Vec<Vec<Complex64>>) {
+    print!("[");
+    for row in mat {
+        print_vec(row);
+    }
+    println!("]");
+}*/
+
 impl QDevice for NaiveSimulator {
     type Qubit = usize;
 
@@ -371,12 +389,70 @@ impl QDevice for NaiveSimulator {
         return self.measure_res.clone();
     }
     fn print_state(&mut self) {
-        extern crate std;
-        use std::println;
         println!("Qubit states:");
         for (count, v) in self.state.iter().enumerate() {
             println!("{}: {}", count, v);
         }
+    }
+    fn assert(&self, qubits: &[&Self::Qubit], space: &[f64]) -> bool {
+        // Get the real index of the qubits
+        let mut ids: Vec<usize> = Vec::new();
+        for q in qubits {
+            ids.push(self.qubit_to_state_id(q));
+        }
+
+        let nq = qubits.len();
+        let npow = 1 << nq;
+        assert!(npow * npow * 2 == space.len());
+
+        // Get the projector
+        let mut projector: Vec<Vec<Complex64>> = Vec::new();
+        let mut rho: Vec<Vec<Complex64>> = Vec::new();
+        for i in 0..npow {
+            let mut row: Vec<Complex64> = Vec::new();
+            for j in 0..npow {
+                row.push(Complex64::new(space[2 * (i * npow + j)], space[2 * (i * npow + j) + 1]));
+            }
+            projector.push(row);
+            rho.push(vec![Complex64::new(0.0, 0.0); npow]);
+        }
+
+        // Calculate \rho based on tr_B(|index><dual|) = |row><col|
+        let all = self.state.len();
+        for index in 0..all {
+            let mut row = 0;
+            let mut zeroed = index;
+            for i in 0..nq {
+                let id = ids[i];
+                let bit = (index >> id) & 1;
+                row += bit << i;
+                zeroed = zeroed - (bit << id);
+            }
+            for col in 0..npow {
+                let mut dual = zeroed;
+                for k in 0..nq {
+                    let bit = (col >> k) & 1;
+                    dual = dual + (bit << ids[k]);
+                }
+                rho[row][col] += self.state[index] * self.state[dual].conj();
+            }
+        }
+
+        // for debugging
+        //print_matrix(&projector);
+        //print_matrix(&rho);
+
+        // p(rho in projector) = tr(projector * rho)
+        let mut p = Complex64::new(0.0, 0.0);
+        for i in 0..npow {
+            for j in 0..npow {
+                p += projector[i][j] * rho[i][j];
+            }
+        }
+
+        let delta = 1e-4;
+        assert!(p.im < delta);
+        p.re > 1.0 - delta && p.re < 1.0 + delta
     }
 }
 

@@ -7,6 +7,7 @@ use std::path::Path;
 use test_case::test_case;
 
 #[test_case("example", &merge(&["7", "3", "2", "3"]))]
+#[test_case("right_shift", &merge(&["5", "6"]))]
 #[test_case("three_qubit_adder", &merge(&["7", "5", "12"]))]
 #[test_case("two_qubit_adder", &merge(&["2", "1", "3"]))]
 #[test_case("uninitialized_array", &merge(&["1", "2"]))]

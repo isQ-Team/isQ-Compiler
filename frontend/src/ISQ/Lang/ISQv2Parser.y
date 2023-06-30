@@ -243,7 +243,8 @@ IfStatement : if Expr Statement { NIf $1 $2 [$3] [] }
 PassStatement :: {LAST}
 PassStatement : pass { NPass $1 }
 AssertStatement :: {LAST}
-AssertStatement : assert Expr { NAssert $1 $2 }
+AssertStatement : assert Expr { NAssert $1 $2 Nothing }
+               | assert Expr in ISQCore_GatedefMatrix { NAssert $1 $2 $ Just $4 }
 BpStatement :: {LAST}
 BpStatement : bp { NBp $1 }
 
