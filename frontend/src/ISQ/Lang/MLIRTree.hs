@@ -10,6 +10,11 @@ import Debug.Trace
 data MLIRType =
     MUnit | Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
   | Gate Int | Double | QIRQubit | Func MLIRType [MLIRType] deriving Show
+
+zeroMlirType :: MLIRType->MLIRType
+zeroMlirType (Memref (Just x) ty) = Memref Nothing ty
+zeroMlirType other = other
+
 mlirType :: MLIRType->String
 mlirType MUnit = "()"
 mlirType Bool = "i1"
@@ -323,7 +328,7 @@ emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset
     indented env $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirType $ BorrowedRef elem_ty) (mlirPos loc)
   ]
 emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset _) = error "wtf?"
-emitOpStep f env (MSlice loc value (arr_ty, arr_val) start size step) = indented env $ printf "%s = memref.subview %s[%s][%s][%s] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa start) (unSsa size) (unSsa step) (mlirType arr_ty) (mlirType arr_ty) (mlirPos loc)
+emitOpStep f env (MSlice loc value (arr_ty, arr_val) start size step) = indented env $ printf "%s = memref.subview %s[%s][%s][%s] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa start) (unSsa size) (unSsa step) (mlirType arr_ty) (mlirType $ zeroMlirType arr_ty) (mlirPos loc)
 emitOpStep f env (MArrayLen loc value (arr_ty@(Memref _ elem_ty), arr_val)) = intercalate "\n" $
   [
     indented env $ printf "%s_zero = arith.constant 0 : index %s" (unSsa value) (mlirPos loc),

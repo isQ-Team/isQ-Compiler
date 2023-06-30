@@ -5,5 +5,5 @@ qbit q[3];
 procedure main()
 {
     X(q);
-    print M(q);
+    print M(q[:2]);
 }

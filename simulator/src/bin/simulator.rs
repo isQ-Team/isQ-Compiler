@@ -114,14 +114,12 @@ fn main() -> std::io::Result<()> {
         None => vec![]
     };
     let par_int_size = par_int.len() as i64;
-    let par_int_ptr = par_int.as_ptr();
 
     let par_double = match args.double_par{
         Some(x) => x,
         None => vec![]
     };
     let par_double_size:i64 = par_double.len() as i64;
-    let par_double_ptr = par_double.as_ptr();
 
 
     let mut res_map: HashMap<String, i32> = HashMap::new();
