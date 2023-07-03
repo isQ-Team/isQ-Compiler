@@ -11,10 +11,12 @@ build:
     - echo ARTIFACT_JOB_ID=$CI_JOB_ID >> build-artifact.env
   script:
     - make lock
-    - nix build .#isqcTarball
+    - nix build
+    - nix build .#isqcTarball -o result-tarball
   artifacts:
     paths:
-      - result/isqc.tar.gz
+      - result
+      - result-tarball/isqc.tar.gz
     reports:
       dotenv: build-artifact.env
 sanity test:
