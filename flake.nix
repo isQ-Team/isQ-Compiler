@@ -89,6 +89,14 @@
           isQRustPackages = pkgs.rustBuilder.makePackageSet {
             rustToolchain = final.vendor.rust;
             packageFun = import ./Cargo.nix;
+            packageOverrides = pkgs: pkgs.rustBuilder.overrides.all ++ [
+              (pkgs.rustBuilder.rustLib.makeOverride {
+                name = "isq-version";
+                overrideAttrs = drv: {
+                  nativeBuildInputs = drv.nativeBuildInputs or [ ] ++ [ isQVersionHook ];
+                };
+              })
+            ];
           };
           # Rust packages.
           isqc-driver = (final.callPackage ./isqc { inherit isQRustPackages; isQVersion = versionInfo; });
@@ -108,7 +116,7 @@
             , isq-simulator ? final.isq-simulator
             }: pkgs.buildEnv {
               name = "isqc";
-              paths = [ ./sysroot isqc1 isq-opt isqc-driver isq-simulator.out isq-opt.mlir ];
+              paths = [ ./sysroot isqc1 isq-opt isqc-driver isq-simulator isq-opt.mlir ];
               nativeBuildInputs = [ pkgs.makeWrapper ];
               postBuild = ''
                 wrapProgram $out/bin/isqc --set ISQ_ROOT $out --set LLVM_ROOT ${final.vendor.mlir}

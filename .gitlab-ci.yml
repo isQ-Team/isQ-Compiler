@@ -59,14 +59,35 @@ bump patch version:
       changes:
         paths:
           - 'version.json'
-  - script:
+  script:
     - nix develop -c ./scripts/ci/init_git.sh
     - nix develop -c ./scripts/ci/bump_tag.sh
 
+deploy main branch doc:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - nix develop -c ./scripts/ci/init_git.sh
+    - cd docs
+    - git fetch origin gh-pages --depth=1
+    - nix develop -c mike deploy --rebase latest
+    - git push origin gh-pages
+  
 # Deploy a tagged version. Upload.
 deploy tagged version:
   stage: deploy
   rules:
     - if: $CI_COMMIT_TAG
-  - script:
-    
+  script:
+    # Upload tarball
+    - nix build
+
+    # Upload docs
+    - nix develop -c ./scripts/ci/init_git.sh
+    - cd docs
+    - git fetch origin gh-pages --depth=1
+    - nix develop -c mike deploy --rebase $CI_COMMIT_TAG
+    - git push origin gh-pages
+  release:
+    name: '$'

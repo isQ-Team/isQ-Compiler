@@ -30,17 +30,18 @@ in
   features = pluginFeatures;
 }).overrideAttrs (final: prev: ((pluginExports) // rec {
   buildInputs = prev.buildInputs ++ pluginDeps;
-  nativeBuildInputs = prev.nativeBuildInputs ++ [ llvm_tools isQVersionHook ];
+  nativeBuildInputs = prev.nativeBuildInputs ++ [ llvm_tools ];
   postInstall = ''
     src=${final.src};
-    mkdir -p $out/share/isq-simulator
+    simulator_stub_path=$bin/share/isq-simulator/isq-simulator.bc
+    mkdir -p $bin/share/isq-simulator
     ${llvm_tools}/bin/llvm-link $src/src/facades/qir/shim/qir_builtin/shim.ll \
     $src/src/facades/qir/shim/qsharp_core/shim.ll  \
     $src/src/facades/qir/shim/qsharp_foundation/shim.ll \
-    $src/src/facades/qir/shim/isq/shim.ll -o $out/share/isq-simulator/isq-simulator.bc
-    echo "#!/usr/bin/env bash" > $out/bin/isq-simulator-stub
-    echo "echo $out/share/isq-simulator/isq-simulator.bc" >> $out/bin/isq-simulator-stub
-    chmod +x $out/bin/isq-simulator-stub
+    $src/src/facades/qir/shim/isq/shim.ll -o $simulator_stub_path
+    echo "#!/usr/bin/env bash" > $bin/bin/isq-simulator-stub
+    echo "echo $simulator_stub_path" >> $bin/bin/isq-simulator-stub
+    chmod +x $bin/bin/isq-simulator-stub
   '';
   passthru.availablePlugins = availablePlugins;
 }

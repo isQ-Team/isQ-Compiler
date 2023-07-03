@@ -7,7 +7,7 @@ in
   caterpillar = (final.callPackage caterpillar { });
   mlir = (final.callPackage ./mlir { });
   nix-user-chroot = (final.callPackage ./nix-user-chroot { });
-  buildTarball = { name, drv, entry }:
+  buildTarball = { name, drv, entry, fileName ? name }:
     let
       drv_path = (builtins.toString drv);
       maketar = { targets }: with pkgs;
@@ -17,12 +17,15 @@ in
             NIX_CHROOT_PATH=$(dirname "$0")
             $NIX_CHROOT_PATH/${final.vendor.nix-user-chroot}/bin/nix-user-chroot $NIX_CHROOT_PATH/nix ${entry} "$@"
           '';
+          tarballName = "${fileName}.tar.gz";
         in
         stdenvNoCC.mkDerivation {
           name = "${name}-maketar";
+
           buildInputs = [ perl ];
           exportReferencesGraph = map (x: [ ("closure-" + baseNameOf x) x ]) targets;
           buildCommand = ''
+            mkdir -p $out
             storePaths=$(perl ${pathsFromGraph} ./closure-*)
             export BUILD=`pwd`/;
             cp ${entryScriptPath} $BUILD/${name}
@@ -33,7 +36,7 @@ in
               --hard-dereference \
               $storePaths > $BUILD/temp.tar
             tar -C $BUILD -rf $BUILD/temp.tar ${name}
-            cat $BUILD/temp.tar | gzip -9 > $out
+            cat $BUILD/temp.tar | gzip -9 > $out/${tarballName}
           '';
         };
     in
