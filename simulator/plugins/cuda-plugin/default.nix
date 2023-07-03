@@ -1,6 +1,7 @@
 { vendor, cudaPackages_11_5, addOpenGLRunpath, makeWrapper }:
-let cudatoolkit = cudaPackages_11_5.cudatoolkit;
-stdenv = vendor.stdenvLLVM;
+let
+  cudatoolkit = cudaPackages_11_5.cudatoolkit;
+  stdenv = vendor.stdenvLLVM;
 in
 stdenv.mkDerivation {
   name = "isq-simulator-plugin-cuda";
