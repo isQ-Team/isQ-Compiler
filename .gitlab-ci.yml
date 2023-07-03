@@ -2,6 +2,8 @@ stages:
   - build
   - test
   - deploy
+variables:
+  CI_DEPLOY_DEBUG: 1
 
 build:
   stage: build
@@ -48,6 +50,7 @@ bump major or minor version:
     - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH) && ($CI_PIPELINE_SOURCE == "push")
       changes:
         - 'version.json'
+    - if: $CI_DEPLOY_DEBUG
   script:
     - nix develop -c ./scripts/ci/init_git.sh
     - nix develop -c ./scripts/ci/release_branch.sh
