@@ -50,16 +50,24 @@ Due to the limitation of Nix, currently the revision of a dirty build cannot be 
 Versioning Cycle
 ----------------------
 
-- Any version bumping must go through a pull request. The commit can be as simple as updating `version.json`, since it will be rebased onto `main` branch anyway.
-- When the pull request is merged, the commits will be rebased onto `main`. A new commit setting the flag `frozen` to true will be created and pushed to corresponding git tag.
+- Development of major and minor versions focuses on `main` branch. Patches are ported to `release/MAJOR.MINOR.x` branches.
+- Any version bumping must go through a pull request. The commit can be as simple as updating `version.json`, since it will be rebased onto the source branch anyway.
+- When the pull request is merged, the commits will be rebased onto `main`.
+- When the major or minor version is bumped on `main` branch (patch version is `0`), a new branch `release/MAJOR.MINOR.x` will be created.
+- Whenever a new patch version is bumped on `release/MAJOR.MINOR.x`, a new commit setting the flag `frozen` to true will be created and pushed to corresponding git tag `vMAJOR.MINOR.PATCH`.
 
-An example of the `main` branch would be as follows: the X1 commit is added to `main` branch by a pull request bumping the version to `0.1.1`. A new commit `Y1` based on `X1` setting `frozen` to `true` will be created and pushed as git tag `0.1.1`.
+An example of the `main` branch would be as follows: the X1 commit is added to `main` branch by a pull request bumping the version to `0.2.0`, as well as branched as `release/0.2.x`. A new commit `Y1` based on `X1` setting `frozen` to `true` will be created and pushed as git tag `v0.2.0`. Suppose there is unfortunately a bug on `v0.2.0`, commits `f` through `X3` fix the bug and bump the patch version to `v0.2.1`.
 
 ```
-         PR: Bump 0.1.1  PR: Bump 0.1.2
-main - a - b - X1 - c - d - X2 - e(HEAD)
-                \            \ 
-                 Y1(0.1.1)    Y2(0.1.2)
+   PR: Bump 0.2.0  PR: Bump 0.3.0
+ - a - b - X1 - c - d - X2 - e (main)
+           \            \ 
+           |-Y1(v0.2.0) |-Y2(v0.3.0)
+           |             \ i - j - k - l (release/0.3.x)
+            \         PR: Bump 0.2.1
+              - f - g - X3 - h (release/0.2.x)
+                        \
+                         Y3(v0.2.1)
 ```
 
 

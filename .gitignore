@@ -21,3 +21,5 @@ build/
 /.build
 /target
 /result-bin
+/share
+/sysroot

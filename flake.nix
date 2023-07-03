@@ -171,6 +171,7 @@
         "isqcImageWithUbuntu"
         "vendorPkgs"
         "isQVersionHook"
+        "isqcRelease"
       ];
       defaultComponent = "isqc";
       preOverlays = [ cargo2nix.overlays.default ];

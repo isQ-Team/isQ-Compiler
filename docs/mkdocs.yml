@@ -21,6 +21,18 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.superfences
 
-
+plugins:
+  - mike:
+      # These fields are all optional; the defaults are as below...
+      alias_type: symlink
+      redirect_template: null
+      deploy_prefix: ''
+      canonical_version: null
+      version_selector: true
+      css_dir: css
+      javascript_dir: js
+extra:
+  version:
+    provider: mike
 repo_name: arclight-quantum/isQ-Compiler
 repo_url: https://github.com/arclight-quantum/isQ-Compiler
