@@ -4,7 +4,7 @@ use serde_json::*;
 use crate::error::*;
 use serde_json::Value as V;
 
-use std::{fs::File, io::{Read}, fmt::format};
+use std::{fs::File, io::{Read}};
 
 
 pub fn parse_type(input: &Value)->String{
