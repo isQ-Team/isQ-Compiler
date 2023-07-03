@@ -2,4 +2,4 @@
 SCRIPT=$(realpath "$0")
 SCRIPTPATH=$(dirname "$SCRIPT")
 BRANCH=$($SCRIPTPATH/../get-sem-ver.py ci_git_release_branch)
-git push origin-push HEAD:$BRANCH
+git push origin-push HEAD:refs/heads/$BRANCH
