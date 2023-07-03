@@ -68,6 +68,7 @@ bump patch version:
         - 'version.json'
   script:
     - nix develop -c ./scripts/ci/init_git.sh
+    - nix develop -c ./scripts/freeze-version.py
     - nix develop -c ./scripts/ci/bump_tag.sh
 
 deploy main branch doc:
