@@ -47,8 +47,7 @@ bump major or minor version:
   rules:
     - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH) && ($CI_PIPELINE_SOURCE == "push")
       changes:
-        paths:
-          - 'version.json'
+        - 'version.json'
   script:
     - nix develop -c ./scripts/ci/init_git.sh
     - nix develop -c ./scripts/ci/release_branch.sh
@@ -60,8 +59,7 @@ bump patch version:
   rules:
     - if: ($CI_COMMIT_BRANCH =~ /^release.*/) && ($CI_PIPELINE_SOURCE == "push")
       changes:
-        paths:
-          - 'version.json'
+        - 'version.json'
   script:
     - nix develop -c ./scripts/ci/init_git.sh
     - nix develop -c ./scripts/ci/bump_tag.sh
