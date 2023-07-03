@@ -331,10 +331,11 @@ private:
         if (globalop != nullptr){
             auto name = globalop.sym_name().str();
             if (name != ".__qmpi_rank") {
+                auto var_name = getQasmName(name);
                 int size = globalop.type().getShape()[0];
                 string var_type;
                 TRY(getVarType(globalop.type().getElementType(), var_type, op->getLoc()))
-                openQasmVarDefine(name, var_type, size);
+                openQasmVarDefine(var_name, var_type, size);
             }
         }
 
@@ -381,7 +382,7 @@ private:
         return gn_up;
     }
 
-    string getFuncName(string func){
+    string getQasmName(string func){
         int n = func.size();
         int pos = 0;
         for(int i = n-1; i>=0; i--){
@@ -489,7 +490,7 @@ private:
 
         auto attr = func_op.getSymNameAttr();
         
-        funcName = getFuncName(attr.getValue().str());
+        funcName = getQasmName(attr.getValue().str());
 
         auto res_type = func_op.getFunctionType();
 
@@ -600,7 +601,8 @@ private:
         auto name = tmpVarHead + to_string(id);
         return name;
     }
-
+    
+    /*
     mlir::LogicalResult visitOp(mlir::memref::GlobalOp op) override{
         auto id = op.sym_name();
         auto type = op.type();
@@ -611,12 +613,13 @@ private:
         }
         openQasmVarDefine(id.str(), var_type, size);
         return mlir::success();
-    }
+    }*/
+
     mlir::LogicalResult visitOp(mlir::memref::GetGlobalOp op) override{
         auto attr = op.nameAttr();
         //os << "global var: " << attr.getValue().str() << endl;
         auto type = op.result().getType().dyn_cast<mlir::MemRefType>();
-        return symbolInsert(size_t(mlir::hash_value(op.result())), OpType::VAR, type.getShape()[0], attr.getValue().str());
+        return symbolInsert(size_t(mlir::hash_value(op.result())), OpType::VAR, type.getShape()[0], getQasmName(attr.getValue().str()));
     }
     mlir::LogicalResult visitOp(mlir::arith::ConstantOp op) override{
         auto ci_attr = op.getValueAttr().dyn_cast<mlir::IntegerAttr>();
@@ -753,13 +756,25 @@ private:
     mlir::LogicalResult visitOp(mlir::arith::AddIOp op) override{
         return visitBinaryOp(OpType::ADD, '+', op.getLhs(), op.getRhs(), op.getResult());
     }
+    mlir::LogicalResult visitOp(mlir::arith::AddFOp op) override{
+        return visitBinaryOp(OpType::ADD, '+', op.getLhs(), op.getRhs(), op.getResult());
+    }
     mlir::LogicalResult visitOp(mlir::arith::SubIOp op) override{
+        return visitBinaryOp(OpType::SUB, '-', op.getLhs(), op.getRhs(), op.getResult());
+    }
+    mlir::LogicalResult visitOp(mlir::arith::SubFOp op) override{
         return visitBinaryOp(OpType::SUB, '-', op.getLhs(), op.getRhs(), op.getResult());
     }
     mlir::LogicalResult visitOp(mlir::arith::MulIOp op) override{
         return visitBinaryOp(OpType::MUL, '*', op.getLhs(), op.getRhs(), op.getResult());
     }
+    mlir::LogicalResult visitOp(mlir::arith::MulFOp op) override{
+        return visitBinaryOp(OpType::MUL, '*', op.getLhs(), op.getRhs(), op.getResult());
+    }
     mlir::LogicalResult visitOp(mlir::arith::DivSIOp op) override{
+        return visitBinaryOp(OpType::DIV, '/', op.getLhs(), op.getRhs(), op.getResult());
+    }
+    mlir::LogicalResult visitOp(mlir::arith::DivFOp op) override{
         return visitBinaryOp(OpType::DIV, '/', op.getLhs(), op.getRhs(), op.getResult());
     }
     mlir::LogicalResult visitOp(UseGateOp op) override{
@@ -812,7 +827,7 @@ private:
     }
     mlir::LogicalResult visitOp(mlir::func::CallOp op) override{
         auto func_name = op.getCalleeAttr().getValue().str();
-        string call_str = getFuncName(func_name) + "(";
+        string call_str = getQasmName(func_name) + "(";
         for (auto indexOperand : llvm::enumerate(op->getOperands())){
             auto operand = indexOperand.value();
             size_t code = size_t(mlir::hash_value(operand));
