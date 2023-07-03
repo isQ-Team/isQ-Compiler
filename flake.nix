@@ -223,6 +223,7 @@
                 enable = true;
                 name = "Run cargo2nix";
                 entry = "make cargo2nix";
+                files = "Cargo.toml$";
               };
             };
           };
