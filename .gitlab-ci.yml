@@ -79,7 +79,7 @@ deploy main branch doc:
     - cd docs
     - git fetch origin gh-pages --depth=1
     - nix develop -c mike deploy --rebase latest
-    - git push origin gh-pages
+    - git push origin-push gh-pages
   
 # Deploy a tagged version. Upload.
 deploy tagged version:
@@ -97,7 +97,7 @@ deploy tagged version:
     - cd docs
     - git fetch origin gh-pages --depth=1
     - nix develop -c mike deploy --rebase $CI_COMMIT_TAG
-    - git push origin gh-pages
+    - git push origin-push gh-pages
   artifacts:
     paths:
       - release/isqc-${CI_COMMIT_TAG}.tar.gz
@@ -108,4 +108,4 @@ deploy tagged version:
     assets:
       links:
         - name: 'Linux x86_64'
-          url: 'https://gitlab.com/codemancers/engineering/cw/-/jobs/${CI_JOB_ID}/artifacts/file/release/isqc-${CI_COMMIT_TAG}.tar.gz'
+          url: '${CI_SERVER_PROTOCOL}://${CI_SERVER_HOST}:${CI_SERVER_PORT}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/cw/-/jobs/${CI_JOB_ID}/artifacts/file/release/isqc-${CI_COMMIT_TAG}.tar.gz'
