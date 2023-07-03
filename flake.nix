@@ -114,9 +114,10 @@
             , isq-opt ? final.isq-opt
             , isqc-driver ? final.isqc-driver
             , isq-simulator ? final.isq-simulator
+            , isqc-docs ? final.isqc-docs
             }: pkgs.buildEnv {
               name = "isqc";
-              paths = [ ./sysroot isqc1 isq-opt isqc-driver isq-simulator isq-opt.mlir ];
+              paths = [ ./sysroot isqc1 isq-opt isqc-driver isq-simulator isq-opt.mlir isqc-docs ];
               nativeBuildInputs = [ pkgs.makeWrapper ];
               postBuild = ''
                 wrapProgram $out/bin/isqc --set ISQ_ROOT $out --set LLVM_ROOT ${final.vendor.mlir}
