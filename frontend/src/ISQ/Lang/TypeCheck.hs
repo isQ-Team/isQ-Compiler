@@ -720,8 +720,10 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
             (True, True)->(cm, EIdent (annotationExpr gate) ((identName gate)++"_inv"))
             (_, _)->(modifiers, gate)
 
+    --traceM $ show new_gate
     gate'<-typeCheckExpr new_gate
     gate''<-matchType [AnyGate] gate'
+    --traceM $ show gate''
     let (x, extra) = case astType gate'' of
             Type _ (Gate x) extra -> (x, extra)
             Type _ (Logic x) extra -> (x, extra)
@@ -729,8 +731,22 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
     let total_operands = length extra + total_qubits
     when (total_operands /= length operands) $ throwError $ ArgNumberMismatch pos total_operands (length operands)
     operands'<-mapM typeCheckExpr operands
+    --traceM $ show operands'
+    --traceM $ show extra
+    let canparam = case ((identName gate), modifiers') of
+            ("Rx", []) -> True
+            ("Ry", []) -> True
+            ("Rz", []) -> True
+            (_, _) -> False
+    let extra' = map (\(x, y)->case astType y of
+            Type _ Param _ -> if canparam then Type () Param [] else x
+            Type _ Ref [s] -> case s of
+                Type _ Param _ -> if canparam then Type () Param [] else x
+                _ -> x
+            _ -> x) (zip extra operands')
+    
     let (op_extra, op_qubits) = splitAt (total_operands - total_qubits) operands'
-    op_extra'<-zipWithM (\x y->matchType [Exact x] y) extra op_extra
+    op_extra'<-zipWithM (\x y->matchType [Exact x] y) extra' op_extra
     case null op_qubits of
         -- GPhase has no qubit operand
         True -> return $ NCoreUnitary (okStmt pos) gate'' op_extra' modifiers'
@@ -853,8 +869,8 @@ argType' pos ty i = case ty of
     Type _ (Array _) [a] -> return $ void ty
     _ -> throwError $ BadProcedureArgType pos (void ty, i)
 
-typeCheckToplevel :: Bool -> String -> [AST Pos]->TypeCheck ([TCAST], SymbolTableLayer, Int)
-typeCheckToplevel isMain prefix ast = do
+typeCheckToplevel :: Bool -> String -> [AST Pos]-> Bool -> TypeCheck ([TCAST], SymbolTableLayer, Int)
+typeCheckToplevel isMain prefix ast qcis = do
     
     (resolved_defvar, varlist)<-flip runStateT [] $ do
         mapM (\node->case node of
@@ -885,6 +901,14 @@ typeCheckToplevel isMain prefix ast = do
             Left (NResolvedGatedef pos name matrix size qir) -> do
                 defineGlobalSym prefix name pos (Type () (Gate size) []) False False
                 return $ Right (NResolvedGatedef (okStmt pos) (prefix ++ name) matrix size qir)
+            Left (NDefParam pos params) -> do
+                if qcis then do
+                    mapM (\(param, b) -> case b of
+                        Just _ -> defineGlobalSym prefix param pos (Type () (Array 0) [Type () Param []]) False False
+                        Nothing -> defineGlobalSym prefix param pos (Type () Param []) False False) params
+                    let params' = map (\(param, _) -> (prefix++param, param)) params
+                    return $ Right $ NResolvedDefParam (okStmt pos) params'
+                else throwError $ UnsupportedType pos (Type () Param [])
             Left (NExternGate pos name extra size qirname) -> do
                 extra'<-mapM (\x->argType' pos x "<anonymous>") extra
                 defineGlobalSym prefix name pos (Type () (Gate size) extra') False False
@@ -930,6 +954,7 @@ typeCheckToplevel isMain prefix ast = do
         ) resolved_defvar
     -- Finally, resolve procedure bodies.
     -- Note that we need to store byval-passed values (e.g. int) into new variables.
+    
     body<-mapM (\node->case node of
         Right x->return x
         Left (pos, ty, func_name, args, body, ret@(ETempVar pret ret_id))-> do
@@ -987,10 +1012,10 @@ getSecondLast [x] = error "Single-element list"
 getSecondLast (x:_:[]) = x
 getSecondLast (x:xs) = getSecondLast xs
 
-typeCheckTop :: Bool -> String -> [LAST] -> SymbolTableLayer -> Int -> Either TypeCheckError ([TCAST], SymbolTableLayer, Int)
-typeCheckTop isMain prefix ast stl ssaId = do
+typeCheckTop :: Bool -> String -> [LAST] -> SymbolTableLayer -> Int -> Bool -> Either TypeCheckError ([TCAST], SymbolTableLayer, Int)
+typeCheckTop isMain prefix ast stl ssaId qcis= do
     let env = TypeCheckEnv [MultiMap.empty, stl] ssaId False False
-    evalState (runExceptT $ typeCheckToplevel isMain prefix ast) env
+    evalState (runExceptT $ typeCheckToplevel isMain prefix ast qcis) env
 
 -- TODO: unification-based type check and type inference.
 

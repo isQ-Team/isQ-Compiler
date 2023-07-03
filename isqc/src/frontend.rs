@@ -4,7 +4,7 @@ use serde_json::*;
 use crate::error::*;
 use serde_json::Value as V;
 
-use std::{fs::File, io::{Read}};
+use std::{fs::File, io::{Read}, fmt::format};
 
 
 pub fn parse_type(input: &Value)->String{
@@ -18,6 +18,7 @@ pub fn parse_type(input: &Value)->String{
         "Bool"=>format!("bool"),
         "Double"=>format!("double"),
         "Complex"=>format!("complex"),
+        "Param"=>format!("param"),
         "Array"=>format!("[{};{}]", parse_type(&subtypes[0]), input["ty"]["contents"].as_i64().unwrap()),
         "UserType"=>format!("{}<{}>", input["ty"]["contents"].as_str().unwrap(), subtypes.iter().map(parse_type).collect::<Vec<_>>().join(", ")),
         "IntRange"=>format!("range"),
@@ -38,7 +39,6 @@ pub fn parse_pos(input: &Value)->miette::Result<(NamedSource, SourceSpan)>{
     let loc_line = input["line"].as_i64().unwrap() as usize;
     let loc_col = input["column"].as_i64().unwrap() as usize+1;
 
-
     let mut line = 0usize;
     let mut col = 0usize;
     let mut offset = 0usize;
@@ -51,11 +51,12 @@ pub fn parse_pos(input: &Value)->miette::Result<(NamedSource, SourceSpan)>{
         } else {
             col += 1;
         }
-        if line + 1 >= loc_line && col + 1 >= loc_col {
+        if line >= loc_line && col >= loc_col {
             break;
         }
         offset += 1;
     }
+
     let ss = SourceSpan::new(
         SourceOffset::from(offset),
         SourceOffset::from(0)

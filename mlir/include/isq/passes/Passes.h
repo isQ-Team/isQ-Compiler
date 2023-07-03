@@ -25,6 +25,7 @@ void registerOracleDecompose();
 void registerAffineSWP();
 void registerGlobalThreadLocal();
 void registerReuseQubit();
+void registerRedundant();
 
 void addLegalizeTraitsRules(mlir::RewritePatternSet& patterns);
 

@@ -21,6 +21,7 @@ import Control.Monad (void)
     procedure { TokenReservedId $$ "procedure" }
     int { TokenReservedId $$ "int" }
     qbit { TokenReservedId $$ "qbit" }
+    param { TokenReservedId $$ "param" }
     M { TokenReservedId $$ "M" }
     print { TokenReservedId $$ "print" }
     defgate { TokenReservedId $$ "defgate" }
@@ -135,6 +136,9 @@ Qualified :: {ISQv2Token}
 Qualified : IDENTIFIER {$1}
      | QUALIFIED {$1}
 
+Paramt :: {LAST}
+Paramt :  param IdentListNonEmpty ';' { NDefParam $1 $2 }
+
 DefMemberList :: {[LAST]}
 DefMemberList : {- empty -} { [] }
      | DefMemberList TopDefMember { $1 ++ [$2] }
@@ -147,6 +151,7 @@ TopDefMember : ISQCore_GatedefStatement ';' { $1 }
              | OracleTruthTable { $1 }
              | OracleFunction { $1 }
              | OracleLogic { $1 }
+             | Paramt { $1 }
 
 StatementList :: {[LAST]}
 StatementList : {- empty -} { [] }
@@ -227,9 +232,10 @@ Expr1ListNonEmpty : Expr1 { [$1] }
 Expr1LeftListNonEmpty :: {[LExpr]}
 Expr1LeftListNonEmpty : Expr1Left { [$1] }
                       | Expr1LeftListNonEmpty ',' Expr1Left { $1 ++ [$3] }
-IdentListNonEmpty :: {[ISQv2Token]}
-IdentListNonEmpty : IDENTIFIER { [$1] }
-                  | IdentListNonEmpty ',' IDENTIFIER { $1 ++ [$3] }
+IdentListNonEmpty :: {[(Ident, Maybe Pos)]}
+IdentListNonEmpty : IDENTIFIER { [(tokenIdentV $1, Nothing)] }
+                  | IDENTIFIER '[' ']' { [(tokenIdentV $1, Just $2)] }
+                  | IdentListNonEmpty ',' IdentListNonEmpty { $1 ++ $3 }
 
 BlockStatement :: {LAST}
 BlockStatement : '{' StatementList '}' { NBlock $1 $2 }

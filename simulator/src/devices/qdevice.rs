@@ -112,5 +112,11 @@ pub trait QDevice {
     }
     fn print_state(&mut self) {}
     fn assert(&self, _qubits: &[&Self::Qubit], _space: &[f64]) -> bool {true}
+    fn param_qop(
+        &mut self,
+        op_type: QuantumOp,
+        qubits: &[&Self::Qubit],
+        parameters: String
+    ){}
 }
 

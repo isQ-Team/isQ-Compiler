@@ -33,6 +33,30 @@ pub struct NoISQv2RootError;
 pub struct QCISConfigNotSpecified;
 
 #[derive(Error, Debug, Diagnostic)]
+#[error("qcis generate error.")]
+#[diagnostic(
+    code(isqv2::qcis_invalid_output),
+    help("{0}")
+)]
+pub struct QCISGenerateError(pub String);
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("openqasm3 generate error.")]
+#[diagnostic(
+    code(isqv2::openqasm3_invalid_output),
+    help("{0}")
+)]
+pub struct OpenQASM3GenerateError(pub String);
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("eqasm generate error.")]
+#[diagnostic(
+    code(isqv2::eqasm_invalid_output),
+    help("{0}")
+)]
+pub struct EQASMGenerateError(pub String);
+
+#[derive(Error, Debug, Diagnostic)]
 #[error("Invalid output from frontend compiler.")]
 #[diagnostic(
     code(isqv2::isqc1_invalid_output),

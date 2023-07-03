@@ -1,46 +1,48 @@
 #include <cstdio>
 #include <cassert>
 #include <memory>
-#include <mlir/IR/Types.h>
-#include <mlir/IR/Dialect.h>
-#include <mlir/IR/TypeSupport.h>
-#include <mlir/Parser.h>
-#include <mlir/Parser/AsmParserState.h>
-#include <mlir/IR/DialectImplementation.h>
-#include "llvm/ADT/TypeSwitch.h"
-#include <mlir/InitAllDialects.h>
-#include "isq/Backends.h"
+
 #include "isq/Dialect.h"
-#include "mlir/Support/MlirOptMain.h"
-#include "mlir/Transforms/ViewOpGraph.h"
-#include "llvm/Support/CommandLine.h"
-#include <mlir/InitAllPasses.h>
-#include <mlir/IR/BuiltinTypes.h>
-#include <algorithm>
 #include <isq/IR.h>
-#include <llvm/Support/CommandLine.h>
+
+#include "mlir/Dialect/Affine/Passes.h"
+#include "mlir/ExecutionEngine/ExecutionEngine.h"
+#include "mlir/ExecutionEngine/OptUtils.h"
+#include "mlir/IR/AsmState.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/Verifier.h"
+#include "mlir/InitAllDialects.h"
+#include "mlir/Parser/Parser.h"
+#include "mlir/Pass/Pass.h"
+#include "mlir/Pass/PassManager.h"
+#include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Export.h"
+#include "mlir/Transforms/Passes.h"
+
+#include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
-#include "mlir/IR/AsmState.h"
-#include "mlir/Pass/Pass.h"
-#include "mlir/Pass/PassManager.h"
+
 
 namespace cl = llvm::cl;
 static cl::opt<std::string> inputFilename(cl::Positional, cl::desc("<input isq file>"),cl::init("-"),cl::value_desc("filename"));
 
 namespace{
-    enum BackendType {None, OpenQASM3Logic, QCIS};
+    enum BackendType {None, OpenQASM3, QCIS, EQASM};
 }
 
 static cl::opt<enum BackendType> emitBackend(
     "target", cl::desc("Choose the backend for code generation"),
     cl::values(clEnumValN(None, "none", "output the MLIR as-is")),
-    cl::values(clEnumValN(OpenQASM3Logic, "openqasm3-logic", "generate (logic) OpenQASM3 program")),
-    cl::values(clEnumValN(QCIS, "qcis", "generate qcis"))
+    cl::values(clEnumValN(OpenQASM3, "openqasm3", "generate (logic) OpenQASM3 program")),
+    cl::values(clEnumValN(QCIS, "qcis", "generate qcis")),
+    cl::values(clEnumValN(EQASM, "eqasm", "generate eqasm"))
 );
 
 static cl::opt<bool> printAst(
@@ -77,7 +79,7 @@ int isq_mlir_codegen_main(int argc, char **argv) {
     }
     llvm::SourceMgr sourceMgr;
     sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
-    mlir::OwningOpRef<mlir::ModuleOp> module = mlir::parseSourceFile(sourceMgr, &context);
+    mlir::OwningOpRef<mlir::ModuleOp> module = mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &context);
     if (!module) {
         llvm::errs() << "Error can't load file " << inputFilename << "\n";
         return 3;
@@ -91,7 +93,7 @@ int isq_mlir_codegen_main(int argc, char **argv) {
 
     if(emitBackend==None){
         module->print(llvm::outs());
-    }else if(emitBackend==OpenQASM3Logic){
+    }else if(emitBackend==OpenQASM3){
         if(failed(isq::ir::generateOpenQASM3Logic(context, module_op, llvm::outs()))){
             llvm::errs() << "Generate OpenQASM3 failed.\n";
             return -2;
@@ -99,6 +101,11 @@ int isq_mlir_codegen_main(int argc, char **argv) {
     }else if (emitBackend==QCIS){
         if(failed(isq::ir::generateQCIS(context, module_op, llvm::outs(), printAst))){
             llvm::errs() << "Generate QCIS failed.\n";
+            return -2;
+        }
+    }else if (emitBackend==EQASM){
+        if(failed(isq::ir::generateEQASM(context, module_op, llvm::outs(), printAst))){
+            llvm::errs() << "Generate EQASM failed.\n";
             return -2;
         }
     }else{

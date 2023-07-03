@@ -45,6 +45,7 @@ mapType (Type () (Gate n) _) = M.Gate n
 mapType (Type () (Logic n) _) = M.Gate n
 mapType (Type () Double []) = M.Double
 mapType (Type () FuncTy (ret:arg)) = Func (mapType ret) $ map mapType arg
+mapType (Type () Param []) = I8
 mapType _ = error "unsupported type"
 
 
@@ -162,6 +163,52 @@ logicOpTranslate Or = "or"
 logicOpTranslate (Cmp Equal) = "xnor"
 logicOpTranslate (Cmp NEqual) = "xor"
 logicOpTranslate _ = undefined
+
+getParamName :: String -> String
+getParamName name = last $ splitOn "." name
+
+paramGate :: [TCExpr] -> Bool
+paramGate [] = False
+paramGate (x:xs) = do
+    let rx = case x of
+            EGlobalName ann@(mType->I8) name -> True
+            EDeref ann@(mType->I8) val -> True
+            _ -> False
+    rx || (paramGate xs)
+
+
+paramExpr :: TCExpr -> State RegionBuilder SSA
+paramExpr x = do
+    case x of
+        EGlobalName ann@(mType->I8) name -> do
+            pos <-mpos ann
+            let i = ssa ann
+            --let index = SSA $ unSsa i ++ "_index"
+            pushOp $ MParamref pos i (fromFuncName name) (length $ getParamName name)
+            return i
+        EDeref ann@(mType->I8) val -> do
+            --let index = emitExpr (subscript val)
+            pos<-mpos ann
+            let i = ssa ann
+            let name = globalName (usedExpr val)
+            pushOp $ MParamref pos i (fromFuncName name) (length $ getParamName name)
+            return i
+        _ -> error "bad param expr"
+
+paramIndex :: TCExpr -> State RegionBuilder SSA
+paramIndex x = do
+    case x of
+        EGlobalName ann@(mType->I8) name -> do
+            let i = ssa ann
+            let index = SSA $ unSsa i ++ "_index"
+            return index
+        EDeref ann@(mType->I8) val -> do
+            pos<-mpos ann
+            index <- emitExpr (subscript val)
+            pushOp $ MAssertParamIndex pos index
+            return index
+        _ -> error "bad param expr"
+
 
 emitExpr' :: (Expr TypeCheckData->State RegionBuilder SSA)->Expr TypeCheckData->State RegionBuilder SSA
 emitExpr' f (EIdent ann name) = error "unreachable"
@@ -379,32 +426,53 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
     let go Inv (l, f) = (l, not f)
         go (Ctrl x i) (l, f) = (replicate i x ++ l, f)
         folded_mods = foldr go ([], False) mods
-    ops'<-mapM emitExpr ops
-    pos<-mpos ann
-    let i = ssa ann2
-    
-    let used_gate = i;
-    let ty = termType ann2;
-    let isq = case ty of
-            Type _ (Gate _) _ -> True
-            Type _ (Logic _) _ -> False
-            other -> error "unexpected type"
-    let len = length $ subTypes ty
-    let gate_type@(M.Gate gate_size) = mapType ty;
-    
-    let (extra_args, qubit_args) = splitAt len ops
-    let (extra_ssa, qubit_ssa) = splitAt len ops'
-    let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..length qubit_ssa]
-    pushOp $ MQUseGate pos used_gate (fromFuncName name) gate_type (zipWith (\arg ssa->(astMType arg, ssa)) extra_args extra_ssa) isq
-    decorated_gate<-case folded_mods of
-            ([], False)->return i
-            (ctrls, adj)->do
-                let decorated_gate = SSA $ unSsa i ++ "_decorated"
-                pushOp $ MQDecorate pos decorated_gate used_gate folded_mods gate_size
-                return $ decorated_gate
-    zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins qubit_ssa
-    pushOp $ MQApplyGate pos outs ins decorated_gate isq
-    zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs qubit_ssa
+
+    let paramgate = paramGate ops
+    case paramgate of
+        True -> do
+            pos<-mpos ann
+            let args = head ops;
+            args_ssa <- paramExpr args;
+            args_index <- paramIndex args;
+            let qubit = last ops;
+            qubit_ssa <- emitExpr qubit;
+            let i = ssa ann2;
+            let used_gate = i;
+            let ty = termType ann2;
+            let len = length $ subTypes ty;
+            let gate_type@(M.Gate gate_size) = mapType ty;
+
+            let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..length [qubit_ssa]]
+            pushOp $ MQUseGate pos used_gate (fromFuncName $ name ++ "p") gate_type [(astMType args, args_ssa), (Index, SSA $ unSsa args_ssa ++ "_len"), (Index, args_index)] True
+            zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins [qubit_ssa]
+            pushOp $ MQApplyGate pos outs ins i True
+            zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs [qubit_ssa]
+        False -> do
+            ops'<-mapM emitExpr ops
+            pos<-mpos ann
+            let i = ssa ann2
+            let used_gate = i;
+            let ty = termType ann2;
+            let isq = case ty of
+                    Type _ (Gate _) _ -> True
+                    Type _ (Logic _) _ -> False
+                    other -> error "unexpected type"
+            let len = length $ subTypes ty
+            let gate_type@(M.Gate gate_size) = mapType ty;
+            
+            let (extra_args, qubit_args) = splitAt len ops
+            let (extra_ssa, qubit_ssa) = splitAt len ops'
+            let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..length qubit_ssa]
+            pushOp $ MQUseGate pos used_gate (fromFuncName name) gate_type (zipWith (\arg ssa->(astMType arg, ssa)) extra_args extra_ssa) isq
+            decorated_gate<-case folded_mods of
+                    ([], False)->return i
+                    (ctrls, adj)->do
+                        let decorated_gate = SSA $ unSsa i ++ "_decorated"
+                        pushOp $ MQDecorate pos decorated_gate used_gate folded_mods gate_size
+                        return $ decorated_gate
+            zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins qubit_ssa
+            pushOp $ MQApplyGate pos outs ins decorated_gate isq
+            zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs qubit_ssa
 emitStatement' f NCoreUnitary{} = error "first-class gate unsupported"
 emitStatement' f (NCoreReset ann operand) = do
     operand'<-emitExpr operand
@@ -672,6 +740,16 @@ emitTop file x@NDerivedOracle{} = do
     let ([fn], ssa') = unscopedStatement' file (emitStatement x) ssa
     currentSsa .= ssa'
     mainModule %= (fn:)
+emitTop file (NResolvedDefParam ann params) = do
+    let Pos l c f = sourcePos ann
+    let pos = MLIRLoc f l c
+    let def_one :: (String, String) -> State TopBuilder ()
+        def_one (name, val) = do
+            let stmt = MParamDef pos (fromFuncName name) val (length val)
+            mainModule %= (stmt:)
+
+    mapM_ def_one params
+
 emitTop _ x = error $ "unreachable" ++ show x
 
 

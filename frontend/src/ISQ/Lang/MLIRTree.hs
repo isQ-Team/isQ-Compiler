@@ -9,7 +9,7 @@ import Debug.Trace
 
 data MLIRType =
     MUnit | Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
-  | Gate Int | Double | QIRQubit | Func MLIRType [MLIRType] deriving Show
+  | Gate Int | Double | QIRQubit | Func MLIRType [MLIRType] | I8 deriving Show
 
 zeroMlirType :: MLIRType->MLIRType
 zeroMlirType (Memref (Just x) ty) = Memref Nothing ty
@@ -24,6 +24,7 @@ mlirType Index = "index"
 mlirType Double = "f64"
 mlirType QState = "!isq.qstate"
 mlirType QIRQubit = "!isq.qir.qubit"
+mlirType I8 = "!llvm.ptr<i8>"
 mlirType (Memref Nothing ty) = "memref<?x" ++ mlirType ty ++ ", affine_map<(d0)[s0, s1] -> (d0 * s1 + s0)>>"
 mlirType (Memref (Just x) ty) = "memref<"++show x++"x" ++ mlirType ty ++ ", affine_map<(d0)[s0, s1] -> (d0 * s1 + s0)>>"
 mlirType (BorrowedRef ty) = "memref<1x"++ mlirType ty ++", affine_map<(d0)[s0]->(d0+s0)>>"
@@ -164,6 +165,10 @@ data MLIROp =
     | MBp {location :: MLIRPos, bpLine :: SSA}
     | MGlobalMemref {location :: MLIRPos, globalMemrefName :: FuncName, globalMemrefType :: MLIRType}
     | MUseGlobalMemref {location :: MLIRPos, usedVal :: SSA, usedName :: FuncName, globalMemrefType :: MLIRType}
+    | MParamDef {location :: MLIRPos, paramName :: FuncName, paramString :: String, plen :: Int}
+    | MParamref {location :: MLIRPos, usedVal :: SSA, paramName :: FuncName, plen :: Int}
+    | MQUseParamGate { location :: MLIRPos, value :: SSA, usedGate :: FuncName, param :: SSA, plen :: Int, pidx :: Int}
+    | MAssertParamIndex {location :: MLIRPos, value :: SSA}
     deriving Show
 
 data MLIREmitEnv = MLIREmitEnv {
@@ -229,7 +234,20 @@ emitOpStep f env (MModule _ ops) =
       indented env $ "    isq.declare_qop @__isq__qmpiprim__size : [0]()->index",
       indented env $ "    isq.declare_qop @__isq__qmpiprim__epr : [1](index, index)->()",
       indented env $ "    isq.declare_qop @__isq__qmpiprim__csend : [0](index, index, i1)->()",
-      indented env $ "    isq.declare_qop @__isq__qmpiprim__crecv : [0](index, index)->i1"
+      indented env $ "    isq.declare_qop @__isq__qmpiprim__crecv : [0](index, index)->i1",
+
+      indented env $ "    func.func private @\"__quantum__qis__rxp__body\"(!llvm.ptr<i8>, index, index, !isq.qir.qubit)",
+      indented env $ "    isq.defgate @\"Rxp\"(!llvm.ptr<i8>, index, index) {definition = [#isq.gatedef<type = \"qir\", value = @\"__quantum__qis__rxp__body\">]}: !isq.gate<1>",
+      indented env $ "    isq.defgate @\"std.Rxp\"(!llvm.ptr<i8>, index, index) {definition = [#isq.gatedef<type = \"qir\", value = @\"__quantum__qis__rxp__body\">]}: !isq.gate<1>",
+
+      indented env $ "    func.func private @\"__quantum__qis__ryp__body\"(!llvm.ptr<i8>, index, index, !isq.qir.qubit)",
+      indented env $ "    isq.defgate @\"Ryp\"(!llvm.ptr<i8>, index, index) {definition = [#isq.gatedef<type = \"qir\", value = @\"__quantum__qis__ryp__body\">]}: !isq.gate<1>",
+      indented env $ "    isq.defgate @\"std.Ryp\"(!llvm.ptr<i8>, index, index) {definition = [#isq.gatedef<type = \"qir\", value = @\"__quantum__qis__ryp__body\">]}: !isq.gate<1>",
+
+      indented env $ "    func.func private @\"__quantum__qis__rzp__body\"(!llvm.ptr<i8>, index, index, !isq.qir.qubit)",
+      indented env $ "    isq.defgate @\"Rzp\"(!llvm.ptr<i8>, index, index) {definition = [#isq.gatedef<type = \"qir\", value = @\"__quantum__qis__rzp__body\">]}: !isq.gate<1>",
+      indented env $ "    isq.defgate @\"std.Rzp\"(!llvm.ptr<i8>, index, index) {definition = [#isq.gatedef<type = \"qir\", value = @\"__quantum__qis__rzp__body\">]}: !isq.gate<1>"
+
   ]++s ++ [indented env "}"])
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_me\"") _ _) = "\n\
 \func.func @qmpi.qmpi_me()->index { \n\
@@ -419,6 +437,17 @@ emitOpStep f env (MUseGlobalMemref loc val name ty@(Memref (Just n) subty)) = in
   printf "%s_0 = arith.constant 0 : index" (unSsa val),
   printf "%s_1 = arith.constant 1 : index" (unSsa val),
   printf "%s = memref.subview %s_uncast[%s_0][%d][%s_1] : memref<%dx%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) n (unSsa val) n (mlirType subty) (mlirType ty) (mlirPos loc)]
+emitOpStep f env (MParamDef loc name val plen) = indented env $ printf "llvm.mlir.global %s(\"%s\") : !llvm.array<%d x i8>" (unFuncName name) val plen
+emitOpStep f env (MParamref loc val name plen) = intercalate "\n" $ fmap (indented env) [
+  printf "%s_uncast = llvm.mlir.addressof %s : !llvm.ptr<array<%d x i8>> %s" (unSsa val) (unFuncName name) plen (mlirPos loc),
+  printf "%s_zero = llvm.mlir.constant(0 : index) : i64" (unSsa val),
+  printf "%s = llvm.getelementptr %s_uncast[%s_zero, %s_zero] : (!llvm.ptr<array<%d x i8>>, i64, i64) -> !llvm.ptr<i8>" (unSsa val) (unSsa val) (unSsa val) (unSsa val) plen,
+  printf "%s_len = arith.constant %d : index" (unSsa val) plen,
+  printf "%s_index = arith.constant -1: index" (unSsa val)]
+emitOpStep f env (MAssertParamIndex loc value) = intercalate "\n" $ fmap (indented env) [
+  printf "%s_cmp_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
+  printf "%s_ge = arith.cmpi \"sge\", %s, %s_cmp_zero : index %s" (unSsa value) (unSsa value) (unSsa value) (mlirPos loc),
+  printf "isq.assert %s_ge : i1, 3 %s" (unSsa value) (mlirPos loc)]
 emitOp' :: MLIREmitEnv -> MLIROp -> String
 emitOp' = fix emitOpStep
 

@@ -17,7 +17,7 @@ getTypeCheckError = head . words . show
 
 typeTestTemplate :: String -> String -> IO ()
 typeTestTemplate input expect = do
-    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) $ ImportEnv MultiMap.empty Map.empty 0
+    errorOrAst <- evalStateT (runExceptT $ parseToAST "" input) $ ImportEnv MultiMap.empty Map.empty 0 False
     case errorOrAst of
         Left _ -> error "input file error"
         Right ast -> do
@@ -26,7 +26,7 @@ typeTestTemplate input expect = do
                 Left _ -> error "raii error"
                 Right raii -> do
                     --liftIO $ BS.hPut stdout (encode raii) -- for debug
-                    let errOrTuple = typeCheckTop False "." raii MultiMap.empty 0
+                    let errOrTuple = typeCheckTop False "." raii MultiMap.empty 0 False
                     case errOrTuple of
                         Left err -> (getTypeCheckError err) `shouldBe` expect
                         Right _ -> error "evaluate error"
