@@ -7,18 +7,13 @@ variables:
 
 build:
   stage: build
-  before_script:
-    - echo ARTIFACT_JOB_ID=$CI_JOB_ID >> build-artifact.env
   script:
     - make lock
     - nix build
-    - nix build .#isqcTarball -o result-tarball
   artifacts:
     paths:
       - result
-      - result-tarball/isqc.tar.gz
-    reports:
-      dotenv: build-artifact.env
+      
 sanity test:
   stage: test
   rules:
@@ -95,12 +90,17 @@ deploy tagged version:
     - job: build
       artifacts: true
   script:
+    # Build tarball
+    - nix build .#isqcTarball -o release
     # Upload docs
     - nix develop -c ./scripts/ci/init_git.sh
     - cd docs
     - git fetch origin gh-pages --depth=1
     - nix develop -c mike deploy --rebase $CI_COMMIT_TAG
     - git push origin gh-pages
+  artifacts:
+    paths:
+      - release/isqc-${CI_COMMIT_TAG}.tar.gz
   release:
     name: 'isQ Release $CI_COMMIT_TAG'
     description: 'Standalone version that can be use without Nix.'
@@ -108,4 +108,4 @@ deploy tagged version:
     assets:
       links:
         - name: 'Linux x86_64'
-          url: 'https://gitlab.com/codemancers/engineering/cw/-/jobs/${ARTIFACT_JOB_ID}/artifacts/file/dist/cloudwatch-linux'
+          url: 'https://gitlab.com/codemancers/engineering/cw/-/jobs/${CI_JOB_ID}/artifacts/file/release/isqc-${CI_COMMIT_TAG}.tar.gz'
