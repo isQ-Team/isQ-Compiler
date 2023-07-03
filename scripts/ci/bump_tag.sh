@@ -6,4 +6,4 @@ TAG=$($SCRIPTPATH/../get-sem-ver.py ci_git_tag)
 git add $ROOTPATH/version.json
 git commit -m "Version $TAG frozen."
 git tag $TAG HEAD
-git push origin $TAG
+git push origin-push $TAG
