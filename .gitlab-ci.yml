@@ -3,7 +3,7 @@ stages:
   - test
   - deploy
 variables:
-  CI_DEPLOY_DEBUG: 1
+  CI_DEPLOY_DEBUG: "true"
 
 build:
   stage: build
@@ -11,7 +11,7 @@ build:
     - echo ARTIFACT_JOB_ID=$CI_JOB_ID >> build-artifact.env
   script:
     - make lock
-    - nix build
+    - nix build .#isqcTarball
   artifacts:
     paths:
       - result/isqc.tar.gz
@@ -19,6 +19,8 @@ build:
       dotenv: build-artifact.env
 sanity test:
   stage: test
+  rules:
+    - if: $CI_DEPLOY_DEBUG != "true"
   script:
     - export ISQ_ROOT=`pwd`/result
     - export MLIR_ROOT=`pwd`/result
@@ -26,12 +28,16 @@ sanity test:
 
 frontend test:
   stage: test
+  rules:
+    - if: $CI_DEPLOY_DEBUG != "true"
   script:
     - cd frontend
     - nix develop -c make configure build test
 
 integration test:
   stage: test
+  rules:
+    - if: $CI_DEPLOY_DEBUG != "true"
   script:
     - export ISQ_ROOT=`pwd`/result
     - export MLIR_ROOT=`pwd`/result
@@ -50,7 +56,7 @@ bump major or minor version:
     - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH) && ($CI_PIPELINE_SOURCE == "push")
       changes:
         - 'version.json'
-    - if: $CI_DEPLOY_DEBUG
+    - if: $CI_DEPLOY_DEBUG == "true" && $CI_PIPELINE_SOURCE != "merge_request_event"
   script:
     - nix develop -c ./scripts/ci/init_git.sh
     - nix develop -c ./scripts/ci/release_branch.sh
