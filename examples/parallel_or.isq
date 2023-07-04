@@ -1,0 +1,75 @@
+import std;
+procedure rz_by_hamming_weight(phi: double, q: qbit[], base: int, n: int, qout: qbit){
+    qbit ancilla[n];
+    for i in 0:n{
+        CNOT(qout, ancilla[i]);
+    }
+    for i in 0:n{
+        ctrl Rz(phi, q[base+i], ancilla[i]);
+    }
+    for i in 0:n{
+        CNOT(qout, ancilla[i]);
+    }
+}
+procedure rz_by_value(phi: double, q: qbit[], base: int, n: int, qout: qbit){
+    qbit ancilla[n];
+    for i in 0:n{
+        CNOT(qout, ancilla[i]);
+    }
+    double val = phi;
+    for i in 0:n{
+        ctrl Rz(val, q[base+i], ancilla[i]);
+        val = 2*val;
+    }
+    for i in 0:n{
+        CNOT(qout, ancilla[i]);
+    }
+}
+procedure parallel_approx_or(q: qbit[], n: int, m: int, qout: qbit){
+    // Problem: Auto-uncomputation?
+    int mn = m*n;
+    qbit ancilla[mn];
+    for i in 0:m{
+        for j in 0:n{
+            CNOT(q[j], ancilla[i*n+j]);
+        }
+    }
+    qbit y[m];
+    for i in 0:m{
+        int base = i*n;
+        double phi  = 2*pi/m*i;
+        // create mu_phi^|x|
+        H(y[i]);
+        rz_by_hamming_weight(phi, ancilla, base, n, y[i]);
+        H(y[i]);
+    }
+    H(qout);
+    rz_by_hamming_weight(2*pi/m, y, 0, m, qout);
+    H(qout);
+    for i in 0:m{
+        int base = i*n;
+        double phi  = 2*pi/m*i;
+        // create mu_phi^|x|
+        H(y[i]);
+        rz_by_hamming_weight(phi, ancilla, base, n, y[i]);
+        H(y[i]);
+    }
+    for i in 0:m{
+        for j in 0:n{
+            CNOT(q[j], ancilla[i*n+j]);
+        }
+    }
+}
+procedure main(){
+    qbit input[2];
+    qbit output;
+    //X(input[0]);
+    //X(input[1]);
+    // m = n*log_2^n
+    // Problem: Too many ancilla!
+    //            But how many? (Resource analysis)
+    // Problem: lack of useful slice grammar.
+    //            But how? (AsRef)
+    parallel_approx_or(input, 2, 4, output); 
+    print M(output);
+}

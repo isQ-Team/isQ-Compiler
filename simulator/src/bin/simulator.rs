@@ -29,8 +29,8 @@ use clap::ArgGroup;
         .args(&["naive", "cuda", "qcisgen", "noop", "qcis"]),
 ))]
 struct SimulatorArgs {
-    #[clap(index = 1, parse(from_os_str))]
-    qir_shared_library: OsString,
+    #[clap(index = 1)]
+    qir_shared_library: String,
     #[clap(short, long, default_value = "__isq_simulator_entry")]
     entrypoint: String,
     #[clap(long)]
@@ -197,7 +197,7 @@ fn main() -> std::io::Result<()> {
                 for v in &par_double {
                     tx_double.send(*v).unwrap();
                 }
-                tx_osstring.send(args.qir_shared_library.clone()).unwrap();
+                tx_osstring.send(OsString::from(args.qir_shared_library.clone())).unwrap();
                 tx_string.send(args.entrypoint.clone()).unwrap();
                 handles.push(handle);
             }

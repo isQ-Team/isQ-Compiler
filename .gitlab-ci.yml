@@ -4,6 +4,9 @@ stages:
   - deploy
 variables:
   CI_DEPLOY_DEBUG: "true"
+  PACKAGE_REGISTRY_ROOT: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/"
+  ISQ_STANDALONE_URL: "${PACKAGE_REGISTRY_ROOT}/isqc-standalone/${CI_COMMIT_TAG}/isqc-${CI_COMMIT_TAG}.tar.gz"
+
 
 build:
   stage: build
@@ -91,17 +94,16 @@ deploy tagged version:
     - job: build
       artifacts: true
   script:
-    # Build tarball
+    # Build and upload tarball
     - nix build .#isqcTarball -o release
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file release/isqc-${CI_COMMIT_TAG}.tar.gz ${ISQ_STANDALONE_URL}'
     # Upload docs
     - nix develop -c ./scripts/ci/init_git.sh
     - cd docs
     - git fetch origin gh-pages --depth=1 || true
     - nix develop -c mike deploy --rebase $CI_COMMIT_TAG
     - git push origin-push gh-pages
-  artifacts:
-    paths:
-      - release/isqc-${CI_COMMIT_TAG}.tar.gz
+
   release:
     name: 'isQ Release $CI_COMMIT_TAG'
     description: 'Standalone version that can be use without Nix.'
@@ -109,4 +111,4 @@ deploy tagged version:
     assets:
       links:
         - name: 'Linux x86_64'
-          url: '${CI_SERVER_PROTOCOL}://${CI_SERVER_HOST}:${CI_SERVER_PORT}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/cw/-/jobs/${CI_JOB_ID}/artifacts/file/release/isqc-${CI_COMMIT_TAG}.tar.gz'
+          url: '${ISQ_STANDALONE_URL}'
