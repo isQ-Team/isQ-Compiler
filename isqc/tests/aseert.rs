@@ -14,7 +14,7 @@ fn test_assert_stdout(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
     let folder = Path::new("tests").join("input").join("assert");
     let mut cmd = Command::cargo_bin("isqc")?;
     cmd.arg("run").arg("--debug").arg(folder.join(source_file).to_str().to_owned().unwrap());
-    cmd.assert().success().stdout(predicate::str::contains(res));
+    cmd.assert().failure().stdout(predicate::str::contains(res));
     Ok(())
 }
 
@@ -24,7 +24,7 @@ fn test_assert_stderr(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
     let folder = Path::new("tests").join("input").join("assert");
     let mut cmd = Command::cargo_bin("isqc")?;
     cmd.arg("run").arg("--debug").arg(folder.join(source_file).to_str().to_owned().unwrap());
-    cmd.assert().success().stderr(predicate::str::contains(res));
+    cmd.assert().failure().stderr(predicate::str::contains(res));
     Ok(())
 }
 

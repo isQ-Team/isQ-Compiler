@@ -10,5 +10,5 @@ procedure main()
     q += p;
     print M(q); // should print 6
     q += p;
-    print M(q); // should print 9
+    print M(q); // should print 1
 }
