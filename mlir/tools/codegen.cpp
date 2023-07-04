@@ -30,6 +30,16 @@
 #include "llvm/Support/raw_ostream.h"
 
 
+#define STR_(x) #x
+#define STR(x) STR_(x)
+static void PrintVersion(mlir::raw_ostream &OS) {
+  OS << '\n';
+  OS << "isQ IR Codegen " << STR(ISQ_BUILD_SEMVER) << '\n';
+  OS << "Git revision: "<<STR(ISQ_BUILD_REV)<< ((STR(ISQ_BUILD_FROZEN)[0])=='1'?"":" (dirty)") << "\n";
+  OS << "Build type: "<<STR(ISQ_OPT_BUILD_TYPE)<<"\n";
+  OS << "Website: https://arclight-quantum.github.io/isQ-Compiler/\n";
+}
+
 namespace cl = llvm::cl;
 static cl::opt<std::string> inputFilename(cl::Positional, cl::desc("<input isq file>"),cl::init("-"),cl::value_desc("filename"));
 
@@ -49,7 +59,7 @@ static cl::opt<bool> printAst(
     "printast", cl::desc("print mlir ast."));
 
 int isq_mlir_codegen_main(int argc, char **argv) {
-    
+    llvm::cl::AddExtraVersionPrinter(PrintVersion);
     mlir::DialectRegistry registry;
     isq::ir::ISQToolsInitialize(registry);
     mlir::MLIRContext context(registry);
@@ -81,13 +91,13 @@ int isq_mlir_codegen_main(int argc, char **argv) {
     sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
     mlir::OwningOpRef<mlir::ModuleOp> module = mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &context);
     if (!module) {
-        llvm::errs() << "Error can't load file " << inputFilename << "\n";
+        llvm::errs() << "Error: can't load file " << inputFilename << "\n";
         return 3;
     }
 
     auto module_op = module.get();
     if (mlir::failed(pm.run(module_op))){
-        llvm::errs() << "Lower error\n";
+        llvm::errs() << "Error: Lower error\n";
         return -1;
     }
 
@@ -95,17 +105,17 @@ int isq_mlir_codegen_main(int argc, char **argv) {
         module->print(llvm::outs());
     }else if(emitBackend==OpenQASM3){
         if(failed(isq::ir::generateOpenQASM3Logic(context, module_op, llvm::outs()))){
-            llvm::errs() << "Generate OpenQASM3 failed.\n";
+            llvm::errs() << "Error: Generate OpenQASM3 failed.\n";
             return -2;
         }
     }else if (emitBackend==QCIS){
         if(failed(isq::ir::generateQCIS(context, module_op, llvm::outs(), printAst))){
-            llvm::errs() << "Generate QCIS failed.\n";
+            llvm::errs() << "Error: Generate QCIS failed.\n";
             return -2;
         }
     }else if (emitBackend==EQASM){
         if(failed(isq::ir::generateEQASM(context, module_op, llvm::outs(), printAst))){
-            llvm::errs() << "Generate EQASM failed.\n";
+            llvm::errs() << "Error: Generate EQASM failed.\n";
             return -2;
         }
     }else{

@@ -21,6 +21,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include <llvm/Support/ErrorHandling.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
+#include <mlir/IR/BuiltinTypeInterfaces.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 #include <optional>
@@ -62,7 +63,7 @@ public:
         auto val = mat.toMatrixVal();
         int64_t matLen = val.size();
         mlir::Float64Type floatType = mlir::Float64Type::get(ctx);
-        mlir::MemRefType memrefType = mlir::MemRefType::get(llvm::ArrayRef<int64_t>{-1}, floatType);
+        mlir::MemRefType memrefType = mlir::MemRefType::get(llvm::ArrayRef<int64_t>{mlir::ShapedType::kDynamic}, floatType);
         rewriter.setInsertionPoint(op);
         mlir::arith::ConstantIndexOp length = rewriter.create<mlir::arith::ConstantIndexOp>(loc, matLen * matLen *2);
         mlir::Value memref = rewriter.create<mlir::memref::AllocOp>(loc, memrefType, mlir::ValueRange{length});

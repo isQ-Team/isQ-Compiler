@@ -1,9 +1,12 @@
 #include <cstdio>
 #include <cassert>
+#include <llvm/Support/PrettyStackTrace.h>
+#include <llvm/Support/Signals.h>
 #include <memory>
 
 #include "isq/Dialect.h"
 #include <isq/IR.h>
+#include <mlir/Tools/mlir-opt/MlirOptMain.h>
 
 #include "mlir/Dialect/Affine/Passes.h"
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
@@ -33,19 +36,18 @@
 namespace cl = llvm::cl;
 static cl::opt<std::string> inputFilename(cl::Positional, cl::desc("<input isq file>"),cl::init("-"),cl::value_desc("filename"));
 
-namespace{
-enum BackendType {None, OpenQASM3, QCIS, EQASM};
+
 #define STR_(x) #x
 #define STR(x) STR_(x)
 static void PrintVersion(mlir::raw_ostream &OS) {
   OS << '\n';
-  OS << "isQ IR Optimizer and Codegen " << STR(ISQ_BUILD_SEMVER) << '\n';
+  OS << "isQ IR Optimizer " << STR(ISQ_BUILD_SEMVER) << '\n';
   OS << "Git revision: "<<STR(ISQ_BUILD_REV)<< ((STR(ISQ_BUILD_FROZEN)[0])=='1'?"":" (dirty)") << "\n";
   OS << "Build type: "<<STR(ISQ_OPT_BUILD_TYPE)<<"\n";
   OS << "Website: https://arclight-quantum.github.io/isQ-Compiler/\n";
 }
 
-/*
+
 int isq_mlir_opt_main(int argc, char **argv) {
     llvm::cl::AddExtraVersionPrinter(PrintVersion);
     mlir::DialectRegistry registry;
@@ -53,89 +55,9 @@ int isq_mlir_opt_main(int argc, char **argv) {
     return mlir::asMainReturnCode(mlir::MlirOptMain(
         argc, argv, "MLIR modular optimizer driver for ISQ dialect\n", registry,
         true));
-}*/
-
-static cl::opt<enum BackendType> emitBackend(
-    "target", cl::desc("Choose the backend for code generation"),
-    cl::values(clEnumValN(None, "none", "output the MLIR as-is")),
-    cl::values(clEnumValN(OpenQASM3, "openqasm3", "generate (logic) OpenQASM3 program")),
-    cl::values(clEnumValN(QCIS, "qcis", "generate qcis")),
-    cl::values(clEnumValN(EQASM, "eqasm", "generate eqasm"))
-);
-
-static cl::opt<bool> printAst(
-    "printast", cl::desc("print mlir ast."));
-
-int isq_mlir_codegen_main(int argc, char **argv) {
-    llvm::cl::AddExtraVersionPrinter(PrintVersion);
-    mlir::DialectRegistry registry;
-    isq::ir::ISQToolsInitialize(registry);
-    mlir::MLIRContext context(registry);
-
-    mlir::registerAsmPrinterCLOptions();
-    mlir::registerMLIRContextCLOptions();
-    mlir::registerPassManagerCLOptions();
-    mlir::PassPipelineCLParser passPipeline("", "Compiler passes to run");
-    cl::ParseCommandLineOptions(argc, argv, "isQ MLIR Dialect Codegen\n");
-    
-    mlir::PassManager pm(&context, mlir::OpPassManager::Nesting::Implicit);
-    pm.enableVerifier(true);
-    applyPassManagerCLOptions(pm);
-    auto res = passPipeline.addToPipeline(pm, [&](const llvm::Twine &msg) {
-        emitError(mlir::UnknownLoc::get(pm.getContext())) << msg;
-        return mlir::failure();
-    });
-    if (mlir::failed(res)){
-        llvm::errs() << "init pass error\n";
-        return -1;
-    }
-
-    llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr = llvm::MemoryBuffer::getFileOrSTDIN(inputFilename);
-    if (std::error_code EC = fileOrErr.getError()) {
-    llvm::errs() << "Could not open input file: " << EC.message() << "\n";
-        return -1;
-    }
-    llvm::SourceMgr sourceMgr;
-    sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
-    mlir::OwningOpRef<mlir::ModuleOp> module = mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &context);
-    if (!module) {
-        llvm::errs() << "Error: can't load file " << inputFilename << "\n";
-        return 3;
-    }
-
-    auto module_op = module.get();
-    if (mlir::failed(pm.run(module_op))){
-        llvm::errs() << "Error: Lower\n";
-        return -1;
-    }
-
-    if(emitBackend==None){
-        module->print(llvm::outs());
-    }else if(emitBackend==OpenQASM3){
-        if(failed(isq::ir::generateOpenQASM3Logic(context, module_op, llvm::outs()))){
-            llvm::errs() << "Error: Generate OpenQASM3 failed.\n";
-            return -2;
-        }
-    }else if (emitBackend==QCIS){
-        if(failed(isq::ir::generateQCIS(context, module_op, llvm::outs(), printAst))){
-            llvm::errs() << "Error: Generate QCIS failed.\n";
-            return -2;
-        }
-    }else if (emitBackend==EQASM){
-        if(failed(isq::ir::generateEQASM(context, module_op, llvm::outs(), printAst))){
-            llvm::errs() << "Error: Generate EQASM failed.\n";
-            return -2;
-        }
-    }else{
-        llvm::errs() << "Bad backend.\n";
-        return -1;
-    }
-    
-    return 0;
 }
 
 
-}
 int main(int argc, char **argv) { 
-    return isq_mlir_codegen_main(argc, argv); 
+    return isq_mlir_opt_main(argc, argv); 
 }
