@@ -19,8 +19,6 @@ build:
       
 sanity test:
   stage: test
-  rules:
-    - if: $CI_DEPLOY_DEBUG != "true"
   script:
     - export ISQ_ROOT=`pwd`/result
     - export MLIR_ROOT=`pwd`/result
@@ -30,8 +28,6 @@ sanity test:
 
 frontend test:
   stage: test
-  rules:
-    - if: $CI_DEPLOY_DEBUG != "true"
   script:
     - cd frontend
     - nix develop -c make configure build test
@@ -40,8 +36,6 @@ frontend test:
 
 integration test:
   stage: test
-  rules:
-    - if: $CI_DEPLOY_DEBUG != "true"
   script:
     - export ISQ_ROOT=`pwd`/result
     - export MLIR_ROOT=`pwd`/result
