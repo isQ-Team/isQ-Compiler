@@ -58,7 +58,7 @@ fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Er
     let path = Path::new("tests").join("input").join(file_name);
     let mut cmd = Command::cargo_bin("isqc")?;
     cmd.arg("run").arg("--debug").arg(path.to_str().to_owned().unwrap());
-    cmd.assert().success().stderr(predicate::str::contains(syndrome));
+    cmd.assert().failure().stderr(predicate::str::contains(syndrome));
     Ok(())
 }
 
