@@ -3,7 +3,7 @@ stages:
   - test
   - deploy
 variables:
-  CI_DEPLOY_DEBUG: "true"
+  CI_DEPLOY_DEBUG: "false"
   PACKAGE_REGISTRY_ROOT: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/"
   ISQ_STANDALONE_URL: "${PACKAGE_REGISTRY_ROOT}/isqc-standalone/${CI_COMMIT_TAG}/isqc-${CI_COMMIT_TAG}.tar.gz"
 
@@ -61,7 +61,7 @@ bump major or minor version:
     - nix develop -c ./scripts/ci/init_git.sh
     - nix develop -c ./scripts/ci/release_branch.sh
 
-# Create new tag "v${MAJOR}.${MINOR}.${PATCH}" for version.
+# Create new tag "${MAJOR}.${MINOR}.${PATCH}" for version.
 # Invoked when pushing to release branch.
 bump patch version:
   stage: deploy

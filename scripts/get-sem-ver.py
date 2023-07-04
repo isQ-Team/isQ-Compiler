@@ -45,7 +45,7 @@ def semver_git_describe():
 def ci_git_release_branch():
     return "release/"+regex.match("([0-9]+\\.[0-9]+\\.)[0-9]+", version())[1] + "x"
 def ci_git_tag():
-    return "v"+version()
+    return version()
 
 def main():
     methods = {

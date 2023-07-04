@@ -128,7 +128,7 @@
             name = "isqc";
             drv = isqc;
             entry = "${isqc}/bin/isqc";
-            fileName = "isqc-v${final.versionInfo.version}";
+            fileName = "isqc-${final.versionInfo.version}";
           };
           isqcImage = pkgs.dockerTools.streamLayeredImage {
             contents = [ isqc ];
