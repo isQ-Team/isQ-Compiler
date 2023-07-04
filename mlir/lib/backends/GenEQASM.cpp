@@ -12,7 +12,7 @@
 #include "isq/QAttrs.h"
 
 #include "isq/utils/Decomposition.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -333,12 +333,12 @@ private:
 
         auto globalop = mlir::dyn_cast_or_null<mlir::memref::GlobalOp>(op);
         if (globalop != nullptr){
-            auto name = globalop.sym_name().str();
-            int size = globalop.type().getShape()[0];
-            if (globalop.type().getElementType().isa<QStateType>()){
+            auto name = globalop.getSymName().str();
+            int size = globalop.getType().getShape()[0];
+            if (globalop.getType().getElementType().isa<QStateType>()){
                 globalSymbol.insert(make_pair(name, qstack));
                 qstack += size;
-            }else if (globalop.type().getElementType().isa<mlir::IndexType>())
+            }else if (globalop.getType().getElementType().isa<mlir::IndexType>())
             {
                 globalSymbol.insert(make_pair(name, cstack));
                 cstack += size;
@@ -514,8 +514,8 @@ private:
     mlir::LogicalResult visitOp(mlir::memref::DeallocOp op) override{
         // create new var name
         // store to symbolTable and indexTable
-        auto code = size_t(mlir::hash_value(op.memref()));
-        auto type = op.memref().getType().dyn_cast<mlir::MemRefType>();
+        auto code = size_t(mlir::hash_value(op.getMemref()));
+        auto type = op.getMemref().getType().dyn_cast<mlir::MemRefType>();
         int size = type.getShape()[0];
 
         // release qubit
@@ -535,8 +535,8 @@ private:
     }
 
     mlir::LogicalResult visitOp(mlir::memref::CastOp op) override{
-        auto icode = size_t(mlir::hash_value(op.source()));
-        auto ocode = size_t(mlir::hash_value(op.dest()));
+        auto icode = size_t(mlir::hash_value(op.getSource()));
+        auto ocode = size_t(mlir::hash_value(op.getDest()));
         tempSymbol.insert(make_pair(ocode, tempSymbol[icode]));
         return mlir::success();
     }
@@ -817,9 +817,9 @@ private:
 
     
     mlir::LogicalResult visitOp(mlir::memref::GetGlobalOp op) override{
-        auto name = op.nameAttr().getValue().str();
-        auto type = op.result().getType().dyn_cast<mlir::MemRefType>();
-        auto code = size_t(mlir::hash_value(op.result()));
+        auto name = op.getNameAttr().getValue().str();
+        auto type = op.getResult().getType().dyn_cast<mlir::MemRefType>();
+        auto code = size_t(mlir::hash_value(op.getResult()));
         // save address to the mem
         if (type.getElementType().isa<QStateType>()){
             print_op(MOV, {SPEC1, to_string(globalSymbol[name] + QMEMSTART)});
@@ -838,7 +838,7 @@ private:
     
     mlir::LogicalResult visitOp(mlir::memref::SubViewOp op) override{
         
-        auto type = op.source().getType().dyn_cast<mlir::MemRefType>();
+        auto type = op.getSource().getType().dyn_cast<mlir::MemRefType>();
         
         auto stack = CSTACK;
         if (type.getElementType().isa<QStateType>()) stack = QSTACK;
@@ -848,12 +848,11 @@ private:
             auto fcode = mlir::hash_value(op.offsets()[0]);
             TRY(print_load_value(SPEC1, CSTACK, fcode));
         }else{
-            auto attr = op.static_offsets()[0].dyn_cast_or_null<mlir::IntegerAttr>();
-            int offset = int(attr.getInt());
+            auto offset = op.static_offsets()[0];
             print_op(MOV, {SPEC1, to_string(offset)});
         }
         // get address
-        auto scode = mlir::hash_value(op.source());
+        auto scode = mlir::hash_value(op.getSource());
         auto tv = getSymbolIndex(scode);
         if (tv.is_addr){
             get_load(SPEC2, stack, tv.index);   
@@ -863,7 +862,7 @@ private:
         print_op(ADD, {SPEC1, SPEC2, SPEC1});
 
         // save address to the mem
-        auto rcode = mlir::hash_value(op.result());
+        auto rcode = mlir::hash_value(op.getResult());
         if (type.getElementType().isa<QStateType>()){
             if (!tv.is_addr) {
                 print_op(MOV, {SPEC2, to_string(QMEMSTART)});
@@ -958,11 +957,11 @@ private:
 
     mlir::LogicalResult visitOp(UseGateOp op) override{
         // save gate name in gateTable
-        auto attr = op.nameAttr();
+        auto attr = op.getNameAttr();
         auto gate = attr.getLeafReference().str();
         auto rcode = mlir::hash_value(op.getResult());
         vector<double> angle;
-        for (auto par : op.parameters()){
+        for (auto par : op.getParameters()){
             size_t code = size_t(mlir::hash_value(par));
             auto b_f = getValue(code);
             if (b_f.first == false) return error(op.getLoc(), "gate need a determined angle");
@@ -976,12 +975,12 @@ private:
 
     mlir::LogicalResult visitOp(ApplyGateOp op) override{
 
-        auto code = mlir::hash_value(op.gate());
+        auto code = mlir::hash_value(op.getGate());
         auto gate = gateTable[code].first;
         auto param = gateTable[code].second;
 
         vector<int> args;
-        for (auto indexed_operand : ::llvm::enumerate(op.args())){
+        for (auto indexed_operand : ::llvm::enumerate(op.getArgs())){
             auto index = indexed_operand.index();
             auto operand = indexed_operand.value();
             auto b_i = getSymbolIndex(mlir::hash_value(operand)).index;
@@ -997,7 +996,7 @@ private:
             print_gate(gate, {SPEC1, SPEC2}, param);
         }
         
-        for (auto indexed_result : ::llvm::enumerate(op.r())){
+        for (auto indexed_result : ::llvm::enumerate(op.getR())){
             auto index = indexed_result.index();
             auto result = indexed_result.value();
             auto code = mlir::hash_value(result);

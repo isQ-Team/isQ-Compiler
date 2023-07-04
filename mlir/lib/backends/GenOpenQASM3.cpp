@@ -631,6 +631,7 @@ private:
             return symbolInsert(size_t(mlir::hash_value(op->getOpResult(0))), OpType::VAR, 1, to_string(fi_attr.getValueAsDouble()));
         }
         op->emitError("invalid value type in OpenQASM3");
+        return mlir::failure();
     }
     mlir::LogicalResult visitOp(mlir::memref::AllocOp op) override{
         // no use, jump

@@ -39,7 +39,7 @@ enum BackendType {None, OpenQASM3, QCIS, EQASM};
 #define STR(x) STR_(x)
 static void PrintVersion(mlir::raw_ostream &OS) {
   OS << '\n';
-  OS << "isQ IR Optimizer " << STR(ISQ_BUILD_SEMVER) << '\n';
+  OS << "isQ IR Optimizer and Codegen " << STR(ISQ_BUILD_SEMVER) << '\n';
   OS << "Git revision: "<<STR(ISQ_BUILD_REV)<< ((STR(ISQ_BUILD_FROZEN)[0])=='1'?"":" (dirty)") << "\n";
   OS << "Build type: "<<STR(ISQ_OPT_BUILD_TYPE)<<"\n";
   OS << "Website: https://arclight-quantum.github.io/isQ-Compiler/\n";
@@ -67,7 +67,7 @@ static cl::opt<bool> printAst(
     "printast", cl::desc("print mlir ast."));
 
 int isq_mlir_codegen_main(int argc, char **argv) {
-    
+    llvm::cl::AddExtraVersionPrinter(PrintVersion);
     mlir::DialectRegistry registry;
     isq::ir::ISQToolsInitialize(registry);
     mlir::MLIRContext context(registry);

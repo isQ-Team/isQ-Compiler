@@ -57,8 +57,8 @@ public:
         auto ctx = op->getContext();
         mlir::Location loc = op->getLoc();
 
-        mlir::Value q = op.cond();
-        ::isq::ir::DenseComplexF64MatrixAttr mat = op.space();
+        mlir::Value q = op.getCond();
+        ::isq::ir::DenseComplexF64MatrixAttr mat = op.getSpace();
         auto val = mat.toMatrixVal();
         int64_t matLen = val.size();
         mlir::Float64Type floatType = mlir::Float64Type::get(ctx);
