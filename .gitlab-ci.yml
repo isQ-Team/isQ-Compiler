@@ -25,6 +25,8 @@ sanity test:
     - export ISQ_ROOT=`pwd`/result
     - export MLIR_ROOT=`pwd`/result
     - result/bin/isqc run examples/bell.isq
+  dependencies:
+    - build
 
 frontend test:
   stage: test
@@ -33,6 +35,8 @@ frontend test:
   script:
     - cd frontend
     - nix develop -c make configure build test
+  dependencies:
+    - build
 
 integration test:
   stage: test
