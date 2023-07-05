@@ -2,7 +2,30 @@
 Install
 =========================
 
-Nix Flake
+Binary Tarball
+-------------------------
+
+We provide a traditional binary tarball based on [nix-user-chroot](https://github.com/nix-community/nix-user-chroot). Note that the tarball requires Linux kernel user namespaces to work.
+
+A list of all released versions of isQ compiler binaries can be seen at [https://www.arclightquantum.com/isq-releases/isqc-standalone/](https://www.arclightquantum.com/isq-releases/isqc-standalone/).
+
+```bash
+VERSION=0.1.1
+# Create empty directory for isQ installation.
+mkdir isqc && cd isqc
+# Check if user namespace is supported for your Linux kernel.
+unshare --user --pid echo YES
+# Download and unpack tarball.
+wget https://www.arclightquantum.com/isq-releases/isqc-standalone/${VERSION}/isqc-${VERSION}.tar.gz
+wget https://www.arclightquantum.com/isq-releases/isqc-standalone/${VERSION}/isqc-${VERSION}.tar.gz.sha256
+sha256sum -c isqc-${VERSION}.tar.gz.sha256
+tar -xvf isqc-${VERSION}.tar.gz
+# Now isQ is here.
+./isqc --version
+```
+
+
+Nix Flake (Recommended)
 -------------------------
 
 isQ is built with [Nix Flakes](https://nixos.wiki/wiki/Flakes), making it super easy to obtain when you have Nix installed:
@@ -21,22 +44,6 @@ Or you may create a project folder pinned to a compiler version.
 ```bash
 nix flake new --template github:arclight-quantum/isQ-Compiler hello-quantum
 cd hello-quantum && nix develop
-```
-
-
-Binary Tarball
--------------------------
-
-We provide a traditional binary tarball based on [nix-user-chroot](https://github.com/nix-community/nix-user-chroot). Note that the tarball requires Linux kernel user namespaces to work.
-
-```bash
-# Check if user namespace is supported for your Linux kernel.
-unshare --user --pid echo YES
-# Download and unpack tarball.
-wget https://github.com/arclight-quantum/isQ-Compiler/releases/download/0.0.1/isqc-0.0.1.tar.gz
-tar -xvf isqc-0.0.1.tar.gz
-# Now isQ is here.
-./isqc --version
 ```
 
 
