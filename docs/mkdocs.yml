@@ -8,10 +8,16 @@ nav:
     - Installation: install.md
     - Usage: usage.md
     - isQ Programming Language: grammar.md
-    - Examples: example.md
   - Developer Manual:
     - Development Setup: devsetup.md
     - Versioning: versioning.md
+  - Examples:
+    - Basic examples: examples/basic.md
+    - Arithmatic examples: examples/arith.md
+    - Hidden subgroup problems: examples/hsp.md
+    - Grover's algorithm: examples/grover.md
+    - Recursive Fourier sampling: examples/recursive.md
+    - Variational quantum eigensolver: examples/vqe.md
 
 markdown_extensions:
   - admonition

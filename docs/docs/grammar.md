@@ -64,28 +64,52 @@ Once a file is imported, its global variables and procedures can be used directl
 Types
 ---------------------------
 
-isQ supports four primitive types:
+### primitive types
+
+isQ mainly supports four primitive types:
 
 * __*int*__: a 64-bit signed integer, e.g. __-1__, __1__;
 * __*bool*__: a boolean value that can be either __true__ or __false__;
 * __*double*__: a double precision floating point number, e.g. __-0.1__, __3.1415926__;
 * __*qbit*__: an opaque type that represents a quantum bit; 
 
-Each type supports one-dimensional array form with __*[N]*__ after the variable where N is a specific integer. Users can use these type to define variables anywhere. All qubits are set to default value __*|0>*__. For example, we could define variables like:
+Users can use these type to define variables anywhere. All qubits are set to default value __*|0>*__. For example, we could define variables like:
 
 ```C++
 // global variable
-int a, b; // int variable
-double d = 3.14159; // double variable with init value 3.14159
-qbit q, p[3]; // qbit and qbit array variable
+int a, b = 4; // int variables
+double d = pi; // double variable with initial value 3.14159...
+qbit q; // qbit
 
 procedure main(){
     
-    // local variable with init value 3 
+    // local variable with initial value 3 
     int c = 3;
     ...
 }
 ```
+Note that we have defined a keyword __*pi*__ to represent the value of \(\pi\).
+
+### array
+
+All the four primitive type supports one-dimensional array. When the array is defined with intialization values, **no** length should be provided. Otherwise, a length **must** be provided. The length of a global array must be a positive integer, while for a local variable, any __*int*__ expression can be used as a length. The length of an array can be obtained using the operator __*.length*__.
+
+```C++
+qbit q[3]; // the length of a global array must be a positive integer
+
+procedure main() {
+
+    // when an array is initilized, the length should not be specified
+    int a[] = {1, 2}; 
+
+    // a local variable may use expressions as length
+    int b[a.length];
+    ...
+}
+```
+
+A *slice* of an array can be obtained by appending a `[start:end:step]` structure after the array. It is a subview of the original array, starting from the `start` position, increasing with `step`, and till the `end` (excluding). For example, `a[2:4:1]` refers to `a[2]` and `a[3]`. The three parts can be omitted, and the default values will be used. The default values of `start`, `end`, and `step` are 0, the length of the array, and 1, respectively. When the `step` is omitted, the second `:` can be omitted as well. For example, `a[:2]` represents the first two elements of `a`. The `step` can be negtive integers. In that case, any field **cannot** be omitted. For example, `a[2:0:-1]` refers to `a[2]` and `a[1]`.
+
 
 <br/>
 
@@ -128,17 +152,28 @@ The quantum operation in isQ is simple, users can apply a gate or do measurement
 
 ### basic operation
 
-isQ supports some basic gate: __*X*__, __*Y*__, __*Z*__, __*H*__, __*S*__, __*T*__, __*Rx*__, __*Ry*__, __*Rz*__, __*CNOT*__, __*TOFFOLI*__, __*U3*__(the definition is the same as openqasm3.0), and two non-unitary operation: __*M*__(measure), __*|0>*__(set qubit to |0>). Users can directly use these gate like this:
+isQ supports some basic gate: __*X*__, __*Y*__, __*Z*__, __*H*__, __*S*__, __*T*__, __*Rx*__, __*Ry*__, __*Rz*__, __*CNOT*__, __*TOFFOLI*__, __*U3*__(the definition is the same as openqasm3.0), and two non-unitary operation: __*M*__(measure), __*|0>*__(set qubit to |0>). Users can directly use these gates like this:
 
 ```C++
 qbit q[2];
 procedure main(){
     H(q[0]);
     CNOT(q[0], q[1]);
-    int x = M(q[0]);
-    int y = M(q[1]);
+    bool x = M(q[0]);
+    bool y = M(q[1]);
 }
 ```
+
+`qbit` array and slice can be used as the parameters of quantum gates and measurement. In this case, it represents applying the gates or measurement to all the qubits in the array or slice. For multiple-qubit gates, it means applying gates to each group of qubits. The number of gates depends on the **shortest** `qbit` array or slice. For example:
+
+```c++
+    qbit p[3], q[3];
+    H(p);           // = H(p[0]); H(p[1]); H(p[2]);
+    CNOT(p, q[:2]); // = CNOT(p[0], q[0]); CNOT(p[1], q[1]);
+    int x = M(q);
+```
+
+The measurement result of a `qbit` array or slice is an `int` value where the measurement result of the first `qbit` is used as the lowest-order bit. In the previous example, if the measurement result of `q[0]`, `q[1]`, and `q[2]` are `true`, `true`, and `false`, respectively, `x` would be 3 (i.e., `011`).
 
 ### defgate
 isQ allows users to define gate by using keyword __*defgate*__. gate element can be an int/double/complex value or an arithmetic expression. complex value can be written in a way similar to python. There are three points to note.
@@ -375,7 +410,7 @@ qbit q[3];
 
 procedure main(){
     ...
-    g(q[0], q[1], q[2]);
+    g(q[2], q[1], q[0]);
     ...
 }
 
@@ -385,19 +420,24 @@ In the above example, __*g*__ is the oracle name, and there are two integer para
 
 ### oracle function
 
-Alternatively, you can define an oracle using a function. This function will be used to generate the value table shown above. For example, we can rewrite the oracle __*g*__  as follows:
+Alternatively, you can define an oracle using a Boolean function. This function accepts one or more parameters with __*bool*__ array type, and returns a __*bool*__ array. For example, we can rewrite the oracle __*g*__  as follows:
 
 ```C++
-oracle g(2, 1): x
-{
-    return x == 1;
+oracle bool[1] g(bool x[2]) {
+    bool res[] = {x[0] && !x[1]};
+    return res; 
 }
 ```
 
-The keyword, oracle name, input and output qubit numbers are specified in the same way. The __*x*__  defined here represents the input value of the function, which is an __*int*__ of 2 bits. The body of the function describes how the output value is calculate based on the input __*x*__. In this case, it is a judgement that whether the input value is 1. The judgement result, a __*bool*__, will be converted into an __*int*__. The compiler will assign __*x*__ to all the values of 2-bit long (i.e., 0, 1, 2, and 3), and evaluates corresponding results. The resulted values form a table like the one shown in the previous section.
-
-Temporary variables can be defined in oracle functions. Control flow structures such as __*if*__, __*while*__ and __*for*__ are all supported. You can also use all the boolean and arithmatic operators. However, __*qbit*__ types cannot be used as an oracle function defines a **classical** function. Procedure calls are also fobidded because they might involve quantum operations or be too complex for oracle decomposition.
-
+The derived quantum gate applies to __*qbit*__ arrays. For example:
+```c++
+procedure main(){
+    qbit p[2], q[1];
+    ...
+    g(p, q);
+    ...
+}
+```
 
 
 <h2 id = "parameter"></h2>
