@@ -46,7 +46,7 @@ let
       };
     };
   };
-  pythonMkdocs = python.withPackages (p: with p; [ mkdocs-material mkdocs mike ]);
+  pythonMkdocs = python.withPackages (p: with p; [ mkdocs-material mkdocs mike python-markdown-math ]);
 in
 stdenvNoCC.mkDerivation {
   pname = "isqc-docs";

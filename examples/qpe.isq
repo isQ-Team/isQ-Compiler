@@ -1,5 +1,5 @@
 import std;
-import qft; // include qft_dagger
+import qft; // to use qft_inv
 
 int x = 23;
 int n = 6;

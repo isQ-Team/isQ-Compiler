@@ -1,10 +1,3 @@
-<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-<script type="text/x-mathjax-config">
-    MathJax.Hub.Config({ tex2jax: {inlineMath: [["\(", "\)"]], displayMath: [["\[", "\]"]]}, messageStyle: "none" });
-</script>
-
-Grover's algorithm
-----------------
 Grover's algorithm finds with high probability the unique input to a black box function that produces a particular output value, using just \(O(\sqrt {N})\) evaluations of the function, where \(N\) is the size of the function's domain. As a comparison, the analogous problem in classical computation cannot be solved in fewer than \(O(N)\) evaluations. Although Grover's algorithm provides only a quadratic speedup, it is considerable when \(N\) is large, and Grover's algorithm can be applied to speed up broad classes of algorithms.
 
 As input for Grover's algorithm, suppose we have a function \(f:\{0,1,\cdots,N-1\}\rightarrow\{0,1\}\). In the "unstructured database" analogy, the domain represents indices to a database, and \(f(x) = 1\) if and only if the data that \(x\) points to satisfies the search criterion. We additionally assume that only one index satisfies \(f(x) = 1\), and we call this index \(\omega\). Our goal is to identify \(\omega\).
