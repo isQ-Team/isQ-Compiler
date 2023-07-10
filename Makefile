@@ -24,7 +24,7 @@ isqc: check-env
 	cd isqc && cargo build;
 	cd ${ISQ_ROOT}/bin && \
 	rm -f isqc && \
-	ln -s ../isqc/target/debug/isqc isqc
+	ln -s ../target/debug/isqc isqc
 
 simulator: check-env
 	cd simulator &&	cargo build --release

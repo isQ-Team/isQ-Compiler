@@ -6,7 +6,7 @@ use std::{process::Command}; // Run programs
 use std::path::Path;
 use test_case::test_case;
 
-#[test_case("add_sub_equal", &merge(&["7", "4"]))]
+#[test_case("add_sub_equal", &merge(&["7", "4", "4", "2"]))]
 #[test_case("classic_add_sub", &merge(&["7", "-1"]))]
 #[test_case("classic_and_or", &merge(&["0", "2"]))]
 #[test_case("classic_bitwise_logic", &merge(&["8", "13", "5"]))]
@@ -26,6 +26,7 @@ use test_case::test_case;
 #[test_case("compare", &merge(&["1", "0", "1", "1"]))]
 #[test_case("double_compare", &merge(&["1", "0", "1", "1"]))]
 #[test_case("global", &merge(&["7.3", "4", "8"]))]
+#[test_case("pow", &("8".to_string()+LINE_ENDING+"5.289"))]
 fn test_classic(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
     let folder = Path::new("tests").join("input").join("classic");

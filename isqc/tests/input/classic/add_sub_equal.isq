@@ -1,3 +1,5 @@
+int b = 1;
+
 procedure main()
 {
     int a = 3;
@@ -5,4 +7,9 @@ procedure main()
     print a;
     a -= 3;
     print a;
+
+    b += 3;
+    print b;
+    b -= 2;
+    print b;
 }
