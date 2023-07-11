@@ -319,6 +319,13 @@ emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp "arith.divf" lt rt res
     indented env $ printf "isq.assert %s_unequal : i1, 1 %s" (unSsa value) (mlirPos loc),
     indented env $ printf "%s = arith.divf %s, %s : %s %s" (unSsa value) (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
   ]
+emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp "math.ipowi" lt rt rest)) =  intercalate "\n" $
+  [
+    indented env $ printf "%s_left = arith.index_cast %s : index to i64 %s" (unSsa value) (unSsa lhs) (mlirPos loc),
+    indented env $ printf "%s_right = arith.index_cast %s : index to i64 %s" (unSsa value) (unSsa rhs) (mlirPos loc),
+    indented env $ printf "%s_res = math.ipowi %s_left, %s_right : i64 %s" (unSsa value) (unSsa value) (unSsa value) (mlirPos loc),
+    indented env $ printf "%s = arith.index_cast %s_res : i64 to index %s" (unSsa value) (unSsa value) (mlirPos loc)
+  ]
 emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = %s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
 emitOpStep f env (MLBinary loc (ty, value) lhs rhs op) = indented env $ printf "%s = logic.%s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)

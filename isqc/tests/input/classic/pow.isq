@@ -1,6 +1,7 @@
 procedure main()
 {
-    int a = 2 ** 3;
+    int c = 3;
+    int a = 2 ** c;
     print a;
     double b = 2.3 ** 2;
     print b;

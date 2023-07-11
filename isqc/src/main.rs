@@ -262,7 +262,7 @@ fn main()->miette::Result<()> {
                 let llvm_mlir = exec::exec_command_text(&root, "isq-opt", &[
                     // Todo: add symbol-dce pass back
                     //"-pass-pipeline=symbol-dce,cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,builtin.func(convert-math-to-llvm),isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export",
-                    "-pass-pipeline=builtin.module(cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,func.func(convert-math-to-llvm),arith-expand,expand-strided-metadata,memref-expand,isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export,global-thread-local)"
+                    "-pass-pipeline=builtin.module(cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,func.func(convert-math-to-llvm),arith-expand,expand-strided-metadata,memref-expand,convert-math-to-funcs,isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export,global-thread-local)"
                 ], &optimized_mlir).map_err(io_error_when("Calling isq-opt"))?;
                 if llvm_mlir.trim().is_empty(){
                     return Err(InternalCompilerError("Generate LLVM IR failed".to_owned()))?;
