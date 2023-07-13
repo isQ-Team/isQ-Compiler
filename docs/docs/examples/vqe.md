@@ -1,6 +1,3 @@
-Variational quantum eigensolver (VQE)
---------------------------
-
 The eigenvalues of the Hamiltonian determine almost all properties in a molecule or material of interest. The ground state for molecule Hamiltonian is of particular interest since the energy gap between the ground state and the first excited state of electrons at room temperature is usually larger. Most molecules are in the ground state.
 
 Here, molecular electronic Hamiltonian is represented as \(\hat{H}\). A trial wave function \(\left| \varphi \left( \theta \right) \right\rangle\) is parameterized with \(\overrightarrow{\theta }\), which is called Ansatz. VQE is represented as follows:
@@ -179,6 +176,6 @@ evaluation = get_expectation(solution)
 print(f"Solution: H_2({solution}) = {evaluation} Eh")
 ```
 
-### References
+**Reference**
 
 1. J. Tilly, H. Chen, S. Cao, et al. "The variational quantum eigensolver: a review of methods and best practices." *Physics Reports*, 2022, 986: 1-128.

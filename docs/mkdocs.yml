@@ -17,6 +17,7 @@ nav:
     - Hidden subgroup problems: examples/hsp.md
     - Grover's algorithm: examples/grover.md
     - Recursive Fourier sampling: examples/recursive.md
+    - HHL algorithm: examples/hhl.md
     - Variational quantum eigensolver: examples/vqe.md
 
 markdown_extensions:

@@ -1,0 +1,216 @@
+/*
+* Demonstration of HHL algorithm.
+*
+* Based on paper: 
+*     A. W. Harrow, A. Hassidim, and S. Lloyd, "Quantum Algorithm for Linear Systems
+*     of Equations", Phys. Rev. Lett. 103, 150502, 2009.
+*
+* In this demonstration, we will solve the formula
+*    [-1 4][x] = [5]
+*    [ 4 8][y]   [16]
+*
+* The solution is x = 1, y = 3/2; 
+*     => x : y ~ 2 : 3
+*     => x^2 : y^2 ~ 4 : 9
+* Therefore, the numbers of measured 0s and 1s should be 4:9
+*/
+import std;
+import qft;
+
+/*
+* Set qInput as B, i.e., |qInput> = c(5|0> + 16|1>)
+* where c = \sqrt{5^2 + 16^2} is the normalization factor
+*/
+procedure SetVectorB(qbit qInput[]) {
+    double angle = 2.53582291684;   // 2 * arctan(16/5)
+	H(qInput[0]);
+	Rz(angle, qInput[0]);
+	H(qInput[0]);
+	S(qInput[0]);
+}
+
+/*
+* We encode the tensor product of Paulis as an int.
+*
+* Two bits are used for each qubit:
+*   00 - I, 01 - X, 10 - Y, 11 - Z
+*/
+int DecodePauliTensor(int N, int code, int i) {
+    return code / 4 ** (N - i - 1) % 4;
+}
+
+/*
+* Simulate controlled e^{iPt} where P is a Pauli product
+*
+* Based on Section 4.7.3 of [Nielson & Chuang, QCQI, 2010]
+*/
+procedure ctrlExp(qbit qctrl, int PTcode, double dt, qbit qInput[]) {
+    int N = qInput.length;
+    qbit qanc;
+    for i in 0 : N {
+        int p = DecodePauliTensor(N, PTcode, i);
+        if (p == 1) { // X
+            ctrl H(qctrl, qInput[i]);
+            ctrl CNOT(qctrl, qInput[i], qanc);
+        }
+        if (p == 2) {  // Y
+            ctrl S(qctrl, qInput[i]);
+            ctrl H(qctrl, qInput[i]);
+            ctrl CNOT(qctrl, qInput[i], qanc);
+        }
+        if (p == 3) {  // Z
+            ctrl CNOT(qctrl, qInput[i], qanc);
+        }
+    }
+    ctrl Rz(2 * dt, qctrl, qanc);
+    for i in 0 : N {
+        int p = DecodePauliTensor(N, PTcode, i);
+        if (p == 1) {   // X
+            ctrl CNOT(qctrl, qInput[i], qanc);
+            ctrl H(qctrl, qInput[i]);
+        }
+        if (p == 2) {   // Y
+            ctrl CNOT(qctrl, qInput[i], qanc);
+            ctrl H(qctrl, qInput[i]);
+            ctrl inv S(qctrl, qInput[i]);
+        }
+        if (p == 3) {   // Z
+            ctrl CNOT(qctrl, qInput[i], qanc);
+        }
+    }
+}
+
+/*
+* Simulate controlled e^{iAt} where t is a full time step
+*/
+procedure ctrlHSim(qbit qctrl, int Ps[], double Fs[], double t, qbit qInput[], int HSimPrecision) {
+    int N = Ps.length;
+    assert(N == Fs.length);
+
+    // Trotter formula: lim(e^{iA/n})^n = e^{iA}
+    double dt = t / HSimPrecision;
+    for j in 0 : HSimPrecision {
+        for i in 0 : N {
+            double D = dt * Fs[i];
+            ctrlExp(qctrl, Ps[i], D, qInput);
+        }
+    }
+}
+
+/*
+* |b>|0> -> \sum{b_j|u_j>|v'_j>}
+* where v_j and |u_j> are the eigenvalue and eigenvector of A,
+*   |b> = \sum{b_j|u_j>},
+*   v'_j = 2^n * v_j * t / (2 * \pi)
+*/
+procedure QPEforHSim(int Ps[], double Fs[], double t, qbit qsclock[], qbit qInput[]) {
+    int Nclock = qsclock.length;
+    H(qsclock);
+    for i in 0 : Nclock {
+        double actT = t * 2.0 ** i;
+        ctrlHSim(qsclock[i], Ps, Fs, actT, qInput, Nclock);
+    }
+    qft_inv(qsclock);
+}
+
+// The uncompute process of QPEforHSim
+procedure invQPEforHSim(int Ps[], double Fs[], double t, qbit qsclock[], qbit qInput[]) {
+    int Nclock = qsclock.length;
+    qft(qsclock);
+    for i in 0 : Nclock {
+        double actT = -t * 2.0 ** i;
+        ctrlHSim(qsclock[i], Ps, Fs, actT, qInput, Nclock);
+    }
+    H(qsclock);
+}
+
+/*
+* |v>|0> -> \sqrt{1-c^2/v^2}|0> + c/v|1>
+* where we set c = 1
+*/
+procedure CRot(qbit qsctrl[], qbit qtar) {
+    H(qtar);
+    
+    // theta = 2*arcsin(c/v)
+    nctrl nctrl nctrl nctrl ctrl Ry(3.141592654, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //1
+    nctrl nctrl nctrl ctrl nctrl Ry(1.047197551, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //2
+    nctrl nctrl nctrl ctrl ctrl Ry(0.679673819, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //3
+    nctrl nctrl ctrl nctrl nctrl Ry(0.50536051, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //4
+    nctrl nctrl ctrl nctrl ctrl Ry(0.402715842, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //5
+    nctrl nctrl ctrl ctrl nctrl Ry(0.334896158, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //6
+    nctrl nctrl ctrl ctrl ctrl Ry(0.286695138, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //7
+    nctrl ctrl nctrl nctrl nctrl Ry(0.250655662, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //8
+    nctrl ctrl nctrl nctrl ctrl Ry(0.222682029, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //9
+    nctrl ctrl nctrl ctrl nctrl Ry(0.200334842, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //10
+    nctrl ctrl nctrl ctrl ctrl Ry(0.182069556, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //11
+    nctrl ctrl ctrl nctrl nctrl Ry(0.166860173, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //12
+    nctrl ctrl ctrl nctrl ctrl Ry(0.153998281, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //13
+    nctrl ctrl ctrl ctrl nctrl Ry(0.1429789, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //14
+    nctrl ctrl ctrl ctrl ctrl Ry(0.133432297, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //15
+
+    ctrl nctrl nctrl nctrl nctrl Ry(-0.125081524, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-16
+    ctrl nctrl nctrl nctrl ctrl Ry(-0.133432297, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-15
+    ctrl nctrl nctrl ctrl nctrl Ry(-0.1429789, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-14
+    ctrl nctrl nctrl ctrl ctrl Ry(-0.153998281, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-13
+    ctrl nctrl ctrl nctrl nctrl Ry(-0.166860173, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-12
+    ctrl nctrl ctrl nctrl ctrl Ry(-0.182069556, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-11
+    ctrl nctrl ctrl ctrl nctrl Ry(-0.200334842, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-10
+    ctrl nctrl ctrl ctrl ctrl Ry(-0.222682029, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-9
+    ctrl ctrl nctrl nctrl nctrl Ry(-0.250655662, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-8
+    ctrl ctrl nctrl nctrl ctrl Ry(-0.286695138, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-7
+    ctrl ctrl nctrl ctrl nctrl Ry(-0.334896158, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-6
+    ctrl ctrl nctrl ctrl ctrl Ry(-0.402715842, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-5
+    ctrl ctrl ctrl nctrl nctrl Ry(-0.50536051, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-4
+    ctrl ctrl ctrl nctrl ctrl Ry(-0.679673819, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-3
+    ctrl ctrl ctrl ctrl nctrl Ry(-1.047197551, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-2
+    ctrl ctrl ctrl ctrl ctrl Ry(-3.141592654, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-1
+
+    H(qtar);
+    S(qtar);
+}
+
+/*
+* HHL algorithm body
+*
+* Solve the problem A|x>=|b> where
+*   |x> = x_0|0> + x_1|1>
+* x_0 and x_1 are expressed with @NSimPrecision bits
+*/
+int HHL(int NSimPrecision) {
+    // A = 3.5I + 4X - 4.5Z
+    //               I  X  Z
+    int Apaulis[] = {0, 1, 3};
+    double Afactors[] = {3.5, 4, -4.5};
+
+    // The simulation time step
+    double facT = 0.078;
+
+    while (true) {
+        qbit qAncilla;
+        qbit qInput[1];
+        qbit qClock[NSimPrecision];
+
+        SetVectorB(qInput);
+        QPEforHSim(Apaulis, Afactors, facT, qClock, qInput);
+        CRot(qClock, qAncilla);
+        invQPEforHSim(Apaulis, Afactors, facT, qClock, qInput);
+        if (M(qAncilla)) {
+            return M(qInput);
+        }
+    }
+}
+
+procedure main()
+{
+    int NRepeat = 130;
+    int NSimPrecision = 5;
+    int Statistics[] = {0, 0};
+
+    for i in 0 : NRepeat {
+        int m = HHL(NSimPrecision);
+        Statistics[m] += 1;
+    }
+    for s in Statistics {
+        print s;
+    }
+}

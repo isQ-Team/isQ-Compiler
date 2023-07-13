@@ -100,7 +100,7 @@ procedure qft(qbit q[]) {
 }
 
 // The inverse of qft
-procedure qft_dagger(qbit q[]) {
+procedure qft_inv(qbit q[]) {
     int len = q.length;
     for i in 0:len/2 {
         SWAP(q[i], q[len-i-1]);
@@ -113,7 +113,7 @@ procedure qft_dagger(qbit q[]) {
     }
 }
 ```
-Note that `ctrl` is a keyword that turns a gate into its controlled form, and its first `qbit` argument is the control qubit. `deriving gate` is a keyword that turns a procedure into a quantum gate. Measurement, branch, and loops cannot be used in such a procedure. `.length` is another keyword that acquires the length of an array. The inverse of QFT, named `qft_dagger`, is also defined here. It will be used in the following examples.
+Note that `ctrl` is a keyword that turns a gate into its controlled form, and its first `qbit` argument is the control qubit. `deriving gate` is a keyword that turns a procedure into a quantum gate. Measurement, branch, and loops cannot be used in such a procedure. `.length` is another keyword that acquires the length of an array. The inverse of QFT, named `qft_inv`, is also defined here. It will be used in the following examples.
 
 
 </br>
@@ -122,17 +122,17 @@ Note that `ctrl` is a keyword that turns a gate into its controlled form, and it
 Quantum phase estimation
 --------------------
 
-The quantum phase estimation (QPE) algorithm is a quantum algorithm to estimate the phase (or eigenvalue) of an eigenvector of a unitary operator. More precisely, given a unitary matrix \(U\) with an eigenvector \(|\psi\rangle\), such that
-\[U|\psi\rangle=e^{2\pi i\theta}|\psi\rangle\]
+The quantum phase estimation (QPE) algorithm is a quantum algorithm to estimate the phase (or eigenvalue) of an eigenvector of a unitary operator. More precisely, given a unitary matrix \(U\) with an eigenvector \(|u\rangle\), such that
+\[U|u\rangle=e^{2\pi i\theta}|u\rangle\]
 The algorithm estimates the value of \(\theta\) with high probability.
 
 The overall structure of the QPE algorithm is as follows:
 <img src="../../figs/qpe0.png" style="zoom:60%;" />
 
 First, \(H^{\otimes n}\) gates are applied to \(|0\rangle^{\otimes n}\) to create the superposition of all numbers in \([0,2^n)\). Then, the superposition controls the gate \(U^j\) so that
-\[\frac{1}{2^n}\sum_{j=0}^{2^n-1}|j\rangle|\psi\rangle\mapsto\frac{1}{2^n}\sum_{j=0}^{2^n-1}e^{2\pi ij\theta}|j\rangle|\psi\rangle\]
+\[\frac{1}{2^n}\sum_{j=0}^{2^n-1}|j\rangle|u\rangle\mapsto\frac{1}{2^n}\sum_{j=0}^{2^n-1}e^{2\pi ij\theta}|j\rangle|u\rangle\]
 
-After that, applying the inverse of QFT (\(FT^\dagger\)) to the first register results in a state similar to \(|2^n\theta\rangle\). For simplicity, we will not analyze the error.
+After that, applying the inverse of QFT (\(FT^{-1}\)) to the first register results in a state similar to \(|2^n\theta\rangle\). For simplicity, we will not analyze the error.
 
 The detailed circuit is shown as follows:
 <img src="../../figs/qpe.png" style="zoom:80%;" />
@@ -140,7 +140,7 @@ The detailed circuit is shown as follows:
 We choose \(U=Rz(\theta)\) whose eigenvector is \(|0\rangle\) and \(\theta=2\pi\times23/2^6\approx2.258\). The corresponding isQ program is as follows:
 ```c++
 import std;
-import qft; // include qft_dagger
+import qft; // include qft_inv
 
 int x = 23;
 int n = 6;
@@ -166,7 +166,7 @@ int phase_estimation(int n, qbit ev) {
         H(anc[i]);
         pow2_ctrlU(i, anc[i], ev);
     }
-    qft_dagger(anc);
+    qft_inv(anc);
     return M(anc);
 }
 
@@ -177,7 +177,7 @@ procedure main()
     print phase_estimation(n, ev);
 }
 ```
-Note that \(FT^\dagger\) (`qft_dagger`) is defined in `qft.isq` and not shown here. After execution, the printed result is 23, the phase we set.
+Note that \(FT^{-1}\) (`qft_inv`) is defined in `qft.isq` and not shown here. After execution, the printed result is 23, the phase we set.
 
 </br>
 <h2 id = "shor"></h2>
@@ -218,7 +218,7 @@ int find_order(qbit k[6]) {
     H(k);
     X(a[0]);    // set |a> = |1>
     pow7mod15(k, a);
-    qft_dagger(k);
+    qft_inv(k);
 }
 
 procedure main()

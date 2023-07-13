@@ -378,7 +378,8 @@ procedure pow7mod15(qbit p[], qbit a[4]) {
 ```
 For bits other than the lowest two, the modular result is always 1, e.g., \(7^{2^2}\bmod15=1\). Therefore, the corresponding modular multiplication gate would be a trivial identical gate.
 
-### Reference
+**Reference**
+
 1. Steven A. Cuccaro, Thomas G. Draper, et al. "*A new quantum ripple-carry addition circuit.*" arXiv preprint quant-ph/0410184, 2004.
 
 2. Y. Takahashi, S. Tani, and N. Kunihiro, "*Quantum Addition Circuits and Unbounded Fan-Out.*" arXiv preprint 0910.2530, 2009.

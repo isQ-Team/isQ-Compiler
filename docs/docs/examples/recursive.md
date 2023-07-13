@@ -89,7 +89,8 @@ procedure main(){
 }
 ```
 
-### Reference
+**Reference**
+
 1. McKague, Matthew. "Interactive proofs with efficient quantum prover for recursive Fourier sampling." *arXiv preprint arXiv:1012.5699*, 2010.
 
 2. Ethan Bernstein and Umesh Vazirani. Quantum complexity theory. *SIAM Journal on Computing*, 26(5):1411–1473, 1997.
