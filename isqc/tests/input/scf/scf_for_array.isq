@@ -1,7 +1,7 @@
 procedure main()
 {
-    int q[] = {2, 3, 4};
-    for i in q {
-        print i;
+    int a[] = {2, 3, 4};
+    for v in a {
+        print v;
     }
 }

@@ -1,5 +1,5 @@
 procedure main()
 {
-    assert(true);
+    assert true;
     assert(3 == 4);
 }

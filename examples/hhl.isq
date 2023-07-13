@@ -129,8 +129,6 @@ procedure invQPEforHSim(int Ps[], double Fs[], double t, qbit qsclock[], qbit qI
 * where we set c = 1
 */
 procedure CRot(qbit qsctrl[], qbit qtar) {
-    H(qtar);
-    
     // theta = 2*arcsin(c/v)
     nctrl nctrl nctrl nctrl ctrl Ry(3.141592654, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //1
     nctrl nctrl nctrl ctrl nctrl Ry(1.047197551, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //2
@@ -164,9 +162,6 @@ procedure CRot(qbit qsctrl[], qbit qtar) {
     ctrl ctrl ctrl nctrl ctrl Ry(-0.679673819, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-3
     ctrl ctrl ctrl ctrl nctrl Ry(-1.047197551, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-2
     ctrl ctrl ctrl ctrl ctrl Ry(-3.141592654, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-1
-
-    H(qtar);
-    S(qtar);
 }
 
 /*

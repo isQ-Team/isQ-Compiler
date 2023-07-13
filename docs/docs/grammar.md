@@ -128,18 +128,30 @@ isQ supports the following operators for classical types:
 
 Their semantics, operand types and precedence are consistent with common programming languages such as C and Python.
 
-isQ has built-in automatic type conversion, which can convert __*bool*__ to __*int*__ and __*int*__ to __*double*__. Specifically, __*true*__ is converted to 1 and __*false*__ to 0. Moreover, isQ provide __*print*__ function to facilitate users to print intermediate results. Users can do arithmetic and print like this:
+isQ has built-in automatic type conversion, which can convert __*bool*__ to __*int*__ and __*int*__ to __*double*__. Specifically, __*true*__ is converted to 1 and __*false*__ to 0. Moreover, isQ provides a __*print*__ command to print __*int*__ and __*double*__ values. Users can do arithmetic and print like this:
 
 ```C++
 procedure main(){
 
-    int a = 2*(3+4) % 3;
+    int a = 2 * (3 + 4) % 3;
     double d = 3.14 * a;
 
     print a;
     print d;
 }
 ```
+
+In addition, isQ provides an __*assert*__ command, which operates with a __*bool*__ value. If the value evaluates __*true*__ during runtime, this command is omitted. Otherwise, the program aborts and reports this event. For example,
+
+```C++
+procedure main()
+{
+    assert true;    // OK
+    assert(3 == 4); // Causing a program abort
+}
+```
+Note that putting paratheses around a __*bool*__ value results in the same __*bool*__ value.
+
 
 <br/>
 
@@ -152,7 +164,7 @@ The quantum operation in isQ is simple, users can apply a gate or do measurement
 
 ### basic operation
 
-isQ supports some basic gate: __*X*__, __*Y*__, __*Z*__, __*H*__, __*S*__, __*T*__, __*Rx*__, __*Ry*__, __*Rz*__, __*CNOT*__, __*TOFFOLI*__, __*U3*__(the definition is the same as openqasm3.0), and two non-unitary operation: __*M*__(measure), __*|0>*__(set qubit to |0>). Users can directly use these gates like this:
+isQ supports some basic gate: __*X*__, __*Y*__, __*Z*__, __*H*__, __*S*__, __*T*__, __*Rx*__, __*Ry*__, __*Rz*__, __*CNOT*__, __*Toffoli*__, __*U3*__(the definition is the same as openqasm3.0), and two non-unitary operation: __*M*__(measure), __*|0>*__(set qubit to |0>). Users can directly use these gates like this:
 
 ```C++
 qbit q[2];
@@ -330,6 +342,18 @@ procedure main(){
     }
 }
 ```
+
+isQ also supports *array iteration*. For example,
+```C++
+procedure main()
+{
+    int a[] = {2, 3, 4};
+    for v in a {
+        print v;
+    }
+}
+```
+Printed results should be "2", "3", and "4".
 
 ### while-loop
 
