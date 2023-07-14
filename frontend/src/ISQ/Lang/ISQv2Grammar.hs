@@ -148,7 +148,6 @@ data GrammarError =
   | UnexpectedToken {token :: Token Pos}
   | UnexpectedEOF
   | BadPackageName {badPackageName :: String}
-  | InconsistentRoot {importedFile :: String, rootPath :: String}
   | ReadFileError {badFileName :: String}
   | ImportNotFound {missingImport :: String}
   | DuplicatedImport {duplicatedImport :: String}

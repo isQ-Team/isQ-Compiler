@@ -40,6 +40,7 @@ int g;
 ```
 The global variable `g` can be referred to as `aaa.ccc.g`. This qulified name is constructed with the relative path from the package root (replacing `/` with `.`) plus the variable name.
 
+
 <br/>
 
 <h2 id = "import"></h2>
@@ -55,7 +56,8 @@ import std;     // ${ISQ_ROOT}/lib/std.isq
 ```
 The root of this file is `/some/path/aaa/bbb/ddd` which is placed in the **same** folder (i.e., `/some/path/aaa/bbb/`) as the example in the [Package](#package) part. It specifies the imported file with the **relative** path from the **parent** folder of the root, replacing `/` with `.` and omiting the `.isq` suffix. Therefore, the above line imports `/some/path/aaa/bbb/aaa/ccc.isq`. The user can also uses the relative path from the *isQ library*, which is specified by environmental variable `${ISQ_ROOT}/lib`. A standard library file, `std.isq`, is placed in this folder. It contains the defination of basic gates such as __*H*__ and __*X*__. Therefore, it should be imported by nearly all the isQ files.
 
-Once a file is imported, its global variables and procedures can be used directly. For example, the `eee.isq` mentioned above can use `g` direclty in its program. However, if multiple variables that are defined in different imported files share the same name, they have to be referred to using qualified names, e.g., `aaa.ccc.g` and `some.other.g`.
+Once a file is imported, its global variables and procedures (except `main`) can be used directly. For example, the `eee.isq` mentioned above can use `g` direclty in its program. However, if multiple variables that are defined in different imported files share the same name, they have to be referred to using qualified names, e.g., `aaa.ccc.g` and `some.other.g`.
+
 
 <br/>
 
@@ -210,6 +212,7 @@ procedure main() {
 
 ```
 
+
 <br/>
 
 <h2 id = "procedure"></h2>
@@ -271,6 +274,7 @@ procedure main() {
     ctrl swap(q[0], q[1], q[2])
 }
 ```
+
 
 <br/>
 
