@@ -81,8 +81,7 @@ int a, b = 4; // int variables
 double d = pi; // double variable with initial value 3.14159...
 qbit q; // qbit
 
-procedure main(){
-    
+procedure main() {    
     // local variable with initial value 3 
     int c = 3;
     ...
@@ -98,7 +97,6 @@ All the four primitive type supports one-dimensional array. When the array is de
 qbit q[3]; // the length of a global array must be a positive integer
 
 procedure main() {
-
     // when an array is initilized, the length should not be specified
     int a[] = {1, 2}; 
 
@@ -131,8 +129,7 @@ Their semantics, operand types and precedence are consistent with common program
 isQ has built-in automatic type conversion, which can convert __*bool*__ to __*int*__ and __*int*__ to __*double*__. Specifically, __*true*__ is converted to 1 and __*false*__ to 0. Moreover, isQ provides a __*print*__ command to print __*int*__ and __*double*__ values. Users can do arithmetic and print like this:
 
 ```C++
-procedure main(){
-
+procedure main() {
     int a = 2 * (3 + 4) % 3;
     double d = 3.14 * a;
 
@@ -144,8 +141,7 @@ procedure main(){
 In addition, isQ provides an __*assert*__ command, which operates with a __*bool*__ value. If the value evaluates __*true*__ during runtime, this command is omitted. Otherwise, the program aborts and reports this event. For example,
 
 ```C++
-procedure main()
-{
+procedure main() {
     assert true;    // OK
     assert(3 == 4); // Causing a program abort
 }
@@ -164,11 +160,11 @@ The quantum operation in isQ is simple, users can apply a gate or do measurement
 
 ### basic operation
 
-isQ supports some basic gate: __*X*__, __*Y*__, __*Z*__, __*H*__, __*S*__, __*T*__, __*Rx*__, __*Ry*__, __*Rz*__, __*CNOT*__, __*Toffoli*__, __*U3*__(the definition is the same as openqasm3.0), and two non-unitary operation: __*M*__(measure), __*|0>*__(set qubit to |0>). Users can directly use these gates like this:
+isQ supports some basic gate: __*X*__, __*Y*__, __*Z*__, __*H*__, __*S*__, __*T*__, __*Rx*__, __*Ry*__, __*Rz*__, __*CNOT*__, __*Toffoli*__, __*U3*__ (see this [link](../gate/index.html) for details), and two non-unitary operation: __*M*__(measure), __*|0>*__(set qubit to |0>). Users can directly use these gates like this:
 
 ```C++
 qbit q[2];
-procedure main(){
+procedure main() {
     H(q[0]);
     CNOT(q[0], q[1]);
     bool x = M(q[0]);
@@ -207,7 +203,7 @@ defgate Rs = [
 
 qbit q[2];
 
-procedure main(){
+procedure main() {
     // apply Rs on q;
     Rs(q[0], q[1]);
 }
@@ -228,20 +224,19 @@ Users can define their own procedures, and procedures may have no output or retu
 ```C++
 // proceduer with two qbit as paramters and has no return
 // paramtesr can also be written like (a: qbit, b: qbit)
-procedure swap(qbit a, qbit b){
+procedure swap(qbit a, qbit b) {
     ...
 }
 
 // proceduer with two classical paramters and return with a double
-double compute(int a, b: double []){
+double compute(int a, double b[]) {
     double s = 0.0;
     ...
     return s;
 }
 
 // entry procedure
-procedure main(){
-
+procedure main() {
     qbit q[2];
     // call swap
     swap(q[0], q[1]);
@@ -250,34 +245,31 @@ procedure main(){
     // call compute
     double c = compute(1, b);
 }
-
 ```
 
 
 ### deriving
 
-User-procedure can be purely quantum. Such kind of procedures works as a gate, and we can do some operations on these procedures like on ordinary quantum gates, like [modifiers](#modifier).
+User-procedure can be purely quantum. Such kind of procedures work as gates, and we can do some operations on these procedures like on ordinary quantum gates, like [modifiers](#modifier).
 
-isQ provides a keyword __*deriving gate*__, converting a procedure to quantum gate, and so that, user can add [modifiers](#modifier) when calling procedure. For example, if we now need a control-swap, we can write codes like:
+isQ provides a keyword __*deriving gate*__, converting a procedure to quantum gate, so that user can add [modifiers](#modifier) when calling procedure. For example, if we need a controlled-swap, we can write codes like:
 
 ```C++
-
-// pure quantum procedure that do swap on two qbit
-procedure swap(qbit a, qbit b){
+// pure quantum procedure that swap two qbit
+procedure swap(qbit a, qbit b) {
     CNOT(b, a);
     CNOT(a, b);
     CNOT(b, a);
 } deriving gate
 
-procedure main(){
+procedure main() {
     qbit q[3];
-    // set q -> 110
+    // set |q> -> |110>
     X(q[0]);
     X(q[1]);
-    // ctrl swap, set q -> 101 
+    // controlled-swap, set |q> -> |101> 
     ctrl swap(q[0], q[1], q[2])
 }
-
 ```
 
 <br/>
@@ -295,26 +287,20 @@ isQ provides three kinds of classical control flow:
 
 ### if-else
 
-If-else statement in isQ is similar to that in C. The differences are as follows:
-
-* Unlike C, the braces {...} cannot be omitted, even if there is single statement following the condition.
-* isQ only supports single-condition guard yet.
-* isQ does not have else if 
-
+If-else statement in isQ is similar to that in C. However, the braces {...} cannot be omitted, even if there is single statement following the condition.
 
 ```C++
-
-procedure main(){
+procedure main() {
     int a = 1;
     int b;
-    if (a > 0){
+    if (a > 0) {
         b = 1;
-    }else{
+    } else {
         b = -1;
     }
 
     bool c = true;
-    if (c){
+    if (c) {
         b = 2;
     }
 }
@@ -327,17 +313,17 @@ procedure main(){
 For-loop in isQ is similar to that in python. User can uses a non-defined variable as the iterating variable, and use two integer value a, b as loop range [a, b), where a must be less than b. The step size is optional and defaulted to 1. Like for-loop in other languages, keywords __*break*__ and  __*continue*__ are supported.
 
 ```C++
-procedure main(){
+procedure main() {
     int a = 0;
 
-    for i in 0:10{
+    for i in 0:10 {
         a = a + 1;
-        if (a > 5){
+        if (a > 5) {
             break;   
         }
     }
 
-    for j in 0:10:3{
+    for j in 0:10:3 {
         a = a - 1;
     }
 }
@@ -345,8 +331,7 @@ procedure main(){
 
 isQ also supports *array iteration*. For example,
 ```C++
-procedure main()
-{
+procedure main() {
     int a[] = {2, 3, 4};
     for v in a {
         print v;
@@ -357,17 +342,13 @@ Printed results should be "2", "3", and "4".
 
 ### while-loop
 
-While-loop in isQ is similar to that in C. The differences are as follows:
-
-* Unlike C, the braces {...} cannot be omitted, even if there is single statement following the condition.
-* only support single condition yet.
+While-loop in isQ is similar to that in C. However, the braces {...} cannot be omitted, even if there is single statement following the condition.
 
 ```C++
-procedure main(){
-
-    int a = 1;
+procedure main() {
+    bool a = true;
     qbit q;
-    while (a != 1){
+    while (!a) {
         H(q);
         a = M(q);
     }
@@ -394,27 +375,29 @@ There are three gate modifiers in isQ:
 Controlled gates can be easily defined by __*ctrl*__ and __*nctrl*__. And of course, you can compound these modifiers. For example:
 
 ```C++
-// define gate Rs
-defgate Rs = [
-    0.5+0.8660254j,0,0,0;
-	0,1,0,0;
-	0,0,1,0;
-    0,0,0,1
-];
+procedure main() {
+    qbit p, q, r;
 
-qbit q[3];
+    // p ---●---
+    //      |  
+    // q ---S---
+    ctrl S(p, q);
 
-procedure main(){
-    // apply C1(Rs) on q[1]
-    ctrl Rs(q[0], q[1]);
-    // apply C2(Rs) on q[2]
-    ctrl<2> Rs(q[0], q[1], q[2]);
-    // apply Rs+ on q[1];
-    inv Rs(q[1])
-    // apply C1(Rs)+ on q[1];
-    inv ctrl Rs(q[0], q[1]);
+    // p ---●---
+    //      |  
+    // q ---●---
+    //      |  
+    // r ---S---
+    ctrl<2> S(p, q, r);
+
+    // q ---S^{-1}---
+    inv S(q);
+
+    // p --X--●--X---
+    //        |  
+    // q ---S^{-1}---
+    nctrl inv S(p, q);
 }
-
 ```
 
 
@@ -432,7 +415,7 @@ oracle g(2, 1) = [0, 1, 0, 0];
 
 qbit q[3];
 
-procedure main(){
+procedure main() {
     ...
     g(q[2], q[1], q[0]);
     ...
@@ -455,7 +438,7 @@ oracle bool[1] g(bool x[2]) {
 
 The derived quantum gate applies to __*qbit*__ arrays. For example:
 ```c++
-procedure main(){
+procedure main() {
     qbit p[2], q[1];
     ...
     g(p, q);
@@ -472,7 +455,7 @@ Parameter
 isQ supports compiling with parameters and passing values at runtime. If you want to do this, you can define two arrays in the parameter list of the `procedure main`, and you can use them in the function body, like this:
 
 ```C++
-procedure main(int i_par[], double d_par[]){
+procedure main(int i_par[], double d_par[]) {
 	...
 	Rx(d_par[0], q);
 	if (i_par[1] == 2){...}
