@@ -274,16 +274,6 @@ typeCheckExpr' f (EBinary pos And lhs rhs) = exactBinaryCheck f (boolType ()) po
 typeCheckExpr' f (EBinary pos Or lhs rhs) = exactBinaryCheck f (boolType ()) pos Or lhs rhs
 typeCheckExpr' f (EBinary pos Shl lhs rhs) = exactBinaryCheck f (intType ()) pos Shl lhs rhs
 typeCheckExpr' f (EBinary pos Shr lhs rhs) = exactBinaryCheck f (intType ()) pos Shr lhs rhs
-typeCheckExpr' f (EBinary pos Pow lhs rhs) = do
-    ref_lhs<-f lhs
-    ref_rhs<-f rhs
-    lhs' <- matchType (map Exact [doubleType ()]) ref_lhs
-    rhs' <- matchType (map Exact [doubleType ()]) ref_rhs
-    ssa<-nextId
-    let lty = astType lhs'
-    let rty = astType rhs'
-    let return_type = lty
-    return $ EBinary (TypeCheckData pos return_type ssa) Pow lhs' rhs'
 typeCheckExpr' f (EBinary pos op lhs rhs) = do
     ref_lhs<-f lhs
     ref_rhs<-f rhs
@@ -693,7 +683,8 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
                             return $ NCall (okStmt pos) ecall
                         _ -> do
                             eadd <- buildBinaryExpr pos Add lhs' rhs'
-                            doAssign lhs' eadd
+                            lhs2 <- typeCheckExpr lhs
+                            doAssign lhs2 eadd
                 SubEq -> do
                     let lhs_ty = termType $ annotationExpr lhs'
                     case lhs_ty of
@@ -706,7 +697,8 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
                             return $ NCall (okStmt pos) ecall
                         _ -> do
                             esub <- buildBinaryExpr pos Sub lhs' rhs'
-                            doAssign lhs' esub
+                            lhs2 <- typeCheckExpr lhs
+                            doAssign lhs2 esub
 typeCheckAST' f (NGatedef pos lhs rhs _) = error "unreachable"
 typeCheckAST' f (NReturn pos expr) = do
     expr' <- typeCheckExpr expr

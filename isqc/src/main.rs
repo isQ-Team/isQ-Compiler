@@ -244,7 +244,7 @@ fn main()->miette::Result<()> {
                 }
 
                 if let CompileTarget::OpenQASM3 = target{
-                    let qasm_ir = exec::exec_command_text(&root, "isq-codegen", &["--target=openqasm3"], &optimized_mlir).map_err(io_error_when("Calling isq-opt"))?;
+                    let qasm_ir = exec::exec_command_text(&root, "isq-codegen", &["--target=openqasm3"], &optimized_mlir).map_err(io_error_when("Calling isq-codegen"))?;
                     if qasm_ir.trim().is_empty(){
                         return Err(InternalCompilerError("Generate openqasm3 failed".to_owned()))?;
                     }

@@ -122,6 +122,7 @@ binopTranslate Mul Index = mlirMuli
 binopTranslate Div Index = mlirFloorDivsi
 binopTranslate CeilDiv Index = mlirCeilDivsi
 binopTranslate Mod Index = mlirRemsi
+binopTranslate Pow Index = mlirPowi
 binopTranslate And M.Bool = mlirAnd
 binopTranslate Or M.Bool = mlirOr
 binopTranslate Andi Index = mlirAndi
