@@ -17,8 +17,9 @@ frontend: check-env
 mlir: check-env
 	cd mlir && mkdir -p build && cd build && cmake ../ -GNinja && ninja
 	cd ${ISQ_ROOT}/bin && \
-	rm -f isq-opt && \
-	ln -s ../mlir/build/tools/isq-opt isq-opt
+	rm -f isq-opt && rm -f isq-codegen && \
+	ln -s ../mlir/build/tools/isq-opt isq-opt && \
+	ln -s ../mlir/build/tools/isq-codegen isq-codegen
 
 isqc: check-env
 	cd isqc && cargo build;
@@ -30,7 +31,7 @@ simulator: check-env
 	cd simulator &&	cargo build --release
 	cd ${ISQ_ROOT}/bin && \
 	rm -f simulator && \
-	ln -s ../simulator/target/release/simulator simulator
+	ln -s ../target/release/simulator simulator
 
 isq-simulator.bc: check-env
 	mkdir -p ${ISQ_ROOT}/share/isq-simulator;
