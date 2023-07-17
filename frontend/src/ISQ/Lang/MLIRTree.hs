@@ -70,7 +70,6 @@ mlirOr = mlirBinaryOp ("ori", Bool, Bool, Bool)
 mlirAndi = mlirBinaryOp ("andi", Index, Index, Index)
 mlirOri = mlirBinaryOp ("ori", Index, Index, Index)
 mlirXori = mlirBinaryOp ("xori", Index, Index, Index)
-mlirPowi = mlirMathBinaryOp ("ipowi", Index, Index, Index)
 mlirAddf = mlirBinaryOp ("addf", Double, Double, Double)
 mlirSubf = mlirBinaryOp ("subf", Double, Double, Double)
 mlirMulf = mlirBinaryOp ("mulf", Double, Double, Double)
@@ -154,6 +153,8 @@ data MLIROp =
     | MBranch {location :: MLIRPos, value :: SSA, branches :: (BlockName, BlockName)}
     | MModule {location :: MLIRPos, topOps :: [MLIROp]}
     | MCall { location :: MLIRPos, callRet :: Maybe (MLIRType, SSA), funcName :: FuncName, operands :: [(MLIRType, SSA)], isLogic :: Bool }
+    | MCallIndirect { location :: MLIRPos, callRet :: Maybe (MLIRType, SSA), funcSSA :: SSA, operands :: [(MLIRType, SSA)] }
+    | MCallConst { location :: MLIRPos, value :: SSA, funcName :: FuncName, retTy :: MLIRType, argsTy :: [MLIRType] }
     | MSCFIf {location :: MLIRPos, ifCondition :: SSA, thenRegion :: MLIROp, elseRegion :: MLIROp}
     | MSCFWhile {location :: MLIRPos, breakBlock :: [MLIROp], condBlock :: [MLIROp], condExpr :: SSA, breakCond :: SSA, whileBody :: [MLIROp]}
     | MAffineFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
@@ -319,13 +320,6 @@ emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp "arith.divf" lt rt res
     indented env $ printf "isq.assert %s_unequal : i1, 1 %s" (unSsa value) (mlirPos loc),
     indented env $ printf "%s = arith.divf %s, %s : %s %s" (unSsa value) (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
   ]
-emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp "math.ipowi" lt rt rest)) =  intercalate "\n" $
-  [
-    indented env $ printf "%s_left = arith.index_cast %s : index to i64 %s" (unSsa value) (unSsa lhs) (mlirPos loc),
-    indented env $ printf "%s_right = arith.index_cast %s : index to i64 %s" (unSsa value) (unSsa rhs) (mlirPos loc),
-    indented env $ printf "%s_res = math.ipowi %s_left, %s_right : i64 %s" (unSsa value) (unSsa value) (unSsa value) (mlirPos loc),
-    indented env $ printf "%s = arith.index_cast %s_res : i64 to index %s" (unSsa value) (unSsa value) (mlirPos loc)
-  ]
 emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = indented env $ printf "%s = %s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType lt) (mlirPos loc)
 emitOpStep f env (MLBinary loc (ty, value) lhs rhs op) = indented env $ printf "%s = logic.%s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
@@ -389,7 +383,10 @@ emitOpStep f env (MFreeMemref loc val ty) = intercalate "\n" $ [indented env $ p
 emitOpStep f env (MJmp loc blk) = indented env $ printf "cf.br %s %s" (unBlockName blk) (mlirPos loc)
 emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "cf.cond_br %s, %s, %s %s" (unSsa val) (unBlockName trueDst) (unBlockName falseDst) (mlirPos loc)
 emitOpStep f env (MCall loc Nothing fn args logic) = let dialect = if logic then "logic" else "func" in indented env $ printf "%s.call %s(%s) : (%s)->() %s" dialect (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
+emitOpStep f env (MCallIndirect loc Nothing fn args) = indented env $ printf "func.call_indirect %s(%s) : (%s)->() %s" (unSsa fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)
 emitOpStep f env (MCall loc (Just (retty, retval)) fn args _) = indented env $ printf "%s = func.call %s(%s) : (%s)->%s %s" (unSsa retval) (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
+emitOpStep f env (MCallIndirect loc (Just (retty, retval)) fn args) = indented env $ printf "%s = func.call_indirect %s(%s) : (%s)->%s %s" (unSsa retval) (unSsa fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirType retty) (mlirPos loc)
+emitOpStep f env (MCallConst loc val fn retty argsty) = indented env $ printf "%s = func.constant %s : (%s)->%s %s" (unSsa val) (unFuncName fn) (intercalate "," (map mlirType argsty)) (mlirType retty) (mlirPos loc)
 emitOpStep f env (MSCFIf loc cond then' else') = intercalate "\n" $ [
   indented env $ printf "scf.if %s {" $ unSsa cond]
   ++[f (incrIndent env{isTopLevel=False}) then']

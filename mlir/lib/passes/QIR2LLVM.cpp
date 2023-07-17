@@ -29,6 +29,7 @@
 #include <mlir/Dialect/Arith/Transforms/Passes.h>
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVMPass.h"
+
 namespace isq{
 namespace ir{
 namespace passes{
@@ -152,6 +153,23 @@ public:
     }
 };
 
+struct LowerUnrealizedConversion : public mlir::OpRewritePattern<mlir::UnrealizedConversionCastOp>{
+    LowerUnrealizedConversion(mlir::MLIRContext* ctx): mlir::OpRewritePattern<mlir::UnrealizedConversionCastOp>(ctx, 1){}
+    mlir::LogicalResult matchAndRewrite(mlir::UnrealizedConversionCastOp op, mlir::PatternRewriter& rewriter) const override{
+        if (mlir::dyn_cast_or_null<mlir::FunctionType>(op.getResult(0).getType())){
+            auto result = op.getResult(0);
+            if (!result.use_empty()){
+                mlir::SmallVector<mlir::Operation*> users(result.getUsers().begin(), result.getUsers().end());
+                for(auto user: users){
+                    user->setOperand(0, op.getOperand(0));
+                }
+            }
+        }
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
+
 struct QIRRepToLLVMPass : public mlir::PassWrapper<QIRRepToLLVMPass, mlir::OperationPass<mlir::ModuleOp>>{
 
     void runOnOperation() override {
@@ -182,7 +200,7 @@ struct QIRRepToLLVMPass : public mlir::PassWrapper<QIRRepToLLVMPass, mlir::Opera
         auto module = getOperation();
         auto ctx = module->getContext();
         patterns.add<RuleReplaceAssert>(ctx, module);
-
+        patterns.add<LowerUnrealizedConversion>(ctx);
         if (failed(applyFullConversion(module, target, std::move(patterns))))
             signalPassFailure();
     }

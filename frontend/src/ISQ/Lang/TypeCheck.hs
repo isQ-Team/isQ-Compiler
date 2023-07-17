@@ -274,6 +274,16 @@ typeCheckExpr' f (EBinary pos And lhs rhs) = exactBinaryCheck f (boolType ()) po
 typeCheckExpr' f (EBinary pos Or lhs rhs) = exactBinaryCheck f (boolType ()) pos Or lhs rhs
 typeCheckExpr' f (EBinary pos Shl lhs rhs) = exactBinaryCheck f (intType ()) pos Shl lhs rhs
 typeCheckExpr' f (EBinary pos Shr lhs rhs) = exactBinaryCheck f (intType ()) pos Shr lhs rhs
+typeCheckExpr' f (EBinary pos Pow lhs rhs) = do
+    ref_lhs<-f lhs
+    ref_rhs<-f rhs
+    lhs' <- matchType (map Exact [doubleType ()]) ref_lhs
+    rhs' <- matchType (map Exact [doubleType ()]) ref_rhs
+    ssa<-nextId
+    let lty = astType lhs'
+    let rty = astType rhs'
+    let return_type = lty
+    return $ EBinary (TypeCheckData pos return_type ssa) Pow lhs' rhs'
 typeCheckExpr' f (EBinary pos op lhs rhs) = do
     ref_lhs<-f lhs
     ref_rhs<-f rhs
@@ -322,6 +332,7 @@ typeCheckExpr' f (ESubscript pos base offset) = do
 typeCheckExpr' f (ECall pos callee callArgs) = do
     callee'<-f callee
     callee''<-matchType [AnyFunc] callee'
+    --traceM $ show callee''
     let callee_ty = astType callee''
     let (ret:args) = subTypes callee_ty
     callArgs'<-mapM f callArgs
@@ -682,8 +693,7 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
                             return $ NCall (okStmt pos) ecall
                         _ -> do
                             eadd <- buildBinaryExpr pos Add lhs' rhs'
-                            lhs2 <- typeCheckExpr lhs
-                            doAssign lhs2 eadd
+                            doAssign lhs' eadd
                 SubEq -> do
                     let lhs_ty = termType $ annotationExpr lhs'
                     case lhs_ty of
@@ -696,8 +706,7 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
                             return $ NCall (okStmt pos) ecall
                         _ -> do
                             esub <- buildBinaryExpr pos Sub lhs' rhs'
-                            lhs2 <- typeCheckExpr lhs
-                            doAssign lhs2 esub
+                            doAssign lhs' esub
 typeCheckAST' f (NGatedef pos lhs rhs _) = error "unreachable"
 typeCheckAST' f (NReturn pos expr) = do
     expr' <- typeCheckExpr expr
@@ -859,6 +868,7 @@ argType' pos ty i = case ty of
     Type _ Bool [] -> return $ void ty
     Type _ Qbit [] -> return $ Type () Ref [void ty]
     Type _ (Array _) [a] -> return $ void ty
+    Type _ FuncTy _ -> return $ void ty
     _ -> throwError $ BadProcedureArgType pos (void ty, i)
 
 typeCheckToplevel :: Bool -> String -> [AST Pos]-> Bool -> TypeCheck ([TCAST], SymbolTableLayer, Int)

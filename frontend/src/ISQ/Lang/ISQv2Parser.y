@@ -343,6 +343,8 @@ ArrayTypeDecorator : '[' ']' { (Array 0) }
 Type :: {LType}
 Type : SimpleType { $1 }
      | CompositeType { $1 }
+     | FuncType { $1 }
+
 SimpleType :: {LType}
 SimpleType : int { intType $1 }
            | qbit { qbitType $1 }
@@ -356,6 +358,9 @@ TypeList :: {[LType]}
 TypeList : TypeList ',' Type { $1 ++ [$3] }
          | Type { [$1] }
          | {- empty -} {[]}
+
+FuncType :: {LType}
+FuncType :  '(' TypeList ')' '->' SimpleType { funcType $1 ([$5] ++ $2) }
 
 ISQCore_CStyleVarDefTerm :: {LType -> (LType, ISQv2Token, Maybe LExpr, Maybe LExpr)}
 ISQCore_CStyleVarDefTerm : IDENTIFIER { \t->(t, $1, Nothing, Nothing) }
@@ -378,6 +383,8 @@ ProcedureArg :: {(LType, Ident)}
 ProcedureArg : SimpleType IDENTIFIER { ($1, tokenIdentV $2) }
              | ISQCore_CStyleArrayArg {$1}
              | IDENTIFIER ':' Type { ($3, tokenIdentV $1) }
+             | SimpleType IDENTIFIER '(' TypeList ')' { (funcType $3 ([$1] ++ $4), tokenIdentV $2) }
+             
 ISQCore_CStyleArrayArg :: {(LType, Ident)}
 ISQCore_CStyleArrayArg : SimpleType IDENTIFIER ArrayTypeDecorator { (Type (annotation $1) $3 [$1], tokenIdentV $2) }
 

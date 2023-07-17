@@ -122,17 +122,16 @@ binopTranslate Mul Index = mlirMuli
 binopTranslate Div Index = mlirFloorDivsi
 binopTranslate CeilDiv Index = mlirCeilDivsi
 binopTranslate Mod Index = mlirRemsi
-binopTranslate Pow Index = mlirPowi
 binopTranslate And M.Bool = mlirAnd
 binopTranslate Or M.Bool = mlirOr
 binopTranslate Andi Index = mlirAndi
 binopTranslate Ori Index = mlirOri
 binopTranslate Xori Index = mlirXori
+binopTranslate Pow M.Double = mlirPowf 
 binopTranslate Add M.Double = mlirAddf
 binopTranslate Sub M.Double = mlirSubf
 binopTranslate Mul M.Double = mlirMulf
 binopTranslate Div M.Double = mlirDivf
-binopTranslate Pow M.Double = mlirPowf 
 binopTranslate (Cmp Less) Index = mlirSltI
 binopTranslate (Cmp LessEq) Index = mlirSleI
 binopTranslate (Cmp Greater) Index = mlirSgtI
@@ -288,6 +287,14 @@ emitExpr' f x@(ECall ann (EGlobalName ann2 mname) args) = do
     let i = ssa ann
     pushOp $ MCall pos ret (fromFuncName name') args'' logic
     return i
+emitExpr' f x@(ECall ann (EResolvedIdent ann2 sym_ssa) args) = do
+    args'<-mapM f args
+    let args'' = zip (fmap astMType args) args'
+    let ret = if (ty $ termType $ ann) == Unit then Nothing else Just (astMType x, ssa ann)
+    pos<-mpos ann
+    let i = ssa ann
+    pushOp $ MCallIndirect pos ret (fromSSA sym_ssa) args''
+    return i
 emitExpr' f (ECall ann _ _) = error "indirect call not supported"
 emitExpr' f (EIntLit ann val) = do
     pos<-mpos ann
@@ -355,7 +362,11 @@ emitExpr' f (EGlobalName ann@(mType->(Memref (Just _) _)) name) = do
     pos<-mpos ann
     pushOp $ MUseGlobalMemref pos (ssa ann) (fromFuncName name) (mType ann)
     return (ssa ann)
-emitExpr' f (EGlobalName ann _) = error "first-class global gate/function not supported"
+emitExpr' f (EGlobalName ann@(mType->Func ret args) name) = do
+    pos<-mpos ann
+    pushOp $ MCallConst pos (ssa ann) (fromFuncName name) ret args 
+    return (ssa ann)
+emitExpr' f (EGlobalName ann name) = error "first-class global gate/function not supported"
 emitExpr' f (EListCast ann sublist) = do
     let i = ssa ann
     pos<-mpos ann

@@ -25,6 +25,7 @@
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 #include <optional>
+
 namespace isq{
 namespace ir{
 namespace passes{
@@ -548,6 +549,41 @@ public:
         return mlir::success();
     }
 };
+class LowerConstant : public TypeReplacer<mlir::func::ConstantOp>{
+public:
+    LowerConstant(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::func::ConstantOp>(ctx, converter){}
+    mlir::LogicalResult matchAndRewrite(mlir::func::ConstantOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
+        rewriter.startRootUpdate(op);
+        op.getResult().setType(this->converter.convertType(op.getResult().getType()));
+        
+        auto result = op.getResult();
+        if (!result.use_empty()){
+            mlir::SmallVector<mlir::Operation*> users(result.getUsers().begin(), result.getUsers().end());
+            for(auto user: users){
+                if (auto uop = mlir::dyn_cast_or_null<mlir::UnrealizedConversionCastOp>(user)){
+                    uop.getResult(0).setType(this->converter.convertType(uop.getResult(0).getType()));
+                }
+            }
+        }
+        
+        rewriter.finalizeRootUpdate(op);
+        return mlir::success();
+    }
+};
+class LowerCallIndirectOp : public TypeReplacer<mlir::func::CallIndirectOp>{
+public:
+    LowerCallIndirectOp(mlir::MLIRContext* ctx, mlir::TypeConverter& converter): TypeReplacer<mlir::func::CallIndirectOp>(ctx, converter){}
+    mlir::LogicalResult matchAndRewrite(mlir::func::CallIndirectOp op,  OpAdaptor adaptor, mlir::ConversionPatternRewriter &rewriter) const override{
+        auto old_type = op.getCallee().getType();
+        rewriter.startRootUpdate(op);
+        for (auto ope : op.getCalleeOperands()){
+            ope.setType(converter.convertType(ope.getType()));
+        }
+        op.getCallee().setType(converter.convertType(old_type));
+        rewriter.finalizeRootUpdate(op);
+        return mlir::success();
+    }
+};
 struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::OperationPass<mlir::ModuleOp>>{
     void populateUsefulPatternSets(mlir::RewritePatternSet& patterns, mlir::TypeConverter& converter ){
         mlir::populateFunctionOpInterfaceTypeConversionPattern<mlir::func::FuncOp>(patterns, converter);
@@ -600,7 +636,16 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
                 return QIRQubitType::get(ctx);
             });
             converter.addConversion([&](mlir::FunctionType ty){
-                return std::nullopt;
+                llvm::SmallVector<mlir::Type> input = {};
+                for (auto ity: ty.getInputs()){
+                    input.push_back(converter.convertType(ity));
+                }
+                llvm::SmallVector<mlir::Type> output = {};
+                for (auto oty: ty.getResults()){
+                    output.push_back(converter.convertType(oty));
+                }
+                auto newty =  ty.clone(input, output);
+                return newty;
             });
             converter.addConversion([&](mlir::MemRefType ty){
                 return mlir::MemRefType::get(ty.getShape(), converter.convertType(ty.getElementType()), ty.getLayout(), ty.getMemorySpace());
@@ -622,6 +667,8 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
             rps.add<LowerGlobal>(ctx, converter);
             rps.add<LowerGetGlobal>(ctx, converter);
             rps.add<LowerDim>(ctx, converter);
+            rps.add<LowerConstant>(ctx, converter);
+            rps.add<LowerCallIndirectOp>(ctx, converter);
             populateUsefulPatternSets(rps, converter);
             mlir::ConversionTarget target(*ctx);
             target.addIllegalDialect<ISQDialect>();
