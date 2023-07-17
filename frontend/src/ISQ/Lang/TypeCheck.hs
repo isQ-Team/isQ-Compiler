@@ -773,7 +773,7 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     apply_cond <- mapM (andRangeCondition pos cond_id) $ zip it_ids hi_ids
                     let bases = map getBaseFromArray op_qubits'
                     qubits <- mapM (getItemFromArray pos) $ zip4 bases it_ids lo_ids step_ids
-                    let apply_unitary = NCoreUnitary (okStmt pos) gate'' qubits modifiers'
+                    let apply_unitary = NCoreUnitary (okStmt pos) gate'' (op_extra'++qubits) modifiers'
                     inc_its <- mapM (increaseIterator pos) $ it_ids
                     apply_cond2 <- mapM (andRangeCondition pos cond_id) $ zip it_ids hi_ids
                     let while_body = apply_unitary : inc_its ++ apply_cond2
