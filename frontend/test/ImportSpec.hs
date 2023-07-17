@@ -18,13 +18,6 @@ importSpec = do
         err <- generateTcast "" input False
         err `shouldBe` (Left $ GrammarError $ BadPackageName "no_match")
 
-    it "returns an error for inconsistent root folders" $ do
-        let input = joinPath ["test", "input", "inconsistent_root.isq"]
-        root <- canonicalizePath $ joinPath ["test", "input", "b"]
-        let importFile = joinPath [root, "inconsistent.isq"]
-        err <- generateTcast "" input False
-        err `shouldBe` (Left $ GrammarError $ InconsistentRoot importFile root)
-
     it "returns an error when compiling an unexisting file" $ do
         let input = joinPath ["unexisting", "file.isq"]
         err <- generateTcast "" input False

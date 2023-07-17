@@ -143,31 +143,28 @@ doImport incPath froms file node = do
             let impList = importList node
             let rootPath = joinPath $ take pacIndex pathList
             let newIncPath = case isMain of {True -> rootPath:incPath; False -> incPath}
-            case isMain || rootPath `elem` newIncPath of
-                False -> throwError $ GrammarError $ InconsistentRoot file rootPath
-                True -> do
-                    let impNames = map importName impList
-                    let groups = case impNames of
-                            [] -> [[]]
-                            _ -> groupBy (\x y -> x == y) impNames
-                    let most = maximumBy (compare `on` length) groups
-                    case length most of
-                        i | i >= 2 -> throwError $ GrammarError $ DuplicatedImport $ head most
-                        _ -> do
-                            (importTcast, importTable) <- getImportedTcasts (file:froms) newIncPath impList
-                            let errOrRaii = compileRAII defList
-                            case errOrRaii of
+            let impNames = map importName impList
+            let groups = case impNames of
+                    [] -> [[]]
+                    _ -> groupBy (\x y -> x == y) impNames
+            let most = maximumBy (compare `on` length) groups
+            case length most of
+                i | i >= 2 -> throwError $ GrammarError $ DuplicatedImport $ head most
+                _ -> do
+                    (importTcast, importTable) <- getImportedTcasts (file:froms) newIncPath impList
+                    let errOrRaii = compileRAII defList
+                    case errOrRaii of
+                        Left x -> throwError $ fromError x
+                        Right raii -> do
+                            --liftIO $ BS.hPut stdout (encode raii) -- for debug
+                            oldId <- gets ssaId
+                            qcis <- gets qcis
+                            let errOrTuple = typeCheckTop isMain prefix raii importTable oldId qcis
+                            case errOrTuple of
                                 Left x -> throwError $ fromError x
-                                Right raii -> do
-                                    --liftIO $ BS.hPut stdout (encode raii) -- for debug
-                                    oldId <- gets ssaId
-                                    qcis <- gets qcis
-                                    let errOrTuple = typeCheckTop isMain prefix raii importTable oldId qcis
-                                    case errOrTuple of
-                                        Left x -> throwError $ fromError x
-                                        Right (tcast, table, newId) -> do
-                                            modify' (\x->x{ssaId = newId})
-                                            return (tcast ++ importTcast, table)
+                                Right (tcast, table, newId) -> do
+                                    modify' (\x->x{ssaId = newId})
+                                    return (tcast ++ importTcast, table)
 
 myReadFile :: FilePath -> IO (String)
 myReadFile file = do

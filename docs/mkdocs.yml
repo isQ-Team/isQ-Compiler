@@ -8,6 +8,7 @@ nav:
     - Installation: install.md
     - Usage: usage.md
     - isQ Programming Language: grammar.md
+    - Basic Gates: gate.md
   - Developer Manual:
     - Development Setup: devsetup.md
     - Versioning: versioning.md

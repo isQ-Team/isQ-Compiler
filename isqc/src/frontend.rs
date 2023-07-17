@@ -125,12 +125,6 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                             let (src,pos) = parse_pos(&content["token"]["annotationToken"])?;
                             return Err(SyntaxError{reason: "unexpected token.".into(), src, pos: pos})?;
                         }
-                        "InconsistentRoot"=>{
-                            let file_path = content["importedFile"].as_str().unwrap();
-                            let root_path = content["rootPath"].as_str().unwrap();
-                            let message = "The root path of file ".to_string() + file_path + " is " + root_path + ", which does not consist with the project.";
-                            Err(GeneralGrammarError("Inconsistent root path".to_string(), message))?
-                        }
                         "ImportNotFound"=>{
                             let import_string = content["missingImport"].as_str().unwrap();
                             let message = "Cannot find ".to_string() + import_string;
