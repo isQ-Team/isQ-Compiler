@@ -47,9 +47,9 @@ struct SimulatorArgs {
     shots: Option<i64>,
     #[clap(long)]
     debug: bool,
-    #[clap(long, short)]
+    #[clap(long, short, allow_negative_numbers(true))]
     int_par: Option<Vec<i64>>,
-    #[clap(long, short)]
+    #[clap(long, short, allow_negative_numbers(true))]
     double_par: Option<Vec<f64>>,
     #[clap(long, short, default_value = "1")]
     np: i64
@@ -119,6 +119,7 @@ fn main() -> std::io::Result<()> {
         Some(x) => x,
         None => vec![]
     };
+    
     let par_double_size:i64 = par_double.len() as i64;
 
 
@@ -189,7 +190,7 @@ fn main() -> std::io::Result<()> {
 
                     let entrypoint = rx_string.recv().unwrap();
                     let proc = library.get::<SimulatorEntry>(entrypoint.as_bytes()).unwrap();
-                    (proc)(par_int_ptr, par_int_ptr, 0, par_int_size, 0, par_double_ptr, par_double_ptr, 0, par_double_size, 0, rank);
+                    (proc)(par_int_ptr, par_int_ptr, 0, par_int_size, 1, par_double_ptr, par_double_ptr, 0, par_double_size, 1, rank);
                 });
                 for v in &par_int {
                     tx_int.send(*v).unwrap();

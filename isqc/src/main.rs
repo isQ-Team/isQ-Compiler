@@ -61,9 +61,9 @@ pub enum Commands{
         qcis_config: Option<String>,
         #[clap(long, short='I', action=ArgAction::Append)]
         inc_path: Option<Vec<String>>,
-        #[clap(long, short, action=ArgAction::Append)]
+        #[clap(long, short, action=ArgAction::Append, allow_negative_numbers(true))]
         int_par: Option<Vec<i64>>,
-        #[clap(long, short, action=ArgAction::Append)]
+        #[clap(long, short, action=ArgAction::Append, allow_negative_numbers(true))]
         double_par: Option<Vec<f64>>
     },
     #[clap(group(
@@ -82,9 +82,9 @@ pub enum Commands{
         shots: Option<i64>,
         #[clap(long)]
         debug: bool,
-        #[clap(long, short, action=ArgAction::Append)]
+        #[clap(long, short, action=ArgAction::Append, allow_negative_numbers(true))]
         int_par: Option<Vec<i64>>,
-        #[clap(long, short, action=ArgAction::Append)]
+        #[clap(long, short, action=ArgAction::Append, allow_negative_numbers(true))]
         double_par: Option<Vec<f64>>,
         #[clap(long, short, default_value = "1")]
         np: i64
