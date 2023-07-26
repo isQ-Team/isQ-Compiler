@@ -54,9 +54,150 @@ void emitDecomposedGateSequence(mlir::OpBuilder& builder, synthesis::DecomposedG
             }
 
             emitBuiltinGate(builder, "U3", mlir::ArrayRef<mlir::Value*>{&qubits[pos[0]]}, theta_v);
-        }else{
+        }else if (type==synthesis::GateType::RX){
+            double theta = std::get<2>(sim_gates[i]);
+            auto v = builder.create<mlir::arith::ConstantFloatOp>(
+                ::mlir::UnknownLoc::get(ctx),
+                ::llvm::APFloat(theta),
+                ::mlir::Float64Type::get(ctx)
+            );
+            emitBuiltinGate(builder, "RX", mlir::ArrayRef<mlir::Value*>{&qubits[pos[0]]}, mlir::ArrayRef<mlir::Value>{v});
+        }else if (type==synthesis::GateType::RY){
+            double theta = std::get<2>(sim_gates[i]);
+            auto v = builder.create<mlir::arith::ConstantFloatOp>(
+                ::mlir::UnknownLoc::get(ctx),
+                ::llvm::APFloat(theta),
+                ::mlir::Float64Type::get(ctx)
+            );
+            emitBuiltinGate(builder, "RY", mlir::ArrayRef<mlir::Value*>{&qubits[pos[0]]}, mlir::ArrayRef<mlir::Value>{v});
+        }else if (type==synthesis::GateType::RZ){
+            double theta = std::get<2>(sim_gates[i]);
+            auto v = builder.create<mlir::arith::ConstantFloatOp>(
+                ::mlir::UnknownLoc::get(ctx),
+                ::llvm::APFloat(theta),
+                ::mlir::Float64Type::get(ctx)
+            );
+            emitBuiltinGate(builder, "RZ", mlir::ArrayRef<mlir::Value*>{&qubits[pos[0]]}, mlir::ArrayRef<mlir::Value>{v});
+        }else if (type==synthesis::GateType::CPHASE){
+            double theta = std::get<2>(sim_gates[i]);
+            auto v = builder.create<mlir::arith::ConstantFloatOp>(
+                ::mlir::UnknownLoc::get(ctx),
+                ::llvm::APFloat(theta),
+                ::mlir::Float64Type::get(ctx)
+            );
+            emitBuiltinGate(builder, "RZ", mlir::ArrayRef<mlir::Value*>{&qubits[pos[0]]}, mlir::ArrayRef<mlir::Value>{v});
+            auto p = builder.create<mlir::arith::ConstantFloatOp>(
+                ::mlir::UnknownLoc::get(ctx),
+                ::llvm::APFloat(theta/2),
+                ::mlir::Float64Type::get(ctx)
+            );
+            emitBuiltinGate(builder, "GPHASE", {}, mlir::ArrayRef<mlir::Value>{p});
+        }
+        else{
             llvm_unreachable("Nope");
         }
+    }
+}
+
+void addCtrlR(std::string gate, mlir::MutableArrayRef<mlir::Value> qubits, int ctrl, int target, mlir::Value theta, mlir::Value neg_theta, mlir::OpBuilder& builder){
+    auto ctx = builder.getContext();
+    if (gate == "RX"){
+        auto pi_2 = builder.create<mlir::arith::ConstantFloatOp>(
+            ::mlir::UnknownLoc::get(ctx),
+            ::llvm::APFloat(M_PI / 2),
+            ::mlir::Float64Type::get(ctx)
+        );
+        auto neg_pi_2 = builder.create<mlir::arith::ConstantFloatOp>(
+            ::mlir::UnknownLoc::get(ctx),
+            ::llvm::APFloat(-M_PI / 2),
+            ::mlir::Float64Type::get(ctx)
+        );
+        auto pi_4 = builder.create<mlir::arith::ConstantFloatOp>(
+            ::mlir::UnknownLoc::get(ctx),
+            ::llvm::APFloat(M_PI / 4),
+            ::mlir::Float64Type::get(ctx)
+        );
+        emitBuiltinGate(builder, "RZ", mlir::ArrayRef<mlir::Value*>{&qubits[target]}, mlir::ArrayRef<mlir::Value>{neg_pi_2});
+        emitBuiltinGate(builder, "CNOT", mlir::ArrayRef<mlir::Value*>{&qubits[ctrl], &qubits[target]});
+        emitBuiltinGate(builder, "RY", mlir::ArrayRef<mlir::Value*>{&qubits[target]}, mlir::ArrayRef<mlir::Value>{neg_theta});
+        emitBuiltinGate(builder, "CNOT", mlir::ArrayRef<mlir::Value*>{&qubits[ctrl], &qubits[target]});
+        emitBuiltinGate(builder, "RY", mlir::ArrayRef<mlir::Value*>{&qubits[target]}, mlir::ArrayRef<mlir::Value>{theta});
+        emitBuiltinGate(builder, "RZ", mlir::ArrayRef<mlir::Value*>{&qubits[target]}, mlir::ArrayRef<mlir::Value>{pi_2});
+    }else if (gate == "CPHASE") {
+        emitBuiltinGate(builder, "CNOT", mlir::ArrayRef<mlir::Value*>{&qubits[ctrl], &qubits[target]});
+        emitBuiltinGate(builder, "RZ", mlir::ArrayRef<mlir::Value*>{&qubits[target]}, mlir::ArrayRef<mlir::Value>{neg_theta});
+        emitBuiltinGate(builder, "CNOT", mlir::ArrayRef<mlir::Value*>{&qubits[ctrl], &qubits[target]});
+        emitBuiltinGate(builder, "RZ", mlir::ArrayRef<mlir::Value*>{&qubits[target]}, mlir::ArrayRef<mlir::Value>{theta});
+        emitBuiltinGate(builder, "GPHASE", {}, mlir::ArrayRef<mlir::Value>{theta});
+    }else{
+        emitBuiltinGate(builder, "CNOT", mlir::ArrayRef<mlir::Value*>{&qubits[ctrl], &qubits[target]});
+        emitBuiltinGate(builder, gate.c_str(), mlir::ArrayRef<mlir::Value*>{&qubits[target]}, mlir::ArrayRef<mlir::Value>{neg_theta});
+        emitBuiltinGate(builder, "CNOT", mlir::ArrayRef<mlir::Value*>{&qubits[ctrl], &qubits[target]});
+        emitBuiltinGate(builder, gate.c_str(), mlir::ArrayRef<mlir::Value*>{&qubits[target]}, mlir::ArrayRef<mlir::Value>{theta});
+    }
+}
+
+void addMultiR(std::string gate, mlir::Value theta, mlir::MutableArrayRef<mlir::Value> qubits, mlir::OpBuilder& builder){
+    auto ctx = builder.getContext();
+    int n = qubits.size()-1;
+    if (n > 0){
+        double v = (1 << (n-1));
+        auto divn = builder.create<mlir::arith::ConstantFloatOp>(
+            ::mlir::UnknownLoc::get(ctx),
+            ::llvm::APFloat(v),
+            ::mlir::Float64Type::get(ctx)
+        );
+        theta = builder.create<mlir::arith::DivFOp>(::mlir::UnknownLoc::get(ctx), theta, divn);
+    }
+
+    auto half = builder.create<mlir::arith::ConstantFloatOp>(
+        ::mlir::UnknownLoc::get(ctx),
+        ::llvm::APFloat(0.5),
+        ::mlir::Float64Type::get(ctx)
+    );
+    auto a_theta = builder.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), theta, half);
+    auto n_theta = builder.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), a_theta);
+    if (n == 0){
+        if (gate == "CPHASE"){
+            emitBuiltinGate(builder, "RZ", mlir::ArrayRef<mlir::Value*>{&qubits[0]}, mlir::ArrayRef<mlir::Value>{theta});
+            emitBuiltinGate(builder, "GPHASE", {}, mlir::ArrayRef<mlir::Value>{a_theta});
+        }else{
+            emitBuiltinGate(builder, gate.c_str(), mlir::ArrayRef<mlir::Value*>{&qubits[0]}, mlir::ArrayRef<mlir::Value>{theta});
+        }
+        return;
+    }
+
+    auto gray_code = synthesis::generate_gray_code(n);
+    int last_pattern = -1;
+
+    for (auto i = 0; i < (1 << n); i++){
+        if (i == 0) continue;
+        int pattern = gray_code[i];
+
+        if (last_pattern == -1) last_pattern = pattern;
+        int lm_pos = synthesis::last_one_idx(pattern, n);
+        int pos = synthesis::last_one_idx(last_pattern ^ pattern, n);
+        if (pos > -1){
+            if (lm_pos != pos){
+                emitBuiltinGate(builder, "CNOT", mlir::ArrayRef<mlir::Value*>{&qubits[pos], &qubits[lm_pos]});
+            }else{
+                for (auto j=n-1; j>=0; j--){
+                    if (((1 << j) & pattern) > 0){
+                        if ((n-1-j) == lm_pos) continue;
+                        emitBuiltinGate(builder, "CNOT", mlir::ArrayRef<mlir::Value*>{&qubits[n-1-j], &qubits[lm_pos]});
+                    }
+                }
+            }
+        }
+
+        int cnt = synthesis::get_one_count(pattern, n);
+        if (cnt % 2 == 0){
+            addCtrlR(gate, qubits, lm_pos, n, n_theta, a_theta, builder);
+        }else{
+            addCtrlR(gate, qubits, lm_pos, n, a_theta, n_theta, builder);
+        }
+
+        last_pattern = pattern;
     }
 }
 
@@ -231,20 +372,42 @@ struct MergeAdjointIntoU3Rule : public mlir::OpRewritePattern<DecorateOp>{
         if(!usegate_op) return mlir::failure();
         auto gatedef = llvm::dyn_cast_or_null<DefgateOp>(mlir::SymbolTable::lookupNearestSymbolFrom(usegate_op, usegate_op.getName()));
         if(!gatedef) return mlir::failure();
-        if(!isFamousGate(gatedef, "U3")) return mlir::failure();
+        //if(!isFamousGate(gatedef, "U3")) return mlir::failure();
         if(!op.getAdjoint()){
             return mlir::failure();
         }
-        // Pull adjoint into u3.
-        auto theta = usegate_op.getParameters()[0];
-        auto phi = usegate_op.getParameters()[1];
-        auto lam = usegate_op.getParameters()[2];
-        auto new_theta = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), theta);
-        auto new_phi = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), lam);
-        auto new_lam = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), phi);
-        auto new_used_gate = emitUseBuiltinGate(rewriter, 1, "U3", {new_theta, new_phi, new_lam}, op.getCtrl(), false);
-        rewriter.replaceOp(op, {new_used_gate});
-        return mlir::success();
+        if (isFamousGate(gatedef, "U3")){
+            // Pull adjoint into u3.
+            auto theta = usegate_op.getParameters()[0];
+            auto phi = usegate_op.getParameters()[1];
+            auto lam = usegate_op.getParameters()[2];
+            auto new_theta = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), theta);
+            auto new_phi = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), lam);
+            auto new_lam = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), phi);
+            auto new_used_gate = emitUseBuiltinGate(rewriter, 1, "U3", {new_theta, new_phi, new_lam}, op.getCtrl(), false);
+            rewriter.replaceOp(op, {new_used_gate});
+            return mlir::success();
+        }else if (isFamousGate(gatedef, "Rx")){
+            auto theta = usegate_op.getParameters()[0];
+            auto new_theta = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), theta);
+            auto new_used_gate = emitUseBuiltinGate(rewriter, 1, "Rx", {new_theta}, op.getCtrl(), false);
+            rewriter.replaceOp(op, {new_used_gate});
+            return mlir::success();
+        }else if (isFamousGate(gatedef, "Ry")){
+            auto theta = usegate_op.getParameters()[0];
+            auto new_theta = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), theta);
+            auto new_used_gate = emitUseBuiltinGate(rewriter, 1, "Ry", {new_theta}, op.getCtrl(), false);
+            rewriter.replaceOp(op, {new_used_gate});
+            return mlir::success();
+        }else if (isFamousGate(gatedef, "Rz")){
+            auto theta = usegate_op.getParameters()[0];
+            auto new_theta = rewriter.create<mlir::arith::NegFOp>(::mlir::UnknownLoc::get(ctx), theta);
+            auto new_used_gate = emitUseBuiltinGate(rewriter, 1, "Rz", {new_theta}, op.getCtrl(), false);
+            rewriter.replaceOp(op, {new_used_gate});
+            return mlir::success();
+        }
+        
+        return mlir::failure();
     }
 };
 struct MergeAdjointIntoGPhaseRule : public mlir::OpRewritePattern<DecorateOp>{
@@ -391,9 +554,19 @@ struct DecomposeCtrlU3Rule : public mlir::OpRewritePattern<ApplyGateOp>{
         }else if(isFamousGate(gatedef, "GPhase")){
             addMultiRz(usegate_op.getParameters()[0], operands, rewriter, false);
             rewriter.replaceOp(op, operands);
+        }else if (isFamousGate(gatedef, "Rx")){
+            addMultiR("RX", usegate_op.getParameters()[0], operands, rewriter);
+            rewriter.replaceOp(op, operands);
+        }else if (isFamousGate(gatedef, "Ry")){
+            addMultiR("RY", usegate_op.getParameters()[0], operands, rewriter);
+            rewriter.replaceOp(op, operands);
+        }else if (isFamousGate(gatedef, "Rz")){
+            addMultiR("RZ", usegate_op.getParameters()[0], operands, rewriter);
+            rewriter.replaceOp(op, operands);
         }else{
             return mlir::failure();
         }
+
         return mlir::success();
     }
 };

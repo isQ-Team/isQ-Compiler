@@ -30,6 +30,28 @@ pub fn isq_qir_shim_qis_rz_body(x0: f64, x1: K<QIRQubit>)->() {
     let device = ctx.get_device_mut();
     device.controlled_qop(Rz, &[], &[&x1.key], &[x0]);
 }
+pub fn isq_qir_shim_qis_rx_body(x0: f64, x1: K<QIRQubit>)->() {
+    trace!(
+        "calling isq_qir_shim_qis_rx(x0: {}, theta: {})",
+        P(&x1),
+        x0,
+    );
+    let rctx = context();
+    let mut ctx = rctx.lock().unwrap();
+    let device = ctx.get_device_mut();
+    device.controlled_qop(Rx, &[], &[&x1.key], &[x0]);
+}
+pub fn isq_qir_shim_qis_ry_body(x0: f64, x1: K<QIRQubit>)->() {
+    trace!(
+        "calling isq_qir_shim_qis_ry(x0: {}, theta: {})",
+        P(&x1),
+        x0,
+    );
+    let rctx = context();
+    let mut ctx = rctx.lock().unwrap();
+    let device = ctx.get_device_mut();
+    device.controlled_qop(Ry, &[], &[&x1.key], &[x0]);
+}
 pub fn isq_qir_shim_qis_rxp_body(x0: *mut u8, x1: usize, x2: i64, x3: K<QIRQubit>)->() {
 
     unsafe{

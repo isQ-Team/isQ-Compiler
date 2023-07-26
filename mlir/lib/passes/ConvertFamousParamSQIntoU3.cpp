@@ -32,59 +32,74 @@ public:
         if(!defgate) return mlir::failure();
         auto ctx = rewriter.getContext();
         
-        
-        if(isFamousGate(defgate, "Rx")){
-            auto theta = use.getParameters()[0];
-            auto pi_2 = rewriter.create<mlir::arith::ConstantFloatOp>(
+        bool convert = false;
+        auto result = use.getResult();
+        if (!result.use_empty()){
+            mlir::SmallVector<mlir::Operation*> users(result.getUsers().begin(), result.getUsers().end());
+            for(auto user: users){
+                if (auto uop = mlir::dyn_cast_or_null<DecorateOp>(user)){
+                    if (uop.getCtrl().size() > 8){
+                        convert = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (convert){
+            if(isFamousGate(defgate, "Rx")){
+                auto theta = use.getParameters()[0];
+                auto pi_2 = rewriter.create<mlir::arith::ConstantFloatOp>(
+                        ::mlir::UnknownLoc::get(ctx),
+                        ::llvm::APFloat(M_PI / 2),
+                        ::mlir::Float64Type::get(ctx)
+                );
+                auto neg_pi_2 = rewriter.create<mlir::arith::ConstantFloatOp>(
                     ::mlir::UnknownLoc::get(ctx),
-                    ::llvm::APFloat(M_PI / 2),
+                    ::llvm::APFloat(-M_PI / 2),
                     ::mlir::Float64Type::get(ctx)
-            );
-            auto neg_pi_2 = rewriter.create<mlir::arith::ConstantFloatOp>(
-                ::mlir::UnknownLoc::get(ctx),
-                ::llvm::APFloat(-M_PI / 2),
-                ::mlir::Float64Type::get(ctx)
-            );
-            ::mlir::SmallVector<mlir::Value> theta_v = {theta, neg_pi_2, pi_2};
-            rewriter.replaceOpWithNewOp<UseGateOp>(
-                use,
-                use.getType(),
-                mlir::FlatSymbolRefAttr::get(ctx, getFamousName("U3")),
-                theta_v
-            );
-            return mlir::success();
-        }
-        if(isFamousGate(defgate, "Ry")){
-            auto theta = use.getParameters()[0];
-            auto zero = rewriter.create<mlir::arith::ConstantFloatOp>(
-                ::mlir::UnknownLoc::get(ctx),
-                ::llvm::APFloat(0.0),
-                ::mlir::Float64Type::get(ctx)
-            );
-            ::mlir::SmallVector<mlir::Value> theta_v = {theta, zero, zero};
-            rewriter.replaceOpWithNewOp<UseGateOp>(
-                use,
-                use.getType(),
-                mlir::FlatSymbolRefAttr::get(ctx, getFamousName("U3")),
-                theta_v
-            );
-            return mlir::success();
-        }
-        if(isFamousGate(defgate, "Rz")){
-            auto theta = use.getParameters()[0];
-            auto zero = rewriter.create<mlir::arith::ConstantFloatOp>(
-                ::mlir::UnknownLoc::get(ctx),
-                ::llvm::APFloat(0.0),
-                ::mlir::Float64Type::get(ctx)
-            );
-            ::mlir::SmallVector<mlir::Value> theta_v ={zero, zero, theta};
-            rewriter.replaceOpWithNewOp<UseGateOp>(
-                use,
-                use.getType(),
-                mlir::FlatSymbolRefAttr::get(ctx, getFamousName("U3")),
-                theta_v
-            );
-            return mlir::success();
+                );
+                ::mlir::SmallVector<mlir::Value> theta_v = {theta, neg_pi_2, pi_2};
+                rewriter.replaceOpWithNewOp<UseGateOp>(
+                    use,
+                    use.getType(),
+                    mlir::FlatSymbolRefAttr::get(ctx, getFamousName("U3")),
+                    theta_v
+                );
+                return mlir::success();
+            }
+            if(isFamousGate(defgate, "Ry")){
+                auto theta = use.getParameters()[0];
+                auto zero = rewriter.create<mlir::arith::ConstantFloatOp>(
+                    ::mlir::UnknownLoc::get(ctx),
+                    ::llvm::APFloat(0.0),
+                    ::mlir::Float64Type::get(ctx)
+                );
+                ::mlir::SmallVector<mlir::Value> theta_v = {theta, zero, zero};
+                rewriter.replaceOpWithNewOp<UseGateOp>(
+                    use,
+                    use.getType(),
+                    mlir::FlatSymbolRefAttr::get(ctx, getFamousName("U3")),
+                    theta_v
+                );
+                return mlir::success();
+            }
+            if(isFamousGate(defgate, "Rz")){
+                auto theta = use.getParameters()[0];
+                auto zero = rewriter.create<mlir::arith::ConstantFloatOp>(
+                    ::mlir::UnknownLoc::get(ctx),
+                    ::llvm::APFloat(0.0),
+                    ::mlir::Float64Type::get(ctx)
+                );
+                ::mlir::SmallVector<mlir::Value> theta_v ={zero, zero, theta};
+                rewriter.replaceOpWithNewOp<UseGateOp>(
+                    use,
+                    use.getType(),
+                    mlir::FlatSymbolRefAttr::get(ctx, getFamousName("U3")),
+                    theta_v
+                );
+                return mlir::success();
+            }
         }
         return mlir::failure();
     }

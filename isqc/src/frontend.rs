@@ -42,16 +42,18 @@ pub fn parse_pos(input: &Value)->miette::Result<(NamedSource, SourceSpan)>{
     let mut col = 0usize;
     let mut offset = 0usize;
     for char in buf.chars() {
-        if char == '\n' {
-            col = 0;
-            line += 1;
-        }else if char == '\t' {
+        if char == '\t' {
             col += 8;
         } else {
             col += 1;
         }
+
         if line >= loc_line && col >= loc_col {
             break;
+        }
+        if char == '\n'{
+            col = 0;
+            line += 1;
         }
         offset += char.len_utf8();
     }

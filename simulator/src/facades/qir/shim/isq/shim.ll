@@ -25,7 +25,22 @@ entry:
     ret void
 }
 declare dllimport void @__isq__qir__shim__qis__rz__body(double, i8*)
-
+define void @__quantum__qis__rx__body (double %x0, %Qubit* %x1) alwaysinline {
+entry:
+    %x2 = bitcast double %x0 to double
+    %x3 = bitcast %Qubit* %x1 to i8*
+    call void @__isq__qir__shim__qis__rx__body(double %x2, i8* %x3)
+    ret void
+}
+declare dllimport void @__isq__qir__shim__qis__rx__body(double, i8*)
+define void @__quantum__qis__ry__body (double %x0, %Qubit* %x1) alwaysinline {
+entry:
+    %x2 = bitcast double %x0 to double
+    %x3 = bitcast %Qubit* %x1 to i8*
+    call void @__isq__qir__shim__qis__ry__body(double %x2, i8* %x3)
+    ret void
+}
+declare dllimport void @__isq__qir__shim__qis__ry__body(double, i8*)
 define void @__quantum__qis__rxp__body (i8* %x0, i64 %x1, i64 %x2, %Qubit* %x3) alwaysinline {
 entry:
     %x4 = bitcast %Qubit* %x3 to i8*

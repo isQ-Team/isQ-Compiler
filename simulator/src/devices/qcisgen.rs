@@ -189,21 +189,29 @@ impl QDevice for QCISCodegen{
             
             return;
         }
+        /*
         if let Rz = op_type{
             let op = format!("RZ");
             let args_separated = qubits.iter().map(|x| format!("Q{}", x)).join(" ");
             self.generated_code.push(format!("{} {} {}", op, args_separated, parameters[0]));
             return;
-        }
+        }*/
         let op_name = match op_type{
             X=>"X", Y=>"Y", Z=>"Z",
             H=>"H", S=>"S", T=>"T",
             SInv=>"SD", TInv=>"TD", CZ=>"CZ",
             X2P=>"X2P", X2M=>"X2M",
             Y2P=>"Y2P", Y2M=>"Y2M",
+            Rx=>"RX", Ry=>"RY", Rz=>"RZ",
             _ => panic!("bad op type {:?}", op_type)
         };
-        self.append_op(op_name, qubits);
+        match op_name {
+            "RX" | "RY" | "RZ" => {
+                let args_separated = qubits.iter().map(|x| format!("Q{}", x)).join(" ");
+                self.generated_code.push(format!("{} {} {}", op_name, args_separated, parameters[0]))
+            }
+            _ => self.append_op(op_name, qubits)
+        }
     }
 
     fn param_qop(

@@ -16,7 +16,7 @@ using namespace Eigen;
     using std::pair;
 
     enum GateType {
-        NONE, RX, RY, RZ, CNOT, MX, MY, MZ, TOFFOLI, H, X
+        NONE, RX, RY, RZ, CNOT, MX, MY, MZ, TOFFOLI, H, X, CPHASE
     };
 
     typedef vector<int> GateLocation;
@@ -71,6 +71,9 @@ using namespace Eigen;
             bool QSDBody();
     };
 
+    vector<int> generate_gray_code(int num_bit);
+    int last_one_idx(int x, int n);
+    int get_one_count(int x, int n);
     DecomposedGates mcdecompose_u(UnitaryVector uvector, std::string ctrl);
     DecomposedGates mcdecompose_addone(int n);
 
