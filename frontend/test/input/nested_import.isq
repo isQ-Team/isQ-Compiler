@@ -1,0 +1,3 @@
+import b.import_fun1;
+
+procedure main(){}

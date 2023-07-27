@@ -43,7 +43,8 @@ data ImportEnv = ImportEnv {
     globalTable :: SymbolTableLayer,
     symbolTable :: Map.Map String SymbolTableLayer,
     ssaId :: Int,
-    qcis :: Bool
+    qcis :: Bool,
+    libraryPath:: [FilePath]
 }
 
 type PassMonad = ExceptT CompileError (StateT ImportEnv IO)
@@ -89,15 +90,16 @@ processGlobal s qcis = do
                         Right x -> x
 
 getConcatName :: [String] -> FilePath -> FilePath
-getConcatName fields prefix= do
+getConcatName fields prefix = do
     let joined = joinPath ([prefix] ++ fields)
     addExtension joined ".isq"
 
-getImportedFile :: [FilePath] -> [FilePath] -> LAST -> PassMonad FilePath
-getImportedFile froms incPath imp = do
+getImportedFile :: [FilePath] -> FilePath -> LAST -> PassMonad FilePath
+getImportedFile froms rootPath imp = do
     let dotName = importName imp
     let splited = splitOn "." dotName
-    let names = nub $ map (getConcatName splited) incPath
+    libPath <- gets libraryPath
+    let names = nub $ map (getConcatName splited) $ rootPath : libPath
     exist <- liftIO $ filterM doesFileExist names
     case exist of
         [] -> throwError $ GrammarError $ ImportNotFound dotName
@@ -108,13 +110,13 @@ getImportedFile froms incPath imp = do
                 Just y -> throwError $ GrammarError $ CyclicImport $ take (y + 1) froms
         (x:y:xs) -> throwError $ GrammarError $ AmbiguousImport dotName x y
 
-getImportedFiles :: [FilePath] -> [FilePath] -> [LAST] -> PassMonad [FilePath]
-getImportedFiles froms incPath impList = mapM (getImportedFile froms incPath) impList
+getImportedFiles :: [FilePath] -> FilePath -> [LAST] -> PassMonad [FilePath]
+getImportedFiles froms rootPath impList = mapM (getImportedFile froms rootPath) impList
 
-getImportedTcasts :: [FilePath] -> [FilePath] -> [LAST] -> PassMonad ([TCAST], SymbolTableLayer)
-getImportedTcasts froms incPath impList = do
-    files <- getImportedFiles froms incPath impList
-    tupList <- mapM (fileToTcast incPath froms) files
+getImportedTcasts :: [FilePath] -> FilePath -> [LAST] -> PassMonad ([TCAST], SymbolTableLayer)
+getImportedTcasts froms rootPath impList = do
+    files <- getImportedFiles froms rootPath impList
+    tupList <- mapM (fileToTcast froms) files
     let tcast = concat $ map fst tupList
     gtable <- gets globalTable
     let tables = gtable : map snd tupList
@@ -125,8 +127,8 @@ notMain :: LAST -> Bool
 notMain (NProcedureWithDerive ann rttype name arg body derive) = name /= "main"
 notMain _ = True
 
-doImport :: [FilePath] -> [FilePath] -> FilePath -> LAST -> PassMonad ([TCAST], SymbolTableLayer)
-doImport incPath froms file node = do
+doImport :: [FilePath] -> FilePath -> LAST -> PassMonad ([TCAST], SymbolTableLayer)
+doImport froms file node = do
     let pkg = package node
     let pathList = splitDirectories $ dropExtensions file
     let pacName = case pkg of {Nothing -> last pathList; Just pack -> packageName pack}
@@ -142,7 +144,6 @@ doImport incPath froms file node = do
                     False -> filter notMain $ defMemberList node
             let impList = importList node
             let rootPath = joinPath $ take pacIndex pathList
-            let newIncPath = case isMain of {True -> rootPath:incPath; False -> incPath}
             let impNames = map importName impList
             let groups = case impNames of
                     [] -> [[]]
@@ -151,7 +152,7 @@ doImport incPath froms file node = do
             case length most of
                 i | i >= 2 -> throwError $ GrammarError $ DuplicatedImport $ head most
                 _ -> do
-                    (importTcast, importTable) <- getImportedTcasts (file:froms) newIncPath impList
+                    (importTcast, importTable) <- getImportedTcasts (file:froms) rootPath impList
                     let errOrRaii = compileRAII defList
                     case errOrRaii of
                         Left x -> throwError $ fromError x
@@ -173,8 +174,8 @@ myReadFile file = do
     theInput <- hGetContents inputHandle
     return theInput
 
-fileToTcast :: [FilePath] -> [FilePath] -> FilePath -> PassMonad ([TCAST], SymbolTableLayer)
-fileToTcast incPath froms file = do
+fileToTcast :: [FilePath] -> FilePath -> PassMonad ([TCAST], SymbolTableLayer)
+fileToTcast froms file = do
     stl <- gets symbolTable
     let maybeSymbol = Map.lookup file stl
     case maybeSymbol of
@@ -185,7 +186,7 @@ fileToTcast incPath froms file = do
                 Left _ -> throwError $ GrammarError $ ReadFileError file
                 Right str -> do
                     ast <- parseToAST file str
-                    tuple <- doImport incPath froms file ast
+                    tuple <- doImport froms file ast
                     stl' <- gets symbolTable
                     let newStl = Map.insert file (snd tuple) stl'
                     modify' (\x->x{symbolTable = newStl})
@@ -228,8 +229,8 @@ generateTcast incPathStr inputFileName qcis = do
     absolutPath <- canonicalizePath inputFileName
     let splitedPath = splitOn ":" incPathStr
     incPath <- mapM canonicalizePath splitedPath
-    let env = ImportEnv globalTable Map.empty ssaId qcis
-    (errOrTuple, (ImportEnv _ _ ssa _)) <- runStateT (runExceptT $ fileToTcast incPath [] absolutPath) env
+    let env = ImportEnv globalTable Map.empty ssaId qcis incPath
+    (errOrTuple, (ImportEnv _ _ ssa _ _)) <- runStateT (runExceptT $ fileToTcast [] absolutPath) env
     case errOrTuple of
         Left x -> return $ Left x
         Right tuple -> return $ Right (globalTcasts ++ fst tuple, ssa)

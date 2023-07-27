@@ -90,3 +90,7 @@ importSpec = do
         res <- generateTcast "" input False
         res `shouldSatisfy` isRight
 
+    it "parses correctly when import a file that imports another" $ do
+        let input = joinPath ["test", "input", "nested_import.isq"]
+        res <- generateTcast "" input False
+        res `shouldSatisfy` isRight
