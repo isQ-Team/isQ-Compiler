@@ -370,7 +370,7 @@ DecomposedGates mcdecompose_z(double theta, GateLocation q, int a){
     int size = q.size();
     
     if (size == 1){
-        gatelist.push_back(ElementGate(NONE, q, 0., theta, 0.));
+        gatelist.push_back(ElementGate(CPHASE, q, theta, 0., 0.));
     }else{
         auto add = mcdecompose_add_one(q, a);
         gatelist.insert(gatelist.end(), add.begin(), add.end());
@@ -378,7 +378,7 @@ DecomposedGates mcdecompose_z(double theta, GateLocation q, int a){
         double n_theta = theta;
         for (int i = size-1; i > 0; i--){
             n_theta /= 2.0;
-            gatelist.push_back(ElementGate(NONE, {q[i]}, 0., -n_theta, 0.));
+            gatelist.push_back(ElementGate(CPHASE, {q[i]}, -n_theta, 0., 0.));
         }
         
         reverse(add.begin(), add.end());
@@ -387,9 +387,9 @@ DecomposedGates mcdecompose_z(double theta, GateLocation q, int a){
         n_theta = theta;
         for (int i = size-1; i > 0; i--){
             n_theta /= 2.0;
-            gatelist.push_back(ElementGate(NONE, {q[i]}, 0., n_theta, 0.));
+            gatelist.push_back(ElementGate(CPHASE, {q[i]}, n_theta, 0., 0.));
         }
-        gatelist.push_back(ElementGate(NONE, {q[0]}, 0., n_theta, 0.));
+        gatelist.push_back(ElementGate(CPHASE, {q[0]}, n_theta, 0., 0.));
     }
 
     return gatelist;

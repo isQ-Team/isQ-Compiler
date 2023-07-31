@@ -97,7 +97,7 @@ public:
         auto ctx = rewriter.getContext();
         if(isFamousGate(defgate, "Rz")){
             auto theta_v = usegate->getOperand(0);
-            auto theta_op = llvm::dyn_cast<mlir::arith::ConstantFloatOp>(theta_v.getDefiningOp());
+            auto theta_op = llvm::dyn_cast_or_null<mlir::arith::ConstantFloatOp>(theta_v.getDefiningOp());
             if(!theta_op) return mlir::failure();
             double theta = theta_op.value().convertToDouble();
             double eps = 1e-6;

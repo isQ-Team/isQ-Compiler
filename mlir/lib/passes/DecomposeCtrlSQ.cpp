@@ -243,7 +243,14 @@ struct DecomposeMultiRzRule : public mlir::RewritePattern{
         : RewritePattern(MatchAnyOpTypeTag(), 1, context){}
     void emitZtheta(mlir::PatternRewriter& rewriter, mlir::Value* q, mlir::Value angle) const{
         emitBuiltinGate(rewriter, "Rz", {q}, {angle}, {}, false);
-        emitBuiltinGate(rewriter, "GPhase", {}, {angle});
+        auto ctx = rewriter.getContext();
+        auto half = rewriter.create<mlir::arith::ConstantFloatOp>(
+            ::mlir::UnknownLoc::get(ctx),
+            ::llvm::APFloat(0.5),
+            ::mlir::Float64Type::get(ctx)
+        );
+        auto theta = rewriter.create<mlir::arith::MulFOp>(::mlir::UnknownLoc::get(ctx), angle, half);
+        emitBuiltinGate(rewriter, "GPhase", {}, {theta});
     }
     mlir::LogicalResult
     matchAndRewrite(mlir::Operation * op,

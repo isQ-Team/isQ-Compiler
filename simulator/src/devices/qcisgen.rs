@@ -135,15 +135,21 @@ pub fn run_qcis_route(code: String)->String{
 pub struct QCISCodegen{
     qcis_qubit_counter: usize,
     finalized: bool,
-    generated_code: Vec<String>
+    generated_code: Vec<String>,
+    measured_qubits: Vec<usize>
 }
 
 impl QCISCodegen{
     pub fn new()->Self{
-        Self{qcis_qubit_counter: 0, finalized: false, generated_code: vec![]}
+        Self{qcis_qubit_counter: 0, finalized: false, generated_code: vec![], measured_qubits: vec![]}
     }
     pub fn append_op(&mut self, op: &str, args: &[&usize]){
-        let args_separated = args.iter().map(|x| format!("Q{}", x)).join(" ");
+        let args_separated = args.iter().map(|x| {
+            if self.measured_qubits.contains(x){
+                panic!("measured qubit Q{} cannot be used again", x)
+            }
+            format!("Q{}", x)
+        }).join(" ");
         self.generated_code.push(format!("{} {}", op, args_separated));
     }
     pub fn finalize_route(&mut self){
@@ -176,6 +182,7 @@ impl QDevice for QCISCodegen{
 
     fn measure(&mut self, qubit: &Self::Qubit) -> bool {
         self.append_op("M", &[qubit]);
+        self.measured_qubits.push(*qubit);
         return false;
     }
 
