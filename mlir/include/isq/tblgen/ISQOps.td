@@ -87,8 +87,6 @@ def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolU
         ::mlir::Type getTypeWhenUsed();
         ::mlir::LogicalResult verifyIR();
     }];
-
-
 }
 
 def ISQ_DeclareQOpOp : ISQ_Op<"declare_qop", [Symbol]>{
@@ -384,7 +382,7 @@ def ISQ_PassOp :ISQ_Op<"pass"> {
 }
 
 def ISQ_AssertOp: ISQ_Op<"assert">{
-    let summary = "Validate dynamic execution conditions.";
+    let summary = "Validate classical dynamic execution conditions.";
     let description = [{
         If the condition is false, report an error and abort the program execution.
     }];
@@ -410,6 +408,21 @@ def ISQ_AssertQOp: ISQ_Op<"assertq">{
     let results = (outs);
     let assemblyFormat = [{
         $cond `:` qualified(type($cond)) `,` $space attr-dict
+    }];
+}
+
+def ISQ_InitOp: ISQ_Op<"init">{
+    let summary = "Set qubits in the specified state.";
+    let description = [{
+        First reset all the qubits. Then apply a generated circuit to these qubits.
+    }];
+    let arguments = (ins
+        AnyType: $qubits,
+        DenseComplexF64MatrixAttr: $state
+    );
+    let results = (outs);
+    let assemblyFormat = [{
+        $qubits `:` qualified(type($qubits)) `,` $state attr-dict
     }];
 }
 

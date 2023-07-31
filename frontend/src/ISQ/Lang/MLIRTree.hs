@@ -131,6 +131,7 @@ data MLIROp =
     | MQApplyGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA, isqDialect :: Bool }
     | MQMeasure { location :: MLIRPos, measResult :: SSA, measQOut :: SSA, measQIn :: SSA}
     | MQReset { location :: MLIRPos, resetQOut :: SSA, resetQIn :: SSA}
+    | MQInit { location :: MLIRPos, resetQOut :: SSA, plen :: Int, stateOut :: [[Complex Double]] }
     | MQPrint { location :: MLIRPos, printIn :: (MLIRType, SSA)}
     -- | MQCallQop { location :: MLIRPos, values :: [(MLIRType, SSA)], funcName :: FuncName, operands :: [(MLIRType, SSA)]}
     | MBinary {location :: MLIRPos, value :: SSA, lhs :: SSA, rhs :: SSA, bopType :: MLIRBinaryOp}
@@ -301,6 +302,7 @@ emitOpStep f env (MQApplyGate loc values [] gate isq) = let dialect = case isq o
 emitOpStep f env (MQApplyGate loc values args gate isq) = let dialect = case isq of {True -> "isq"; False -> "logic"} in indented env $ printf "%s = %s.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) dialect (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
 emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @__isq__builtin__measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qop @__isq__builtin__reset(%s): [1]()->() %s" (unSsa out)  (unSsa arg) (mlirPos loc)
+emitOpStep f env (MQInit loc q len state) = indented env $ printf "isq.init %s : %s, %s %s" (unSsa q) (mlirType $ Memref (Just len) QState) (printMatrixRepNew state) (mlirPos loc)
 emitOpStep f env (MAssert loc val Nothing) = indented env $ printf "isq.assert %s : i1, 3 %s" (unSsa val) (mlirPos loc)
 emitOpStep f env (MAssert loc val (Just (MatrixRep mat))) = indented env $ printf "isq.assertq %s : %s, %s %s" (unSsa val) (mlirType $ Memref Nothing QState) (printMatrixRepNew mat) (mlirPos loc)
 emitOpStep f env (MBp loc arg) = indented env $ printf "isq.call_qop @__isq__builtin__bp(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)

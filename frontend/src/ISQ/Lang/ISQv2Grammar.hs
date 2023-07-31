@@ -82,6 +82,7 @@ data AST ann =
      | NExternGate { annotationAST :: ann, gateName :: String, extraArgs :: [Type (ann)], gateSize :: Int, qirName :: String}
 --     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], angle :: [Expr ann]}
      | NCoreReset { annotationAST :: ann, resetOperands :: Expr ann}
+     | NCoreInit { annotationAST :: ann, initOperand :: Expr ann, initState :: [[Expr ann]] }
      | NCorePrint { annotationAST :: ann, printOperands :: Expr ann}
      | NCoreMeasure {annotationAST :: ann, measExpr :: Expr ann}
      -- procedure my_rx(double theta, qbit a, qbit b) deriving gate { }
@@ -102,6 +103,7 @@ data AST ann =
      | NResolvedFor { annotationAST :: ann, forVarId :: Int, forRange :: Expr ann, body :: ASTBlock ann}
      | NResolvedGatedef { annotationAST :: ann, gateName :: String, resolvedGateRhs :: [[Complex Double]], gateSize :: Int, externQirName :: Maybe String}
      | NResolvedAssert { annotationAST :: ann, condition :: Expr ann, resolvedSpace :: [[Complex Double]] }
+     | NResolvedInit { annotationAST :: ann, initOperand :: Expr ann, resolvedSpace :: [[Complex Double]] }
      | NOracleTable {annotationAST :: ann, gateName :: String, sourceProcName :: String, oracleValue :: [[Int]], gateSize :: Int}
      | NWhileWithGuard { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann, breakFlag :: Expr ann}
      | NProcedureWithRet { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann], retVal :: Expr ann}
@@ -194,11 +196,32 @@ passVerifyDefgate = mapM go where
       body' <- passVerifyDefgate body
       return $ NProcedure ann return_type name arg body'
 
+    go (NBlock ann list) = do
+      list' <- passVerifyDefgate list
+      return $ NBlock ann list'
+
+    go (NIf ann condition ifStat elseStat) = do
+      ifStat' <- passVerifyDefgate ifStat
+      elseStat' <- passVerifyDefgate elseStat
+      return $ NIf ann condition ifStat' elseStat'
+
+    go (NFor ann forVar forRange body) = do
+      body' <- passVerifyDefgate body
+      return $ NFor ann forVar forRange body'
+
+    go (NWhile ann condition body) = do
+      body' <- passVerifyDefgate body
+      return $ NWhile ann condition body'
+
     go a@(NAssert ann q (Just mat)) = do
         new_mat <- mapM (mapM foldConstantComplex') mat
         case checkGateSize new_mat of
           Just sz -> return $ NResolvedAssert ann q new_mat
           Nothing -> Left $ BadMatrixShape a
+
+    go a@(NCoreInit ann q space) = do
+        space' <- mapM (mapM foldConstantComplex') space
+        return $ NResolvedInit ann q space'
 
     go x = Right x
 

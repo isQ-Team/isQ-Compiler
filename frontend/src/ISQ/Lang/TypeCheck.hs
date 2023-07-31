@@ -153,7 +153,7 @@ intToType _ = error "Unreachable."
 type TCExpr = Expr TypeCheckData
 
 data MatchRule = Exact EType | AnyUnknownList | AnyKnownList Int | AnyList | AnyFunc | AnyGate | AnyRef
-    | ArrayType MatchRule
+    | ArrayType MatchRule | FixedArray MatchRule
     deriving (Show, Eq)
 
 checkRule :: MatchRule->EType->Bool
@@ -166,6 +166,8 @@ checkRule AnyGate (Type () (Gate _) _) = True
 checkRule AnyGate (Type () (Logic _) _) = True
 checkRule AnyRef (Type () Ref [_]) = True
 checkRule (ArrayType subRule) (Type () (Array _) [subType]) = checkRule subRule subType
+checkRule (FixedArray subRule) (Type () (Array 0) [subType]) = False
+checkRule (FixedArray subRule) (Type () (Array _) [subType]) = checkRule subRule subType
 checkRule _ _ = False
 
 -- try to match two types, using auto dereference and int-to-bool implicit conversion.
@@ -632,6 +634,9 @@ typeCheckAST' f (NDefvar pos defs) = do
                                     return (Just r'', definedRefType left_type)
                         Nothing -> case length of
                             Nothing -> return (Nothing, definedRefType left_type)
+                            Just len@(EIntLit ann v) -> do
+                                let array_ty = Type () (Array v) $ subTypes left_type
+                                return (Nothing, array_ty)
                             Just len -> do
                                 len' <- typeCheckExpr len
                                 len'' <- matchType [Exact $ intType ()] len'
@@ -795,6 +800,10 @@ typeCheckAST' f (NCoreReset pos qubit) = do
     temp_ssa<-nextId
     let annotation = TypeCheckData pos (unitType ()) temp_ssa
     return $ NCoreReset annotation qubit''
+typeCheckAST' f (NResolvedInit pos qubit state) = do
+    qubit' <- typeCheckExpr qubit
+    qubit'' <- matchType [FixedArray $ Exact $ qbitType ()] qubit'
+    return $ NResolvedInit (okStmt pos) qubit'' state
 typeCheckAST' f (NCorePrint pos val) = do
     val'<-typeCheckExpr val
     val''<-matchType [

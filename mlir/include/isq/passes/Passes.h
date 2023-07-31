@@ -7,6 +7,7 @@ namespace passes{
 
 //void registerQuantumGatePass();
 void registerLogicToISQ();
+void registerStatePreparation();
 void registerDecorateFolding();
 void registerQSD();
 void registerExpandDecomposition();

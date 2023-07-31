@@ -496,6 +496,11 @@ emitStatement' f (NCoreReset ann operand) = do
     pushOp $ MLoad pos i_in (BorrowedRef QState, operand')
     pushOp $ MQReset pos i_out i_in
     pushOp $ MStore pos (BorrowedRef QState, operand') i_out
+emitStatement' f (NResolvedInit ann qubit space) = do
+    qubit' <- emitExpr qubit
+    pos <- mpos ann
+    let Type () (Array len) [q] = termType $ annotationExpr qubit
+    pushOp $ MQInit pos qubit' len space
 emitStatement' f (NCorePrint ann expr) = do
     s<-emitExpr expr
     pos<-mpos ann

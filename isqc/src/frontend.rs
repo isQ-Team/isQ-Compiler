@@ -19,7 +19,14 @@ pub fn parse_type(input: &Value)->String{
         "Double"=>format!("double"),
         "Complex"=>format!("complex"),
         "Param"=>format!("param"),
-        "Array"=>format!("[{};{}]", parse_type(&subtypes[0]), input["ty"]["contents"].as_i64().unwrap()),
+        "Array"=>{
+            let length = input["ty"]["contents"].as_i64().unwrap();
+            if (length == 0) {
+                format!("{} array with dynamic length", parse_type(&subtypes[0]))
+            } else {
+                format!("[{};{}]", parse_type(&subtypes[0]), length)
+            }
+        },
         "UserType"=>format!("{}<{}>", input["ty"]["contents"].as_str().unwrap(), subtypes.iter().map(parse_type).collect::<Vec<_>>().join(", ")),
         "IntRange"=>format!("range"),
         "Gate"=>format!("gate<{}>", input["ty"]["contents"].as_i64().unwrap()),
@@ -92,6 +99,7 @@ pub fn parse_match_rule(match_rule: &Value)->String{
         "AnyGate"=>"gate<_>".into(),
         "AnyRef"=>"`left value`".into(),
         "ArrayType"=>format!("{}[]", parse_match_rule(&match_rule["contents"])),
+        "FixedArray"=>format!("{} array with static length", parse_match_rule(&match_rule["contents"])),
         _=>unreachable!()
     }
 }

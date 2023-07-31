@@ -1,0 +1,19 @@
+import std;
+
+procedure main()
+{
+    qbit q[3];
+
+    // Has no effect since q will be reseted
+    nctrl<2> Ry(pi, q[2], q[1], q[0]);
+
+    q = [1, 0, 0, -1];
+    CNOT(q[1], q[0]);
+    H(q[1]);
+    print M(q);
+
+    q = [1, 1j];
+    S(q[0]);
+    H(q[0]);
+    print M(q);
+}
