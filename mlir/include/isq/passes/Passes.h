@@ -20,6 +20,7 @@ void registerDecomposeCtrlU3();
 void registerRemoveTrivialSQGates();
 void registerTargetQCISSet();
 void registerRemoveGPhase();
+void registerRemoveReset();
 void registerEliminateNegCtrl();
 void registerISQCanonicalizer();
 void registerOracleDecompose();

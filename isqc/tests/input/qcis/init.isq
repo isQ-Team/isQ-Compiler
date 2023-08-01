@@ -1,0 +1,8 @@
+import std;
+
+procedure main()
+{
+    qbit q[1];
+    q = [1, 1j];
+    M(q);
+}

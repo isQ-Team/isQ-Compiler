@@ -6,6 +6,7 @@ use test_case::test_case;
 
 #[test_case("array")]
 #[test_case("array_unknown")]
+#[test_case("init")]
 #[test_case("measure")]
 #[test_case("range_init_high")]
 #[test_case("range_init_high_step")]

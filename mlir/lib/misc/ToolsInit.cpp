@@ -23,6 +23,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerRemoveTrivialSQGates();
     passes::registerTargetQCISSet();
     passes::registerRemoveGPhase();
+    passes::registerRemoveReset();
     passes::registerEliminateNegCtrl();
     passes::registerISQCanonicalizer();
     passes::registerOracleDecompose();

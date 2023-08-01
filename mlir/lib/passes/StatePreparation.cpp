@@ -99,11 +99,16 @@ public:
                 }
 
                 // Calculate the angles on the Bloch sphere
+                // |\psi> = re^{jt/2}[e^{-j\phi/2}cos(\theta/2)|0>+e^{j\phi/2}cos(\theta/2)|1>]
+                // So that Ry(-\theta)Rz(-\phi)|\psi>=re^{jt/2}|0>
                 double arg0 = arg(zero);
                 double arg1 = arg(one);
                 amplitude[j] = r * exp(Eigen::dcomplex(0, (arg0 + arg1) / 2));
                 double theta = 2 * arccos(abs(zero) / r);
                 double phi = arg1 - arg0;
+                if (abs(theta) < EPS && abs(phi) < EPS) {
+                    continue;
+                }
 
                 // Use the binrary representation of j as the control Boolean values
                 mlir::SmallVector<mlir::Attribute> ctrl;
