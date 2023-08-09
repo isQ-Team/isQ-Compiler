@@ -56,11 +56,11 @@ typeSpec = do
 
         it "returns an error when adding an int and a qbit" $ do
             let str = "int fun(){ qbit q; return 1 + q; }"
-            typeTestTemplate str "TypeMismatch"
+            typeTestTemplate str "UnsupportedType"
 
         it "returns an error when increasing a qbit" $ do
             let str = "procedure fun(){ qbit q; q += 1; }"
-            typeTestTemplate str "TypeMismatch"
+            typeTestTemplate str "UnsupportedType"
 
         it "returns an error when measuring an integer" $ do
             let str = "bool fun(){ int a; return M<a>; }"

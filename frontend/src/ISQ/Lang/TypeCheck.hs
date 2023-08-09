@@ -183,11 +183,11 @@ matchType' wanted e = do
                 id<-nextId
                 matchType' wanted (EDeref (TypeCheckData pos x id) e)
             -- Bool-to-int implicit cast
-            Type () Bool [] -> if Exact (Type () Int []) `notElem` wanted then return Nothing else do
+            Type () Bool [] -> do
                 id<-nextId
                 matchType' wanted (EImplicitCast (TypeCheckData pos (Type () Int [] ) id) e)
             -- int-to-double implicit cast
-            Type () Int [] -> if Exact (Type () Double []) `notElem` wanted then return Nothing else do
+            Type () Int [] -> do
                 id<-nextId
                 matchType' wanted (EImplicitCast (TypeCheckData pos (Type () Double [] ) id) e)
             -- float-to-complex implicit cast
@@ -221,6 +221,32 @@ exactBinaryCheck f etype pos op lhs rhs = do
     ssa <- nextId
     return $ EBinary (TypeCheckData pos etype ssa) op lhs' rhs'
 
+getCommonType :: Expr TypeCheckData -> Expr TypeCheckData -> Int -> TypeCheck (Expr TypeCheckData, Expr TypeCheckData)
+getCommonType lhs rhs upper_bound = do
+    let li = typeToInt $ astType lhs
+    when (li < 0) $ throwError $ do
+        let ann = annotationExpr lhs
+        UnsupportedType (sourcePos ann) (termType ann)
+    let ri = typeToInt $ astType rhs
+    when (ri < 0) $ throwError $ do
+        let ann = annotationExpr rhs
+        UnsupportedType (sourcePos ann) (termType ann)
+    let min = minimum [li, ri, upper_bound]
+    let min_type = intToType min
+    matched_lhs <- matchType [Exact min_type] lhs
+    matched_rhs <- matchType [Exact min_type] rhs
+    return (matched_lhs, matched_rhs)
+
+buildKetExpr :: Pos -> BinaryOperator -> Expr TypeCheckData -> Expr TypeCheckData -> TypeCheck (Expr TypeCheckData)
+buildKetExpr pos op ref_lhs ref_rhs = do
+    ssa <- nextId
+    (matched_lhs, matched_rhs) <- case astType ref_lhs of
+        Type () Ket [] -> do
+            rhs' <- matchType [Exact $ ketType ()] ref_rhs
+            return (ref_lhs, rhs')
+        _ -> getCommonType ref_lhs ref_rhs 2
+    return $ EBinary (TypeCheckData pos (astType matched_lhs) ssa) op matched_lhs matched_rhs
+
 buildBinaryExpr :: Pos -> BinaryOperator -> Expr TypeCheckData -> Expr TypeCheckData -> TypeCheck (Expr TypeCheckData)
 buildBinaryExpr pos op ref_lhs ref_rhs = do
     ssa <- nextId
@@ -237,17 +263,7 @@ buildBinaryExpr pos op ref_lhs ref_rhs = do
                     return $ EBinary (TypeCheckData pos ty ssa) op ref_lhs rhs
                 other -> throwError $ UnsupportedType pos other
         False -> do
-            lhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_lhs
-            rhs' <- matchType (map Exact [intType (), doubleType (), complexType ()]) ref_rhs
-            let lty = astType lhs'
-            let rty = astType rhs'
-            --traceM $ show rty
-            matched_lhs <- case ty rty of
-                    Double -> matchType [Exact (doubleType ())] lhs'
-                    _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) lhs'
-            matched_rhs <- case ty lty of
-                    Double -> matchType [Exact (doubleType ())] rhs'
-                    _ -> matchType (map Exact [intType (), doubleType (), complexType ()]) rhs'
+            (matched_lhs, matched_rhs) <- getCommonType ref_lhs ref_rhs 3
             --traceM $ show matched_lhs
             let return_type = case op of
                     Cmp _ -> boolType ()
@@ -276,6 +292,14 @@ typeCheckExpr' f (EBinary pos And lhs rhs) = exactBinaryCheck f (boolType ()) po
 typeCheckExpr' f (EBinary pos Or lhs rhs) = exactBinaryCheck f (boolType ()) pos Or lhs rhs
 typeCheckExpr' f (EBinary pos Shl lhs rhs) = exactBinaryCheck f (intType ()) pos Shl lhs rhs
 typeCheckExpr' f (EBinary pos Shr lhs rhs) = exactBinaryCheck f (intType ()) pos Shr lhs rhs
+typeCheckExpr' f (EBinary pos Add lhs rhs) = do
+    ref_lhs <- f lhs
+    ref_rhs <- f rhs
+    buildKetExpr pos Add ref_lhs ref_rhs
+typeCheckExpr' f (EBinary pos Sub lhs rhs) = do
+    ref_lhs <- f lhs
+    ref_rhs <- f rhs
+    buildKetExpr pos Sub ref_lhs ref_rhs
 typeCheckExpr' f (EBinary pos op lhs rhs) = do
     ref_lhs<-f lhs
     ref_rhs<-f rhs
@@ -289,6 +313,11 @@ typeCheckExpr' f (EUnary pos op lhs) = do
     ssa<-nextId
     let return_type = astType matched_lhs
     return $ EUnary (TypeCheckData pos return_type ssa) op matched_lhs
+typeCheckExpr' f (EKet pos coeff base) = do
+    coeff' <- f coeff
+    coeff'' <- matchType [Exact $ complexType ()] coeff'
+    ssa <- nextId
+    return $ EKet (TypeCheckData pos (ketType ()) ssa) coeff'' base
 typeCheckExpr' f (ESubscript pos base (ERange epos lo hi step)) = do
     base' <- f base
     base'' <- matchType [AnyList] base'
@@ -675,7 +704,11 @@ typeCheckAST' f (NAssign pos lhs rhs op) = do
                     rhs'' <- matchType [Exact lhs_ty] rhs'
                     return $ NAssign (okStmt pos) lhs'' rhs'' AssignEq
             case op of
-                AssignEq -> doAssign lhs' rhs'
+                AssignEq -> case astType lhs' of
+                        Type () (Array len) [Type () Qbit []] -> do
+                            rhs'' <- matchType [Exact $ ketType ()] rhs'
+                            return $ NAssign (okStmt pos) lhs' rhs'' AssignEq
+                        _ -> doAssign lhs' rhs'
                 AddEq -> do
                     let lhs_ty = termType $ annotationExpr lhs'
                     case lhs_ty of
@@ -794,12 +827,6 @@ typeCheckAST' f (NCoreUnitary pos gate operands modifiers) = do
                     let block_body = (catMaybes $ concat var_defs) ++ cond_def:apply_cond ++ [temp_def, nwhile]
                     let block = NBlock (okStmt pos) block_body 
                     return block
-typeCheckAST' f (NCoreReset pos qubit) = do
-    qubit'<-typeCheckExpr qubit
-    qubit''<-matchType [Exact (refType () $ qbitType ())] qubit'
-    temp_ssa<-nextId
-    let annotation = TypeCheckData pos (unitType ()) temp_ssa
-    return $ NCoreReset annotation qubit''
 typeCheckAST' f (NResolvedInit pos qubit state) = do
     qubit' <- typeCheckExpr qubit
     qubit'' <- matchType [FixedArray $ Exact $ qbitType ()] qubit'

@@ -120,7 +120,7 @@ procedure remote_cx_tgt(qbit q, int other){
 * @q the qbit that holds the CAT state
 */
 procedure poor_man_cat_state(int rank, int n, qbit q){
-    q = |0>;
+    //q = |0>;
     H(q);
     bool parity_with_prev = false;
     if (rank % 2 == 0) {

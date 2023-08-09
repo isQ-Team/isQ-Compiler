@@ -8,6 +8,10 @@ include "isq/tblgen/ISQBase.td"
 // Operations
 ////////////////////////////////////
 
+class ISQ_Op<string mnemonic, list<Trait> traits = []> :
+    Op<ISQ_Dialect, mnemonic, traits> {
+}
+
 def ISQ_DefgateOp : ISQ_Op<"defgate", [Symbol, DeclareOpInterfaceMethods<SymbolUserOpInterface>]>{
     let summary = "Defines or declares an array of gates.";
     let description = [{
@@ -423,6 +427,61 @@ def ISQ_InitOp: ISQ_Op<"init">{
     let results = (outs);
     let assemblyFormat = [{
         $qubits `:` qualified(type($qubits)) `,` $state attr-dict
+    }];
+}
+
+def ISQ_InitKetOp: ISQ_Op<"init_ket">{
+    let summary = "Set qubits in the specified state in |ket> representation.";
+    let description = [{
+        First reset all the qubits. Then apply a generated circuit to these qubits.
+    }];
+    let arguments = (ins
+        AnyType: $qubits,
+        ISQ_Ket: $state
+    );
+    let results = (outs);
+    let assemblyFormat = [{
+        $qubits `:` qualified(type($qubits)) `,` $state attr-dict
+    }];
+}
+
+def ISQ_KetOp: ISQ_Op<"create_ket", [Pure]> {
+    let summary = "Ket representation of a column vector.";
+    let description = [{
+        Representing a computational basis with a complex amplitude.
+    }];
+    let arguments = (ins
+        Complex<AnyFloat>: $coeff,
+        UI64Attr: $basis
+    );
+    let results = (outs ISQ_Ket);
+    let assemblyFormat = [{
+        $coeff `:` qualified(type($coeff)) `,` $basis attr-dict `:` qualified(type(results))
+    }];
+}
+
+class Ket_Op<string mnemonic, list<Trait> traits = [Pure]> : ISQ_Op<mnemonic, traits> {
+    let arguments = (ins
+        ISQ_Ket: $lhs,
+        ISQ_Ket: $rhs
+    );
+    let results = (outs ISQ_Ket);
+    let assemblyFormat = [{
+        $lhs `,` $rhs attr-dict `:` qualified(type(results))
+    }];
+}
+
+def ISQ_AddOp: Ket_Op<"add"> {
+    let summary = "Add operation between two ket expressions.";
+    let description = [{
+        Representing the sum of two ket expressions.
+    }];
+}
+
+def ISQ_SubOp: Ket_Op<"sub"> {
+    let summary = "Sub operation between two ket expressions.";
+    let description = [{
+        Representing the difference of two ket expressions.
     }];
 }
 

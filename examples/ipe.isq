@@ -14,23 +14,21 @@ procedure pow2_ctrlU(int n, qbit anc, qbit ev){
     double t = theta() * (2**n);
     ctrl U(t, anc, ev);
 }
-double iterative_phase_estimation_U(int n, qbit ev){
-    qbit anc;
+double iterative_phase_estimation_U(int n, qbit ev) {
     double phi = 0;
-    for i in 0:n{
+    for i in 0:n {
+        qbit anc;
         H(anc);
         pow2_ctrlU(n - i - 1, anc, ev);
         Rz(- phi * 2 * pi, anc);
         H(anc);
         int res = M(anc);
         phi = (phi + (res / 2.0)) / 2.0;
-        anc = |0>;
     }
     return (phi * 2.0);
 }
 procedure main(){
-    qbit ev; 
-    ev = |0>; /* eigen vector of U */ 
+    qbit ev; // ev is |0>, the eigen vector of U
     double phi = iterative_phase_estimation_U(20, ev);
-    print (phi * (2**20)); /* output should be very close to x=867893. */
+    print (phi * (2**20)); // output should be very close to x=867893.
 }

@@ -6,7 +6,6 @@ procedure main()
 {
     int rank = qmpi_comm_rank();
     qbit psi;
-    psi = |0>;
 
     // Prepare the source state
     int root = 2;

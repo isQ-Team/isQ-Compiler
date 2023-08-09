@@ -7,10 +7,7 @@ defgate R1t = [1, 0;
                0, -0.5+0.8660254037844386j];
 
 
-qbit Q;
-
-procedure CreateQubit(qbit q)
-{
+procedure CreateQubit(qbit q) {
 	H<q>;
 	R1t<q>;
 	H<q>;
@@ -21,18 +18,16 @@ procedure main()
 {
 	int r0 = 0;
 	int r1 = 0;
-	//int split = 12345678987654321;
 
-	for i in 0:10000{
-		Q = |0>;
+	for i in 0:10000 {
+		qbit Q;
 		CreateQubit(Q);
-		int m = M<Q>;
-		if (m == 0)
-		{ r0 = r0 + 1; }
-		if (m == 1)
-		{ r1 = r1 + 1; }
+		if (M(Q)) {
+			r0 = r0 + 1;
+		} else {
+			r1 = r1 + 1;
+		}
 	}
 	print r0;
 	print r1;
-	Q = |0>;
 }

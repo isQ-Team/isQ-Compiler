@@ -9,7 +9,7 @@ isqc1.cabal: package.yaml
 	hpack
 
 
-.PHONY: all configure build clean
+.PHONY: all configure build clean test
 
 clean:
 	rm -rf isqc1.cabal dist

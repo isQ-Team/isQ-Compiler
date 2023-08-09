@@ -1,0 +1,9 @@
+import std;
+
+procedure main()
+{
+    qbit q[2];
+    q = (0.5+1j)|2> - |0> + (0.5-1j)|2>;
+    H(q[1]);
+    print M(q);
+}

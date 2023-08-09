@@ -49,7 +49,6 @@ import Control.Monad (void)
     deriving { TokenReservedId $$ "deriving"}
     oracle { TokenReservedId $$ "oracle"}
     pi { TokenReservedId $$ "pi"}
-    '|0>' { TokenReservedOp $$ "|0>" }
     '=' { TokenReservedOp $$ "=" }
     '==' { TokenReservedOp $$ "==" }
     '+' { TokenReservedOp $$ "+" }
@@ -76,6 +75,7 @@ import Control.Monad (void)
     not { TokenReservedOp $$ "not" }
     '&' { TokenReservedOp $$ "&" }
     '|' { TokenReservedOp $$ "|" }
+    '|||' { TokenReservedOp $$ "|||" }
     '^' { TokenReservedOp $$ "^" }
     '~' { TokenReservedOp $$ "~" }
     '<<' { TokenReservedOp $$ "<<" }
@@ -99,22 +99,6 @@ import Control.Monad (void)
     IDENTIFIER { TokenIdent _ _ }
     QUALIFIED { TokenQualified _ _}
     STRING { TokenStringLit _ _}
-
-%left ':' -- Level 13
-%left '||' and -- Level 12
-%left '&&' or -- Level 11
-%left '|' -- Level 10
-%left '^' -- Level 9
-%left '&' -- Level 8
-%left '==' '!=' -- Level 7
-%nonassoc '>' '<' '>=' '<=' -- Level 6
-%left '>>' '<<' -- Level 5
-%left '+' '-' -- Level 4
-%left '*' '/' '%' -- Level 3
-%left '**'  -- Level 2
-%right NEG POS '!' not -- Level 2
-%left '.length'
-%left SUBSCRIPT CALL '[' '(' -- Level 1
 
 %%
 
@@ -158,77 +142,171 @@ StatementList : {- empty -} { [] }
                | StatementList Statement { $1 ++ [$2] }
 
 Expr :: {LExpr}
-Expr : Expr1 {$1} | Expr2 {$1}
+Expr : Expr12 {$1} | Expr2p {$1}
 
 ExprCallable :: {LExpr}
-ExprCallable : '(' Expr ')' { $2 }
-             | Qualified { EIdent (annotation $1) (tokenIdentV $1) }
+ExprCallable : Qualified { EIdent (annotation $1) (tokenIdentV $1) }
              | IDENTIFIERORACLE { EIdent (annotation $1) (tokenIdentV $1)}
 Expr1Left :: {LExpr}
 Expr1Left : ExprCallable {$1}
           | Expr1Left '[' Expr ']' { ESubscript $2 $1 $3 }
 
-Expr1 :: {LExpr}
-Expr1 : Expr1Left { $1 }
-     |  Expr1 '+' Expr1 { EBinary $2 Add $1 $3 }
-     |  Expr1 '-' Expr1 { EBinary $2 Sub $1 $3 }
-     |  Expr1 '*' Expr1 { EBinary $2 Mul $1 $3 }
-     |  Expr1 '/' Expr1 { EBinary $2 Div $1 $3 }
-     |  Expr1 '%' Expr1 { EBinary $2 Mod $1 $3 }
-     |  Expr1 '**' Expr1 { EBinary $2 Pow $1 $3 }
-     |  Expr1 '&&' Expr1 { EBinary $2 And $1 $3 }
-     |  Expr1 and Expr1 { EBinary $2 And $1 $3 }
-     |  Expr1 '||' Expr1 { EBinary $2 Or $1 $3 }
-     |  Expr1 or Expr1 { EBinary $2 Or $1 $3 }
-     |  Expr1 '&' Expr1 { EBinary $2 Andi $1 $3 }
-     |  Expr1 '|' Expr1 { EBinary $2 Ori $1 $3 }
-     |  Expr1 '^' Expr1 { EBinary $2 Xori $1 $3 }
-     |  Expr1 '==' Expr1 { EBinary $2 (Cmp Equal) $1 $3 }
-     |  Expr1 '!=' Expr1 { EBinary $2 (Cmp NEqual) $1 $3 }
-     |  Expr1 '>' Expr1 { EBinary $2 (Cmp Greater) $1 $3 }
-     |  Expr1 '<' Expr1 { EBinary $2 (Cmp Less) $1 $3 }
-     |  Expr1 '>=' Expr1 { EBinary $2 (Cmp GreaterEq) $1 $3 }
-     |  Expr1 '<=' Expr1 { EBinary $2 (Cmp LessEq) $1 $3 }
-     |  Expr1 '<<' Expr1 { EBinary $2 Shl $1 $3 }
-     |  Expr1 '>>' Expr1 { EBinary $2 Shr $1 $3 }
-     | '-' Expr1 %prec NEG { EUnary $1 Neg $2 }
-     | '+' Expr1 %prec POS { EUnary $1 Positive $2 }
-     | '!' Expr1 { EUnary $1 Not $2 }
-     | not Expr1 { EUnary $1 Not $2 }
-     | '~' Expr1 { EUnary $1 Noti $2 }
-     | Expr1Left '.length' { EArrayLen $2 $1 }
-     | NATURAL{ EIntLit (annotation $1) (tokenNaturalV $1) }
-     | FLOAT { EFloatingLit (annotation $1) (tokenFloatV $1) }
-     | pi { EFloatingLit $1 3.14159265358979323846264338327950288 }
-     | IMAGPART { EImagLit (annotation $1) (tokenImagPartV $1) }
-     | CallExpr { $1 }
-     | true { EBoolLit $1 True }
-     | false { EBoolLit $1 False }
-     -- isQ Core (isQ v1) grammar.
-     -- TODO: should they be allowed only in compatible mode?
-     | ISQCore_MeasureExpr { $1 }
+Expr12 :: {LExpr}
+Expr12 : Expr11 Expr11s { $2 $1 }
+
+Expr11s :: { LExpr -> LExpr }
+Expr11s : {- empty -} {\t -> t}
+        | '||' Expr11 { \t -> EBinary $1 Or t $2 }
+        | or Expr11 { \t -> EBinary $1 Or t $2 }
+        | '||' Expr11 Expr11s { \t -> $3 $ EBinary $1 Or t $2 }
+        | or Expr11 Expr11s { \t -> $3 $ EBinary $1 Or t $2 }
+
+Expr11 :: {LExpr}
+Expr11 : Expr10 Expr10s { $2 $1 }
+
+Expr10s :: { LExpr -> LExpr }
+Expr10s : {- empty -} {\t -> t}
+        | '&&' Expr10 { \t -> EBinary $1 And t $2 }
+        | and Expr10 { \t -> EBinary $1 And t $2 }
+        | '&&' Expr10 Expr10s { \t -> $3 $ EBinary $1 And t $2 }
+        | and Expr10 Expr10s { \t -> $3 $ EBinary $1 And t $2 }
+
+Expr10 :: {LExpr}
+Expr10 : Expr9 Expr9s { $2 $1 }
+
+Expr9s :: { LExpr -> LExpr }
+Expr9s : {- empty -} {\t -> t}
+       -- Not use '|' to avoid conflit with |0>
+       | '|||' Expr9 { \t -> EBinary $1 Ori t $2 }
+       | '|||' Expr9 Expr9s { \t -> $3 $ EBinary $1 Ori t $2 }
+
+Expr9 :: {LExpr}
+Expr9 : Expr8 Expr8s { $2 $1 }
+
+Expr8s :: {LExpr -> LExpr}
+Expr8s : {- empty -} {\t -> t}
+       | '^' Expr8 { \t -> EBinary $1 Xori t $2 }
+       | '^' Expr8 Expr8s { \t -> $3 $ EBinary $1 Xori t $2 }
+
+Expr8 :: {LExpr}
+Expr8 : Expr7 Expr7s { $2 $1 }
+
+Expr7s :: {LExpr -> LExpr}
+Expr7s : {- empty -} {\t -> t}
+       | '&' Expr7 { \t -> EBinary $1 Andi t $2 }
+       | '&' Expr7 Expr7s { \t -> $3 $ EBinary $1 Andi t $2 }
+
+Expr7 :: {LExpr}
+Expr7 : Expr6 Expr6s { $2 $1 }
+
+Expr6s :: {LExpr -> LExpr}
+Expr6s : {- empty -} {\t -> t}
+       | '==' Expr6 { \t -> EBinary $1 (Cmp Equal) t $2 }
+       | '!=' Expr6 { \t -> EBinary $1 (Cmp NEqual) t $2 }
+       | '==' Expr6 Expr6s { \t -> $3 $ EBinary $1 (Cmp Equal) t $2 }
+       | '!=' Expr6 Expr6s { \t -> $3 $ EBinary $1 (Cmp NEqual) t $2 }
+
+Expr6 :: {LExpr}
+Expr6 : Expr5 Expr5s { $2 $1 }
+
+Expr5s :: {LExpr -> LExpr}
+Expr5s : {- empty -} {\t -> t}
+      | '>' Expr5 { \t -> EBinary $1 (Cmp Greater) t $2 }
+      | '>=' Expr5 { \t -> EBinary $1 (Cmp GreaterEq) t $2 }
+      | '<' Expr5 { \t -> EBinary $1 (Cmp Less) t $2 }
+      | '<=' Expr5 { \t -> EBinary $1 (Cmp LessEq) t $2 }
+
+Expr5 :: {LExpr}
+Expr5 : Expr4 Expr4s { $2 $1 }
+
+Expr4s :: {LExpr -> LExpr}
+Expr4s : {- empty -} {\t -> t}
+      | '>>' Expr4 { \t -> EBinary $1 Shr t $2 }
+      | '<<' Expr4 { \t -> EBinary $1 Shl t $2 }
+      | '>>' Expr4 Expr4s { \t -> $3 $ EBinary $1 Shr t $2 }
+      | '<<' Expr4 Expr4s { \t -> $3 $ EBinary $1 Shl t $2 }
+
+Expr4 :: {LExpr}
+Expr4 : Expr3 Expr3s { $2 $1 }
+
+Expr3s :: {LExpr -> LExpr}
+Expr3s : {- empty -} {\t -> t}
+       | '+' Expr3 { \t -> EBinary $1 Add t $2 }
+       | '-' Expr3 { \t -> EBinary $1 Sub t $2 }
+       | '+' Expr3 Expr3s { \t -> $3 $ EBinary $1 Add t $2 }
+       | '-' Expr3 Expr3s { \t -> $3 $ EBinary $1 Sub t $2 }
+
+Expr3 :: {LExpr}
+Expr3 : Expr25 Expr25s { $2 $1 }
+
+-- Set the precedence of |ket> between + and *
+-- So that expressions like |0> + 1.0/3|1> can be correctly parsed
+Expr25s :: {LExpr -> LExpr}
+Expr25s : {- empty -} {\t -> t}
+        | '|' NATURAL '>' { \t -> EKet $1 t (tokenNaturalV $2) }
+
+Expr25 :: {LExpr}
+Expr25 : Expr2 Expr2s { $2 $1 }
+
+Expr2s :: {LExpr -> LExpr}
+Expr2s : {- empty -} {\t -> t}
+       | '*' Expr2 { \t -> EBinary $1 Mul t $2 }
+       | '/' Expr2 { \t -> EBinary $1 Div t $2 }
+       | '%' Expr2 { \t -> EBinary $1 Mod t $2 }
+       | '*' Expr2 Expr2s { \t -> $3 $ EBinary $1 Mul t $2 }
+       | '/' Expr2 Expr2s { \t -> $3 $ EBinary $1 Div t $2 }
+       | '%' Expr2 Expr2s { \t -> $3 $ EBinary $1 Mod t $2 }
+
+Expr2 :: {LExpr}
+Expr2 : Primary Expr1s { $2 $1 }
+
+Expr1s :: {LExpr -> LExpr}
+Expr1s : {- empty -} {\t -> t}
+       | '**' Primary { \t -> EBinary $1 Pow t $2 }
+       | '**' Primary Expr1s { \t -> $3 $ EBinary $1 Pow t $2 }
+
+Primary :: {LExpr}
+Primary : Expr1Left '.length' { EArrayLen $2 $1 }
+        | NATURAL{ EIntLit (annotation $1) (tokenNaturalV $1) }
+        | FLOAT { EFloatingLit (annotation $1) (tokenFloatV $1) }
+        | pi { EFloatingLit $1 3.14159265358979323846264338327950288 }
+        | IMAGPART { EImagLit (annotation $1) (tokenImagPartV $1) }
+        | CallExpr { $1 }
+        | true { EBoolLit $1 True }
+        | false { EBoolLit $1 False }
+        -- isQ Core (isQ v1) grammar.
+        -- TODO: should they be allowed only in compatible mode?
+        | ISQCore_MeasureExpr { $1 }
+        | '(' Expr ')' { $2 }
+        | Expr1Left { $1 }
+        | '-' Primary { EUnary $1 Neg $2 }
+        | '+' Primary { EUnary $1 Positive $2 }
+        | '!' Primary { EUnary $1 Not $2 }
+        | not Primary { EUnary $1 Not $2 }
+        | '~' Primary { EUnary $1 Noti $2 }
+        | '|' NATURAL '>' { EKet $1 (EIntLit $1 1) (tokenNaturalV $2) }
 
 CallExpr :: {LExpr}
-CallExpr : ExprCallable '(' Expr1List ')' %prec CALL { ECall (annotation $1) $1 $3}
+CallExpr : ExprCallable '(' Expr1List ')' { ECall (annotation $1) $1 $3}
 
 MaybeExpr1 :: {Maybe LExpr}
-MaybeExpr1 : Expr1 {Just $1}
+MaybeExpr1 : Expr12 {Just $1}
           | {- empty -} {Nothing}
 RangeExpr :: {LExpr}
 RangeExpr : MaybeExpr1 ':' MaybeExpr1 ':' MaybeExpr1 { ERange $2 $1 $3 $5 }
           | MaybeExpr1 ':' MaybeExpr1 { ERange $2 $1 $3 Nothing }
 
-Expr2 :: {LExpr}
-Expr2 : RangeExpr { $1 }
-     | '{' Expr1ListNonEmpty '}' { EList $1 $2 }
+Expr2p :: {LExpr}
+Expr2p : RangeExpr { $1 }
+       | '{' Expr1ListNonEmpty '}' { EList $1 $2 }
 
 Expr1List :: {[LExpr]}
-Expr1List : Expr1 { [$1] } 
-         | Expr1List ',' Expr1 { $1 ++ [$3] }
+Expr1List : Expr12 { [$1] } 
+         | Expr1List ',' Expr12 { $1 ++ [$3] }
          | {- empty -} { [] }
 Expr1ListNonEmpty :: {[LExpr]}
-Expr1ListNonEmpty : Expr1 { [$1] }
-                 | Expr1ListNonEmpty ',' Expr1 { $1 ++ [$3] }
+Expr1ListNonEmpty : Expr12 { [$1] }
+                 | Expr1ListNonEmpty ',' Expr12 { $1 ++ [$3] }
 Expr1LeftListNonEmpty :: {[LExpr]}
 Expr1LeftListNonEmpty : Expr1Left { [$1] }
                       | Expr1LeftListNonEmpty ',' Expr1Left { $1 ++ [$3] }
@@ -275,8 +353,8 @@ ISQCore_GatedefMatrixContent :: {[[LExpr]]}
 ISQCore_GatedefMatrixContent : ISQCore_GatedefMatrixRow { [$1] }
                              | ISQCore_GatedefMatrixContent ';' ISQCore_GatedefMatrixRow { $1 ++ [$3] }
 ISQCore_GatedefMatrixRow :: {[LExpr]}
-ISQCore_GatedefMatrixRow : Expr1 { [$1] }
-                         | ISQCore_GatedefMatrixRow ',' Expr1 { $1 ++ [$3] }
+ISQCore_GatedefMatrixRow : Expr12 { [$1] }
+                         | ISQCore_GatedefMatrixRow ',' Expr12 { $1 ++ [$3] }
 ISQCore_GatedefStatement :: {LAST}
 ISQCore_GatedefStatement : defgate IDENTIFIER '=' ISQCore_GatedefMatrix GatedefMaybeExtern { NGatedef $1 (tokenIdentV $2) $4 $5}
 
@@ -307,8 +385,6 @@ ISQCore_MeasureExpr : M '<' Expr1Left '>' { ECoreMeasure $1 $3 }
                 | M '(' Expr1Left ')' { ECoreMeasure $1 $3 }
 ISQCore_MeasureStatement :: {LAST}
 ISQCore_MeasureStatement : ISQCore_MeasureExpr { NCoreMeasure (annotation $1) $1}
-ISQCore_ResetStatement :: {LAST}
-ISQCore_ResetStatement : Expr1Left '=' '|0>' { NCoreReset (annotation $1) $1 }
 ISQCore_PrintStatement :: {LAST}
 ISQCore_PrintStatement : print Expr { NCorePrint $1 $2 }
 
@@ -334,7 +410,6 @@ Statement : ';' { NEmpty $1 }
           | BreakStatement ';' { $1 }
           | ISQCore_UnitaryStatement ';' { $1 }
           | ISQCore_MeasureStatement ';' { $1 }
-          | ISQCore_ResetStatement ';' { $1 }
           | ISQCore_PrintStatement ';' { $1 }
 
 ArrayTypeDecorator :: {BuiltinType}
@@ -365,7 +440,7 @@ FuncType :  '(' TypeList ')' '->' SimpleType { funcType $1 ([$5] ++ $2) }
 
 ISQCore_CStyleVarDefTerm :: {LType -> (LType, ISQv2Token, Maybe LExpr, Maybe LExpr)}
 ISQCore_CStyleVarDefTerm : IDENTIFIER { \t->(t, $1, Nothing, Nothing) }
-                         | IDENTIFIER '[' Expr1 ']' { \t->(Type (annotation $1) (Array 0) [t], $1, Nothing, Just $3)}
+                         | IDENTIFIER '[' Expr12 ']' { \t->(Type (annotation $1) (Array 0) [t], $1, Nothing, Just $3)}
                          | IDENTIFIER '=' Expr { \t->(t, $1, Just $3, Nothing) }
                          | IDENTIFIER '[' ']' '=' Expr { \t->(Type (annotation $1) (Array 0) [t], $1, Just $5, Nothing)}
 ISQCore_CStyleVarDefList :: {[LType -> (LType, ISQv2Token, Maybe LExpr, Maybe LExpr)]}

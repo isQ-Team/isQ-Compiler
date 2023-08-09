@@ -44,10 +44,6 @@ def ISQ_Dialect: Dialect{
 ////////////////////////////////////
 
 class ISQ_Type<string name> : TypeDef<ISQ_Dialect, name>{}
-class ISQ_Op<string mnemonic, list<Trait> traits = []> :
-    Op<ISQ_Dialect, mnemonic, traits>{
-    
-}
 
 def ISQ_QState : TypeDef<ISQ_Dialect, "QState", [MemRefElementTypeInterface]>{
     let description = [{
@@ -140,16 +136,13 @@ def ISQ_QIRResult : TypeDef<ISQ_Dialect, "QIRResult", [MemRefElementTypeInterfac
     let summary = [{QIR Opaque measurement result value.}];
     let mnemonic = "qir.result";
     let hasCustomAssemblyFormat = 1;
-    /*
-    let printer = [{
-        QIRResultParsePrint p;
-        p.printType(*this, $_printer);
+}
+def ISQ_Ket : TypeDef<ISQ_Dialect, "Ket">{
+    let description = [{
+        Represents a ket structure that contains a complex coefficient and a base.
     }];
-    let parser = [{
-        QIRResultParsePrint p;
-        return p.parseType($_parser);
-    }];
-    */
+    let summary = [{A ket structure.}];
+    let mnemonic = "ket";
 }
 /*
 def ISQ_QOp: DialectType<ISQ_Dialect, CPred<"$_self.isa<::isq::ir::QOpType>()">, "General quantum operation type">{

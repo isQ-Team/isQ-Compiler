@@ -31,6 +31,7 @@ pub fn parse_type(input: &Value)->String{
         "IntRange"=>format!("range"),
         "Gate"=>format!("gate<{}>", input["ty"]["contents"].as_i64().unwrap()),
         "FuncTy"=>format!("({})->{}", subtypes.iter().skip(1).map(parse_type).collect::<Vec<_>>().join(", "), parse_type(&subtypes[0])),
+        "Ket"=>format!("|ket>"),
         _ => unreachable!()
     }
 }

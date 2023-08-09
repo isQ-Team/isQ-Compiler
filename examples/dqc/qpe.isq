@@ -47,8 +47,7 @@ procedure R(int k, qbit q) {
 
 // This process holds the eigenstate of U and gives the estimation result
 procedure manager_process(int np, int per_node, qbit comm) {
-    qbit ev;
-    ev = |0>; // eigenstate of U
+    qbit ev; // eigenstate of U is |0>
 
     // Apply controlled-U^(2^i)
     for i in 1:np {

@@ -95,7 +95,7 @@ oracleSpec = do
         evaluateExpect str 9 8
 
     it "evaluates correctly with ori" $ do
-        let str = "oracle o(4, 4) : x { return x | 12;}"
+        let str = "oracle o(4, 4) : x { return x ||| 12;}"
         evaluateExpect str 9 13
 
     it "evaluates correctly with xori" $ do
@@ -242,10 +242,6 @@ oracleSpec = do
             \return sum;\
         \}"
         evaluateExpect str 3 4
-
-    it "returns an error when assigned to an int" $ do
-        let str = "oracle o(1, 1) : x { (2) = 3; }"
-        illegalEvaluate str 0 "IllegalExpression"
 
     it "returns an error for function calling" $ do
         let str = "oracle o(1, 1) : x { fun(); }"

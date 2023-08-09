@@ -16,7 +16,6 @@ use test_case::test_case;
 #[test_case("matrix_complex", "0")]
 #[test_case("matrix_decimal", "0")]
 #[test_case("measure_twice", "0")]
-#[test_case("reset_twice", "0")]
 #[test_case("teleport_diff_line", "0")]
 #[test_case("teleport_one_line", "0")]
 fn tests_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {

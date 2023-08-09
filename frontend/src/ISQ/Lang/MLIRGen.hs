@@ -3,7 +3,7 @@ module ISQ.Lang.MLIRGen where
 import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.ISQv2Tokenizer(Pos(Pos), Annotated (annotation))
 import ISQ.Lang.TypeCheck
-import ISQ.Lang.MLIRTree hiding (Bool, Gate, Unit, Double)
+import ISQ.Lang.MLIRTree hiding (Bool, Gate, Unit, Double, Complex, Ket)
 import qualified ISQ.Lang.MLIRTree as M
 import Control.Monad (when)
 import Control.Monad.State (fix, void, State, zipWithM_, evalState, execState, runState)
@@ -44,6 +44,8 @@ mapType (Type () (Array n) [x]) = Memref (Just n) (mapType x)
 mapType (Type () (Gate n) _) = M.Gate n
 mapType (Type () (Logic n) _) = M.Gate n
 mapType (Type () Double []) = M.Double
+mapType (Type () Complex []) = M.Complex
+mapType (Type () Ket []) = M.Ket
 mapType (Type () FuncTy (ret:arg)) = Func (mapType ret) $ map mapType arg
 mapType (Type () Param []) = I8
 mapType _ = error "unsupported type"
@@ -133,6 +135,12 @@ binopTranslate Add M.Double = mlirAddf
 binopTranslate Sub M.Double = mlirSubf
 binopTranslate Mul M.Double = mlirMulf
 binopTranslate Div M.Double = mlirDivf
+binopTranslate Add M.Complex = mlirAddc
+binopTranslate Sub M.Complex = mlirSubc
+binopTranslate Mul M.Complex = mlirMulc
+binopTranslate Div M.Complex = mlirDivc
+binopTranslate Add M.Ket = mlirAddk
+binopTranslate Sub M.Ket = mlirSubk
 binopTranslate (Cmp Less) Index = mlirSltI
 binopTranslate (Cmp LessEq) Index = mlirSleI
 binopTranslate (Cmp Greater) Index = mlirSgtI
@@ -307,11 +315,21 @@ emitExpr' f (EFloatingLit ann val) = do
     let i = ssa ann
     pushOp $ MLitDouble pos i val
     return i
-emitExpr' f (EImagLit _ _) = error "complex number not supported"
+emitExpr' f (EImagLit ann val) = do
+    pos <- mpos ann
+    let i = ssa ann
+    pushOp $ MLitImag pos i val
+    return i
 emitExpr' f (EBoolLit ann val) = do
     pos<-mpos ann
     let i = ssa ann
     pushOp $ MLitBool pos i val
+    return i
+emitExpr' f (EKet ann coe base) = do
+    pos <- mpos ann
+    coe' <- f coe
+    let i = ssa ann
+    pushOp $ MKet pos i coe' base
     return i
 emitExpr' f (ERange _ _ _ _) = error "first-class range not supported"
 emitExpr' f (ECoreMeasure ann operand) = do
@@ -346,6 +364,12 @@ emitExpr' f x@(EImplicitCast ann@(mType->M.Double) val@(astMType->M.Index)) = do
     let i_i64 = SSA $ (unSsa i) ++"_i64"
     pushOp $ MCast pos i_i64 val' mlirIndextoI64
     pushOp $ MCast pos i i_i64 mlirI64toDouble
+    return i
+emitExpr' f (EImplicitCast ann@(mType->M.Complex) val@(astMType->M.Double)) = do
+    val' <- f val
+    pos <- mpos ann
+    let i = ssa ann
+    pushOp $ MCast pos i val' mlirDoubletoComplex
     return i
 emitExpr' f x@(EImplicitCast {}) = error "not supported"
 emitExpr' f (ETempVar {}) = error "unreachable"
@@ -487,15 +511,6 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
             pushOp $ MQApplyGate pos outs ins decorated_gate isq
             zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs qubit_ssa
 emitStatement' f NCoreUnitary{} = error "first-class gate unsupported"
-emitStatement' f (NCoreReset ann operand) = do
-    operand'<-emitExpr operand
-    pos<-mpos ann
-    let i = ssa ann
-    let i_in = SSA $ unSsa i ++"_in"
-    let i_out = SSA $ unSsa i ++ "_out"
-    pushOp $ MLoad pos i_in (BorrowedRef QState, operand')
-    pushOp $ MQReset pos i_out i_in
-    pushOp $ MStore pos (BorrowedRef QState, operand') i_out
 emitStatement' f (NResolvedInit ann qubit space) = do
     qubit' <- emitExpr qubit
     pos <- mpos ann

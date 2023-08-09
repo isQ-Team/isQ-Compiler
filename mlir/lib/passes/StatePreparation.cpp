@@ -32,13 +32,147 @@ namespace isq{
 namespace ir{
 namespace passes{
 
-class StatePreparation: public mlir::OpRewritePattern<InitOp>{
-    mlir::ModuleOp rootModule;
+/*
+* Extract the value of a complex number created by complex::CreateOp.
+*
+* The input real and imag parts must be defined by arith::ConstantOp
+*/
+std::pair<double, double> getValueFromComplexCreateOp(mlir::complex::CreateOp create) {
+    assert(create && "The coefficient is not canonicalized!");
+    auto real_op = llvm::dyn_cast_or_null<mlir::arith::ConstantOp>(create.getReal().getDefiningOp());
+    assert(real_op && "The real part of the coefficient is not canonicalized!");
+    auto real_attr = real_op.getValue().dyn_cast<mlir::FloatAttr>();
+    double real = real_attr.getValue().convertToDouble();
+    auto imag_op = llvm::dyn_cast_or_null<mlir::arith::ConstantOp>(create.getImaginary().getDefiningOp());
+    assert(imag_op && "The real part of the coefficient is not canonicalized!");
+    auto imag_attr = imag_op.getValue().dyn_cast<mlir::FloatAttr>();
+    double imag = imag_attr.getValue().convertToDouble();
+    return {real, imag};
+}
+
+
+/*
+* As to MLIR 16.0.6, Complex dialect does not provide a canonicalizer for AddOp.
+* We have to implement a simple one to get the coefficient of Ket.
+*/
+class RemoveConstComplexAdd: public mlir::OpRewritePattern<mlir::complex::AddOp> {
+public:
+    RemoveConstComplexAdd(mlir::MLIRContext* ctx): mlir::OpRewritePattern<mlir::complex::AddOp>(ctx, 1) {}
+
+    mlir::LogicalResult matchAndRewrite(mlir::complex::AddOp op,  mlir::PatternRewriter &rewriter) const override {
+        mlir::Operation *lhs = op.getLhs().getDefiningOp();
+        auto lhs_op = llvm::dyn_cast_or_null<mlir::complex::CreateOp>(lhs);
+        if (!lhs_op) {
+            return mlir::failure();
+        }
+
+        mlir::Operation *rhs = op.getRhs().getDefiningOp();
+        auto rhs_op = llvm::dyn_cast_or_null<mlir::complex::CreateOp>(rhs);
+        if (!rhs_op) {
+            return mlir::failure();
+        }
+
+        mlir::Location loc = op.getLoc();
+        mlir::MLIRContext *ctx = rewriter.getContext();
+        std::pair<double, double> lvalue = getValueFromComplexCreateOp(lhs_op);
+        std::pair<double, double> rvalue = getValueFromComplexCreateOp(rhs_op);
+        auto float_ty = mlir::Float64Type::get(ctx);
+        auto real = rewriter.create<mlir::arith::ConstantFloatOp>(loc, llvm::APFloat(lvalue.first + rvalue.first), float_ty);
+        auto imag = rewriter.create<mlir::arith::ConstantFloatOp>(loc, llvm::APFloat(lvalue.second + rvalue.second), float_ty);
+        mlir::Value created = rewriter.create<mlir::complex::CreateOp>(loc, mlir::ComplexType::get(float_ty), real, imag);
+
+        op.replaceAllUsesWith(created);
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
+
+
+/*
+* As to MLIR 16.0.6, Complex dialect does not provide a canonicalizer for SubOp.
+* We have to implement a simple one to get the coefficient of Ket.
+*/
+class RemoveConstComplexSub: public mlir::OpRewritePattern<mlir::complex::SubOp> {
+public:
+    RemoveConstComplexSub(mlir::MLIRContext* ctx): mlir::OpRewritePattern<mlir::complex::SubOp>(ctx, 1) {}
+
+    mlir::LogicalResult matchAndRewrite(mlir::complex::SubOp op,  mlir::PatternRewriter &rewriter) const override {
+        mlir::Operation *lhs = op.getLhs().getDefiningOp();
+        auto lhs_op = llvm::dyn_cast_or_null<mlir::complex::CreateOp>(lhs);
+        if (!lhs_op) {
+            return mlir::failure();
+        }
+
+        mlir::Operation *rhs = op.getRhs().getDefiningOp();
+        auto rhs_op = llvm::dyn_cast_or_null<mlir::complex::CreateOp>(rhs);
+        if (!rhs_op) {
+            return mlir::failure();
+        }
+
+        mlir::Location loc = op.getLoc();
+        mlir::MLIRContext *ctx = rewriter.getContext();
+        std::pair<double, double> lvalue = getValueFromComplexCreateOp(lhs_op);
+        std::pair<double, double> rvalue = getValueFromComplexCreateOp(rhs_op);
+        auto float_ty = mlir::Float64Type::get(ctx);
+        auto real = rewriter.create<mlir::arith::ConstantFloatOp>(loc, llvm::APFloat(lvalue.first - rvalue.first), float_ty);
+        auto imag = rewriter.create<mlir::arith::ConstantFloatOp>(loc, llvm::APFloat(lvalue.second - rvalue.second), float_ty);
+        mlir::Value created = rewriter.create<mlir::complex::CreateOp>(loc, mlir::ComplexType::get(float_ty), real, imag);
+
+        op.replaceAllUsesWith(created);
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
+
+
+class KetStatePreparation: public mlir::OpRewritePattern<InitKetOp> {
+public:
+    KetStatePreparation(mlir::MLIRContext* ctx): mlir::OpRewritePattern<InitKetOp>(ctx, 1) {}
+
+    mlir::LogicalResult matchAndRewrite(isq::ir::InitKetOp op,  mlir::PatternRewriter &rewriter) const override {
+        mlir::Value qubits = op.getQubits();
+        auto mem_type = qubits.getType().dyn_cast<mlir::MemRefType>();
+        assert(mem_type && "Qubits are not of MemRefType");
+        int nqubits = mem_type.getDimSize(0);
+        int dimension = 1 << nqubits;
+        llvm::SmallVector<Eigen::dcomplex> amplitude(dimension, 0);
+
+        // Get the amplitude of ket expressions recursively
+        std::function<void(mlir::Value, int)> getAmplitude = [&](mlir::Value value, int pre) {
+            mlir::Operation *operation = value.getDefiningOp();
+            if (auto op = llvm::dyn_cast_or_null<isq::ir::KetOp>(operation)) {
+                auto create = llvm::dyn_cast_or_null<mlir::complex::CreateOp>(op.getCoeff().getDefiningOp());
+                std::pair<double, double> value = getValueFromComplexCreateOp(create);
+                auto basis = op.getBasis();
+                assert(basis < dimension && "The basis value is not within the Hilbert space!");
+                amplitude[basis] += Eigen::dcomplex(pre * value.first, pre * value.second);
+                return;
+            } else if (auto op = llvm::dyn_cast_or_null<isq::ir::AddOp>(operation)) {
+                getAmplitude(op.getLhs(), pre);
+                getAmplitude(op.getRhs(), pre);
+            } else if (auto op = llvm::dyn_cast_or_null<isq::ir::SubOp>(operation)) {
+                getAmplitude(op.getLhs(), pre);
+                getAmplitude(op.getRhs(), -pre);
+            } else {
+                assert(false && "Unknown operator!");
+            }
+        };
+        getAmplitude(op.getState(), 1);
+
+        // Replace InitKetOp with InitOp
+        auto mat = isq::ir::DenseComplexF64MatrixAttr::get(rewriter.getContext(), {amplitude});
+        rewriter.create<isq::ir::InitOp>(op.getLoc(), qubits, mat);
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
+
+
+class StatePreparation: public mlir::OpRewritePattern<InitOp> {
     inline static double EPS = 1e-10; // boundary adopting from Qiskit
 
 public:
-    StatePreparation(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<InitOp>(ctx, 1), rootModule(module){
-    }
+    StatePreparation(mlir::MLIRContext* ctx): mlir::OpRewritePattern<InitOp>(ctx, 1) {}
 
     static double arccos(double v) {
         if (1 < v && v < 1 + EPS) {
@@ -73,6 +207,7 @@ public:
         ::isq::ir::DenseComplexF64MatrixAttr state = op.getState();
         llvm::SmallVector<Eigen::dcomplex> val = state.toMatrixVal()[0];
         int64_t state_len = val.size();
+        assert(state_len <= (1 << nqubits) && "State vector is too long!");
         double norm_sum = 0;
         for (int i=0; i<state_len; i++) {
             norm_sum += norm(val[i]);
@@ -161,9 +296,16 @@ struct StatePreparationPass: public mlir::PassWrapper<StatePreparationPass, mlir
         auto ctx = m->getContext();
         
         mlir::RewritePatternSet rps(ctx);
-        rps.add<StatePreparation>(ctx, m);
+        rps.add<RemoveConstComplexAdd>(ctx);
+        rps.add<RemoveConstComplexSub>(ctx);
         mlir::FrozenRewritePatternSet frps(std::move(rps));
         (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
+
+        mlir::RewritePatternSet rps2(ctx);
+        rps2.add<KetStatePreparation>(ctx);
+        rps2.add<StatePreparation>(ctx);
+        mlir::FrozenRewritePatternSet frps2(std::move(rps2));
+        (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps2);
     }
 
     mlir::StringRef getArgument() const final{

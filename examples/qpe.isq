@@ -31,7 +31,6 @@ int phase_estimation(int n, qbit ev) {
 
 procedure main()
 {
-    qbit ev;
-    ev = |0>; /* eigen vector of U */ 
+    qbit ev; /* eigen vector of U is |0> */ 
     print phase_estimation(n, ev);
 }

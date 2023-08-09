@@ -1,5 +1,5 @@
 module ISQ.Lang.MLIRTree where
-import ISQ.Lang.ISQv2Grammar hiding (Bool, Gate, Double)
+import ISQ.Lang.ISQv2Grammar hiding (Bool, Gate, Double, Complex, Ket)
 import Control.Monad.Fix
 import Data.List (intercalate)
 import Text.Printf (printf)
@@ -9,7 +9,7 @@ import Debug.Trace
 
 data MLIRType =
     MUnit | Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
-  | Gate Int | Double | QIRQubit | Func MLIRType [MLIRType] | I8 deriving Show
+  | Gate Int | Double | Complex | Ket | QIRQubit | Func MLIRType [MLIRType] | I8 deriving Show
 
 zeroMlirType :: MLIRType->MLIRType
 zeroMlirType (Memref (Just x) ty) = Memref Nothing ty
@@ -22,6 +22,8 @@ mlirType I2 = "i2"
 mlirType I64 = "i64"
 mlirType Index = "index"
 mlirType Double = "f64"
+mlirType Complex = "complex<f64>"
+mlirType Ket = "!isq.ket"
 mlirType QState = "!isq.qstate"
 mlirType QIRQubit = "!isq.qir.qubit"
 mlirType I8 = "!llvm.ptr<i8>"
@@ -58,6 +60,8 @@ data MLIRBinaryOp = MLIRBinaryOp {binaryOpType :: String, lhsType :: MLIRType, r
 
 mlirBinaryOp (a, b, c, d) = MLIRBinaryOp ("arith."++a) b c d
 mlirMathBinaryOp (a,b,c,d) = MLIRBinaryOp ("math."++a) b c d
+mlirComplexBinaryOp (a, b, c, d) = MLIRBinaryOp ("complex." ++ a) b c d
+mlirIsqBinaryOp (a, b, c, d) = MLIRBinaryOp ("isq." ++ a) b c d
 mlirAddi = mlirBinaryOp ("addi", Index, Index, Index)
 mlirSubi = mlirBinaryOp ("subi", Index, Index, Index)
 mlirMuli = mlirBinaryOp ("muli", Index, Index, Index)
@@ -76,6 +80,12 @@ mlirSubf = mlirBinaryOp ("subf", Double, Double, Double)
 mlirMulf = mlirBinaryOp ("mulf", Double, Double, Double)
 mlirDivf = mlirBinaryOp ("divf", Double, Double, Double)
 mlirPowf = mlirMathBinaryOp ("powf", Double, Double, Double)
+mlirAddc = mlirComplexBinaryOp ("add", Complex, Complex, Complex)
+mlirSubc = mlirComplexBinaryOp ("sub", Complex, Complex, Complex)
+mlirMulc = mlirComplexBinaryOp ("mul", Complex, Complex, Complex)
+mlirDivc = mlirComplexBinaryOp ("div", Complex, Complex, Complex)
+mlirAddk = mlirIsqBinaryOp ("add", Ket, Ket, Ket)
+mlirSubk = mlirIsqBinaryOp ("sub", Ket, Ket, Ket)
 mlirSltI = mlirBinaryOp ("cmpi \"slt\",", Index, Index, Bool)
 mlirSgtI = mlirBinaryOp ("cmpi \"sgt\",", Index, Index, Bool)
 mlirSleI = mlirBinaryOp ("cmpi \"sle\",", Index, Index, Bool)
@@ -104,6 +114,7 @@ mlirI1toI2 = mlirUnaryOp ("extui", Bool, I2)
 mlirI2toIndex = mlirUnaryOp ("index_cast", I2, Index)
 mlirIndextoI64 = mlirUnaryOp ("index_cast", Index, I64)
 mlirI64toDouble = mlirUnaryOp ("sitofp", I64, Double)
+mlirDoubletoComplex = MLIRUnaryOp "fptocp" Double Complex
 
 type TypedSSA = (MLIRType, SSA)
 
@@ -130,7 +141,6 @@ data MLIROp =
     | MQDecorate { location :: MLIRPos, value :: SSA, decoratedGate :: SSA, trait :: ([Bool], Bool), gateSize :: Int }
     | MQApplyGate{ location :: MLIRPos, values :: [SSA], qubitOperands :: [SSA], gateOperand :: SSA, isqDialect :: Bool }
     | MQMeasure { location :: MLIRPos, measResult :: SSA, measQOut :: SSA, measQIn :: SSA}
-    | MQReset { location :: MLIRPos, resetQOut :: SSA, resetQIn :: SSA}
     | MQInit { location :: MLIRPos, resetQOut :: SSA, plen :: Int, stateOut :: [[Complex Double]] }
     | MQPrint { location :: MLIRPos, printIn :: (MLIRType, SSA)}
     -- | MQCallQop { location :: MLIRPos, values :: [(MLIRType, SSA)], funcName :: FuncName, operands :: [(MLIRType, SSA)]}
@@ -149,6 +159,8 @@ data MLIROp =
     | MLitInt {location :: MLIRPos, value :: SSA, litInt :: Int}
     | MLitBool {location :: MLIRPos, value :: SSA, litBool :: Bool}
     | MLitDouble {location :: MLIRPos, value :: SSA, litDouble :: Double}
+    | MLitImag {location :: MLIRPos, value :: SSA, litDouble :: Double}
+    | MKet {location :: MLIRPos, value :: SSA, coeff :: SSA, basis :: Int}
     | MAllocMemref {location :: MLIRPos, value :: SSA, allocType :: MLIRType, lengthSsa :: SSA}
     | MFreeMemref {location :: MLIRPos, value :: SSA, freeType :: MLIRType}
     | MJmp {location :: MLIRPos, jmpBlock :: BlockName}
@@ -301,7 +313,6 @@ emitOpStep f env (MQDecorate loc value source trait size) = let (d, sz) = decorT
 emitOpStep f env (MQApplyGate loc values [] gate isq) = let dialect = case isq of {True -> "isq"; False -> "logic"} in indented env $ printf "%s.apply_gphase %s : !isq.gate<0> %s" dialect (unSsa gate) (mlirPos loc)
 emitOpStep f env (MQApplyGate loc values args gate isq) = let dialect = case isq of {True -> "isq"; False -> "logic"} in indented env $ printf "%s = %s.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) dialect (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
 emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @__isq__builtin__measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
-emitOpStep f env (MQReset loc out arg) = indented env $ printf "%s = isq.call_qop @__isq__builtin__reset(%s): [1]()->() %s" (unSsa out)  (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQInit loc q len state) = indented env $ printf "isq.init %s : %s, %s %s" (unSsa q) (mlirType $ Memref (Just len) QState) (printMatrixRepNew state) (mlirPos loc)
 emitOpStep f env (MAssert loc val Nothing) = indented env $ printf "isq.assert %s : i1, 3 %s" (unSsa val) (mlirPos loc)
 emitOpStep f env (MAssert loc val (Just (MatrixRep mat))) = indented env $ printf "isq.assertq %s : %s, %s %s" (unSsa val) (mlirType $ Memref Nothing QState) (printMatrixRepNew mat) (mlirPos loc)
@@ -334,12 +345,18 @@ emitOpStep f env (MBinary loc value lhs rhs (MLIRBinaryOp op lt rt rest)) = inde
 emitOpStep f env (MLBinary loc (ty, value) lhs rhs op) = indented env $ printf "%s = logic.%s %s, %s : %s %s" (unSsa value) op (unSsa lhs) (unSsa rhs) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MUnary loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirPos loc)
 emitOpStep f env (MLUnary loc (ty, value) operand op) = indented env $ printf "%s = logic.%s %s : %s %s" (unSsa value) op (unSsa operand) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MCast loc value arg (MLIRUnaryOp "fptocp" d c)) = intercalate "\n" $
+  [
+    indented env $ printf "%s_zero = arith.constant 0.0: %s %s" (unSsa value) (mlirType d) (mlirPos loc),
+    indented env $ printf "%s = complex.create %s, %s_zero : %s %s" (unSsa value) (unSsa arg) (unSsa value) (mlirType c) (mlirPos loc)
+  ]
 emitOpStep f env (MCast loc value arg (MLIRUnaryOp op at rest)) = indented env $ printf "%s = %s %s : %s to %s %s" (unSsa value) op (unSsa arg) (mlirType at) (mlirType rest) (mlirPos loc)
 emitOpStep f env (MLoad loc value (arr_type, arr_val)) = intercalate "\n" $
   [
     indented env $ printf "%s_load_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
     indented env $ printf "%s = affine.load %s[%s_load_zero] : %s %s" (unSsa value) (unSsa arr_val) (unSsa value) (mlirType arr_type) (mlirPos loc)
   ]
+emitOpStep f env (MStore loc (ty@(Memref _ QState), arr_val) value) = indented env $ printf "isq.init_ket %s : %s, %s %s" (unSsa arr_val) (mlirType ty) (unSsa value) (mlirPos loc)
 emitOpStep f env (MStore loc (arr_type, arr_val) value) = intercalate "\n" $
   [
     indented env $ printf "%s_store_zero = arith.constant 0: index %s" (unSsa value) (mlirPos loc),
@@ -370,6 +387,13 @@ emitOpStep f env x@(MListCast loc value rhs to_zero arr_ty) = error ("wtf?" ++ (
 emitOpStep f env (MLitInt loc value val) = indented env $ printf "%s = arith.constant %d : index %s" (unSsa value) val (mlirPos loc)
 emitOpStep f env (MLitBool loc value val) = indented env $ printf "%s = arith.constant %d : i1 %s" (unSsa value) (if val then 1::Int else 0) (mlirPos loc)
 emitOpStep f env (MLitDouble loc value val) = indented env $ printf "%s = arith.constant %f : f64 %s" (unSsa value) val (mlirPos loc)
+emitOpStep f env (MLitImag loc value val) = intercalate "\n" $
+  [
+    indented env $ printf "%s_zero = arith.constant 0.0: f64 %s" (unSsa value) (mlirPos loc),
+    indented env $ printf "%s_imga = arith.constant %f: f64 %s" (unSsa value) val (mlirPos loc),
+    indented env $ printf "%s = complex.create %s_zero, %s_imga : complex<f64> %s" (unSsa value) (unSsa value) (unSsa value) (mlirPos loc)
+  ]
+emitOpStep f env (MKet loc value coeff base) = indented env $ printf "%s = isq.create_ket %s : complex<f64>, %d : !isq.ket %s" (unSsa value) (unSsa coeff) base (mlirPos loc)
 
 -- TODO: remove this dirty hack
 emitOpStep f env (MAllocMemref loc val ty@(BorrowedRef subty) _) = intercalate "\n" $ fmap (indented env) [

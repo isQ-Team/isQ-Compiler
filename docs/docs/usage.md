@@ -68,11 +68,9 @@ QCIS hardware does not support feedback control, so there are some restrictions 
 * can not use measurement results as right value, like assignment, condition
 
 ```c++
-qbit q;
-
 procedure main(){
 	// These operations will report errors
-	q = |0>;
+	qbit q;
 	int a = M(q);
 	print a;
 }

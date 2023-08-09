@@ -20,8 +20,7 @@ int NBinaryBits(int number)
 {
     int tn = AbsI(number);
     int r = 0;
-    while (tn > 0)
-    {
+    while (tn > 0) {
         tn = tn / 2;
         r = r + 1;
     }
@@ -31,7 +30,6 @@ int NBinaryBits(int number)
 int Random01()
 {
     qbit q;
-    q = |0>;
     H<q>;
     return M<q>;
 }
@@ -42,11 +40,9 @@ int Random(int bound)
     int Nbits = NBinaryBits(bound);
     int ret = bound;
 
-    while (ret >= bound)
-    {
+    while (ret >= bound) {
         int temp = 0;
-        for i in 0 : Nbits
-        {   
+        for i in 0 : Nbits {   
             int val = Random01();
             temp = temp + PowI(2, i) * Random01();
         }
@@ -57,8 +53,7 @@ int Random(int bound)
 
 procedure main()
 {
-    for i in 0 : 100
-    {
+    for i in 0 : 100 {
         int p = Random(100);
         print p;
     }

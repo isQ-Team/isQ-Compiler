@@ -8,7 +8,7 @@ import qualified Data.Map.Lazy as Map
 import Control.Monad.Fix
 type Ident = String
 type ASTBlock ann = [AST ann]
-data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | Array Int | UserType String | IntRange | Gate Int | Logic Int | FuncTy | Param deriving (Show, Eq)
+data BuiltinType = Ref | Unit | Qbit | Int | Bool | Double | Complex | Array Int | UserType String | IntRange | Gate Int | Logic Int | FuncTy | Param | Ket deriving (Show, Eq)
 data Type ann = Type { annotationType :: ann, ty :: BuiltinType, subTypes :: [Type ann]} deriving (Show,Functor, Eq)
 
 intType ann = Type ann Int []
@@ -22,6 +22,7 @@ refIntType ann = Type ann Ref [intType ann]
 refBoolType ann = Type ann Ref [boolType ann]
 paramType ann = Type ann Param []
 funcType ann s = Type ann FuncTy s
+ketType ann = Type ann Ket []
 
 data CmpType = Equal | NEqual | Greater | Less | GreaterEq | LessEq deriving (Eq, Show)
 data BinaryOperator = Add | Sub | Mul | Div | CeilDiv | Mod | And | Or | Andi | Ori | Xori | Cmp CmpType | Pow | Shl | Shr deriving (Eq, Show)
@@ -36,6 +37,7 @@ data Expr ann =
      | EFloatingLit { annotationExpr :: ann, floatingLitVal :: Double}
      | EImagLit { annotationExpr :: ann, imagLitVal :: Double}
      | EBoolLit { annotationExpr :: ann, boolLitVal :: Bool }
+     | EKet {annotationExpr :: ann, coefficient :: Expr ann, baseLit :: Int}
      | ERange {annotationExpr :: ann, rangeLo :: Maybe (Expr ann), rangeHi :: Maybe (Expr ann), rangeStep :: Maybe (Expr ann)}
      | ECoreMeasure { annotationExpr :: ann, measureOperand :: Expr ann }
      | EList { annotationExpr :: ann, exprListElems :: [Expr ann] }
@@ -81,7 +83,6 @@ data AST ann =
      -- extern defgate H(): gate(1) = "__quantum__qis__h__body";
      | NExternGate { annotationAST :: ann, gateName :: String, extraArgs :: [Type (ann)], gateSize :: Int, qirName :: String}
 --     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], angle :: [Expr ann]}
-     | NCoreReset { annotationAST :: ann, resetOperands :: Expr ann}
      | NCoreInit { annotationAST :: ann, initOperand :: Expr ann, initState :: [[Expr ann]] }
      | NCorePrint { annotationAST :: ann, printOperands :: Expr ann}
      | NCoreMeasure {annotationAST :: ann, measExpr :: Expr ann}

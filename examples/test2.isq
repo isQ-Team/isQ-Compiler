@@ -37,16 +37,14 @@ procedure test2(qbit x[], double c){
 	H<x[1]>;
 }
 
-procedure main(){
+procedure main() {
 	int x;
-	int y;
-	if (1 < 2){
-		dd = (a+3*2.2)*(b+c);
-	} else{
-		int y;
-		y = c+1;
+	if (1 < 2) {
+		dd = (a + 3 * 2.2) * (b + c);
+	} else {
+		int y = c+1;
 	}
-	for a in 1:b{
+	for a in 1:b {
 		pass;
 	}
 	int d[5];
@@ -62,11 +60,9 @@ procedure main(){
 	Rx(a+0.3, p);
 	ctrl<2> Rz(dd, p, q[0], q[1]);
 	U3(0.1, 0.3, dd, p);
-	while (a < 2){
+	while (a < 2) {
 		a = a + 1;
 	}
 
 	print a;
-	p = |0>;
-	q[1] = |0>;
 }
