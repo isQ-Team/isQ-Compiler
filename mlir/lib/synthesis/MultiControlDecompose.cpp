@@ -631,9 +631,9 @@ DecomposedGates isq::ir::synthesis::mcdecompose_u(UnitaryVector uvector, string 
         if (abs(alpha) > eps){
             if (m == 1) gatelist.push_back(ElementGate(CPHASE, {0}, alpha, 0., 0.));
             else{
-                beta /= (1 << (m-2));
+                alpha /= (1 << (m-2));
                 GateLocation loc(q.begin(), q.end()-1);
-                auto gl = mcr_graycode(CPHASE, beta, loc, q[m-1]);
+                auto gl = mcr_graycode(CPHASE, alpha, loc, q[m-1]);
                 gatelist.insert(gatelist.end(), gl.begin(), gl.end());
             }
         }
