@@ -1,0 +1,21 @@
+import std;
+
+procedure main()
+{
+    qbit q[2], p, r;
+    H(q);
+    X(r);
+    switch q {
+    case |3>:
+        ctrl Rx(pi, r, p);
+    default:
+        H(p);
+    }
+
+    // Uncompute
+    nctrl nctrl H(q[1], q[0], p);
+    nctrl ctrl H(q[1], q[0], p);
+    ctrl nctrl H(q[1], q[0], p);
+    ctrl ctrl X(q[1], q[0], p);
+    print M(p);
+}

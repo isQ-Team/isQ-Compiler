@@ -22,8 +22,8 @@ $idrestchar   = [$alpha $digit \_]
 @exponent = [eE] [\-\+] @decimal
 
 @reservedid = 
-	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|bp|return|package|import|assert|
-    ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue|double|as|extern|gate|deriving|oracle|pi|param
+	if|else|for|in|while|procedure|int|qbit|measure|print|defgate|pass|bp|return|package|import|assert|switch|default|case
+    |ctrl|nctrl|inv|bool|true|false|let|const|unit|M|break|continue|double|as|extern|gate|deriving|oracle|pi|param
 @reservedop = "=="|"="|"+"|"+="|"-"|"-="|"*"|"*="|"/"|"/="|"<"|">"|"<="|">="|"!="|and|"&&"|or|"||"|not|"!"|"%"|"%="|"&"|"|"|"^"|"~"
               |">>"|"<<"|","|"("|")"|"{"|"}"|"["|"]"|"."|":"|";"|"->"|"**"|".length"|"|||"
 

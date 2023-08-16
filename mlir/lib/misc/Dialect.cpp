@@ -5,6 +5,71 @@
 #include <llvm/Support/ErrorHandling.h>
 #include <mlir/IR/Attributes.h>
 #define GET_OP_CLASSES
+namespace isq {
+namespace ir {
+
+/// Parse the case regions and values.
+static mlir::ParseResult parseSwitchCases(mlir::OpAsmParser &p, mlir::ArrayAttr &cases,
+                 mlir::SmallVectorImpl<std::unique_ptr<mlir::Region>> &caseRegions) {
+    llvm::SmallVector<int64_t> caseValues;
+    while (succeeded(p.parseOptionalKeyword("case"))) {
+        int64_t value;
+        mlir::Region &region = *caseRegions.emplace_back(std::make_unique<mlir::Region>());
+        if (p.parseInteger(value) || p.parseRegion(region, /*arguments=*/{}))
+        return mlir::failure();
+        caseValues.push_back(value);
+    }
+    cases = p.getBuilder().getI64ArrayAttr(caseValues);
+    return mlir::success();
+}
+
+/// Print the case regions and values.
+static void printSwitchCases(mlir::OpAsmPrinter &p, mlir::Operation *op,
+                             mlir::ArrayAttr cases, mlir::RegionRange caseRegions) {
+    for (auto [value, region] : llvm::zip(cases.getValue(), caseRegions)) {
+        p.printNewline();
+        p << "case " << value << ' ';
+        p.printRegion(*region, /*printEntryBlockArgs=*/false);
+    }
+}
+
+mlir::LogicalResult SwitchOp::verify(){
+    mlir::Value arg = getArg();
+    mlir::Type type = arg.getType();
+    auto mem_type = type.dyn_cast_or_null<mlir::MemRefType>();
+    if (!mem_type) {
+        emitError("The variable type is not qbit[]!");
+        return mlir::failure();
+    }
+    int nqubit = mem_type.getDimSize(0);
+    int dim = 1 << nqubit;
+    std::vector<bool> shown(dim, false);
+
+    // Process the cases
+    mlir::ArrayAttr case_attr = getCases();
+    for (auto attr : case_attr) {
+        auto int_attr = attr.dyn_cast_or_null<mlir::IntegerAttr>();
+        if (!int_attr) {
+            emitError("The attribute is not IntegerAttr!");
+            attr.dump();
+            return mlir::failure();
+        }
+        int case_num = int_attr.getInt();
+        if (case_num >= dim) {
+            emitError() << case_num << " is not smaller than the Hilbert space dimension (" << dim << ")!";
+            return mlir::failure();
+        }
+        if (shown[case_num]) {
+            emitError() << "case " << case_num << " has shown before!";
+            return mlir::failure();
+        }
+        shown[case_num] = true;
+    }
+    return mlir::success();
+}
+
+} // namespace ir
+} // namespace isq
 #include <isq/tblgen/ISQOPs.cpp.inc>
 #include <isq/tblgen/ISQEnums.cpp.inc>
 

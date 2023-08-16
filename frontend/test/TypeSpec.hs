@@ -85,3 +85,19 @@ typeSpec = do
         it "returns an error when getting the length of an int" $ do
             let str = "bool fun(){ int a; print a.length; }"
             typeTestTemplate str "TypeMismatch"
+
+        it "returns an error when switching on qubits and using int as case" $ do
+            let str = "bool fun(){ qbit q[2]; switch(q) {case 0:}}"
+            typeTestTemplate str "TypeMismatch"
+
+        it "returns an error when switching on an int and using ket as case" $ do
+            let str = "bool fun(){ int a; switch(a) {case |0>:}}"
+            typeTestTemplate str "TypeMismatch"
+
+        it "returns an error when declaring a variable in quantum switch-case" $ do
+            let str = "bool fun(){ qbit q[2]; switch(q) {case |0>: int a = 2;}}"
+            typeTestTemplate str "UnsupportedStatement"
+
+        it "returns an error when declaring a variable in the default part of quantum switch-case" $ do
+            let str = "bool fun(){ qbit q[2]; switch(q) {default: int a = 2;}}"
+            typeTestTemplate str "UnsupportedStatement"

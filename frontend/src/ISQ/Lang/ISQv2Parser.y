@@ -31,6 +31,9 @@ import Control.Monad (void)
     package { TokenReservedId $$ "package" }
     import { TokenReservedId $$ "import" }
     assert { TokenReservedId $$ "assert" }
+    switch { TokenReservedId $$ "switch" }
+    default { TokenReservedId $$ "default" }
+    case { TokenReservedId $$ "case" }
     ctrl { TokenReservedId $$ "ctrl" }
     nctrl { TokenReservedId $$ "nctrl" }
     inv { TokenReservedId $$ "inv" }
@@ -321,6 +324,28 @@ ForStatement :: {LAST}
 ForStatement : for IDENTIFIER in Expr Statement { NFor $1 (tokenIdentV $2) $4 [$5] }
 WhileStatement :: {LAST}
 WhileStatement : while Expr Statement { NWhile $1 $2 [$3] }
+
+{-
+Example:
+switch q {
+   case |2> : X(p);
+   case |0> :
+   default: { Z(p); }
+}
+Constraints:
+   - 'default' must be the last item.
+   - The outer braces are essential while internal ones are optional.
+-}
+CaseStatement :: {LAST}
+CaseStatement : case NATURAL ':' StatementList { NCase (annotation $2) (tokenNaturalV $2) $4 False }
+              | case '|' NATURAL '>' ':' StatementList { NCase (annotation $3) (tokenNaturalV $3) $6 True }
+CaseStatements :: {[LAST]}
+CaseStatements : {- empty -} {[]}
+               | CaseStatements CaseStatement { $1 ++ [$2] }
+SwitchStatement :: {LAST}
+SwitchStatement : switch Expr '{' CaseStatements default ':' StatementList '}' { NSwitch $1 $2 $4 $7 }
+                | switch Expr '{' CaseStatements '}' { NSwitch $1 $2 $4 [] }
+
 IfStatement :: {LAST}
 IfStatement : if Expr Statement { NIf $1 $2 [$3] [] }
             | if Expr Statement else Statement  { NIf $1 $2 [$3] [$5] }
@@ -402,6 +427,7 @@ Statement : ';' { NEmpty $1 }
           | IfStatement { $1 }
           | ForStatement { $1 }
           | WhileStatement { $1 }
+          | SwitchStatement { $1 }
           | DefvarStatement ';' { $1 }
           | CallStatement ';' { $1 }
           | AssignStatement ';' { $1 }

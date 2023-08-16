@@ -12,6 +12,7 @@ void registerDecorateFolding();
 void registerQSD();
 void registerExpandDecomposition();
 void registerLowerToQIRRep();
+void registerLowerSwitchOp();
 void registerQIR2LLVM();
 void registerPureGateDetect();
 void registerRecognizeFamousGates();

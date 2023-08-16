@@ -70,7 +70,9 @@ data AST ann =
      | NPass { annotationAST :: ann }
      | NAssert { annotationAST :: ann, condition :: Expr ann, space :: Maybe [[Expr ann]] }
      | NBp { annotationAST :: ann }
-     | NWhile { annotationAST :: ann, condition :: Expr ann,  body :: ASTBlock ann}
+     | NWhile { annotationAST :: ann, condition :: Expr ann, body :: ASTBlock ann }
+     | NCase { annotationAST :: ann, caseBasis :: Int, body :: ASTBlock ann, isKet :: Bool }
+     | NSwitch { annotationAST :: ann, condition :: Expr ann, cases :: [AST ann], defaultStat :: ASTBlock ann }
      | NCall { annotationAST :: ann, callExpr :: Expr ann}
      | NCallWithInv { annotationAST :: ann, callExpr :: Expr ann, gateModifiers :: [GateModifier]}
      -- The tuple elements are: type, identifier, initilizer, length (only valid for array)

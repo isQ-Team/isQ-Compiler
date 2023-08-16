@@ -213,7 +213,6 @@ pub fn isq_qir_shim_qis_bp(x0: i64)->() {
         return;
     }
     extern crate std;
-    use std::string::String;
     println!("Reaching a break point");
     let device = ctx.get_device_mut();
     device.print_state();

@@ -4,7 +4,7 @@ use serde_json::*;
 use crate::error::*;
 use serde_json::Value as V;
 
-use std::{fs::File, io::{Read}};
+use std::{fs::File, io::Read};
 
 
 pub fn parse_type(input: &Value)->String{
@@ -21,7 +21,7 @@ pub fn parse_type(input: &Value)->String{
         "Param"=>format!("param"),
         "Array"=>{
             let length = input["ty"]["contents"].as_i64().unwrap();
-            if (length == 0) {
+            if length == 0 {
                 format!("{} array with dynamic length", parse_type(&subtypes[0]))
             } else {
                 format!("[{};{}]", parse_type(&subtypes[0]), length)
@@ -192,6 +192,10 @@ pub fn resolve_isqc1_output(input: &str)->miette::Result<String>{
                             let expected = content["expectedType"].as_array().unwrap().iter().map(parse_match_rule).collect::<Vec<_>>().join(" or ");
                             let actual = parse_type(&content["actualType"]);
                             return Err(TypeMismatchError{expected, actual, src, pos})?;
+                        }
+                        "UnsupportedStatement"=>{
+                            let (src,pos) = parse_pos(&content["pos"])?;
+                            return Err(SyntaxError{reason: "unsupported statement".to_string(), src, pos: pos})?;
                         }
                         "UnsupportedType"=>{
                             let (src,pos) = parse_pos(&content["pos"])?;

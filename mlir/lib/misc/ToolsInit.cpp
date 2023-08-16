@@ -15,6 +15,7 @@ void ISQToolsInitialize(mlir::DialectRegistry &registry) {
     passes::registerQSD();
     passes::registerExpandDecomposition();
     passes::registerLowerToQIRRep();
+    passes::registerLowerSwitchOp();
     passes::registerQIR2LLVM();
     passes::registerPureGateDetect();
     passes::registerRecognizeFamousGates();

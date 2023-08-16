@@ -9,7 +9,7 @@ import Debug.Trace
 
 data MLIRType =
     MUnit | Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
-  | Gate Int | Double | Complex | Ket | QIRQubit | Func MLIRType [MLIRType] | I8 deriving Show
+  | Gate Int | Double | Complex | Ket | QIRQubit | Func MLIRType [MLIRType] | I8 deriving (Show, Eq)
 
 zeroMlirType :: MLIRType->MLIRType
 zeroMlirType (Memref (Just x) ty) = Memref Nothing ty
@@ -171,6 +171,7 @@ data MLIROp =
     | MCallConst { location :: MLIRPos, value :: SSA, funcName :: FuncName, retTy :: MLIRType, argsTy :: [MLIRType] }
     | MSCFIf {location :: MLIRPos, ifCondition :: SSA, thenRegion :: MLIROp, elseRegion :: MLIROp}
     | MSCFWhile {location :: MLIRPos, breakBlock :: [MLIROp], condBlock :: [MLIROp], condExpr :: SSA, breakCond :: SSA, whileBody :: [MLIROp]}
+    | MSwitch {location :: MLIRPos, switchIn :: (MLIRType, SSA), caseRegion :: [(Int, [MLIROp])], defaultRegion :: [MLIROp]}
     | MAffineFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
     | MSCFFor {location :: MLIRPos, forLo :: SSA, forHi :: SSA, forStep :: Int, forVar :: SSA, forRegion :: [MLIROp]}
     | MSCFExecRegion {location :: MLIRPos, blocks :: [MLIRBlock]}
@@ -445,6 +446,19 @@ emitOpStep f env (MSCFWhile loc breakb condb cond break body) = intercalate "\n"
   ++ fmap (f (incrIndent env{isTopLevel=False})) body
   ++ [indented env $ "scf.yield"]
   ++ [indented env $ printf "} %s" (mlirPos loc)]
+emitOpStep f env (MSwitch loc (ty, cond) cases defau) =
+  let
+    use_isq = Index /= ty
+    yield = if use_isq then "isq.yield" else "scf.yield"
+    emit (int, stats) = intercalate "\n" $ [indented env $ printf "case %d {" int]
+                      ++ fmap (f (incrIndent env{isTopLevel=False})) stats
+                      ++ [indented (incrIndent env{isTopLevel=False}) yield, indented env "}"]
+  in intercalate "\n" $
+  [indented env $ if use_isq then printf "isq.switch %s : %s" (unSsa cond) (mlirType ty) else printf "scf.index_switch %s" (unSsa cond)]
+  ++ map emit cases
+  ++ [indented env $ printf "default {"]
+  ++ fmap (f (incrIndent env{isTopLevel=False})) defau
+  ++ [indented (incrIndent env{isTopLevel=False}) yield, indented env $ printf "} %s" (mlirPos loc)]
 emitOpStep f env (MSCFExecRegion loc blocks) = intercalate "\n"
   ([indented env $ "scf.execute_region {"]
   ++ fmap (emitBlock f env) blocks ++

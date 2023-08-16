@@ -30,6 +30,7 @@ data TypeCheckError =
     | UndefinedSymbol { pos :: Pos, symbolName :: Symbol}
     | AmbiguousSymbol { pos :: Pos, symbolName :: Symbol, firstDefinedAt :: Pos, secondDefinedAt :: Pos}
     | TypeMismatch {pos :: Pos, expectedType :: [MatchRule], actualType :: Type ()}
+    | UnsupportedStatement { pos :: Pos }
     | UnsupportedType { pos :: Pos, actualType :: Type () }
     | UnsupportedLeftSide { pos :: Pos }
     | ViolateNonCloningTheorem { pos :: Pos }
@@ -854,6 +855,32 @@ typeCheckAST' f (NWhileWithGuard pos cond body break) = do
     break''<-matchType [Exact (boolType ())] break'
     body'<-mapM f body
     return $ NWhileWithGuard (okStmt pos) cond'' body' break''
+typeCheckAST' f (NCase pos base stats isket) = do
+    scope
+    stats' <- mapM f stats
+    unscope
+    return $ NCase (okStmt pos) base stats' isket
+typeCheckAST' f (NSwitch pos cond cases defau) = do
+    let isUnitary :: Bool -> AST TypeCheckData -> TypeCheck ()
+        isUnitary True _ = return ()
+        isUnitary False (NCoreUnitary _ _ _ _) = return ()
+        isUnitary False other = throwError $ UnsupportedStatement $ sourcePos $ annotationAST other
+    cond' <- typeCheckExpr cond
+    cond'' <- matchType [ArrayType $ Exact $ qbitType (), Exact $ intType ()] cond'
+    let is_int = astType cond'' == intType ()
+    let check :: AST Pos -> TypeCheck (AST TypeCheckData)
+        check cas@(NCase pos _ _ isket) = do
+            when (is_int && isket) $ throwError $ TypeMismatch pos [Exact $ intType ()] $ ketType ()
+            when (not is_int && not isket) $ throwError $ TypeMismatch pos [Exact $ ketType ()] $ intType ()
+            cas' <- f cas
+            mapM (isUnitary is_int) $ body cas'
+            return cas'
+    cases' <- mapM check cases
+    scope
+    defau' <- mapM f defau
+    unscope
+    mapM (isUnitary is_int) defau'
+    return $ NSwitch (okStmt pos) cond'' cases' defau'
 typeCheckAST' f (NProcedureWithRet _ _ _ _ _ _) = error "not top"
 typeCheckAST' f (NResolvedProcedureWithRet _ _ _ _ _ _ _) = error "unreachable"
 typeCheckAST' f (NJumpToEndOnFlag pos flag) = do

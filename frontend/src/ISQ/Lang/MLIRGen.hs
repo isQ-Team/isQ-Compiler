@@ -85,6 +85,11 @@ finalizeBlock = do
     tails<-use tailBlocks
     return $ (reverse heads)++[curr']++tails
 
+swapCurrentBlock :: MLIRBlock -> State RegionBuilder MLIRBlock
+swapCurrentBlock new_curr = do
+    curr <- use currentBlock
+    currentBlock .= new_curr
+    return curr
 
 pushOp :: MLIROp->State RegionBuilder ()
 pushOp op = currentBlock%=(\x->x{blockBody=op:blockBody x})
@@ -558,6 +563,19 @@ emitStatement' f (NWhileWithGuard ann cond body breakflag) = do
     let break_ssa = fromSSA $ termId $ annotation breakflag
     let cond_ssa = fromSSA $ termId $ annotation cond
     pushOp $ MSCFWhile pos break_block cond_block cond_ssa break_ssa [MSCFExecRegion pos body_block]
+emitStatement' f (NSwitch ann cond cases defau) = do
+    pos <- mpos ann
+    cond' <- emitExpr cond
+    let emit (NCase ann num stats _) = do
+            curr <- swapCurrentBlock $ MLIRBlock (fromBlockName 0) [] []
+            mapM f stats
+            case_block <- swapCurrentBlock curr
+            return (num, reverse $ blockBody case_block)
+    cases' <- mapM emit cases
+    curr <- swapCurrentBlock $ MLIRBlock (fromBlockName 0) [] []
+    mapM f defau
+    defau_block <- swapCurrentBlock curr
+    pushOp $ MSwitch pos (astMType cond, cond') cases' $ reverse $ blockBody defau_block
 emitStatement' f NProcedureWithRet{} = error "unreachable"
 emitStatement' f (NResolvedProcedureWithRet ann ret mname args body (Just retval) (Just retvar)) = do
     let name = if mname=="main" then "__isq__main" else mname

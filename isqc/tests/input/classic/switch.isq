@@ -1,0 +1,10 @@
+procedure main()
+{
+    int a = 3;
+    switch a {
+    case 1:
+    default:
+        a += 2;
+    }
+    print a;
+}

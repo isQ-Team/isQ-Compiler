@@ -485,6 +485,56 @@ def ISQ_SubOp: Ket_Op<"sub"> {
     }];
 }
 
+def SwitchOp : ISQ_Op<"switch", [RecursiveMemoryEffects/*,
+    DeclareOpInterfaceMethods<RegionBranchOpInterface,
+                              ["getRegionInvocationBounds"]>*/]> {
+    let summary = "switch-case operation on a qubit-register argument";
+    let description = [{
+        The `isq.switch` is a convinient way of defining control gates.
+
+        Example:
+
+        ```mlir
+        isq.switch %q : memref<3x!isq.qstate>
+        case 2 {
+            %x = isq.use X : !isq.gate<1>
+            %c0 = arith.constant 0 : index
+            %1 = memref.load %p, %c0 : !isq.qstate
+            %2 = isq.apply %x, %1
+            %3 = memref.store %p, %c0
+        }
+        case 5 {
+            ...
+        }
+        default {
+            ...
+        }
+        ```
+    }];
+    let arguments = (ins
+        AnyType: $arg,
+        ArrayAttr: $cases
+    );
+    let regions = (region
+        SizedRegion<1>: $defaultRegion,
+        VariadicRegion<SizedRegion<1>>: $caseRegions
+    );
+    let assemblyFormat = [{
+        $arg `:` qualified(type($arg)) attr-dict
+        custom<SwitchCases>($cases, $caseRegions) `\n`
+        `` `default` $defaultRegion
+    }];
+    let hasVerifier = 1;
+}
+
+def YieldOp : ISQ_Op<"yield", [Pure, Terminator, ParentOneOf<["SwitchOp"]>]> {
+  let summary = "termination operation";
+  let description = [{
+    "isq.yield" terminates the regions.
+  }];
+
+  let assemblyFormat =[{ attr-dict }];
+}
 /// QMPI
 
 

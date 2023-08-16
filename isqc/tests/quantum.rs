@@ -2,7 +2,7 @@ mod util;
 use util::merge;
 use assert_cmd::prelude::*; // Add methods on commands
 use predicates::prelude::*; // Used for writing assertions
-use std::{process::Command}; // Run programs
+use std::process::Command; // Run programs
 use std::path::Path;
 use test_case::test_case;
 
@@ -12,6 +12,7 @@ use test_case::test_case;
 #[test_case("init_default", &merge(&["0"]))]
 #[test_case("init_ket", &merge(&["2"]))]
 #[test_case("sub", &merge(&["5", "2", "7"]))]
+#[test_case("switch", &merge(&["0"]))]
 #[test_case("x", &merge(&["3", "7"]))]
 fn test_quantum(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";

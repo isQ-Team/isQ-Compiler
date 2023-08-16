@@ -2,7 +2,7 @@ mod util;
 use util::{merge, LINE_ENDING};
 use assert_cmd::prelude::*; // Add methods on commands
 use predicates::prelude::*; // Used for writing assertions
-use std::{process::Command}; // Run programs
+use std::process::Command; // Run programs
 use std::path::Path;
 use test_case::test_case;
 
@@ -27,6 +27,7 @@ use test_case::test_case;
 #[test_case("double_compare", &merge(&["1", "0", "1", "1"]))]
 #[test_case("global", &merge(&["7.3", "4", "8"]))]
 #[test_case("pow", &("8".to_string()+LINE_ENDING+"5.289"))]
+#[test_case("switch", &merge(&["5"]))]
 fn test_classic(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
     let folder = Path::new("tests").join("input").join("classic");
