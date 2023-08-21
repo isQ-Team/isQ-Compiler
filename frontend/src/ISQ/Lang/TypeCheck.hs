@@ -108,7 +108,6 @@ defineGlobalSym prefix name b c logic d = do
     let qualifiedName = prefix ++ name
     let qualifiedName' = if logic then qualifiedName ++ logicSuffix else qualifiedName
     addSym (SymVar name) (DefinedSymbol b c ssa True d qualifiedName')
-    addSym (SymVar qualifiedName) (DefinedSymbol b c ssa True d qualifiedName')
     return ssa
 
 setSym :: Symbol -> Pos -> TypeCheckData -> TypeCheck Int
@@ -393,7 +392,7 @@ typeCheckExpr' f (ECoreMeasure pos qubit) = do
         Just qubit'' -> return $ ECoreMeasure (TypeCheckData pos (boolType ()) ssa) qubit''
         Nothing -> do
             qubit'' <- matchType [Exact $ Type () (Array 0) [qbitType ()]] qubit'
-            fun <- f (EIdent pos ".__measure_bundle")
+            fun <- f (EIdent pos "__measure_bundle")
             return $ ECall (TypeCheckData pos (intType ()) ssa) fun [qubit'']
 typeCheckExpr' f (EList pos lis) = do
     lis' <- mapM f lis
@@ -944,12 +943,11 @@ typeCheckToplevel isMain prefix ast qcis = do
             ) ast
     -- Add all vars into table.
     let vars=concatMap MultiMap.toList varlist
-    let qualifiedVars = concat $ map (\tup -> do
+    let qualifiedVars = map (\tup -> do
             let sym = fst tup
-            let symName = getSymbolName sym
-            let qualified = prefix ++ symName
+            let qualified = prefix ++ getSymbolName sym
             let qualifiedData = (snd tup){qualifiedName = qualified}
-            [(sym, qualifiedData), (SymVar qualified, qualifiedData)]) vars
+            (sym, qualifiedData)) vars
     mapM_ (uncurry addSym) $ reverse qualifiedVars
     
     -- Resolve all gates and procedures.
@@ -1056,18 +1054,12 @@ typeCheckToplevel isMain prefix ast qcis = do
 
     -- Extract global symbols
     symtable <- gets symbolTable
-    let topLayer = getSecondLast symtable
+    let topLayer = last $ init symtable
     let lis = MultiMap.toList topLayer
     let globalLis = filter (isGlobal . snd) lis
     let globalLayer = MultiMap.fromList globalLis
     ssaId <- gets ssaAllocator
     return (body, globalLayer, ssaId)
-
-getSecondLast :: [a] -> a
-getSecondLast [] = error "Empty list"
-getSecondLast [x] = error "Single-element list"
-getSecondLast (x:_:[]) = x
-getSecondLast (x:xs) = getSecondLast xs
 
 typeCheckTop :: Bool -> String -> [LAST] -> SymbolTableLayer -> Int -> Bool -> Either TypeCheckError ([TCAST], SymbolTableLayer, Int)
 typeCheckTop isMain prefix ast stl ssaId qcis= do

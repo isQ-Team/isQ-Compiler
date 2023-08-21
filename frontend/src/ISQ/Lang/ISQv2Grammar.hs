@@ -72,7 +72,7 @@ data AST ann =
      | NBp { annotationAST :: ann }
      | NWhile { annotationAST :: ann, condition :: Expr ann, body :: ASTBlock ann }
      | NCase { annotationAST :: ann, caseBasis :: Int, body :: ASTBlock ann, isKet :: Bool }
-     | NSwitch { annotationAST :: ann, condition :: Expr ann, cases :: [AST ann], defaultStat :: ASTBlock ann }
+     | NSwitch { annotationAST :: ann, condition :: Expr ann, cases :: ASTBlock ann, defaultStat :: ASTBlock ann }
      | NCall { annotationAST :: ann, callExpr :: Expr ann}
      | NCallWithInv { annotationAST :: ann, callExpr :: Expr ann, gateModifiers :: [GateModifier]}
      -- The tuple elements are: type, identifier, initilizer, length (only valid for array)
@@ -90,9 +90,9 @@ data AST ann =
      | NCoreMeasure {annotationAST :: ann, measExpr :: Expr ann}
      -- procedure my_rx(double theta, qbit a, qbit b) deriving gate { }
      -- bool database(bool flags[4], bool a, bool b) deriving oracle(2) { } 
-     | NTopLevel { package :: Maybe (AST ann), importList :: [AST ann], defMemberList :: [AST ann] }
+     | NTopLevel { package :: Maybe (AST ann), importList :: ASTBlock ann, defMemberList :: ASTBlock ann }
      | NPackage { annotationAST :: ann, packageName :: String }
-     | NImport { annotationAST :: ann, importName :: String }
+     | NImport { annotationAST :: ann, importName :: String, asName :: Maybe String }
      | NProcedureWithDerive { annotationAST :: ann, procReturnType :: Type ann, procName :: String, procArgs :: [(Type ann, Ident)], procBody :: [AST ann], deriveGate :: Maybe DerivingType}
      | NContinue { annotationAST :: ann }
      | NBreak { annotationAST :: ann }

@@ -5,7 +5,7 @@ import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.TypeCheck
 
 import Control.Exception (evaluate)
-import Data.Either (isRight)
+import Data.Either (fromLeft, isRight)
 import System.Directory (canonicalizePath)
 import System.FilePath
 import Test.Hspec
@@ -44,6 +44,11 @@ importSpec = do
         importFile <- canonicalizePath $ joinPath ["test", "input", "b", "cycle.isq"]
         err <- generateTcast "" input False
         err `shouldBe` (Left $ GrammarError $ CyclicImport [importFile, input])
+
+    it "returns an error when using the original import name that has been used as" $ do
+        input <- canonicalizePath $ joinPath ["test", "input", "obsolete_name.isq"]
+        err <- generateTcast "" input False
+        (head $ tail $ words $ show $ fromLeft (TypeCheckError MainUndefined) err) `shouldBe` "(UndefinedSymbol"
 
     it "returns an error when it is unsure about importing which file" $ do
         let input = joinPath ["test", "input", "ambiguous_import.isq"]
@@ -92,5 +97,10 @@ importSpec = do
 
     it "parses correctly when import a file that imports another" $ do
         let input = joinPath ["test", "input", "nested_import.isq"]
+        res <- generateTcast "" input False
+        res `shouldSatisfy` isRight
+
+    it "parses correctly when import a file with another name" $ do
+        let input = joinPath ["test", "input", "import_as.isq"]
         res <- generateTcast "" input False
         res `shouldSatisfy` isRight

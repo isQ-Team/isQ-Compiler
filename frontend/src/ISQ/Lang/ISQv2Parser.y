@@ -117,7 +117,8 @@ ImportList : {- empty -} { [] }
      | ImportList Import { $1 ++ [$2] }
 
 Import :: {LAST}
-Import : import Qualified ';' { NImport $1 (tokenIdentV $2) }
+Import : import Qualified ';' { NImport $1 (tokenIdentV $2) Nothing }
+       | import Qualified as Qualified ';' { NImport $1 (tokenIdentV $2) $ Just (tokenIdentV $4) }
 
 Qualified :: {ISQv2Token}
 Qualified : IDENTIFIER {$1}

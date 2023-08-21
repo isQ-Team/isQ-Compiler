@@ -24,7 +24,7 @@ import ISQ.Lang.ISQv2Grammar
 import ISQ.Lang.MLIRGen (generateMLIRModule)
 import ISQ.Lang.MLIRTree (emitOp)
 import ISQ.Lang.OraclePass (passOracle)
-import ISQ.Lang.TypeCheck (SymbolTableLayer, TCAST, typeCheckTop)
+import ISQ.Lang.TypeCheck (SymbolTableLayer, Symbol(SymVar), TCAST, typeCheckTop)
 import ISQ.Lang.RAIICheck (raiiCheck)
 import System.Directory (canonicalizePath, doesFileExist)
 import System.Environment (lookupEnv)
@@ -41,7 +41,10 @@ syntaxError file x =
 
 data ImportEnv = ImportEnv {
     globalTable :: SymbolTableLayer,
+
+    -- Look up the top-layer symbol table of a file
     symbolTable :: Map.Map String SymbolTableLayer,
+
     ssaId :: Int,
     qcis :: Bool,
     libraryPath:: [FilePath]
@@ -79,13 +82,13 @@ compileRAII ast = runExcept $ do
 processGlobal :: String -> Bool -> ([TCAST], SymbolTableLayer, Int)
 processGlobal s qcis = do
     case tokenize s of
-        Left _ -> error "Global code pass error"
+        Left _ -> error "Global code parse error"
         Right tokens -> do
             let ast = defMemberList $ isqv2 tokens
             case compileRAII ast of
                 Left _ -> error "Global code RAII error"
                 Right raii -> do
-                    case typeCheckTop False "." raii MultiMap.empty 0 qcis of
+                    case typeCheckTop False "" raii MultiMap.empty 0 qcis of
                         Left x -> error $ "Global code type check error: " ++ (show $ encode x)
                         Right x -> x
 
@@ -94,6 +97,8 @@ getConcatName fields prefix = do
     let joined = joinPath ([prefix] ++ fields)
     addExtension joined ".isq"
 
+{- | Return the full-path filename of the imported file. The return file is guaranteed to exist and be unique.
+-}
 getImportedFile :: [FilePath] -> FilePath -> LAST -> PassMonad FilePath
 getImportedFile froms rootPath imp = do
     let dotName = importName imp
@@ -110,16 +115,26 @@ getImportedFile froms rootPath imp = do
                 Just y -> throwError $ GrammarError $ CyclicImport $ take (y + 1) froms
         (x:y:xs) -> throwError $ GrammarError $ AmbiguousImport dotName x y
 
-getImportedFiles :: [FilePath] -> FilePath -> [LAST] -> PassMonad [FilePath]
-getImportedFiles froms rootPath impList = mapM (getImportedFile froms rootPath) impList
-
 getImportedTcasts :: [FilePath] -> FilePath -> [LAST] -> PassMonad ([TCAST], SymbolTableLayer)
 getImportedTcasts froms rootPath impList = do
-    files <- getImportedFiles froms rootPath impList
+    files <- mapM (getImportedFile froms rootPath) impList
     tupList <- mapM (fileToTcast froms) files
     let tcast = concat $ map fst tupList
+    let getImportName (NImport pos origin Nothing) = origin
+        getImportName (NImport pos origin (Just as)) = as
+    let impName = map getImportName impList
+    let impTable = map snd tupList
+
+    -- For variable x, define an aliasing prefix.x
+    let enhanceTable (prefix, table) = do
+            let lis = MultiMap.toList table
+            let enhance (SymVar key, value) = (SymVar $ prefix ++ '.' : key, value)
+            let enhancedLis = map enhance lis
+            MultiMap.fromList $ lis ++ enhancedLis
+    let enhancedTable = map enhanceTable $ zip impName impTable
+
     gtable <- gets globalTable
-    let tables = gtable : map snd tupList
+    let tables = gtable : enhancedTable
     let table = MultiMap.fromList $ concat $ map MultiMap.toList tables
     return (tcast, table)
 
@@ -129,44 +144,42 @@ notMain _ = True
 
 doImport :: [FilePath] -> FilePath -> LAST -> PassMonad ([TCAST], SymbolTableLayer)
 doImport froms file node = do
+    -- Find the root path of a file
     let pkg = package node
     let pathList = splitDirectories $ dropExtensions file
     let pacName = case pkg of {Nothing -> last pathList; Just pack -> packageName pack}
     let indices = findIndices (pacName ==) pathList
-    case indices of
-        [] -> throwError $ GrammarError $ BadPackageName pacName
-        lis -> do
-            let pacIndex = last lis
-            let prefix = intercalate "." (drop pacIndex pathList) ++ "."
-            let isMain = null froms
-            let defList = case isMain of
-                    True -> defMemberList node
-                    False -> filter notMain $ defMemberList node
-            let impList = importList node
-            let rootPath = joinPath $ take pacIndex pathList
-            let impNames = map importName impList
-            let groups = case impNames of
-                    [] -> [[]]
-                    _ -> groupBy (\x y -> x == y) impNames
-            let most = maximumBy (compare `on` length) groups
-            case length most of
-                i | i >= 2 -> throwError $ GrammarError $ DuplicatedImport $ head most
-                _ -> do
-                    (importTcast, importTable) <- getImportedTcasts (file:froms) rootPath impList
-                    let errOrRaii = compileRAII defList
-                    case errOrRaii of
-                        Left x -> throwError $ fromError x
-                        Right raii -> do
-                            --liftIO $ BS.hPut stdout (encode raii) -- for debug
-                            oldId <- gets ssaId
-                            qcis <- gets qcis
-                            let errOrTuple = typeCheckTop isMain prefix raii importTable oldId qcis
-                            case errOrTuple of
-                                Left x -> throwError $ fromError x
-                                Right (tcast, table, newId) -> do
-                                    modify' (\x->x{ssaId = newId})
-                                    return (tcast ++ importTcast, table)
+    when (null indices) $ throwError $ GrammarError $ BadPackageName pacName
+    let pacIndex = last indices
+    let rootPath = joinPath $ take pacIndex pathList
 
+    let prefix = intercalate "." pathList ++ "."
+    let isMain = null froms
+    let defList = case isMain of
+            True -> defMemberList node
+            -- Leave out the `main` procedure of imported files
+            False -> filter notMain $ defMemberList node
+    let impList = importList node
+    let impNames = map importName impList
+
+    -- Make sure a file is only imported once
+    let groups = case impNames of
+            [] -> [[]]
+            _ -> groupBy (\x y -> x == y) impNames
+    let most = maximumBy (compare `on` length) groups
+    when (length most >= 2) $ throwError $ GrammarError $ DuplicatedImport $ head most
+
+    (importTcast, importTable) <- getImportedTcasts (file:froms) rootPath impList
+    raii <- pass $ compileRAII defList
+    --liftIO $ BS.hPut stdout (encode raii) -- for debug
+    oldId <- gets ssaId
+    qcis <- gets qcis
+    (tcast, table, newId) <- pass $ typeCheckTop isMain prefix raii importTable oldId qcis
+    modify' (\x->x{ssaId = newId})
+    return (tcast ++ importTcast, table)
+
+{- Wrap readFile to set file encoding as utf8
+-}
 myReadFile :: FilePath -> IO (String)
 myReadFile file = do
     inputHandle <- openFile file ReadMode 
@@ -174,12 +187,20 @@ myReadFile file = do
     theInput <- hGetContents inputHandle
     return theInput
 
+{- | Return the type-checked ASTs of a file and its imported files. Also return the symbol table that
+records the global variables and procedures.
+
+@froms a chain of files that lead to import this one. Used to detect cyclic import
+@file the absolute path of the file to be compiled
+-}
 fileToTcast :: [FilePath] -> FilePath -> PassMonad ([TCAST], SymbolTableLayer)
 fileToTcast froms file = do
     stl <- gets symbolTable
     let maybeSymbol = Map.lookup file stl
     case maybeSymbol of
+        -- If the file has been imported, then return the symbol table directly, without importing it again
         Just symbol -> return ([], symbol)
+
         Nothing -> do
             exceptionOrStr <- liftIO $ do try(myReadFile file) :: IO (Either SomeException String)
             case exceptionOrStr of

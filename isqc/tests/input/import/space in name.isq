@@ -1,0 +1,5 @@
+int var = 2;
+procedure main()
+{
+    print var;
+}
