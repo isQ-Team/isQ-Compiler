@@ -186,14 +186,19 @@ matchType' wanted e = do
             Type () Bool [] -> do
                 id<-nextId
                 matchType' wanted (EImplicitCast (TypeCheckData pos (Type () Int [] ) id) e)
-            -- int-to-double implicit cast
+            -- int to bool/double implicit cast
             Type () Int [] -> do
                 id<-nextId
-                matchType' wanted (EImplicitCast (TypeCheckData pos (Type () Double [] ) id) e)
-            -- float-to-complex implicit cast
-            Type () Double [] -> if Exact (Type () Complex []) `notElem` wanted then return Nothing else do
+                case wanted of
+                    [Exact (Type () Bool [])] -> return $ Just $ EImplicitCast (TypeCheckData pos (boolType ()) id) e
+                    _ -> matchType' wanted (EImplicitCast (TypeCheckData pos (Type () Double [] ) id) e)
+            -- float to int/complex implicit cast
+            Type () Double [] -> do
                 id<-nextId
-                matchType' wanted (EImplicitCast (TypeCheckData pos (Type () Complex [] ) id) e)
+                case wanted of
+                    [Exact (Type () Int [])] -> return $ Just $ EImplicitCast (TypeCheckData pos (intType ()) id) e
+                    [Exact (Type () Complex [])] -> return $ Just $ EImplicitCast (TypeCheckData pos (complexType ()) id) e
+                    _ -> return Nothing
             -- Auto cast. Only the first rule is considered
             Type () (Array 0) [y] -> case head wanted of
                     Exact (Type () (Array x) [y]) -> do
@@ -373,6 +378,10 @@ typeCheckExpr' f (EImagLit pos x) = do
 typeCheckExpr' f (EBoolLit pos x) = do
     ssa<-nextId
     return $ EBoolLit (TypeCheckData pos (boolType ()) ssa) x
+typeCheckExpr' f (ECast pos exp ty) = do
+    exp' <- f exp
+    exp'' <- matchType [Exact $ void ty] exp'
+    return exp''
 typeCheckExpr' f (ERange pos lo hi Nothing) = do
     let step = Just (EIntLit pos 1)
     f (ERange pos lo hi step)

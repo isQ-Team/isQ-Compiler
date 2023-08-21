@@ -37,6 +37,7 @@ data Expr ann =
      | EFloatingLit { annotationExpr :: ann, floatingLitVal :: Double}
      | EImagLit { annotationExpr :: ann, imagLitVal :: Double}
      | EBoolLit { annotationExpr :: ann, boolLitVal :: Bool }
+     | ECast {annotationExpr :: ann, castedExpr :: Expr ann, castTo :: Type ann}
      | EKet {annotationExpr :: ann, coefficient :: Expr ann, baseLit :: Int}
      | ERange {annotationExpr :: ann, rangeLo :: Maybe (Expr ann), rangeHi :: Maybe (Expr ann), rangeStep :: Maybe (Expr ann)}
      | ECoreMeasure { annotationExpr :: ann, measureOperand :: Expr ann }
@@ -83,7 +84,7 @@ data AST ann =
      | NCoreUnitary { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], gateModifiers :: [GateModifier]}
      -- extern defgate Rz(double): gate(1) = "__quantum__qis__rz__body";
      -- extern defgate H(): gate(1) = "__quantum__qis__h__body";
-     | NExternGate { annotationAST :: ann, gateName :: String, extraArgs :: [Type (ann)], gateSize :: Int, qirName :: String}
+     | NExternGate { annotationAST :: ann, gateName :: String, extraArgs :: [Type ann], gateSize :: Int, qirName :: String}
 --     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], angle :: [Expr ann]}
      | NCoreInit { annotationAST :: ann, initOperand :: Expr ann, initState :: [[Expr ann]] }
      | NCorePrint { annotationAST :: ann, printOperands :: Expr ann}

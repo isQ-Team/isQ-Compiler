@@ -34,24 +34,24 @@ typeTestTemplate input expect = do
 typeSpec :: SpecWith ()
 typeSpec = do
     describe "ISQ.Lang.TypeCheck.typeCheckTop" $ do
-        it "returns an error when using an integer as if condition" $ do
-            let str = "procedure fun(){ if(1); }"
+        it "returns an error when using a double as if condition" $ do
+            let str = "procedure fun(){ if(1.1); }"
             typeTestTemplate str "TypeMismatch"
 
-        it "returns an error when anding an integer" $ do
-            let str = "procedure fun(){ print true && 1; }"
+        it "returns an error when anding a double" $ do
+            let str = "procedure fun(){ print true && 1.2; }"
             typeTestTemplate str "TypeMismatch"
 
-        it "returns an error when oring an integer" $ do
-            let str = "procedure fun(){ print true || 1; }"
+        it "returns an error when oring a double" $ do
+            let str = "procedure fun(){ print true || 1.3; }"
             typeTestTemplate str "TypeMismatch"
 
-        it "returns an error when noting an integer" $ do
-            let str = "bool fun(){ return !1; }"
+        it "returns an error when noting a double" $ do
+            let str = "bool fun(){ return !1.4; }"
             typeTestTemplate str "TypeMismatch"
 
-        it "returns an error when shifting a double" $ do
-            let str = "int fun(){ return 1.2 << 3; }"
+        it "returns an error when shifting a complex" $ do
+            let str = "int fun(){ return 1j << 3; }"
             typeTestTemplate str "TypeMismatch"
 
         it "returns an error when adding an int and a qbit" $ do
@@ -101,3 +101,7 @@ typeSpec = do
         it "returns an error when declaring a variable in the default part of quantum switch-case" $ do
             let str = "bool fun(){ qbit q[2]; switch(q) {default: int a = 2;}}"
             typeTestTemplate str "UnsupportedStatement"
+
+        it "returns an error when casting an array" $ do
+            let str = "bool fun(){ int a[2]; print a as double; }"
+            typeTestTemplate str "TypeMismatch"

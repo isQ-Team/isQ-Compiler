@@ -112,7 +112,10 @@ mlirNegF = mlirUnaryOp ("negf", Double, Double)
 
 mlirI1toI2 = mlirUnaryOp ("extui", Bool, I2)
 mlirI2toIndex = mlirUnaryOp ("index_cast", I2, Index)
+mlirIndextoI1 = mlirUnaryOp ("index_cast", Index, Bool)
+mlirI64toIndex = mlirUnaryOp ("index_cast", I64, Index)
 mlirIndextoI64 = mlirUnaryOp ("index_cast", Index, I64)
+mlirDoubletoI64 = mlirUnaryOp ("fptosi", Double, I64)
 mlirI64toDouble = mlirUnaryOp ("sitofp", I64, Double)
 mlirDoubletoComplex = MLIRUnaryOp "fptocp" Double Complex
 

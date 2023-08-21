@@ -362,6 +362,12 @@ emitExpr' f x@(EImplicitCast ann@(mType->M.Index) val@(astMType->M.Bool)) = do
     pushOp $ MCast pos i_i2 val' mlirI1toI2
     pushOp $ MCast pos i i_i2 mlirI2toIndex
     return i
+emitExpr' f x@(EImplicitCast ann@(mType->M.Bool) val@(astMType->M.Index)) = do
+    val' <- f val
+    pos <- mpos ann
+    let i = ssa ann
+    pushOp $ MCast pos i val' mlirIndextoI1
+    return i
 emitExpr' f x@(EImplicitCast ann@(mType->M.Double) val@(astMType->M.Index)) = do
     val'<-f val
     pos<-mpos ann
@@ -369,6 +375,14 @@ emitExpr' f x@(EImplicitCast ann@(mType->M.Double) val@(astMType->M.Index)) = do
     let i_i64 = SSA $ (unSsa i) ++"_i64"
     pushOp $ MCast pos i_i64 val' mlirIndextoI64
     pushOp $ MCast pos i i_i64 mlirI64toDouble
+    return i
+emitExpr' f x@(EImplicitCast ann@(mType->M.Index) val@(astMType->M.Double)) = do
+    val' <- f val
+    pos <- mpos ann
+    let i = ssa ann
+    let i_i64 = SSA $ (unSsa i) ++"_i64"
+    pushOp $ MCast pos i_i64 val' mlirDoubletoI64
+    pushOp $ MCast pos i i_i64 mlirI64toIndex
     return i
 emitExpr' f (EImplicitCast ann@(mType->M.Complex) val@(astMType->M.Double)) = do
     val' <- f val

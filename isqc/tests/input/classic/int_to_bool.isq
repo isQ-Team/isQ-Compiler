@@ -1,0 +1,17 @@
+int fun(bool a) {
+    if (a) {
+        return 3;
+    }
+    return 4;
+}
+
+unit main()
+{
+    bool a = 1;
+    print true && a;
+    print true && 0 as bool;
+    print fun(a);
+    if (a) {
+        print 2;
+    }
+}

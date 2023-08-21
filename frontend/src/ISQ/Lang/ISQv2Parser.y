@@ -262,12 +262,20 @@ Expr2s : {- empty -} {\t -> t}
        | '%' Expr2 Expr2s { \t -> $3 $ EBinary $1 Mod t $2 }
 
 Expr2 :: {LExpr}
-Expr2 : Primary Expr1s { $2 $1 }
+Expr2 : Expr1 Expr1s { $2 $1 }
 
+-- Right associative, i.e., 2**3**4=2**(3**4)
 Expr1s :: {LExpr -> LExpr}
 Expr1s : {- empty -} {\t -> t}
-       | '**' Primary { \t -> EBinary $1 Pow t $2 }
-       | '**' Primary Expr1s { \t -> $3 $ EBinary $1 Pow t $2 }
+       | '**' Expr1 { \t -> EBinary $1 Pow t $2 }
+       | '**' Expr1 Expr1s { \t -> EBinary $1 Pow t $ $3 $2 }
+
+Expr1 :: {LExpr}
+Expr1 : Primary Expr0s { $2 $1 }
+
+Expr0s :: {LExpr -> LExpr}
+Expr0s : {- empty -} {\t -> t}
+       | as Type { \t -> ECast $1 t $2 }
 
 Primary :: {LExpr}
 Primary : Expr1Left '.length' { EArrayLen $2 $1 }
