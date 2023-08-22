@@ -1,0 +1,82 @@
+/*
+* State tomography of a qubit in a Bell pair
+*/
+import std;
+
+// Store the estimated result
+double Rho00_Re, Rho11_Re, Rho00_Im, Rho11_Im;
+double Rho01_Re, Rho01_Im, Rho10_Re, Rho10_Im;
+
+// Measurement in Pauli basis
+double MeasureX(qbit q) {
+    H(q);
+    return 1 - 2 * M(q);
+}
+double MeasureY(qbit q) {
+    inv S(q);
+    H(q);
+    return 1 - 2 * M(q);
+}
+double MeasureZ(qbit q) {
+    return 1 - 2 * M(q);
+}
+
+// Prepare the Bell state
+procedure Bell(qbit q[2]) {
+    q = |0>;
+    H(q[0]);
+    CNOT(q[0], q[1]);
+}
+
+procedure BuildDensityOperator(double mx, double my, double mz) {
+    Rho00_Re = (1 + mz) / 2;
+    Rho11_Re = (1 - mz) / 2;
+    Rho00_Im = 0;
+    Rho11_Im = 0;
+    Rho01_Re = mx / 2;
+    Rho10_Re = mx / 2;
+    Rho01_Im = -my / 2;
+    Rho10_Im = my / 2;
+}
+
+procedure TomographyForState(int Ntimes) {
+    qbit QS[2];
+    double sx, sy, sz;
+    double mx, my, mz;
+    sx = 0;
+    sy = 0;
+    sz = 0;
+
+    for i in 0 : Ntimes     {
+        Bell(QS);
+        sx = sx + MeasureX(QS[0]);  // firt qubit of the Bell state
+        
+        Bell(QS);
+        sy = sy + MeasureY(QS[0]);
+
+        Bell(QS);
+        sz = sz + MeasureZ(QS[0]);
+    }
+
+    mx = sx / Ntimes;
+    my = sy / Ntimes;
+    mz = sz / Ntimes;
+    BuildDensityOperator(mx, my, mz);
+}
+
+procedure ShowResult() {
+    print Rho00_Re;
+    print Rho00_Im;
+    print Rho01_Re;
+    print Rho01_Im;
+    print Rho10_Re;
+    print Rho10_Im;
+    print Rho11_Re;
+    print Rho11_Im;
+}
+
+procedure main()
+{
+    TomographyForState(10000);
+    ShowResult();
+}

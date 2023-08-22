@@ -66,6 +66,7 @@ fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Er
 #[test_case("random")]
 #[test_case("repeat_until_success")]
 #[test_case("rfs")]
+#[test_case("tomography")]
 fn expect_no_error(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let path = Path::new("..").join("examples").join(name.to_string() + ".isq");
     let mut cmd = Command::cargo_bin("isqc")?;
