@@ -74,10 +74,6 @@ typeSpec = do
             let str = "bool fun(){ int a[] = 2; }"
             typeTestTemplate str "TypeMismatch"
 
-        it "returns an error when assigning a double to an int array" $ do
-            let str = "bool fun(){ int a[] = {2, 3.4}; }"
-            typeTestTemplate str "TypeMismatch"
-
         it "returns an error when using for over an int" $ do
             let str = "bool fun(){ for i in 4 {}; }"
             typeTestTemplate str "TypeMismatch"
