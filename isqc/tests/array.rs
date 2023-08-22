@@ -2,11 +2,11 @@ mod util;
 use util::merge;
 use assert_cmd::prelude::*; // Add methods on commands
 use predicates::prelude::*; // Used for writing assertions
-use std::{process::Command}; // Run programs
+use std::process::Command; // Run programs
 use std::path::Path;
 use test_case::test_case;
 
-#[test_case("init", &merge(&["4", "5", "6"]))]
+#[test_case("init", &merge(&["4", "5", "1"]))]
 #[test_case("global", &merge(&["3"]))]
 #[test_case("length", &merge(&["5", "5", "5", "5"]))]
 #[test_case("measure", &merge(&["4", "5"]))]

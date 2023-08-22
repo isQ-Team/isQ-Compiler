@@ -1,6 +1,6 @@
 procedure main()
 {
-    int a[] = {4, 5, 6};
+    int a[] = {4, 5.1, true};
     print a[0];
     print a[1];
     print a[2];

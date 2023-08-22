@@ -411,10 +411,9 @@ typeCheckExpr' f (EList pos lis) = do
         let ann = annotationExpr $ lis' !! min_idx
         UnsupportedType (sourcePos ann) (termType ann)
     let ele_type = intToType min_level
-    lis'' <- mapM (matchType [Exact ele_type]) lis'
     let ty = Type () (Array $ length lis) [ele_type]
     ssa <- nextId
-    return $ EList (TypeCheckData pos ty ssa) lis''
+    return $ EList (TypeCheckData pos ty ssa) lis'
 typeCheckExpr' f x@EDeref{} = error "Unreachable."
 typeCheckExpr' f x@EImplicitCast{} = error "Unreachable."
 typeCheckExpr' f (ETempVar pos ident) = do
@@ -658,14 +657,13 @@ typeCheckAST' f (NDefvar pos defs) = do
                                     let right_type = termType $ annotationExpr r'
                                     case right_type of
                                         Type () (Array rlen) [rsub] -> do
-                                            let li = typeToInt lsub
-                                            let ri = typeToInt rsub
-                                            let min = minimum [li, ri]
-                                            when (min < 0 || li > ri) $ throwError $ TypeMismatch pos [Exact left_type] right_type
+                                            when (typeToInt lsub < 0) $ throwError $ UnsupportedType pos left_type
+                                            let EList ann sub = r'
+                                            sub' <- mapM (matchType [Exact lsub]) sub
                                             let llen' = case llen of
                                                     0 -> rlen
                                                     _ -> llen
-                                            return (Just r', Type () (Array llen') [lsub])
+                                            return (Just $ EList ann sub', Type () (Array llen') [lsub])
                                         _ -> throwError $ TypeMismatch pos [Exact left_type] right_type
                                 _ -> do
                                     r''<-matchType [Exact left_type] r'
