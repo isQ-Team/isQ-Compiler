@@ -11,9 +11,9 @@ data MLIRType =
     MUnit | Bool | I2 | I64 | Index | QState | BorrowedRef MLIRType | Memref (Maybe Int) MLIRType
   | Gate Int | Double | Complex | Ket | QIRQubit | Func MLIRType [MLIRType] | I8 deriving (Show, Eq)
 
-zeroMlirType :: MLIRType->MLIRType
-zeroMlirType (Memref (Just x) ty) = Memref Nothing ty
-zeroMlirType other = other
+fixedLengthMlirType :: MLIRType -> Int -> MLIRType
+fixedLengthMlirType (Memref _ ty) 0 = Memref Nothing ty
+fixedLengthMlirType (Memref _ ty) x = Memref (Just x) ty
 
 mlirType :: MLIRType->String
 mlirType MUnit = "()"
@@ -156,7 +156,7 @@ data MLIROp =
     | MStore {location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA}
     | MStoreOffset { location :: MLIRPos, array :: (MLIRType, SSA), storedVal :: SSA, arrayOffset :: SSA }
     | MTakeRef { location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), arrayOffset :: SSA, isLogic :: Bool }
-    | MSlice { location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), start :: SSA, size :: SSA, step :: SSA }
+    | MSlice { location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA), start :: SSA, size :: Either Int SSA, step :: SSA }
     | MArrayLen {location :: MLIRPos, value :: SSA, array :: (MLIRType, SSA)}
     | MListCast { location :: MLIRPos, value :: SSA, rhs :: SSA, to_zero :: Bool, listType :: MLIRType }
     | MLitInt {location :: MLIRPos, value :: SSA, litInt :: Int}
@@ -164,6 +164,7 @@ data MLIROp =
     | MLitDouble {location :: MLIRPos, value :: SSA, litDouble :: Double}
     | MLitImag {location :: MLIRPos, value :: SSA, litDouble :: Double}
     | MKet {location :: MLIRPos, value :: SSA, coeff :: SSA, basis :: Int}
+    | MVec {location :: MLIRPos, value :: SSA, rawVec :: GateRep}
     | MAllocMemref {location :: MLIRPos, value :: SSA, allocType :: MLIRType, lengthSsa :: SSA}
     | MFreeMemref {location :: MLIRPos, value :: SSA, freeType :: MLIRType}
     | MJmp {location :: MLIRPos, jmpBlock :: BlockName}
@@ -181,7 +182,8 @@ data MLIROp =
     | MSCFYield {location :: MLIRPos}
     | MReturn { location :: MLIRPos, returnVal :: TypedSSA, isLogic :: Bool }
     | MReturnUnit {location :: MLIRPos}
-    | MAssert {location :: MLIRPos, value :: SSA, assertSpace :: Maybe GateRep}
+    | MAssert {location :: MLIRPos, array :: (MLIRType, SSA), assertSpace :: Maybe GateRep}
+    | MAssertSpan {location :: MLIRPos, array :: (MLIRType, SSA), values :: [SSA]}
     | MBp {location :: MLIRPos, bpLine :: SSA}
     | MGlobalMemref {location :: MLIRPos, globalMemrefName :: FuncName, globalMemrefType :: MLIRType}
     | MUseGlobalMemref {location :: MLIRPos, usedVal :: SSA, usedName :: FuncName, globalMemrefType :: MLIRType}
@@ -318,8 +320,9 @@ emitOpStep f env (MQApplyGate loc values [] gate isq) = let dialect = case isq o
 emitOpStep f env (MQApplyGate loc values args gate isq) = let dialect = case isq of {True -> "isq"; False -> "logic"} in indented env $ printf "%s = %s.apply %s(%s) : !isq.gate<%d> %s" (intercalate ", " $ (fmap unSsa values)) dialect (unSsa gate) (intercalate ", " $ (fmap (unSsa) args)) (length args) (mlirPos loc)
 emitOpStep f env (MQMeasure loc result out arg) = indented env $ printf "%s, %s = isq.call_qop @__isq__builtin__measure(%s): [1]()->i1 %s" (unSsa out) (unSsa result) (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQInit loc q len state) = indented env $ printf "isq.init %s : %s, %s %s" (unSsa q) (mlirType $ Memref (Just len) QState) (printMatrixRepNew state) (mlirPos loc)
-emitOpStep f env (MAssert loc val Nothing) = indented env $ printf "isq.assert %s : i1, 3 %s" (unSsa val) (mlirPos loc)
-emitOpStep f env (MAssert loc val (Just (MatrixRep mat))) = indented env $ printf "isq.assertq %s : %s, %s %s" (unSsa val) (mlirType $ Memref Nothing QState) (printMatrixRepNew mat) (mlirPos loc)
+emitOpStep f env (MAssert loc (ty, val) Nothing) = indented env $ printf "isq.assert %s : %s, 3 %s" (unSsa val) (mlirType ty) (mlirPos loc)
+emitOpStep f env (MAssert loc (ty, val) (Just (MatrixRep mat))) = indented env $ printf "isq.assertq %s : %s, %s %s" (unSsa val) (mlirType ty) (printMatrixRepNew mat) (mlirPos loc)
+emitOpStep f env (MAssertSpan loc (ty, val) vecs) = indented env $ printf "isq.assert_span %s : %s, %s %s" (unSsa val) (mlirType ty) (intercalate ", " $ map unSsa vecs) (mlirPos loc)
 emitOpStep f env (MBp loc arg) = indented env $ printf "isq.call_qop @__isq__builtin__bp(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Index, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_int(%s): [0](index)->() %s" (unSsa arg) (mlirPos loc)
 emitOpStep f env (MQPrint loc (Double, arg)) = indented env $ printf "isq.call_qop @__isq__builtin__print_double(%s): [0](f64)->() %s" (unSsa arg) (mlirPos loc)
@@ -379,7 +382,8 @@ emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset
     indented env $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirType $ BorrowedRef elem_ty) (mlirPos loc)
   ]
 emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset _) = error "wtf?"
-emitOpStep f env (MSlice loc value (arr_ty, arr_val) start size step) = indented env $ printf "%s = memref.subview %s[%s][%s][%s] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa start) (unSsa size) (unSsa step) (mlirType arr_ty) (mlirType $ zeroMlirType arr_ty) (mlirPos loc)
+emitOpStep f env (MSlice loc value (arr_ty, arr_val) start (Left size) step) = indented env $ printf "%s = memref.subview %s[%s][%d][%s] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa start) size (unSsa step) (mlirType arr_ty) (mlirType $ fixedLengthMlirType arr_ty size) (mlirPos loc)
+emitOpStep f env (MSlice loc value (arr_ty, arr_val) start (Right size) step) = indented env $ printf "%s = memref.subview %s[%s][%s][%s] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa start) (unSsa size) (unSsa step) (mlirType arr_ty) (mlirType $ fixedLengthMlirType arr_ty 0) (mlirPos loc)
 emitOpStep f env (MArrayLen loc value (arr_ty@(Memref _ elem_ty), arr_val)) = intercalate "\n" $
   [
     indented env $ printf "%s_zero = arith.constant 0 : index %s" (unSsa value) (mlirPos loc),
@@ -398,6 +402,7 @@ emitOpStep f env (MLitImag loc value val) = intercalate "\n" $
     indented env $ printf "%s = complex.create %s_zero, %s_imga : complex<f64> %s" (unSsa value) (unSsa value) (unSsa value) (mlirPos loc)
   ]
 emitOpStep f env (MKet loc value coeff base) = indented env $ printf "%s = isq.create_ket %s : complex<f64>, %d : !isq.ket %s" (unSsa value) (unSsa coeff) base (mlirPos loc)
+emitOpStep f env (MVec loc val (MatrixRep mat)) = indented env $ printf "%s = isq.create_vec %s : !isq.ket %s" (unSsa val) (printMatrixRepNew mat) (mlirPos loc)
 
 -- TODO: remove this dirty hack
 emitOpStep f env (MAllocMemref loc val ty@(BorrowedRef subty) _) = intercalate "\n" $ fmap (indented env) [

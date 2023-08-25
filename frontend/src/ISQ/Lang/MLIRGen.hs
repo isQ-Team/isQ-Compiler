@@ -276,9 +276,12 @@ emitExpr' f (ESubscript ann base offset) = do
     case offset of
         ERange _ start size step -> do
             start' <- f $ fromJust start
-            size' <- f $ fromJust size
             step' <- f $ fromJust step
-            pushOp $ MSlice pos i (astMType base, base') start' size' step'
+            case fromJust size of
+                EIntLit _ v -> pushOp $ MSlice pos i (astMType base, base') start' (Left v) step'
+                other -> do
+                    size' <- f other
+                    pushOp $ MSlice pos i (astMType base, base') start' (Right size') step'
         _ -> do
             offset'<-f offset
             pushOp $ MTakeRef pos i (astMType base, base') offset' in_logic
@@ -335,6 +338,11 @@ emitExpr' f (EKet ann coe base) = do
     coe' <- f coe
     let i = ssa ann
     pushOp $ MKet pos i coe' base
+    return i
+emitExpr' f (EVector ann vals) = do
+    pos <- mpos ann
+    let i = ssa ann
+    pushOp $ MVec pos i $ MatrixRep [vals]
     return i
 emitExpr' f (ERange _ _ _ _) = error "first-class range not supported"
 emitExpr' f (ECoreMeasure ann operand) = do
@@ -445,11 +453,16 @@ emitStatement' f NPass{} = return ()
 emitStatement' f (NAssert ann exp Nothing) = do
     pos <- mpos ann
     exp' <- emitExpr exp
-    pushOp $ MAssert pos exp' Nothing
+    pushOp $ MAssert pos (astMType exp, exp') Nothing
 emitStatement' f (NResolvedAssert ann q mat) = do
     pos <- mpos ann
     q' <- emitExpr q
-    pushOp $ MAssert pos q' $ Just $ MatrixRep mat
+    pushOp $ MAssert pos (astMType q, q') $ Just $ MatrixRep mat
+emitStatement' f (NAssertSpan ann q vecs) = do
+    pos <- mpos ann
+    q' <- emitExpr q
+    vecs' <- mapM emitExpr $ head vecs
+    pushOp $ MAssertSpan pos (astMType q, q') vecs'
 emitStatement' f (NBp ann) = do
     pos<-mpos ann
     let Pos x y f = sourcePos ann

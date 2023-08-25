@@ -30,6 +30,7 @@ fn test_assert_stderr(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
 
 #[test_case("projection_assert")]
 #[test_case("shor")]
+#[test_case("span")]
 fn test_assert_no_error(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
     let folder = Path::new("tests").join("input").join("assert");

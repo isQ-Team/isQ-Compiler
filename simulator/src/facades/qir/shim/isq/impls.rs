@@ -253,9 +253,9 @@ pub fn isq_qir_shim_qis_assert(x0: *mut *mut i8, _x1: *mut *mut i8, x2: i64, x3:
             print!("Qubits are not in space [");
             let pow = (1 << x3) as usize;
             for i in 0..pow {
-                print!(" {}+{}i", space[2*(i * pow)], space[2*(i * pow) + 1]);
+                print!(" {:.3}+{:.3}i", space[2*(i * pow)], space[2*(i * pow) + 1]);
                 for j in 1..pow {
-                    print!(", {}+{}i", space[2*(i * pow + j)], space[2*(i * pow + j) + 1]);
+                    print!(", {:.3}+{:.3}i", space[2*(i * pow + j)], space[2*(i * pow + j) + 1]);
                 }
                 print!(";")
             }

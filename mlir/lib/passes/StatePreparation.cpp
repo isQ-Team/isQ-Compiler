@@ -130,26 +130,36 @@ public:
         llvm::SmallVector<Eigen::dcomplex> amplitude(dimension, 0);
 
         // Get the amplitude of ket expressions recursively
-        std::function<void(mlir::Value, int)> getAmplitude = [&](mlir::Value value, int pre) {
+        std::function<bool(mlir::Value, int)> getAmplitude = [&](mlir::Value value, int pre) {
             mlir::Operation *operation = value.getDefiningOp();
             if (auto op = llvm::dyn_cast_or_null<isq::ir::KetOp>(operation)) {
                 auto create = llvm::dyn_cast_or_null<mlir::complex::CreateOp>(op.getCoeff().getDefiningOp());
                 std::pair<double, double> value = getValueFromComplexCreateOp(create);
                 auto basis = op.getBasis();
-                assert(basis < dimension && "The basis value is not within the Hilbert space!");
+                if (basis >= dimension) {
+                    op.emitError("The basis value is not within the Hilbert space!");
+                    return false;
+                }
                 amplitude[basis] += Eigen::dcomplex(pre * value.first, pre * value.second);
-                return;
+                return true;
             } else if (auto op = llvm::dyn_cast_or_null<isq::ir::AddOp>(operation)) {
-                getAmplitude(op.getLhs(), pre);
-                getAmplitude(op.getRhs(), pre);
+                if (!getAmplitude(op.getLhs(), pre)) {
+                    return false;
+                }
+                return getAmplitude(op.getRhs(), pre);
             } else if (auto op = llvm::dyn_cast_or_null<isq::ir::SubOp>(operation)) {
-                getAmplitude(op.getLhs(), pre);
-                getAmplitude(op.getRhs(), -pre);
+                if (!getAmplitude(op.getLhs(), pre)) {
+                    return false;
+                }
+                return getAmplitude(op.getRhs(), -pre);
             } else {
-                assert(false && "Unknown operator!");
+                op.emitError("Unexpected operation!");
+                return false;
             }
         };
-        getAmplitude(op.getState(), 1);
+        if (!getAmplitude(op.getState(), 1)) {
+            return mlir::failure();
+        }
 
         // Replace InitKetOp with InitOp
         auto mat = isq::ir::DenseComplexF64MatrixAttr::get(rewriter.getContext(), {amplitude});
@@ -199,7 +209,10 @@ public:
         ::isq::ir::DenseComplexF64MatrixAttr state = op.getState();
         llvm::SmallVector<Eigen::dcomplex> val = state.toMatrixVal()[0];
         int64_t state_len = val.size();
-        assert(state_len <= (1 << nqubits) && "State vector is too long!");
+        if (state_len > (1 << nqubits)) {
+            op.emitOpError("State vector is too long!");
+            return mlir::failure();
+        }
         double norm_sum = 0;
         for (int i=0; i<state_len; i++) {
             norm_sum += norm(val[i]);
