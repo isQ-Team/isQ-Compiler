@@ -52,6 +52,7 @@ import Control.Monad (void)
     deriving { TokenReservedId $$ "deriving"}
     oracle { TokenReservedId $$ "oracle"}
     pi { TokenReservedId $$ "pi"}
+    span { TokenReservedId $$ "span" }
     '=' { TokenReservedOp $$ "=" }
     '==' { TokenReservedOp $$ "==" }
     '+' { TokenReservedOp $$ "+" }
@@ -277,6 +278,9 @@ Expr0s :: {LExpr -> LExpr}
 Expr0s : {- empty -} {\t -> t}
        | as Type { \t -> ECast $1 t $2 }
 
+Ket :: {LExpr}
+Ket : '|' NATURAL '>' { EKet $1 (EIntLit $1 1) (tokenNaturalV $2) }
+
 Primary :: {LExpr}
 Primary : Expr1Left '.length' { EArrayLen $2 $1 }
         | NATURAL{ EIntLit (annotation $1) (tokenNaturalV $1) }
@@ -296,7 +300,7 @@ Primary : Expr1Left '.length' { EArrayLen $2 $1 }
         | '!' Primary { EUnary $1 Not $2 }
         | not Primary { EUnary $1 Not $2 }
         | '~' Primary { EUnary $1 Noti $2 }
-        | '|' NATURAL '>' { EKet $1 (EIntLit $1 1) (tokenNaturalV $2) }
+        | Ket { $1 }
 
 CallExpr :: {LExpr}
 CallExpr : ExprCallable '(' Expr1List ')' { ECall (annotation $1) $1 $3}
@@ -360,9 +364,16 @@ IfStatement : if Expr Statement { NIf $1 $2 [$3] [] }
             | if Expr Statement else Statement  { NIf $1 $2 [$3] [$5] }
 PassStatement :: {LAST}
 PassStatement : pass { NPass $1 }
+Vec :: {[LExpr]}
+Vec : ISQCore_GatedefMatrix { head $1 }
+    | Ket { [$1] }
+VecList :: {[[LExpr]]}
+VecList : Vec { [$1] }
+        | Vec ',' VecList { $1 : $3 }
 AssertStatement :: {LAST}
 AssertStatement : assert Expr { NAssert $1 $2 Nothing }
-               | assert Expr in ISQCore_GatedefMatrix { NAssert $1 $2 $ Just $4 }
+                | assert Expr in ISQCore_GatedefMatrix { NAssert $1 $2 $ Just $4 }
+                | assert Expr in span '(' VecList ')' { NAssertSpan $1 $2 $6 }
 BpStatement :: {LAST}
 BpStatement : bp { NBp $1 }
 

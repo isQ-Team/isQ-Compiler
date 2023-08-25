@@ -7,13 +7,21 @@ procedure main()
     // Has no effect since q will be reseted
     nctrl<2> Ry(pi, q[2], q[1], q[0]);
 
+    // Initialize q in a Bell state
     q = [1, 0, 0, -1];
     CNOT(q[1], q[0]);
     H(q[1]);
     print M(q);
 
+    // Initialize when a state amplitude contains imaginary part
     q = [1, 1j];
     S(q[0]);
     H(q[0]);
+    print M(q);
+
+    // Initialize a slice of a qubit array
+    q[2:] = [1, 1j];
+    S(q[2]);
+    H(q[2]);
     print M(q);
 }

@@ -50,6 +50,80 @@ mlir::MemRefType qubit_ref_type(mlir::MLIRContext* ctx, mlir::Location loc, mlir
     return new_memrefty;
 }
 
+class RuleReplaceAssertSpan : public mlir::OpRewritePattern<AssertSpanOp>{
+    mlir::ModuleOp rootModule;
+public:
+    RuleReplaceAssertSpan(mlir::MLIRContext* ctx, mlir::ModuleOp module): mlir::OpRewritePattern<AssertSpanOp>(ctx, 1), rootModule(module){}
+
+    mlir::LogicalResult matchAndRewrite(AssertSpanOp op, mlir::PatternRewriter &rewriter) const override{
+        mlir::Value q = op.getCond();
+        auto mem_type = q.getType().dyn_cast<mlir::MemRefType>();
+        assert(mem_type && "Qubits are not of MemRefType");
+        int nqubits = mem_type.getDimSize(0);
+        int dimension = 1 << nqubits;
+
+        llvm::SmallVector<Eigen::VectorXcd> vecs;
+        for (mlir::Value value : op.getVecs()) {
+            mlir::Operation *operation = value.getDefiningOp();
+            if (auto ket = llvm::dyn_cast_or_null<isq::ir::KetOp>(operation)) {
+                int base = ket.getBasis();
+                if (base >= dimension) {
+                    ket.emitOpError() << base << " is too large for the Hilbert space!";
+                    return mlir::failure();
+                }
+                Eigen::VectorXcd vec = Eigen::VectorXcd::Zero(dimension);
+                vec[base] = 1;
+                vecs.push_back(vec);
+            } else if (auto vec = llvm::dyn_cast_or_null<isq::ir::VecOp>(operation)) {
+                llvm::SmallVector<Eigen::dcomplex> ll = vec.getVec().toMatrixVal()[0];
+                int size = ll.size();
+                if (size > dimension) {
+                    vec.emitOpError("The vector is too long!");
+                    return mlir::failure();
+                }
+                Eigen::VectorXcd eigen(dimension);
+                for (int i=0; i<size; i++) {
+                    eigen[i] = ll[i];
+                }
+                vecs.push_back(eigen);
+            } else {
+                op.emitOpError("Unexpected operation!");
+                return mlir::failure();
+            }
+        }
+
+        // Get orthogonal basis using Gram-Schmidt algorithm
+        int valid = 0;
+        for (int i=0; i<vecs.size(); i++) {
+            Eigen::VectorXcd res(vecs[i]);
+            for (int j=0; j<valid; j++) {
+                res -= vecs[i].dot(vecs[j]) * vecs[j];
+            }
+            double length = sqrt(abs(res.dot(res)));
+            if (length > 1e-10) {
+                vecs[valid++] = res / length;
+            }
+        }
+
+        // Represent the spanned space as |a><a| + |b><b| + ... + |z><z|
+        Eigen::MatrixXcd space = Eigen::MatrixXcd::Zero(dimension, dimension);
+        for (int i=0; i<valid; i++) {
+            space += vecs[i] * vecs[i].transpose();
+        }
+        DenseComplexF64MatrixAttr::MatrixVal mat(dimension, llvm::SmallVector<Eigen::dcomplex>(dimension));
+        for (int i=0; i<dimension; i++) {
+            for (int j=0; j<dimension; j++) {
+                mat[i][j] = space(i, j);
+            }
+        }
+
+        auto attr = DenseComplexF64MatrixAttr::get(op->getContext(), mat);
+        rewriter.create<AssertQOp>(op->getLoc(), q, attr);
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
+
 class RuleReplaceAssertQ : public mlir::OpRewritePattern<AssertQOp>{
     mlir::ModuleOp rootModule;
 public:
@@ -60,7 +134,11 @@ public:
         mlir::Location loc = op->getLoc();
 
         mlir::Value q = op.getCond();
-        ::isq::ir::DenseComplexF64MatrixAttr mat = op.getSpace();
+        auto mem_type = q.getType().dyn_cast<mlir::MemRefType>();
+        assert(mem_type && "Qubits are not of MemRefType");
+        int nqubits = mem_type.getDimSize(0);
+
+        DenseComplexF64MatrixAttr mat = op.getSpace();
         auto val = mat.toMatrixVal();
         int64_t matLen = val.size();
         mlir::Float64Type floatType = mlir::Float64Type::get(ctx);
@@ -79,8 +157,10 @@ public:
                 rewriter.create<mlir::memref::StoreOp>(loc, imag, memref, mlir::ValueRange{index2});
             }
         }
+        mlir::MemRefType memrefQstate = mlir::MemRefType::get(llvm::ArrayRef<int64_t>{mlir::ShapedType::kDynamic}, QStateType::get(ctx), mem_type.getLayout());
+        mlir::Value casted = rewriter.create<mlir::memref::CastOp>(loc, memrefQstate, q);
         lower::QIRExternQuantumFunc utils;
-        utils.projectionAssert(loc, rewriter, rootModule, q, memref);
+        utils.projectionAssert(loc, rewriter, rootModule, casted, memref);
         rewriter.eraseOp(op);
         return mlir::success();
     }
@@ -597,6 +677,7 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
         
         do{
         mlir::RewritePatternSet rps(ctx);
+        rps.add<RuleReplaceAssertSpan>(ctx, m);
         rps.add<RuleReplaceAssertQ>(ctx, m);
         rps.add<RuleRemoveGPhaseAux>(ctx);
         rps.add<RuleInitializeAllocQubit>(ctx, m);

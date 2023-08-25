@@ -415,6 +415,21 @@ def ISQ_AssertQOp: ISQ_Op<"assertq">{
     }];
 }
 
+def ISQ_AssertSpanOp: ISQ_Op<"assert_span">{
+    let summary = "Validate qubits are in specified Hilbert space spanned by some vectors.";
+    let description = [{
+        If qubits are not in the specified space, report an error and abort the program execution.
+    }];
+    let arguments = (ins
+        AnyType: $cond,
+        Variadic<ISQ_Ket>: $vecs
+    );
+    let results = (outs);
+    let assemblyFormat = [{
+        $cond `:` qualified(type($cond)) `,` $vecs attr-dict
+    }];
+}
+
 def ISQ_InitOp: ISQ_Op<"init">{
     let summary = "Set qubits in the specified state.";
     let description = [{
@@ -457,6 +472,20 @@ def ISQ_KetOp: ISQ_Op<"create_ket", [Pure]> {
     let results = (outs ISQ_Ket);
     let assemblyFormat = [{
         $coeff `:` qualified(type($coeff)) `,` $basis attr-dict `:` qualified(type(results))
+    }];
+}
+
+def ISQ_VecOp: ISQ_Op<"create_vec", [Pure]> {
+    let summary = "Matrix representation of a state.";
+    let description = [{
+        Representing a state with a complex maxtrix (only the first row is valid).
+    }];
+    let arguments = (ins
+        DenseComplexF64MatrixAttr: $vec
+    );
+    let results = (outs ISQ_Ket);
+    let assemblyFormat = [{
+        $vec attr-dict
     }];
 }
 

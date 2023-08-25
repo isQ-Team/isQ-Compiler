@@ -323,9 +323,14 @@ typeCheckExpr' f (EKet pos coeff base) = do
     coeff'' <- matchType [Exact $ complexType ()] coeff'
     ssa <- nextId
     return $ EKet (TypeCheckData pos (ketType ()) ssa) coeff'' base
+typeCheckExpr' f (EVector pos vec) = do
+    ssa <- nextId
+    return $ EVector (TypeCheckData pos (ketType ()) ssa) vec
 typeCheckExpr' f (ESubscript pos base (ERange epos lo hi step)) = do
     base' <- f base
     base'' <- matchType [AnyList] base'
+    ssa <- nextId
+    let sub_ty = head $ subTypes $ astType base''
     let lo' = case lo of
             Just exp -> exp
             Nothing -> EIntLit epos 0
@@ -334,15 +339,28 @@ typeCheckExpr' f (ESubscript pos base (ERange epos lo hi step)) = do
             Nothing -> EIntLit epos 1
     let hi' = case hi of
             Just exp -> exp
-            Nothing -> EArrayLen epos base
-    -- size = ceil[(hi - lo) / step]
-    let size = EBinary epos CeilDiv (EBinary epos Sub hi' lo') step'
-    range <- f $ ERange epos (Just lo') (Just size) (Just step')
-    ssa <- nextId
-    in_oracle <- gets inOracle
-    let sub_ty = head $ subTypes $ astType base''
-    let ty = Type () (Array 0) [sub_ty]
-    return $ ESubscript (TypeCheckData pos ty ssa) base'' range
+            Nothing -> case astType base'' of
+                    Type () (Array 0) [_] -> EArrayLen epos base
+                    Type () (Array x) [_] -> EIntLit epos x
+    let getSize = case lo' of
+                    EIntLit _ lo -> case step' of
+                            EIntLit _ step -> case hi' of
+                                    -- size = ceil[(hi - lo) / step]
+                                    EIntLit _ hi -> -((lo - hi) `div` step)
+                                    _ -> -1
+                            _ -> -1
+                    _ -> -1
+    case getSize of
+        n | n <= 0 -> do
+            -- size = ceil[(hi - lo) / step]
+            let size = EBinary epos CeilDiv (EBinary epos Sub hi' lo') step'
+            range <- f $ ERange epos (Just lo') (Just size) (Just step')
+            let ty = Type () (Array 0) [sub_ty]
+            return $ ESubscript (TypeCheckData pos ty ssa) base'' range
+        size -> do
+            range <- f $ ERange epos (Just lo') (Just $ EIntLit epos size) (Just step')
+            let ty = Type () (Array size) [sub_ty]
+            return $ ESubscript (TypeCheckData pos ty ssa) base'' range
 typeCheckExpr' f (ESubscript pos base offset) = do
     base' <- f base
     base'' <- matchType [AnyList] base'
@@ -586,6 +604,11 @@ typeCheckAST' f (NResolvedAssert pos q space) = do
     q' <- typeCheckExpr q
     q'' <- matchType [ArrayType $ Exact (qbitType ())] q'
     return $ NResolvedAssert (okStmt pos) q'' space
+typeCheckAST' f (NAssertSpan pos q vecs) = do
+    q' <- typeCheckExpr q
+    q'' <- matchType [ArrayType $ Exact (qbitType ())] q'
+    vecs' <- mapM typeCheckExpr $ head vecs
+    return $ NAssertSpan (okStmt pos) q'' [vecs']
 typeCheckAST' f (NBp pos) = do
     temp_ssa<-nextId
     let annotation = TypeCheckData pos (unitType ()) temp_ssa

@@ -39,6 +39,7 @@ data Expr ann =
      | EBoolLit { annotationExpr :: ann, boolLitVal :: Bool }
      | ECast {annotationExpr :: ann, castedExpr :: Expr ann, castTo :: Type ann}
      | EKet {annotationExpr :: ann, coefficient :: Expr ann, baseLit :: Int}
+     | EVector {annotationExpr :: ann, vecLitVal:: [Complex Double]}
      | ERange {annotationExpr :: ann, rangeLo :: Maybe (Expr ann), rangeHi :: Maybe (Expr ann), rangeStep :: Maybe (Expr ann)}
      | ECoreMeasure { annotationExpr :: ann, measureOperand :: Expr ann }
      | EList { annotationExpr :: ann, exprListElems :: [Expr ann] }
@@ -70,6 +71,7 @@ data AST ann =
      | NEmpty { annotationAST :: ann }
      | NPass { annotationAST :: ann }
      | NAssert { annotationAST :: ann, condition :: Expr ann, space :: Maybe [[Expr ann]] }
+     | NAssertSpan { annotationAST :: ann, condition :: Expr ann, vectors :: [[Expr ann]] }
      | NBp { annotationAST :: ann }
      | NWhile { annotationAST :: ann, condition :: Expr ann, body :: ASTBlock ann }
      | NCase { annotationAST :: ann, caseBasis :: Int, body :: ASTBlock ann, isKet :: Bool }
@@ -85,7 +87,6 @@ data AST ann =
      -- extern defgate Rz(double): gate(1) = "__quantum__qis__rz__body";
      -- extern defgate H(): gate(1) = "__quantum__qis__h__body";
      | NExternGate { annotationAST :: ann, gateName :: String, extraArgs :: [Type ann], gateSize :: Int, qirName :: String}
---     | NCoreU3 { annotationAST :: ann, unitaryGate :: Expr ann, unitaryOperands :: [Expr ann], angle :: [Expr ann]}
      | NCoreInit { annotationAST :: ann, initOperand :: Expr ann, initState :: [[Expr ann]] }
      | NCorePrint { annotationAST :: ann, printOperands :: Expr ann}
      | NCoreMeasure {annotationAST :: ann, measExpr :: Expr ann}
@@ -222,6 +223,14 @@ passVerifyDefgate = mapM go where
         case checkGateSize new_mat of
           Just sz -> return $ NResolvedAssert ann q new_mat
           Nothing -> Left $ BadMatrixShape a
+
+    go a@(NAssertSpan ann q vecs) = do
+      let check [ket@(EKet _ _ _)] = return ket
+          check vec = do
+              vec' <- mapM foldConstantComplex' vec
+              return $ EVector (annotationExpr $ head vec) vec'
+      vecs' <- mapM check vecs
+      return $ NAssertSpan ann q [vecs']
 
     go a@(NCoreInit ann q space) = do
         space' <- mapM (mapM foldConstantComplex') space
