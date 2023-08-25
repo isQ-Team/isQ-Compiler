@@ -66,9 +66,9 @@ fn get_single_mat(s: &str, parameters: &[f64]) -> [f64; 8]{
     par
 }
 
-pub fn sim(code: String, shots: i64){
+pub fn sim(code: String, shots: i64, capacity: usize){
     
-    let mut dev = NaiveSimulator::new();
+    let mut dev = NaiveSimulator::new(capacity);
     let qcis: Vec<&str> = code.split("\n").collect();
 
     if !reg(&qcis){

@@ -1004,7 +1004,7 @@ private:
 
 namespace isq {
 namespace ir{
-mlir::LogicalResult generateQCIS(mlir::MLIRContext &context, mlir::ModuleOp &module, llvm::raw_fd_ostream &os, bool printast) {
+mlir::LogicalResult generateQCIS(mlir::MLIRContext &context, mlir::ModuleOp &module, llvm::raw_string_ostream &os, bool printast) {
     return MLIRPassImpl(context, module, os, printast).mlirPass();
 }
 }

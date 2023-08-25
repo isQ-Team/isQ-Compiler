@@ -310,3 +310,51 @@ pub struct UnmatchedScopeError{
 )]
 pub struct InternalCompilerError(pub String);
 
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Invalid output from mlir compiler.")]
+#[diagnostic(
+    code(isqv2::mlir::invalid_output),
+    help("input format should json.")
+)]
+pub struct InvalidMLIRJson;
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("`{0}`")]
+#[diagnostic(
+    code(isqv2::mlir::input_file_not_found),
+)]
+pub struct MLIRFileNotFound(pub String);
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("Invalid mlir backend.")]
+#[diagnostic(
+    code(isqv2::mlir::invalid_backend),
+    help("This means something is wrong.")
+)]
+pub struct InvalidMLIRBackend;
+
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("`{msg}`")]
+#[diagnostic(
+    code(isqv2::mlir::optimization_error),
+)]
+pub struct OptimizationError{
+    #[source_code]
+    pub src: NamedSource,
+    #[label("failed here.")]
+    pub pos: SourceSpan,
+    pub msg: String
+}
+
+#[derive(Error, Debug, Diagnostic)]
+#[error("`{msg}`")]
+#[diagnostic(
+    code(isqv2::mlir::failed)
+)]
+pub struct OptimizationFailed {
+    #[related]
+    pub related: Vec<OptimizationError>,
+    pub msg: String
+}

@@ -28,6 +28,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include <nlohmann/json.hpp>
 
 
 #define STR_(x) #x
@@ -41,8 +42,18 @@ static void PrintVersion(mlir::raw_ostream &OS) {
 }
 
 namespace cl = llvm::cl;
-static cl::opt<std::string> inputFilename(cl::Positional, cl::desc("<input isq file>"),cl::init("-"),cl::value_desc("filename"));
-
+static cl::opt<std::string> inputFilename(
+    cl::Positional, 
+    cl::desc("<input file>"),
+    cl::init("-"),
+    cl::value_desc("filename")
+);
+static cl::opt<bool> formatOutput(
+    "format-out",
+    cl::desc("format output/error through json"),
+    cl::init(false)
+);
+      
 namespace{
     enum BackendType {None, OpenQASM3, QCIS, EQASM};
 }
@@ -58,6 +69,27 @@ static cl::opt<enum BackendType> emitBackend(
 static cl::opt<bool> printAst(
     "printast", cl::desc("print mlir ast."));
 
+
+struct qLoc{
+    std::string source_file;
+    int line;
+    int col;
+};
+
+
+nlohmann::json gen_err_info(qLoc loc, std::string tag, std::string msg){
+    nlohmann::json err_info = {
+        {"pos",{
+            {"filename", loc.source_file},
+            {"line", loc.line},
+            {"column", loc.col}
+        }},
+        {"tag", tag},
+        {"msg", msg}
+    };
+    return err_info;
+}
+
 int isq_mlir_codegen_main(int argc, char **argv) {
     llvm::cl::AddExtraVersionPrinter(PrintVersion);
     mlir::DialectRegistry registry;
@@ -70,6 +102,31 @@ int isq_mlir_codegen_main(int argc, char **argv) {
     mlir::PassPipelineCLParser passPipeline("", "Compiler passes to run");
     cl::ParseCommandLineOptions(argc, argv, "isQ MLIR Dialect Codegen\n");
     
+    mlir::DiagnosticEngine &engine = context.getDiagEngine();
+
+    // Handle the reported diagnostic.
+    // Return success to signal that the diagnostic has either been fully
+    // processed, or failure if the diagnostic should be propagated to the
+    // previous handlers.
+    nlohmann::json err;
+    err["Left"] = nlohmann::json::array();
+
+    engine.registerHandler([&](mlir::Diagnostic &diag) -> mlir::LogicalResult {
+        //std::cout << "Dumping Module after error.\n";
+        if (diag.getSeverity() == mlir::DiagnosticSeverity::Error){
+
+            mlir::FileLineColLoc flc = diag.getLocation().dyn_cast<mlir::FileLineColLoc>();
+            qLoc loc = qLoc(flc.getFilename().strref().str(), flc.getLine(), flc.getColumn());
+            
+            nlohmann::json err_diag = gen_err_info(loc, "OptimizationError", diag.str());
+
+            err["Left"].insert(err["Left"].end(), err_diag);
+        }
+        //std::cout << err.dump() << std::endl;
+        bool should_propagate_diagnostic = true;
+        return mlir::success(should_propagate_diagnostic);
+    });
+
     mlir::PassManager pm(&context, mlir::OpPassManager::Nesting::Implicit);
     pm.enableVerifier(true);
     applyPassManagerCLOptions(pm);
@@ -77,52 +134,71 @@ int isq_mlir_codegen_main(int argc, char **argv) {
         emitError(mlir::UnknownLoc::get(pm.getContext())) << msg;
         return mlir::failure();
     });
+
     if (mlir::failed(res)){
-        llvm::errs() << "init pass error\n";
-        return -1;
+        llvm::outs() << err.dump();
+        return 0;
     }
 
     llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr = llvm::MemoryBuffer::getFileOrSTDIN(inputFilename);
     if (std::error_code EC = fileOrErr.getError()) {
-    llvm::errs() << "Could not open input file: " << EC.message() << "\n";
-        return -1;
+        nlohmann::json ec_err = gen_err_info(qLoc(inputFilename, 0, 0), "FileNotFound", EC.message());
+        err["Left"].insert(err["Left"].end(), ec_err);
+        llvm::outs() << err.dump();
+        return 0;
     }
+
     llvm::SourceMgr sourceMgr;
     sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
     mlir::OwningOpRef<mlir::ModuleOp> module = mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &context);
     if (!module) {
-        llvm::errs() << "Error: can't load file " << inputFilename << "\n";
-        return 3;
+        llvm::outs() << err.dump();
+        //llvm::errs() << "Error: can't load file " << inputFilename << "\n";
+        return 0;
     }
 
     auto module_op = module.get();
     if (mlir::failed(pm.run(module_op))){
-        llvm::errs() << "Error: Lower error\n";
-        return -1;
+        llvm::outs() << err.dump();
+        return 0;
     }
 
-    if(emitBackend==None){
-        module->print(llvm::outs());
+
+    std::string s;
+    llvm::raw_string_ostream os(s);
+
+    if (emitBackend==None){
+        module->print(os);
     }else if(emitBackend==OpenQASM3){
-        if(failed(isq::ir::generateOpenQASM3Logic(context, module_op, llvm::outs()))){
-            llvm::errs() << "Error: Generate OpenQASM3 failed.\n";
-            return -2;
+        if(failed(isq::ir::generateOpenQASM3Logic(context, module_op, os))){
+            llvm::outs() << err.dump();
+            return 0;
         }
     }else if (emitBackend==QCIS){
-        if(failed(isq::ir::generateQCIS(context, module_op, llvm::outs(), printAst))){
-            llvm::errs() << "Error: Generate QCIS failed.\n";
-            return -2;
+        if(failed(isq::ir::generateQCIS(context, module_op, os, printAst))){
+            llvm::outs() << err.dump();
+            return 0;
         }
     }else if (emitBackend==EQASM){
-        if(failed(isq::ir::generateEQASM(context, module_op, llvm::outs(), printAst))){
-            llvm::errs() << "Error: Generate EQASM failed.\n";
-            return -2;
+        if(failed(isq::ir::generateEQASM(context, module_op, os, printAst))){
+            llvm::outs() << err.dump();
+            return 0;
         }
     }else{
-        llvm::errs() << "Bad backend.\n";
-        return -1;
+        nlohmann::json backend_err = gen_err_info(qLoc("", 0, 0), "BackendError", "Bad backend");
+        err["Left"].insert(err["Left"].end(), backend_err);
+        llvm::outs() << err.dump();
+        return 0;
     }
-    
+
+    if (formatOutput){
+        nlohmann::json out_json = {
+            {"Right", s}
+        };
+        llvm::outs() << out_json.dump();
+    }else{
+        llvm::outs() << s;
+    }
     return 0;
 }
 

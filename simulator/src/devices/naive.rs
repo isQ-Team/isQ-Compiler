@@ -17,10 +17,11 @@ pub struct NaiveSimulator {
     allocated_qubit_counter: usize,
     measure_res: String,
     reset_flag: bool,
+    capacity: usize
 }
 
 impl NaiveSimulator {
-    pub fn new() -> Self {
+    pub fn new(capacity: usize) -> Self {
         trace!("Naive simulator created");
         let zero_state = vec![Complex64::new(1.0, 0.0)];
         Self {
@@ -30,6 +31,7 @@ impl NaiveSimulator {
             allocated_qubit_counter: 0,
             measure_res: "".into(),
             reset_flag: false,
+            capacity: capacity
         }
     }
     fn qubit_to_state_id(&self, q: &<NaiveSimulator as QDevice>::Qubit) -> usize {
@@ -140,6 +142,9 @@ impl NaiveSimulator {
     }
 
     fn allocate_qubit_at_msb(&mut self) -> usize {
+        if self.allocated_qubit_counter + 1 > self.capacity {
+            panic!("simulation on qcloud can only support {} qubits, please use offline tarball isqc for more qubits", self.capacity);
+        }
         self.state
             .resize(self.state.len() * 2, Complex64::new(0.0, 0.0));
         let next_id = self.allocated_qubit_counter;
@@ -467,7 +472,7 @@ mod test {
         use crate::devices::sq2u3::SQ2U3Device;
 
         env_logger::init();
-        let mut device = CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new()));
+        let mut device = CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new(22)));
 
         let (mut r_00, mut r_01, mut r_10, mut r_11) = (0, 0, 0, 0);
         for _i in 0..1000 {

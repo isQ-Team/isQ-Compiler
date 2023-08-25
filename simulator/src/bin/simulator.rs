@@ -1,3 +1,4 @@
+#![feature(panic_info_message)]
 use isq_simulator::{
     devices::{checked::CheckedDevice, naive::NaiveSimulator, sq2u3::SQ2U3Device, noop::NoopDevice},
     facades::qir::{context::{get_current_context, make_context_current, QIRContext, RANK_REF}}, qdevice::QDevice,
@@ -19,6 +20,8 @@ extern crate std;
 use std::{io::{Read, Write}, path::Path, fs::File, collections::HashMap};
 use std::{ffi::OsString, thread};
 extern crate isq_simulator;
+
+use std::{panic, process};
 
 use clap::ArgGroup;
 #[derive(Parser, Debug)]
@@ -52,7 +55,9 @@ struct SimulatorArgs {
     #[clap(long, short, allow_negative_numbers(true))]
     double_par: Option<Vec<f64>>,
     #[clap(long, short, default_value = "1")]
-    np: i64
+    np: i64,
+    #[clap(long, default_value = "100")]
+    qn: usize
 }
 
 
@@ -72,7 +77,14 @@ fn main() -> std::io::Result<()> {
             record.args()
         )
     }).parse_default_env().init();*/
-    
+    panic::set_hook(Box::new(|panic_info| {
+        if let Some(s) = panic_info.message(){
+            println!("Error: {s:?}");
+        } else {
+            println!("Error: panic occurred");
+        }
+        process::abort();
+    }));
 
     let args: SimulatorArgs = SimulatorArgs::parse();
 
@@ -99,7 +111,7 @@ fn main() -> std::io::Result<()> {
             let mut f = File::open(input_path)?;
             let mut buf = String::new();
             f.read_to_string(&mut buf).unwrap();
-            qcis::sim(buf, shots);
+            qcis::sim(buf, shots, args.qn);
             return Ok(());
         }
         #[cfg(not(feature = "qcis"))]
@@ -128,7 +140,7 @@ fn main() -> std::io::Result<()> {
         debug!("{}th simulation print:", i);
         let device: Box<dyn QDevice<Qubit=usize>> = {
             if args.naive{
-                Box::new(CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new())))
+                Box::new(CheckedDevice::new(SQ2U3Device::new(NaiveSimulator::new(args.qn))))
             }else if let Some(cap) = args.cuda{
                 #[cfg(not(feature = "cuda"))]
                 panic!("Simulator is built with `cuda` feature disabled. {}", cap);
