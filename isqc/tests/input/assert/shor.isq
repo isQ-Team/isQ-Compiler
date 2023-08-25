@@ -26,11 +26,11 @@ procedure main()
     CNOT(q[2], q[3]);
     CNOT(q[2], q[4]);
     assert q[:2] in span([1, 1, 1, 1]);
-    assert q[2:5] in span([1, 0, 0, 0, 0, 0, 0, 1]);
+    assert q[2:] in span([1, 0, 0, 0, 0, 0, 0, 1]);
 
     qft_inv(q[2:-1:-1]);
     assert q[:3] in span(|0>, |1>);
-    assert q[3:5] in span(|0>, |3>);
+    assert q[3:] in span(|0>, |3>);
 
     print M(q[:3]);    // should be either 0 or 1
 }

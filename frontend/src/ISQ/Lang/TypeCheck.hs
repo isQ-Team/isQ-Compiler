@@ -339,7 +339,9 @@ typeCheckExpr' f (ESubscript pos base (ERange epos lo hi step)) = do
             Nothing -> EIntLit epos 1
     let hi' = case hi of
             Just exp -> exp
-            Nothing -> EArrayLen epos base
+            Nothing -> case astType base'' of
+                    Type () (Array 0) [_] -> EArrayLen epos base
+                    Type () (Array x) [_] -> EIntLit epos x
     let getSize = case lo' of
                     EIntLit _ lo -> case step' of
                             EIntLit _ step -> case hi' of
