@@ -142,7 +142,7 @@ impl NaiveSimulator {
     }
 
     fn allocate_qubit_at_msb(&mut self) -> usize {
-        if self.allocated_qubit_counter + 1 > self.capacity {
+        if self.qubit_map.len() + 1 > self.capacity {
             panic!("simulation on qcloud can only support {} qubits, please use offline tarball isqc for more qubits", self.capacity);
         }
         self.state
