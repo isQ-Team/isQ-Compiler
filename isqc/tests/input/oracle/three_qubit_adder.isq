@@ -18,7 +18,7 @@ oracle bool[4] eight_qubit_adder(bool a1[3], bool a2[3]) {
     //bool r7 = a1[7] != a2[7] != t7;
     //bool t8 = (a1[7] && a2[7]) || (a1[7] && t7) || (t7 && a2[7]);
     //bool b[] = {r0, r1, r2, r3, r4, r5, r6, r7, t8};
-    bool b[] = {r0, r1, r2, t3};
+    bool b[] = [r0, r1, r2, t3];
 	return b;
 }
 

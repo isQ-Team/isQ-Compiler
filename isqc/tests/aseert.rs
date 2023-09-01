@@ -1,7 +1,7 @@
 mod util;
 use assert_cmd::prelude::*; // Add methods on commands
 use predicates::prelude::*; // Used for writing assertions
-use std::{process::Command}; // Run programs
+use std::process::Command; // Run programs
 use std::path::Path;
 use test_case::test_case;
 
@@ -28,6 +28,7 @@ fn test_assert_stderr(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
+#[test_case("array_span")]
 #[test_case("projection_assert")]
 #[test_case("shor")]
 #[test_case("span")]

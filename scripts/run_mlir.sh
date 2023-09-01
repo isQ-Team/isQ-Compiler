@@ -3,14 +3,14 @@
 FILENAME="${1%%.*}"
 EXTENSION="${1#*.}"
 if [ "$EXTENSION" == "mlir" ]; then
-    cat $1 | ${ISQ_ROOT}/bin/isq-opt --pass-pipeline=builtin.module\(isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,cse\) --mlir-print-debuginfo -o $FILENAME.opt.mlir
+    cat $1 | ${ISQ_ROOT}/bin/isq-opt --pass-pipeline=builtin.module\(cse,logic-lower-to-isq,isq-state-preparation,isq-oracle-decompose,isq-lower-switch,isq-recognize-famous-gates,isq-eliminate-neg-ctrl,isq-convert-famous-rot,canonicalize,cse,isq-pure-gate-detection,canonicalize,isq-fold-decorated-gates,canonicalize,isq-decompose-ctrl-u3,isq-convert-famous-rot,isq-decompose-known-gates-qsd,isq-remove-trivial-sq-gates,isq-expand-decomposition,canonicalize,cse\) --mlir-print-debuginfo > $FILENAME.opt.mlir
     if [ $? != 0 ]; then
         exit
     fi
     EXTENSION="opt.mlir"
 fi
 if [ "$EXTENSION" == "opt.mlir" ]; then
-    cat $FILENAME.opt.mlir | ${ISQ_ROOT}/bin/isq-opt --pass-pipeline=builtin.module\(cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,func.func\(convert-math-to-llvm\),arith-expand,expand-strided-metadata,memref-expand,convert-math-to-funcs,isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export,global-thread-local\) --mlir-print-debuginfo -o $FILENAME.ll.mlir
+    cat $FILENAME.opt.mlir | ${ISQ_ROOT}/bin/isq-opt --pass-pipeline=builtin.module\(cse,isq-remove-gphase,lower-affine,isq-lower-to-qir-rep,cse,canonicalize,func.func\(convert-math-to-llvm\),arith-expand,expand-strided-metadata,memref-expand,convert-math-to-funcs,isq-lower-qir-rep-to-llvm,canonicalize,cse,symbol-dce,llvm-legalize-for-export,global-thread-local\) --mlir-print-debuginfo > $FILENAME.ll.mlir
     if [ $? != 0 ]; then
         exit
     fi

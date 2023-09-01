@@ -283,16 +283,13 @@ buildBinaryExpr pos op ref_lhs ref_rhs = do
 typeCheckExpr' :: (Expr Pos->TypeCheck (Expr TypeCheckData))->Expr Pos->TypeCheck (Expr TypeCheckData)
 typeCheckExpr' f (EIdent pos ident) = do
     sym<-getSym pos (SymVar ident)
-    ssa<-nextId
-    in_oracle <- gets inOracle
     case isGlobal sym of
-        True ->return $ EGlobalName (TypeCheckData pos (definedType sym) ssa) (qualifiedName sym)
+        True -> do
+            ssa <- nextId
+            return $ EGlobalName (TypeCheckData pos (definedType sym) ssa) (qualifiedName sym)
         False -> do
             let sym_ssa = definedSSA sym
-            case in_oracle of
-                True -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) sym_ssa) sym_ssa
-                False -> return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) sym_ssa
-
+            return $ EResolvedIdent (TypeCheckData pos (definedType sym) sym_ssa) sym_ssa
 typeCheckExpr' f (EBinary pos And lhs rhs) = exactBinaryCheck f (boolType ()) pos And lhs rhs
 typeCheckExpr' f (EBinary pos Or lhs rhs) = exactBinaryCheck f (boolType ()) pos Or lhs rhs
 typeCheckExpr' f (EBinary pos Shl lhs rhs) = exactBinaryCheck f (intType ()) pos Shl lhs rhs
@@ -423,25 +420,30 @@ typeCheckExpr' f (ECoreMeasure pos qubit) = do
             return $ ECall (TypeCheckData pos (intType ()) ssa) fun [qubit'']
 typeCheckExpr' f (EList pos lis) = do
     lis' <- mapM f lis
-    let levels = map (typeToInt . termType . annotationExpr) lis'
-    let (min_level, min_idx) = minimum $ zip levels [0..]
-    when (min_level < 0) $ throwError $ do
-        let ann = annotationExpr $ lis' !! min_idx
-        UnsupportedType (sourcePos ann) (termType ann)
-    let ele_type = intToType min_level
-    let ty = Type () (Array $ length lis) [ele_type]
+    (lis'', ty) <- case astType $ head lis' of
+            Type () Ref [Type () Qbit []] -> do
+                lis'' <- mapM (matchType [Exact $ qbitType ()]) lis'
+                return (lis'', Type () (Array $ length lis) [qbitType ()])
+            _ -> do
+                let levels = map (typeToInt . termType . annotationExpr) lis'
+                let (min_level, min_idx) = minimum $ zip levels [0..]
+                when (min_level < 0) $ throwError $ do
+                    let ann = annotationExpr $ lis' !! min_idx
+                    UnsupportedType (sourcePos ann) (termType ann)
+                let ele_type = intToType min_level
+                return (lis', Type () (Array $ length lis) [ele_type])
     ssa <- nextId
-    return $ EList (TypeCheckData pos ty ssa) lis'
+    return $ EList (TypeCheckData pos ty ssa) lis''
 typeCheckExpr' f x@EDeref{} = error "Unreachable."
 typeCheckExpr' f x@EImplicitCast{} = error "Unreachable."
 typeCheckExpr' f (ETempVar pos ident) = do
     sym<-getSym pos (SymTempVar ident)
-    ssa<-nextId
-    return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) (definedSSA sym)
+    let ssa = definedSSA sym
+    return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) ssa
 typeCheckExpr' f (ETempArg pos ident) = do
     sym<-getSym pos (SymTempArg ident)
-    ssa<-nextId
-    return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) (definedSSA sym)
+    let ssa = definedSSA sym
+    return $ EResolvedIdent (TypeCheckData pos (definedType sym) ssa) ssa
 typeCheckExpr' f (EUnitLit pos) = EUnitLit . TypeCheckData pos (unitType ()) <$> nextId
 typeCheckExpr' f x@EResolvedIdent{} = error "Unreachable."
 typeCheckExpr' f x@EGlobalName{} = error "Unreachable."
@@ -510,15 +512,12 @@ generateIteratorDef (ERange ann lo hi step) = do
     let step_def = Just $ NResolvedDefvar ann [(refIntType (), step_id, estep)]
     return [it_def, lo_def, hi_def, step_def]
 
-getVariableRef :: Pos -> Type () -> Int -> TypeCheck TCExpr
-getVariableRef pos var_type var_id = do
-    var_ref_id <- nextId
-    let var_ref = TypeCheckData pos (refType () var_type) var_ref_id
-    return $ EResolvedIdent var_ref var_id
+getVariableRef :: Pos -> Type () -> Int -> TCExpr
+getVariableRef pos var_type var_id = EResolvedIdent (TypeCheckData pos (refType () var_type) var_id) var_id
 
 getVariableDeref :: Pos -> Type () -> Int -> TypeCheck TCExpr
 getVariableDeref pos var_type var_id = do
-    var_ref <- getVariableRef pos var_type var_id
+    let var_ref = getVariableRef pos var_type var_id
     var_deref_id <- nextId
     let var_deref = TypeCheckData pos var_type var_deref_id
     return $ EDeref var_deref var_ref
@@ -531,7 +530,7 @@ increaseIterator pos it_id = do
     int1_id <- nextId
     let step = EIntLit (TypeCheckData pos (intType ()) int1_id) 1
     let add = EBinary add_ann Add it step
-    left <- getVariableRef pos (intType ()) it_id
+    let left = getVariableRef pos (intType ()) it_id
     return $ NAssign (okStmt pos) left add AssignEq
 
 andRangeCondition :: Pos -> Int -> (Int, Int) -> TypeCheck TCAST
@@ -548,7 +547,7 @@ andRangeCondition pos in_id (it_id, hi_id) = do
     and_id <- nextId
     let and_ann = TypeCheckData pos (boolType ()) and_id
     let and = EBinary and_ann And cond_in cond
-    left <- getVariableRef pos (boolType ()) in_id
+    let left = getVariableRef pos (boolType ()) in_id
     return $ NAssign (okStmt pos) left and AssignEq
 
 getItemFromArray :: Pos -> (TCExpr, Int, Int, Int) -> TypeCheck TCExpr
@@ -618,7 +617,7 @@ typeCheckAST' f (NCall pos c@(ECall _ callee args)) = do
     callee'<-typeCheckExpr callee
     callee''<-matchType [AnyFunc, AnyGate] callee'
     let callee_ty = astType callee''
-    case ty $ callee_ty of
+    case ty callee_ty of
         FuncTy -> do
             c'<-typeCheckExpr c
             return $ NCall (okStmt pos) c'

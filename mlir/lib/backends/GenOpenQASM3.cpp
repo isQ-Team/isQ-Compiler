@@ -79,7 +79,7 @@ using CodegenOpVisitor = OpVisitor<
     mlir::func::FuncOp, scf::IfOp, scf::ForOp, scf::ExecuteRegionOp,
     GetGlobalOp, GlobalOp,
     mlir::arith::ConstantOp, mlir::arith::ExtUIOp, mlir::arith::IndexCastOp, mlir::arith::SIToFPOp,
-    AllocOp, DeallocOp, memref::LoadOp, memref::StoreOp, SubViewOp, memref::CastOp, CmpIOp,
+    memref::AllocOp, DeallocOp, memref::LoadOp, memref::StoreOp, SubViewOp, memref::CastOp, CmpIOp,
     AddIOp, SubIOp, MulIOp, DivSIOp, RemSIOp, AddFOp, SubFOp, MulFOp, DivFOp, NegFOp, AndIOp,
     UseGateOp, DecorateOp, ApplyGateOp, CallQOpOp, AccumulateGPhase, DeclareQOpOp, AssertOp,
     mlir::func::CallOp, mlir::func::ReturnOp, DefgateOp, scf::WhileOp, scf::ConditionOp,

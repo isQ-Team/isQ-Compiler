@@ -7,8 +7,10 @@ use std::path::Path;
 use test_case::test_case;
 
 #[test_case("add", &merge(&["3", "6", "1"]))]
+#[test_case("call_array", &merge(&["1", "1"]))]
 #[test_case("cnot", &merge(&["0", "3"]))]
 #[test_case("init", &merge(&["2", "1", "5"]))]
+#[test_case("init_array", &merge(&["1", "1"]))]
 #[test_case("init_default", &merge(&["0"]))]
 #[test_case("init_ket", &merge(&["2"]))]
 #[test_case("sub", &merge(&["5", "2", "7"]))]

@@ -223,6 +223,26 @@ paramIndex x = do
             return index
         _ -> error "bad param expr"
 
+moveQubitBack :: (Expr TypeCheckData, SSA) -> State RegionBuilder ()
+moveQubitBack ((EList ann lis), qubit') = do
+    let lhs_ty = mType ann
+    let Memref _ ty = lhs_ty
+    case ty of
+        QState -> do
+            pos <- mpos ann
+            let storeBack (EDeref ann subview, index) = do
+                    -- The SSA is defined in emitExpression' f (Elist ...)
+                    let deref_ssa = unSsa $ ssa ann
+                    let index_ssa = SSA $ deref_ssa ++ "_index"
+
+                    let res_ssa = SSA $ deref_ssa ++ "_res"
+                    pushOp $ MTakeRef pos res_ssa (lhs_ty, qubit') index_ssa True
+                    pushOp $ MStore pos (BorrowedRef QState, ssa $ annotationExpr subview) res_ssa
+            mapM storeBack $ zip lis [0..]
+            pushOp $ MFreeIsq pos qubit' lhs_ty
+        _ -> return ()
+moveQubitBack _ = return ()
+
 
 emitExpr' :: (Expr TypeCheckData->State RegionBuilder SSA)->Expr TypeCheckData->State RegionBuilder SSA
 emitExpr' f (EIdent ann name) = error "unreachable"
@@ -303,6 +323,7 @@ emitExpr' f x@(ECall ann (EGlobalName ann2 mname) args) = do
     pos<-mpos ann
     let i = ssa ann
     pushOp $ MCall pos ret (fromFuncName name') args'' logic
+    mapM moveQubitBack $ zip args args'
     return i
 emitExpr' f x@(ECall ann (EResolvedIdent ann2 sym_ssa) args) = do
     args'<-mapM f args
@@ -312,7 +333,6 @@ emitExpr' f x@(ECall ann (EResolvedIdent ann2 sym_ssa) args) = do
     let i = ssa ann
     pushOp $ MCallIndirect pos ret (fromSSA sym_ssa) args''
     return i
-emitExpr' f (ECall ann _ _) = error "indirect call not supported"
 emitExpr' f (EIntLit ann val) = do
     pos<-mpos ann
     let i = ssa ann
@@ -355,7 +375,18 @@ emitExpr' f (ECoreMeasure ann operand) = do
     pushOp $ MQMeasure pos i i_out i_in
     pushOp $ MStore pos (BorrowedRef QState, operand') i_out
     return i
-emitExpr' f (EList _ _) = error "first-class list not supported"
+emitExpr' f (EList ann lis) = do
+    pos <- mpos ann
+    let base = ssa ann
+    let ty = mType ann
+    pushOp $ MAllocIsq pos base ty
+    let emitOne (exp, index) = do
+            exp' <- f exp
+            let index_ssa = SSA $ (unSsa $ ssa $ annotationExpr exp) ++"_index"
+            pushOp $ MLitInt pos index_ssa index
+            pushOp $ MStoreOffset pos (ty, base) exp' index_ssa
+    mapM emitOne $ zip lis [0..]
+    return base
 emitExpr' f x@(EDeref ann val) = do
     val'<-f val
     pos<-mpos ann
@@ -405,7 +436,7 @@ emitExpr' f (EUnitLit ann) = do
     let i = ssa ann
     return i
 emitExpr' f (EResolvedIdent ann i) = do
-    return $ fromSSA i
+    return $ ssa ann
 emitExpr' f (EGlobalName ann@(mType->BorrowedRef _) name) = do
     pos<-mpos ann
     pushOp $ MUseGlobalMemref pos (ssa ann) (fromFuncName name) (mType ann)
@@ -548,6 +579,7 @@ emitStatement' f (NResolvedInit ann qubit space) = do
     pos <- mpos ann
     let Type () (Array len) [q] = termType $ annotationExpr qubit
     pushOp $ MQInit pos qubit' len space
+    moveQubitBack (qubit, qubit')
 emitStatement' f (NCorePrint ann expr) = do
     s<-emitExpr expr
     pos<-mpos ann

@@ -1,0 +1,10 @@
+import std;
+
+procedure main()
+{
+    qbit p, q;
+    H(p);
+    CNOT(p, q);
+    assert [p, q] in span(|0>, |3>);
+    assert [p, q] in span([1, 0, 0, 1]);
+}

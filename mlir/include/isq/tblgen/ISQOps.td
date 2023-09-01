@@ -564,6 +564,48 @@ def YieldOp : ISQ_Op<"yield", [Pure, Terminator, ParentOneOf<["SwitchOp"]>]> {
 
   let assemblyFormat =[{ attr-dict }];
 }
+
+def AllocOp : ISQ_Op<"alloc", []> {
+  let summary = "memory allocation operation";
+  let description = [{
+    Alloc a temporary qstate array. No qubit allocation during lowering.
+
+    Example:
+
+    ```mlir
+    %0 = isq.alloc() : memref<8x64xf32, 1>
+    ```
+  }];
+
+  let results = (outs Res<AnyMemRef, "", [MemAlloc<DefaultResource>]>:$memref);
+
+  let extraClassDeclaration = [{
+    mlir::MemRefType getType() { return getResult().getType().cast<mlir::MemRefType>(); }
+  }];
+
+  let assemblyFormat = [{
+    attr-dict `:` type($memref)
+  }];
+}
+
+def DeallocOp : ISQ_Op<"dealloc", [MemRefsNormalizable]> {
+    let summary = "memory deallocation operation";
+    let description = [{
+        Free the array created by the `alloc` operation.
+
+        Example:
+
+        ```mlir
+        %0 = isq.alloc() : memref<8x64xf32, affine_map<(d0, d1) -> (d0, d1), 1>>
+        isq.dealloc %0 : memref<8x64xf32,  affine_map<(d0, d1) -> (d0, d1), 1>>
+        ```
+    }];
+    let arguments = (ins
+        Arg<AnyRankedOrUnrankedMemRef, "", [MemFree]>:$memref
+    );
+    let assemblyFormat = "$memref attr-dict `:` type($memref)";
+}
+
 /// QMPI
 
 

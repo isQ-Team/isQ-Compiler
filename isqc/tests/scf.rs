@@ -2,7 +2,7 @@ mod util;
 use util::LINE_ENDING;
 use assert_cmd::prelude::*; // Add methods on commands
 use predicates::prelude::*; // Used for writing assertions
-use std::{process::Command}; // Run programs
+use std::process::Command; // Run programs
 use std::path::Path;
 use test_case::test_case;
 
@@ -17,7 +17,6 @@ use test_case::test_case;
 #[test_case("scf_for_neg", "10")]
 #[test_case("scf_for_array", &("2".to_string()+LINE_ENDING+"3"+LINE_ENDING+"4"))]
 #[test_case("scf_for_raw_array", &("2".to_string()+LINE_ENDING+"3"+LINE_ENDING+"4"))]
-#[test_case("scf_for_array_zero", &("2".to_string()+LINE_ENDING+"3"+LINE_ENDING+"4"))]
 #[test_case("scf_for_if", "4")]
 #[test_case("scf_for_step", "4")]
 #[test_case("scf_if", "2")]

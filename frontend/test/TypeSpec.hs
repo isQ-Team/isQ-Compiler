@@ -67,7 +67,7 @@ typeSpec = do
             typeTestTemplate str "TypeMismatch"
 
         it "returns an error when a qubit appears in an array" $ do
-            let str = "bool fun(){ qbit q; int a[] = {2, q}; }"
+            let str = "bool fun(){ qbit q; int a[] = [2, q]; }"
             typeTestTemplate str "UnsupportedType"
 
         it "returns an error when assigning a scalar to an array" $ do

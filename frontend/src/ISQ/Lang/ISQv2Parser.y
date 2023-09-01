@@ -155,6 +155,7 @@ ExprCallable : Qualified { EIdent (annotation $1) (tokenIdentV $1) }
 Expr1Left :: {LExpr}
 Expr1Left : ExprCallable {$1}
           | Expr1Left '[' Expr ']' { ESubscript $2 $1 $3 }
+          | '[' Expr1ListNonEmpty ']' { EList $1 $2 }
 
 Expr12 :: {LExpr}
 Expr12 : Expr11 Expr11s { $2 $1 }
@@ -314,7 +315,6 @@ RangeExpr : MaybeExpr1 ':' MaybeExpr1 ':' MaybeExpr1 { ERange $2 $1 $3 $5 }
 
 Expr2p :: {LExpr}
 Expr2p : RangeExpr { $1 }
-       | '{' Expr1ListNonEmpty '}' { EList $1 $2 }
 
 Expr1List :: {[LExpr]}
 Expr1List : Expr12 { [$1] } 

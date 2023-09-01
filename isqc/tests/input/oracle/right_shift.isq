@@ -1,7 +1,7 @@
 import std;
 
 oracle bool[3] right_shift(bool a[3]) {
-    bool b[] = {a[1], a[2], a[0]};
+    bool b[] = [a[1], a[2], a[0]];
 	return b;
 }
 

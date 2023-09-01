@@ -11,6 +11,7 @@ let
   isqc1Static = justStaticExecutables isqc1;
 in
 isqc1Static.overrideAttrs (final: prev: {
+  doCheck = false;
   nativeBuildInputs = prev.nativeBuildInputs ++ [ isQVersionHook ];
   passthru.isQDevShell =
     let

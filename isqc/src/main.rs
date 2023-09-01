@@ -4,13 +4,11 @@ mod exec;
 mod frontend;
 mod error;
 mod mlir;
-use std::{fs::File, io::Write, path::{Path, PathBuf}, ffi::OsStr, collections::VecDeque, process::exit};
+use std::{fs::File, io::Write, path::{Path, PathBuf}, ffi::OsStr, collections::VecDeque};
 
 use clap::*;
 use error::*;
 use isq_version::ISQVersion;
-
-use std::str::FromStr;
 
 use crate::frontend::resolve_isqc1_output;
 use crate::mlir::resolve_mlir_output;

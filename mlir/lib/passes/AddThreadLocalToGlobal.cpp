@@ -20,12 +20,47 @@ struct AddThreadLocalToGlobal : public mlir::OpRewritePattern<mlir::LLVM::Global
         return mlir::success();
     }
 };
+
+/*
+* Remove redundant StoreOp on Qubit.
+*
+* Example:
+*    %q = llvm.load %addr : !llvm.ptr<ptr<struct<"Qubit", opaque>>>
+*    llvm.call @__quantum__qis__x__body(%q) : (!llvm.ptr<struct<"Qubit", opaque>>) -> ()
+*    llvm.store %q, %addr : !llvm.ptr<ptr<struct<"Qubit", opaque>>>
+*
+* This StoreOp would cause llc running extra long time.
+*/
+class RuleEliminateRefStore : public mlir::OpRewritePattern<mlir::LLVM::StoreOp> {
+public:
+    RuleEliminateRefStore(mlir::MLIRContext* ctx): mlir::OpRewritePattern<mlir::LLVM::StoreOp>(ctx, 1) {
+    }
+    mlir::LogicalResult matchAndRewrite(mlir::LLVM::StoreOp op,  mlir::PatternRewriter &rewriter) const override{
+        mlir::Value val = op.getValue();
+        mlir::LLVM::LLVMPointerType ptr = val.getType().dyn_cast_or_null<mlir::LLVM::LLVMPointerType>();
+        if (!ptr) {
+            return mlir::failure();
+        }
+        mlir::LLVM::LLVMStructType str = ptr.getElementType().dyn_cast_or_null<mlir::LLVM::LLVMStructType>();
+        if (!str || !str.getName().equals(llvm::StringRef("Qubit"))) {
+            return mlir::failure();
+        }
+        mlir::LLVM::LoadOp load = mlir::dyn_cast_or_null<mlir::LLVM::LoadOp>(val.getDefiningOp());
+        if (!load || load.getAddr() != op.getAddr()) {
+            return mlir::failure();
+        }
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
+
 struct GlobalThreadLocalPass : public mlir::PassWrapper<GlobalThreadLocalPass, mlir::OperationPass<mlir::ModuleOp>>{
     void runOnOperation() override {
         mlir::ModuleOp m = this->getOperation();
         auto ctx = m->getContext();
         do {
             mlir::RewritePatternSet rps(ctx);
+            rps.add<RuleEliminateRefStore>(ctx);
             rps.add<AddThreadLocalToGlobal>(ctx);
             mlir::FrozenRewritePatternSet frps(std::move(rps));
             (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);

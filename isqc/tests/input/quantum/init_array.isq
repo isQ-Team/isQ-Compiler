@@ -1,0 +1,9 @@
+import std;
+
+unit main()
+{
+    qbit p, q[1];
+    [p, q[0]] = [0, 0, 0, 1];
+    print M(p);
+    print M(q);
+}

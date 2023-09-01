@@ -220,6 +220,25 @@ public:
         return mlir::success();
     }
 };
+/*
+* Temporary qubit arrary allocation.
+*
+* Only allocate a qstate array **without** actual qubit allocation
+*/
+class RuleLowerIsqAlloc : public mlir::OpRewritePattern<AllocOp>{
+public:
+    RuleLowerIsqAlloc(mlir::MLIRContext* ctx): mlir::OpRewritePattern<AllocOp>(ctx, 1) {}
+    mlir::LogicalResult matchAndRewrite(AllocOp op,  mlir::PatternRewriter &rewriter) const override {
+        auto memrefty = op.getType();
+        if(!memrefty.getElementType().isa<QStateType>()) return mlir::failure();
+        if(memrefty.getShape().size() != 1) return mlir::failure();
+
+        mlir::Value alloc = rewriter.create<mlir::memref::AllocOp>(op.getLoc(), memrefty);
+        op.replaceAllUsesWith(alloc);
+        rewriter.eraseOp(op);
+        return mlir::success();
+    }
+};
 class RuleDeinitializeFreeQubit : public mlir::OpRewritePattern<mlir::memref::DeallocOp>{
     mlir::ModuleOp rootModule;
 public:
@@ -256,6 +275,27 @@ public:
             utils.releaseQubit(loc, rewriter, rootModule, qubit_ref(loc, rewriter, load));
             rewriter.create<mlir::scf::YieldOp>(loc);
         });
+        return mlir::success();
+    }
+};
+
+/*
+* Temporary qubit arrary deallocation.
+*
+* Only deallocate the qstate array **without** actual qubit deallocation
+*/
+class RuleLowerIsqDealloc : public mlir::OpRewritePattern<DeallocOp>{
+public:
+    RuleLowerIsqDealloc(mlir::MLIRContext* ctx): mlir::OpRewritePattern<DeallocOp>(ctx, 1) {}
+    mlir::LogicalResult matchAndRewrite(DeallocOp op,  mlir::PatternRewriter &rewriter) const override {
+        mlir::Value memref = op.getMemref();
+        auto memrefty = memref.getType().dyn_cast<mlir::MemRefType>();
+        assert(memrefty);
+        if(!memrefty.getElementType().isa<QStateType>()) return mlir::failure();
+        if(memrefty.getShape().size() != 1) return mlir::failure();
+
+        rewriter.create<mlir::memref::DeallocOp>(op.getLoc(), memref);
+        rewriter.eraseOp(op);
         return mlir::success();
     }
 };
@@ -444,20 +484,6 @@ public:
             return mlir::success();
         }
 
-        return mlir::failure();
-    }
-};
-
-class RuleEliminateRefStore : public mlir::OpRewritePattern<mlir::memref::StoreOp>{
-public:
-    RuleEliminateRefStore(mlir::MLIRContext* ctx): mlir::OpRewritePattern<mlir::memref::StoreOp>(ctx, 1){
-
-    }
-    mlir::LogicalResult matchAndRewrite(mlir::memref::StoreOp op,  mlir::PatternRewriter &rewriter) const override{
-        if(op.getValue().getType().isa<QStateType>() && !op->hasAttr(ISQ_FIRST_STORE)){
-            rewriter.eraseOp(op);
-            return mlir::success();
-        }
         return mlir::failure();
     }
 };
@@ -690,7 +716,8 @@ struct LowerToQIRRepPass : public mlir::PassWrapper<LowerToQIRRepPass, mlir::Ope
         }while(0);
         do{
         mlir::RewritePatternSet rps(ctx);
-        rps.add<RuleEliminateRefStore>(ctx);
+        rps.add<RuleLowerIsqAlloc>(ctx);
+        rps.add<RuleLowerIsqDealloc>(ctx);
         mlir::FrozenRewritePatternSet frps(std::move(rps));
         (void)mlir::applyPatternsAndFoldGreedily(m.getOperation(), frps);
         }while(0);

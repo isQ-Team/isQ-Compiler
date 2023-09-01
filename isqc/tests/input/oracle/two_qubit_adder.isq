@@ -6,7 +6,7 @@ oracle bool[3] two_qubit_adder(bool a1[2], bool a2[2]) {
     bool t3 = a1[1] && a2[1];
     bool t4 = t2 && t1;
     bool t5 = t3 || t4;
-    bool c[] = {a1[0] != a2[0], t1 != t2, t5};
+    bool c[] = [a1[0] != a2[0], t1 != t2, t5];
 	return c;
 }
 

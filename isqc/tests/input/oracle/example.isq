@@ -5,13 +5,13 @@ oracle bool[3] name(bool a[3], bool b[4], bool c[2]) {
 	bool e;
 	e = (a[0] && a[1]) || (a[0] && a[2]) || (a[1] && a[2]);
 	bool d = e;
-    bool f[] = {c[0] != b[1], c[1] != b[0], b[2], b[3]};
+    bool f[] = [c[0] != b[1], c[1] != b[0], b[2], b[3]];
     bool g[] = f ^ b;
 	e = (g[2] == false) && (g[3] == false);
     bool h = (g[0] != g[1]) == (c[0] != c[1]);
     bool i[] = f & b;
     bool j = (i[2] == b[2]) && (i[3] == b[3]);
-	bool r[] = {d, e && h, !j};
+	bool r[] = [d, e && h, !j];
 	return r;
 }
 

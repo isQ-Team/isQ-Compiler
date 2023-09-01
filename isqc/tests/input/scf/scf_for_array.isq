@@ -1,6 +1,6 @@
 procedure main()
 {
-    int a[] = {2, 3, 4};
+    int a[] = [2, 3, 4];
     for v in a {
         print v;
     }

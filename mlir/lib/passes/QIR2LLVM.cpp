@@ -195,7 +195,6 @@ struct QIRRepToLLVMPass : public mlir::PassWrapper<QIRRepToLLVMPass, mlir::Opera
         arith::populateArithToLLVMConversionPatterns(typeConverter, patterns);
         cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
         populateFuncToLLVMConversionPatterns(typeConverter, patterns);
-        //populateStdToLLVMConversionPatterns(typeConverter, patterns);
 
         auto module = getOperation();
         auto ctx = module->getContext();

@@ -166,7 +166,9 @@ data MLIROp =
     | MKet {location :: MLIRPos, value :: SSA, coeff :: SSA, basis :: Int}
     | MVec {location :: MLIRPos, value :: SSA, rawVec :: GateRep}
     | MAllocMemref {location :: MLIRPos, value :: SSA, allocType :: MLIRType, lengthSsa :: SSA}
+    | MAllocIsq {location :: MLIRPos, value :: SSA, allocType :: MLIRType}
     | MFreeMemref {location :: MLIRPos, value :: SSA, freeType :: MLIRType}
+    | MFreeIsq {location :: MLIRPos, value :: SSA, freeType :: MLIRType}
     | MJmp {location :: MLIRPos, jmpBlock :: BlockName}
     | MBranch {location :: MLIRPos, value :: SSA, branches :: (BlockName, BlockName)}
     | MModule {location :: MLIRPos, topOps :: [MLIROp]}
@@ -381,7 +383,6 @@ emitOpStep f env (MTakeRef loc value (arr_ty@(Memref _ elem_ty), arr_val) offset
     indented env $ printf "isq.assert %s_both : i1, 2 %s" (unSsa value) (mlirPos loc),
     indented env $ printf "%s = memref.subview %s[%s][1][1] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa offset) (mlirType arr_ty) (mlirType $ BorrowedRef elem_ty) (mlirPos loc)
   ]
-emitOpStep f env (MTakeRef loc value (arr_ty, arr_val) offset _) = error "wtf?"
 emitOpStep f env (MSlice loc value (arr_ty, arr_val) start (Left size) step) = indented env $ printf "%s = memref.subview %s[%s][%d][%s] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa start) size (unSsa step) (mlirType arr_ty) (mlirType $ fixedLengthMlirType arr_ty size) (mlirPos loc)
 emitOpStep f env (MSlice loc value (arr_ty, arr_val) start (Right size) step) = indented env $ printf "%s = memref.subview %s[%s][%s][%s] : %s to %s %s" (unSsa value) (unSsa arr_val) (unSsa start) (unSsa size) (unSsa step) (mlirType arr_ty) (mlirType $ fixedLengthMlirType arr_ty 0) (mlirPos loc)
 emitOpStep f env (MArrayLen loc value (arr_ty@(Memref _ elem_ty), arr_val)) = intercalate "\n" $
@@ -409,7 +410,7 @@ emitOpStep f env (MAllocMemref loc val ty@(BorrowedRef subty) _) = intercalate "
   printf "%s_real = memref.alloc() : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc),
   printf "%s_zero = arith.constant 0 : index" (unSsa val),
   printf "%s = memref.subview %s_real[%s_zero][1][1] : memref<1x%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) (mlirType subty) (mlirType ty) (mlirPos loc)]
-emitOpStep f env (MAllocMemref loc val ty@(Memref (Just n) subty) len) = intercalate "\n" $ fmap (indented env) [
+emitOpStep f env (MAllocMemref loc val ty@(Memref (Just n) subty) _) = intercalate "\n" $ fmap (indented env) [
   printf "%s_real = memref.alloc() : memref<%dx%s> %s" (unSsa val) n (mlirType subty) (mlirPos loc),
   printf "%s_0 = arith.constant 0 : index" (unSsa val),
   printf "%s_1 = arith.constant 1 : index" (unSsa val),
@@ -419,10 +420,16 @@ emitOpStep f env (MAllocMemref loc val ty@(Memref Nothing subty) len) = intercal
   printf "%s_0 = arith.constant 0 : index" (unSsa val),
   printf "%s_1 = arith.constant 1 : index" (unSsa val),
   printf "%s = memref.subview %s_real[%s_0][%s][%s_1] : memref<?x%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) (unSsa len) (unSsa val) (mlirType subty) (mlirType ty) (mlirPos loc)]
+emitOpStep f env (MAllocIsq loc val ty@(Memref (Just n) subty)) = intercalate "\n" $ fmap (indented env) [
+  printf "%s_real = isq.alloc : memref<%dx%s> %s" (unSsa val) n (mlirType subty) (mlirPos loc),
+  printf "%s_0 = arith.constant 0 : index" (unSsa val),
+  printf "%s_1 = arith.constant 1 : index" (unSsa val),
+  printf "%s = memref.subview %s_real[%s_0][%d][%s_1] : memref<%dx%s> to %s %s" (unSsa val) (unSsa val) (unSsa val) n (unSsa val) n (mlirType subty) (mlirType ty) (mlirPos loc)]
 emitOpStep f env (MFreeMemref loc val ty@(BorrowedRef subty)) = intercalate "\n" $ [indented env $ printf "isq.accumulate_gphase %s_real : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc),
   indented env $ printf "memref.dealloc %s_real : memref<1x%s> %s" (unSsa val) (mlirType subty) (mlirPos loc)]
 emitOpStep f env (MFreeMemref loc val ty) = intercalate "\n" $ [indented env $ printf "isq.accumulate_gphase %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc),
   indented env $ printf "memref.dealloc %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)]
+emitOpStep f env (MFreeIsq loc val ty) = indented env $ printf "isq.dealloc %s : %s %s" (unSsa val) (mlirType ty) (mlirPos loc)
 emitOpStep f env (MJmp loc blk) = indented env $ printf "cf.br %s %s" (unBlockName blk) (mlirPos loc)
 emitOpStep f env (MBranch loc val (trueDst, falseDst)) = indented env $ printf "cf.cond_br %s, %s, %s %s" (unSsa val) (unBlockName trueDst) (unBlockName falseDst) (mlirPos loc)
 emitOpStep f env (MCall loc Nothing fn args logic) = let dialect = if logic then "logic" else "func" in indented env $ printf "%s.call %s(%s) : (%s)->() %s" dialect (unFuncName fn) (intercalate ", " $ fmap (unSsa.snd) args) (intercalate ", " $ fmap (mlirType.fst) args) (mlirPos loc)

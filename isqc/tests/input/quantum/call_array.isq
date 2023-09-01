@@ -1,0 +1,13 @@
+import std;
+
+unit fun(qbit q[]) {
+    X(q);
+}
+
+unit main()
+{
+    qbit p, q;
+    fun([p, q]);
+    print M(p);
+    print M(q);
+}
