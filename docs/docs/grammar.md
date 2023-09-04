@@ -73,6 +73,7 @@ isQ mainly supports four primitive types:
 * __*int*__: a 64-bit signed integer, e.g. __-1__, __1__;
 * __*bool*__: a boolean value that can be either __true__ or __false__;
 * __*double*__: a double precision floating point number, e.g. __-0.1__, __3.1415926__;
+* __*unit*__: the return type of a procedure that returns nothing;
 * __*qbit*__: an opaque type that represents a quantum bit; 
 
 Users can use these type to define variables anywhere. All qubits are set to default value __*|0>*__. For example, we could define variables like:
@@ -283,11 +284,12 @@ procedure main() {
 Control Flow
 ---------------------------
 
-isQ provides three kinds of classical control flow:
+isQ provides four kinds of classical control flow:
 
 * __*if-statement*__
 * __*for-loop*__
 * __*while-loop*__
+* __*switch-case*__
 
 ### if-else
 
@@ -310,7 +312,6 @@ procedure main() {
 }
 
 ```
-
 
 ### for-loop
 
@@ -359,6 +360,24 @@ procedure main() {
 }
 ```
 
+### switch-case
+
+Based on the value of an `int`-type variable, a switch-case selects a correspoding branch. The execution terminates before another `case` or `default` keyword. For example,
+
+```C++
+unit main() {
+    int a = 1, b;
+    switch a {
+    case 1:
+        b = 3;
+    case 2:
+        b = 4;
+    default:
+        b = 5;
+    }
+}
+```
+That is, the switch-case statement does **not** have the *fall through* semantics in some other languages such as C. Therefore, the final value of `b` would be 3, not 5. The switch-case statement does not support `break` as it is not needed.
 
 <br/>
 
@@ -404,6 +423,23 @@ procedure main() {
 }
 ```
 
+When a group of gates share the same control qubits, sometimes it is better to use a switch-case statement. For example
+```c++
+    qbit q[2], p, r;
+    switch q {
+    case |3>:
+        ctrl Rx(pi, r, p);
+    default:
+        H(p);
+    }
+```
+It is equivalent to the following statements
+```c++
+    nctrl nctrl H(q[1], q[0], p);
+    nctrl ctrl H(q[1], q[0], p);
+    ctrl nctrl H(q[1], q[0], p);
+    ctrl ctrl Rx(pi, q[1], q[0], p);
+```
 
 <h2 id = "oracle"></h2>
 
