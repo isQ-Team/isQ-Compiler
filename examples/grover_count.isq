@@ -1,0 +1,54 @@
+import std;
+import qft;
+
+defgate U0 = [
+    1, 0, 0, 0, 0, 0, 0, 0;
+    0, -1, 0, 0, 0, 0, 0, 0;
+    0, 0, -1, 0, 0, 0, 0, 0;
+    0, 0, 0, -1, 0, 0, 0, 0;
+    0, 0, 0, 0, -1, 0, 0, 0;
+    0, 0, 0, 0, 0, -1, 0, 0;
+    0, 0, 0, 0, 0, 0, -1, 0;
+    0, 0, 0, 0, 0, 0, 0, -1
+];
+
+oracle U_omega(3,1) = [0,1,0,0,0,0,0,0];
+
+qbit t[4];
+qbit q[3];
+qbit anc;
+
+unit ctrl_G(qbit c){
+    ctrl U_omega(c, q[2], q[1], q[0], anc);
+    for i in 0:3{
+        ctrl H(c, q[i]);
+    }
+    ctrl U0(c, q[2], q[1], q[0]);
+    for i in 0:3{
+        ctrl H(c, q[i]);
+    }
+}
+
+int grover_count() {
+    // Initialize
+    H(q);
+    H(t);
+    X(anc);
+    H(anc);
+
+    int n = t.length;
+    // Grover iterations
+    for i in 0:n {
+        for j in 0:(1 << i){
+            ctrl_G(t[i]);
+        }
+    }
+
+    // QFT+
+    qft_inv(t);
+    return M(t);
+}
+
+procedure main(){
+    print grover_count();
+}
