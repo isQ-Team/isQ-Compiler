@@ -1,0 +1,17 @@
+import std;
+import physics.spin;
+
+procedure main(int N[], double t[]) {
+    qbit Q[1];
+
+    // allocate resources for variables 
+    double F[100]; bool B[100]; int I[100];
+
+    Initialization(F,B,I); // initialized calculation
+
+    // set interactions       type     para1     para2     value            
+    appendInteraction(F,B,I,   0,       0,        0 ,       1.0  );
+
+    TimeEvolutionDeploy (F,B,I, Q,  t[0] ,  N[0] ); 
+    M(Q);
+}

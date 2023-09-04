@@ -1,7 +1,7 @@
 import std;
 
 oracle bool[1] constant(bool a[4]) {
-    bool res[] = {true};
+    bool res[] = [true];
     return res;
 }
 

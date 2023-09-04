@@ -1,0 +1,68 @@
+
+/*
+abstract Class 
+  For storing Interaction 
+
+
+Method:
+  
+    [sub] Initialization(FBI)
+
+    [sub] append(FBI, int intPara[] , double value[] )
+
+    [fun] getLen(FBI)
+       return number of terms
+
+    [sub] getInteraction(FBI, int i , int intPara[], double value[])
+       return the i-th term 
+
+
+Error code:
+   
+   50020130728001: The object of interactio is not initialized 
+   50020130728002: length of I is not enough
+   50020130728003: length of F is not enough
+*/
+
+procedure Initialization ( double F[], bool B[], int I[] ) {
+    B[0] = true; 
+    I[0] = 0;   // record how many terms of interactions
+}
+
+procedure append( double F[], bool B[], int I[], int intPara[] , double value[]  ) {
+    int lP = intPara.length;
+    int lV = value.length;
+    int pi0,pv0;
+
+    if (!B[0]) {print 50020130728001;}
+    
+    
+    pi0 = lP * I[0] + 1; 
+    pv0 = lV * I[0] ; 
+
+    if ( pi0 + lP > I.length ) {print 50020130728002;}
+    if ( pv0 + lV > F.length ) {print 50020130728003;}
+
+    
+    for i in 0:lP: { I[pi0+i] = intPara[i]; }
+    for i in 0:lV: { F[pv0+i] = value[i]; } 
+
+    I[0] = I[0] + 1; 
+}
+
+int getLen(double F[], bool B[], int I[]) {
+    return I[0];
+}
+
+procedure getInteraction(double F[], bool B[], int I[], int i, int intPara[], double value[]) {
+    int lP = intPara.length;
+    int lV = value.length;
+    int pi0, pv0;
+
+    pi0 = lP * i + 1; 
+    pv0 = lV * i;
+
+    for i in 0:lP: { intPara[i] = I[pi0+i]; }
+    for i in 0:lV: { value[i] = F[pv0+i]; } 
+
+}

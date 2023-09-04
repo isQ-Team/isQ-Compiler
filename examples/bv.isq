@@ -1,7 +1,7 @@
 import std;
 
 oracle bool[1] g(bool a[6]) {
-    bool s[] = {true, true, true, false, true, true};
+    bool s[] = [true, true, true, false, true, true];
     bool ba[] = s & a;
     bool res[1];
     res[0] = ba[0] != ba[1] != ba[2] != ba[3] != ba[4] != ba[5];

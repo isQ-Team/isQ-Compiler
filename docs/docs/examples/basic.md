@@ -28,7 +28,8 @@ import std;
 
 qbit a, b;
 
-procedure main() {
+procedure main()
+{
     H(a);
     CNOT(a, b);
     print M(a);
@@ -58,7 +59,7 @@ The following quantum circuit describes teleportation:
 The corresponding isQ program is as follows:
 ```C++
 import std;
-procedure transform(qbit a, qbit b, qbit c){
+procedure transform(qbit a, qbit b, qbit c) {
     // Prepare the EPR pair
     H(b);
     CNOT(b, c);
@@ -70,7 +71,8 @@ procedure transform(qbit a, qbit b, qbit c){
     if (M(b)) { X(c); }
     if (M(a)) { Z(c); }
 }
-procedure main(){
+procedure main()
+{
     qbit q[3];
     Rx(pi/3, q[0]); // Set initial state as 'sqrt(0.75)|0>-sqrt(0.25)i|1>'
     transform(q[0], q[1], q[2]);
@@ -101,7 +103,7 @@ Its corresponding isQ program is as follows:
 import std;
 
 oracle bool[1] constant(bool a[4]) {
-    bool res[] = {true};
+    bool res[] = [true];
     return res;
 }
 
@@ -135,14 +137,15 @@ We write an isQ program to demonstrate the Bernstein–Vazirani algorithm. We se
 import std;
 
 oracle bool[1] g(bool a[4]) {
-    bool s[] = {true, true, false, true};
+    bool s[] = [true, true, false, true];
     bool ba[] = s & a;  // bit-wise AND
     bool res[1];
     res[0] = ba[0] != ba[1] != ba[2] != ba[3];
     return res;
 }
 
-procedure main(){
+procedure main()
+{
     qbit q[4], res[1];
     X(res);
     H(res);

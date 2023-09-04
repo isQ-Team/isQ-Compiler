@@ -23,11 +23,13 @@ fn tests_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
     fixed_output(path, res)
 }
 
-#[test_case("bell", "0")]
-#[test_case("oracle/bernstein", &merge(&["1", "1", "0"]))]
-#[test_case("bernstein_oracle_func", &merge(&["1", "1", "0"]))]
-#[test_case("ipe", "867893")]
 #[test_case("arith/mul", "6")]
+#[test_case("bell", "0")]
+#[test_case("bernstein_oracle_func", &merge(&["1", "1", "0"]))]
+#[test_case("bv", "55")]
+#[test_case("deutsch-jozsa", "0")]
+#[test_case("ipe", "867893")]
+#[test_case("oracle/bernstein", &merge(&["1", "1", "0"]))]
 #[test_case("preserve_gphase", &merge(&["1", "0"]))]
 #[test_case("teleport", "1")]
 fn examples_fixed_output(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -66,6 +68,7 @@ fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Er
 #[test_case("random")]
 #[test_case("repeat_until_success")]
 #[test_case("rfs")]
+#[test_case("simon")]
 #[test_case("tomography")]
 fn expect_no_error(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let path = Path::new("..").join("examples").join(name.to_string() + ".isq");

@@ -39,8 +39,9 @@ Next, we compose an example of Simon's algorithm in isQ. We choose \(n=4\) and t
 ```c++
 import std;
 
+// g(x) = g(x + 8)
 oracle bool[4] g(bool a[4]) {
-    bool res[] = {a[0], a[1], a[2], false};
+    bool res[] = [a[0], a[1], a[2], false];
     return res;
 }
 
@@ -145,17 +146,17 @@ import qft; // include qft_inv
 int x = 23;
 int n = 6;
 
-double theta(){
+double theta() {
     return 2 * pi * x / (2 ** n);
 }
 
-procedure U(double theta, qbit q){
+procedure U(double theta, qbit q) {
     X(q);
     ctrl GPhase(theta, q);
     X(q);
 } deriving gate
 
-procedure pow2_ctrlU(int n, qbit anc, qbit ev){
+procedure pow2_ctrlU(int n, qbit anc, qbit ev) {
     double t = theta() * (2 ** n);
     ctrl U(t, anc, ev);
 }

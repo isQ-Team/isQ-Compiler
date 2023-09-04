@@ -182,38 +182,70 @@ procedure CRot(qbit qsctrl[], qbit qtar) {
     H(qtar);
     
     // theta = 2*arcsin(c/v)
-    nctrl nctrl nctrl nctrl ctrl Ry(3.141592654, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //1
-    nctrl nctrl nctrl ctrl nctrl Ry(1.047197551, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //2
-    nctrl nctrl nctrl ctrl ctrl Ry(0.679673819, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //3
-    nctrl nctrl ctrl nctrl nctrl Ry(0.50536051, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //4
-    nctrl nctrl ctrl nctrl ctrl Ry(0.402715842, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //5
-    nctrl nctrl ctrl ctrl nctrl Ry(0.334896158, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //6
-    nctrl nctrl ctrl ctrl ctrl Ry(0.286695138, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //7
-    nctrl ctrl nctrl nctrl nctrl Ry(0.250655662, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //8
-    nctrl ctrl nctrl nctrl ctrl Ry(0.222682029, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //9
-    nctrl ctrl nctrl ctrl nctrl Ry(0.200334842, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //10
-    nctrl ctrl nctrl ctrl ctrl Ry(0.182069556, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //11
-    nctrl ctrl ctrl nctrl nctrl Ry(0.166860173, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //12
-    nctrl ctrl ctrl nctrl ctrl Ry(0.153998281, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //13
-    nctrl ctrl ctrl ctrl nctrl Ry(0.1429789, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //14
-    nctrl ctrl ctrl ctrl ctrl Ry(0.133432297, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //15
-
-    ctrl nctrl nctrl nctrl nctrl Ry(-0.125081524, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-16
-    ctrl nctrl nctrl nctrl ctrl Ry(-0.133432297, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-15
-    ctrl nctrl nctrl ctrl nctrl Ry(-0.1429789, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-14
-    ctrl nctrl nctrl ctrl ctrl Ry(-0.153998281, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-13
-    ctrl nctrl ctrl nctrl nctrl Ry(-0.166860173, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-12
-    ctrl nctrl ctrl nctrl ctrl Ry(-0.182069556, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-11
-    ctrl nctrl ctrl ctrl nctrl Ry(-0.200334842, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-10
-    ctrl nctrl ctrl ctrl ctrl Ry(-0.222682029, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-9
-    ctrl ctrl nctrl nctrl nctrl Ry(-0.250655662, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-8
-    ctrl ctrl nctrl nctrl ctrl Ry(-0.286695138, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-7
-    ctrl ctrl nctrl ctrl nctrl Ry(-0.334896158, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-6
-    ctrl ctrl nctrl ctrl ctrl Ry(-0.402715842, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-5
-    ctrl ctrl ctrl nctrl nctrl Ry(-0.50536051, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-4
-    ctrl ctrl ctrl nctrl ctrl Ry(-0.679673819, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-3
-    ctrl ctrl ctrl ctrl nctrl Ry(-1.047197551, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-2
-    ctrl ctrl ctrl ctrl ctrl Ry(-3.141592654, qsctrl[0], qsctrl[1], qsctrl[2], qsctrl[3], qsctrl[4], qtar);  //-1
+    switch qsctrl {
+    case |1>:
+        Ry(3.141592654, qtar);
+    case |2>:
+        Ry(1.047197551, qtar);
+    case |3>:
+        Ry(0.679673819, qtar);
+    case |4>:
+        Ry(0.50536051, qtar);
+    case |5>:
+        Ry(0.402715842, qtar);
+    case |6>:
+        Ry(0.334896158, qtar);
+    case |7>:
+        Ry(0.286695138, qtar);
+    case |8>:
+        Ry(0.250655662, qtar);
+    case |9>:
+        Ry(0.222682029, qtar);
+    case |10>:
+        Ry(0.200334842, qtar);
+    case |11>:
+        Ry(0.182069556, qtar);
+    case |12>:
+        Ry(0.166860173, qtar);
+    case |13>:
+        Ry(0.153998281, qtar);
+    case |14>:
+        Ry(0.1429789, qtar);
+    case |15>:
+        Ry(0.133432297, qtar);
+    case |16>:
+        Ry(-0.125081524, qtar);
+    case |17>:
+        Ry(-0.133432297, qtar);
+    case |18>:
+        Ry(-0.1429789, qtar);
+    case |19>:
+        Ry(-0.153998281, qtar);
+    case |20>:
+        Ry(-0.166860173, qtar);
+    case |21>:
+        Ry(-0.182069556, qtar);
+    case |22>:
+        Ry(-0.200334842, qtar);
+    case |23>:
+        Ry(-0.222682029, qtar);
+    case |24>:
+        Ry(-0.250655662, qtar);
+    case |25>:
+        Ry(-0.286695138, qtar);
+    case |26>:
+        Ry(-0.334896158, qtar);
+    case |27>:
+        Ry(-0.402715842, qtar);
+    case |28>:
+        Ry(-0.50536051, qtar);
+    case |29>:
+        Ry(-0.679673819, qtar);
+    case |30>:
+        Ry(-1.047197551, qtar);
+    case |31>:
+        Ry(-3.141592654, qtar);
+    }
 
     H(qtar);
     S(qtar);
@@ -229,8 +261,8 @@ procedure CRot(qbit qsctrl[], qbit qtar) {
 int HHL(int NSimPrecision) {
     // A = 3.5I + 4X - 4.5Z
     //               I  X  Z
-    int Apaulis[] = {0, 1, 3};
-    double Afactors[] = {3.5, 4, -4.5};
+    int Apaulis[] = [0, 1, 3];
+    double Afactors[] = [3.5, 4, -4.5];
 
     // The simulation time step
     double facT = 0.078;
@@ -254,7 +286,7 @@ procedure main()
 {
     int NRepeat = 130;
     int NSimPrecision = 5;
-    int Statistics[] = {0, 0};
+    int Statistics[] = [0, 0];
 
     for i in 0 : NRepeat {
         int m = HHL(NSimPrecision);

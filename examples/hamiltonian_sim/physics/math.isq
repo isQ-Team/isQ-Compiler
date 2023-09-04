@@ -1,0 +1,86 @@
+int intMax(int a, int b) {
+    if (a >= b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+int intMin(int a, int b) {
+    if ( a <= b ) {
+        return a;
+    } else {
+        return b; 
+    }
+}
+
+int getInt(double r) {
+    int large=999999999999999999;
+    int x0 = 0;
+    int x1,xm;
+    if (x0==r) {return x0;}
+    while ( x0 > r ) {
+        x0 = x0 - large; 
+    }
+    x1 = x0 + large; 
+    while (x1 - x0 > 1) {
+        xm = (x1 + x0) / 2;
+        if ( xm <= r ) {
+            x0 = xm;
+        } else {
+            x1 = xm;
+        }
+    }
+    return x0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// sin / cos
+
+double Numerical_Sin(double x, int N) {
+    // x must in [-pi/2,pi/2]
+    double r;
+    double f[N],s;
+
+    f[0] = 1;
+    r = x;
+    s = -1;
+    for i in 1:N {
+        f[i] = f[i-1] * 2* i * (2*i + 1);
+        r = r + s * x**(2*i+1) / f[i];
+        s = s* (-1);
+    }
+    return r;
+}
+
+double sin(double x) {
+    double xr = x/2/pi+0.25;
+    xr = xr - getInt(xr) - 0.25 ; // xr in [-0.25,0.75)
+    if (xr >0.25) {
+        xr = 0.5 - xr;
+    }
+    return Numerical_Sin(xr,12);
+}
+
+double cos(double x) {
+    return sin( x + pi/2 );
+}
+

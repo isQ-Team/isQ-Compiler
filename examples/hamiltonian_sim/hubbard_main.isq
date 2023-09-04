@@ -1,0 +1,46 @@
+import std;
+import physics.hubbard;
+
+procedure main(int intPara[] , double douPara[]) {
+    int N;
+    double T;
+    double t, U, m; // parameters in Hubbard model
+    qbit Q[8]; // use 8 qubit to encode 4 sites in Hubbard model
+
+    // allocate resource for storing Hamiltonian
+    double F[100]; 
+    bool B[1];
+    int I[200];
+    Initialization(F,B,I); // start calculation
+
+    t = -1.0; // hopping term
+    U =  2.0; // Coulomb U term
+    m = -1.0; // onsite energy
+
+    N = intPara[0]; // time slides  
+    T = douPara[0]; // evolution time
+
+    // set there is a spin up particle on each site as the initial state
+    X(Q[0]);
+    X(Q[1]);
+
+    // set interactions                 
+    appendHubbardInteraction_Hopping(F,B,I,   0, 1,  t ); //hopping between (0,1)
+    appendHubbardInteraction_Hopping(F,B,I,   1, 2,  t ); //hopping between (1,2)
+    appendHubbardInteraction_Hopping(F,B,I,   2, 3,  t ); //hopping between (2,3)
+    appendHubbardInteraction_Hopping(F,B,I,   0, 3,  t ); //hopping between (0,3)
+
+    appendHubbardInteraction_OnSite(F,B,I, 0, m); // onsite energy on site 0
+    appendHubbardInteraction_OnSite(F,B,I, 1, m); // onsite energy on site 1
+    appendHubbardInteraction_OnSite(F,B,I, 2, m); // onsite energy on site 2
+    appendHubbardInteraction_OnSite(F,B,I, 3, m); // onsite energy on site 3 
+
+    appendHubbardInteraction_CoulombU(F,B,I,  0, U); // U on site 0
+    appendHubbardInteraction_CoulombU(F,B,I,  1, U); // U on site 1
+    appendHubbardInteraction_CoulombU(F,B,I,  2, U); // U on site 2
+    appendHubbardInteraction_CoulombU(F,B,I,  3, U); // U on site 3
+
+    TimeEvolutionDeploy(F,B,I,Q,T,N); // deploy gates on circuit
+
+    M(Q);
+}

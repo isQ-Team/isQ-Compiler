@@ -1,0 +1,167 @@
+import std;
+import spin; 
+
+//import math; 
+import interaction;
+
+/*
+Error code:
+   50020130728005: un-defined interaction type in Hubbard model
+*/
+
+procedure expXXZXX(qbit Q[], double xi) {
+    // 1/4 of single-particle term
+    // return - xi xx [Z] xx  
+    // j > i 
+    int l = Q.length;
+    X2P ( Q[l-1] );
+    X2P ( Q[0] );
+    spin.expZLine( Q , -xi );
+    X2M ( Q[l-1] ); 
+    X2M ( Q[0] );
+}
+
+procedure expYYZYY(qbit Q[], double xi) {
+    // 1/4 of single-particle term
+    // return - xi xx [Z] xx  
+    // j > i 
+    int l = Q.length;
+    Y2M ( Q[l-1] );
+    Y2M ( Q[0] );
+    spin.expZLine( Q , -xi );
+    Y2P ( Q[l-1] ); 
+    Y2P ( Q[0] );
+}
+
+procedure TimeEvolutionSingleDeploy_hopping(qbit Circuit[], int i, int j, double tij , double tau ) {
+    // exp( - i Hij tau ) * exp( - i Hji tau )
+    double xi;
+    if (i == j) {print 404;}
+    assert(i != j ); 
+    i = math.intMin(i,j);
+    j = math.intMax(i,j);
+    xi = tij * (-1)**(j-i) / 2;
+    expYYZYY( Circuit[i:j+1], xi*tau );
+    expXXZXX( Circuit[i:j+1], xi*tau );
+}
+
+procedure TimeEvolutionSingleDeploy_OnSite(qbit Circuit[], int i, double t , double tau ) {
+    // exp(  -i H tau ) where H = t c^+ c
+    // ignore a constant t/2
+    spin.expZr( Circuit[i] , t/2 * tau );
+}
+
+procedure TimeEvolutionSingleDeploy_CoulombU(qbit Circuit[], int i, int j, double Uijij, double tau) {
+    // exp(  u/4 Zj tau) exp(  u/4 Zi tau) exp(  u/4 Zi Zj tau)   
+    // a consant u/4 is ignored
+    double v;
+    if (i == j) {print 404;}
+    assert(i != j ); 
+    v = -Uijij/4 *tau;
+    spin.expZZ ( Circuit[i] , Circuit[j] , v );
+    spin.expZr( Circuit[i] , v );
+    spin.expZr( Circuit[j] , v );
+}
+
+procedure Initialization ( double F[], bool B[], int I[] ) {
+    interaction.Initialization(F,B,I);
+}
+
+procedure appendInteraction (double F[], bool B[], int I[], int PI[], double V ) {
+    // [ type , site0,site2,site3,site4 ] PI[5] 
+    double PF[1];
+    PF[0] = V; 
+    interaction.append(F,B,I,PI,PF);
+}
+
+/*
+  (0up,0do),(1up,1do),...
+
+   type      params             value       
+    0      Site[✓,✓,✘,✘]          t             spin-hopping: t c_i^+ c_j + h.c.
+    1      Site[✓,✘,✘,✘]          m              On site: m c^+_i c_i 
+    2      Site[✓,✘,✘,✘]          u              Coulomb U: U c^+_i c^+_j c_i c_j
+*/
+
+// ------------- high level API for setting interactions ---------------------------
+procedure appendHubbardInteraction_spinHopping(double F[], bool B[], int I[],int hI, int hJ, int spin, double t) {
+    int PI[5];
+    double V[1];
+    PI[0] = 0;
+    PI[1] = hI*2+spin;
+    PI[2] = hJ*2+spin; 
+    V[0] = t; 
+    interaction.append(F,B,I,PI,V);
+}
+
+procedure appendHubbardInteraction_Hopping(double F[], bool B[], int I[],int hI, int hJ, double t) {
+    appendHubbardInteraction_spinHopping(F,B,I,hI,hJ,0,t);
+    appendHubbardInteraction_spinHopping(F,B,I,hI,hJ,1,t);
+}
+
+procedure appendHubbardInteraction_OnspinSite(double F[], bool B[], int I[],int hI, int spinI, double m) {
+    int PI[5];
+    double V[1];
+    PI[0] = 1;
+    PI[1] = hI*2 + spinI; 
+    V[0] = m; 
+    interaction.append(F,B,I,PI,V);
+}
+
+procedure appendHubbardInteraction_OnSite(double F[], bool B[], int I[],int hI, double m) {
+    appendHubbardInteraction_OnspinSite(F,B,I, hI,0,m);
+    appendHubbardInteraction_OnspinSite(F,B,I, hI,1,m);
+}
+
+procedure appendHubbardInteraction_CoulombU(double F[], bool B[], int I[],int hI, double U) {
+    int PI[5];
+    double V[1];
+    PI[0] = 2;
+    PI[1] = hI*2;
+    PI[2] = hI*2+1;
+    V[0] = -U; // Uijij = -U 
+    interaction.append(F,B,I,PI,V);
+}
+
+procedure TimeEvolutionDeploy (double F[], bool B[], int I[], qbit q[], double T , int N ) {
+    double tau; 
+    int N_int,PI[5],type,spin;
+    double PV[1];
+
+    tau = T / N; 
+    N_int = interaction.getLen(F,B,I);
+
+    for tid in 0:N:{
+
+        for i in 0:N_int {
+            interaction.getInteraction(F,B,I, i, PI,PV);
+            type = PI[0];
+
+            if (type == 0) {
+                TimeEvolutionSingleDeploy_hopping(q, PI[1], PI[2], PV[0] , tau );
+            } else if (type==1) {
+                TimeEvolutionSingleDeploy_OnSite(q, PI[1], PV[0] , tau ); 
+            } else if (type==2) {
+                TimeEvolutionSingleDeploy_CoulombU(q, PI[1], PI[2], PV[0], tau);
+            } else {
+                print 50020130728005;
+            }
+        }
+    }
+}
+
+
+/*
+  All sites are index in Hubbard model,   (0up,0do),(1up,1do),...
+
+   type      params                          value       
+    0      Site[✓,✓,✘,✘]    spin[✓,✘,✘,✘]      t              spin-hopping t c_{i\sigma}^+ c_{j\sigma} + h.c.
+    1      Site[✓,✘,✘,✘]    spin[*,*,*,*]      u              U c^+_{i up}c^+_{i down} c_{i up} c_{i down}
+    2      Site[✓,✘,✘,✘]                       m              
+
+
+
+
+
+ 1      Site[i,j,*,*]      t              hopping t ( \sum_{\sigma} c_{i\sigma}^+ c_{j\sigma} + h.c. ),  a sumation of type 0 on spin index
+*/

@@ -1,0 +1,132 @@
+import std;
+import interaction;
+
+procedure expZZ (qbit i, qbit j , double theta ) {
+    // exp(-i * ZZ * theta)
+    CNOT(i , j); 
+    Rz(theta*2, j);
+    CNOT(i , j);
+} 
+
+procedure expXZ (qbit i, qbit j , double theta ) {
+    // exp( -i * XZ * theta)
+    // XZ =  u^+  u  XZ  u^+  u  =  u^+  ZZ  u, where u = Ry(pi/2)
+    Y2M(i); 
+    expZZ(i,j,theta);
+    Y2P(i);  
+} 
+
+procedure expXY (qbit i, qbit j , double theta ) {
+    // exp( -i * XY * theta)
+    X2P(j);
+    expXZ(i,j,theta);
+    X2M(j);
+}
+
+procedure expXX (qbit i, qbit j , double theta ) {
+    // exp( -i * XY * theta)
+    Y2M(j); 
+    expXZ(i,j,theta);
+    Y2P(j);  
+}
+
+procedure expYZ (qbit i, qbit j , double theta ) {
+    // exp( -i * YZ * theta)
+    // XZ =  u^+  u  YZ  u^+  u  =  u^+  ZZ  u, where u = Rx(-pi/2)
+    X2P(i); 
+    expZZ(i,j,theta);
+    X2M(i);  
+} 
+
+procedure expYY (qbit i, qbit j , double theta ) {
+    X2P(j);
+    expYZ(i,j,theta);
+    X2M(j);
+} 
+
+
+procedure expZr (qbit i, double r ) {
+    // exp( -i * r * Z )
+    Rz( 2*r, i );
+}
+
+procedure expXr (qbit i, double r ){
+    // exp( -i * r * X )
+    Rx( 2*r, i );
+}
+
+procedure expYr (qbit i, double r ){
+    // exp( -i * r * X )
+    Ry( 2*r, i );
+}
+
+procedure expZLine(qbit Q[], double r ){
+    // exp(-i * Z...Z * r )
+    int l = Q.length;
+    for i in 1:l {
+        CNOT(Q[i], Q[0]);
+    }
+    Rz(2 * r, Q[0]);
+    for i in 1:l {
+        CNOT(Q[i], Q[0]);
+    }
+}
+
+procedure Initialization ( double F[], bool B[], int I[] ) {
+    interaction.Initialization(F,B,I);
+}
+
+procedure appendInteraction( double F[], bool B[], int I[], int type, int para1, int para2 , double value  ) {
+    int P[3];
+    double v[1];
+    P[0] = type; P[1] = para1;P[2]=para2;
+    v[0] = value;
+    interaction.append(F,B,I,P,v);
+}
+
+procedure TimeEvolutionSingleDeploy(double F[], bool B[], int I[], qbit q[], double tau ) {
+    // prod_k exp( -i * h_k *tau)
+    int P[3],N;
+    double V[1];
+    int p0,type,para1,para2;
+    double v;
+
+    for i in 0:interaction.getLen(F,B,I) {
+        interaction.getInteraction(F,B,I,i,P,V);
+        type = P[0];
+        para1 = P[1];
+        para2 = P[2];
+        v = V[0] * tau;
+
+        if ( type == 0 ) {
+            expXr ( q[para1] , v );
+        } else if ( type == 1 ) {
+            expYr ( q[para1] , v );  
+        } else if ( type == 2 ) {
+            expZr ( q[para1] , v );  
+        } else if ( type == 3 ) {
+            expXX ( q[para1] , q[para2] , v );  
+        } else if ( type == 4 ) {
+            expXY ( q[para1] , q[para2] , v ); 
+        } else if ( type == 5 ) {
+            expXZ ( q[para1] , q[para2] , v );   
+        } else if ( type == 6 ) {
+            expYY ( q[para1] , q[para2] , v );  
+        } else if ( type == 7 ) {
+            expYZ ( q[para1] , q[para2] , v );  
+        } else if ( type == 8 ) {
+            expZZ ( q[para1] , q[para2] , v );  
+        } else {
+            print 555551;
+            print type;
+        }
+    }
+}
+
+procedure TimeEvolutionDeploy (double F[], bool B[], int I[], qbit q[], double T , int N ) {
+    double tau = T/N;
+
+    for i in 0:N {
+        TimeEvolutionSingleDeploy( F,B,I, q, tau );
+    }
+}

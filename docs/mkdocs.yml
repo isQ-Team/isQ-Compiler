@@ -20,6 +20,7 @@ nav:
     - Recursive Fourier sampling: examples/recursive.md
     - HHL algorithm: examples/hhl.md
     - Variational quantum eigensolver: examples/vqe.md
+    - Hamiltonian simulation: examples/simulate.md
 
 markdown_extensions:
   - admonition

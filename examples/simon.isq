@@ -1,0 +1,15 @@
+import std;
+
+// g(x) = g(x + 8)
+oracle bool[4] g(bool a[4]) {
+    bool res[] = [a[0], a[1], a[2], false];
+    return res;
+}
+
+procedure main(){
+    qbit q[4], res[4];
+    H(q);
+    g(q, res);
+    H(q); 
+    print M(q);
+}

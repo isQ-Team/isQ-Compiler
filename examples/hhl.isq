@@ -206,8 +206,8 @@ procedure CRot(qbit qsctrl[5], qbit qtar) {
 int HHL(int NSimPrecision) {
     // A = 3.5I + 4X - 4.5Z
     //               I  X  Z
-    int Apaulis[] = {0, 1, 3};
-    double Afactors[] = {3.5, 4, -4.5};
+    int Apaulis[] = [0, 1, 3];
+    double Afactors[] = [3.5, 4, -4.5];
 
     // The simulation time step
     double facT = 0.078;
@@ -231,7 +231,7 @@ procedure main()
 {
     int NRepeat = 130;
     int NSimPrecision = 5;
-    int Statistics[] = {0, 0};
+    int Statistics[] = [0, 0];
 
     for i in 0 : NRepeat {
         int m = HHL(NSimPrecision);
