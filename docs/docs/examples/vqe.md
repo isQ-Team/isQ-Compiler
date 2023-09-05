@@ -139,7 +139,7 @@ def get_expectation(theta):
     # As a result, the other 5 coefficients need to be measured
     for idx in range(len(gates_group)):
         result_dict = simulate(
-            "vqe2.so",
+            "h2.so",
             shots=shots,
             int_param=idx,
             double_param=theta,
