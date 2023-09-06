@@ -543,7 +543,7 @@ emitStatement' f (NCoreUnitary ann (EGlobalName ann2 name) ops mods) = do
             let gate_type@(M.Gate gate_size) = mapType ty;
 
             let (ins, outs) = unzip $ map (\id->(SSA $ unSsa i ++ "_in_"++show id, SSA $ unSsa i ++ "_out_"++show id)) [1..length [qubit_ssa]]
-            pushOp $ MQUseGate pos used_gate (fromFuncName $ name ++ "p") gate_type [(astMType args, args_ssa), (Index, SSA $ unSsa args_ssa ++ "_len"), (Index, args_index)] True
+            pushOp $ MQUseGate pos used_gate (fromFuncName $ getParamName $ name ++ "p") gate_type [(astMType args, args_ssa), (Index, SSA $ unSsa args_ssa ++ "_len"), (Index, args_index)] True
             zipWithM_ (\in_state in_op->pushOp $ MLoad pos in_state (BorrowedRef QState, in_op)) ins [qubit_ssa]
             pushOp $ MQApplyGate pos outs ins i True
             zipWithM_ (\out_state in_op->pushOp $ MStore pos (BorrowedRef QState, in_op) out_state) outs [qubit_ssa]

@@ -1,0 +1,10 @@
+import std;
+
+param theta;
+param beta[];
+// entry procedure
+unit main() {
+    qbit q;
+    Rx(theta, q);
+    Ry(beta[0], q);
+}
