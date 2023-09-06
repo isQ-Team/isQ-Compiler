@@ -19,11 +19,6 @@ int layer(int rank){
     }
     return l;
 }
-procedure assert(bool cond, int errno, int n){
-    if(!cond){
-        print(errno * 1000000 + n);
-    }
-}
 procedure compute_parity_parent(qbit q, int child){
     remote_cx_src(q, child);
 }

@@ -1,34 +1,52 @@
 import qmpi;
 import std;
 
-procedure main() {
-    // Only works for the case of two nodes
-    int size = qmpi_size();
-    if (size != 2) {
-        print -size;
-        return;
-    }
-
-    qbit pair;
+/*
+* Teleport a qubit @q from @from node to @to node
+*/
+unit teleport(qbit q, int from, int to) {
+    qbit pair; // Communicating qubit
     int rank = qmpi_comm_rank();
-    create_epr(1 - rank, 99, pair);
 
-    if (rank == 0) {
-        qbit psi;
-        H(psi);
-
-        // Teleport protocol
-        CNOT(psi, pair);
-        H(psi);
+    if (rank == from) {
+        create_epr(to, 99, pair);
+        CNOT(q, pair);
+        H(q);
         qmpi_csend(M(pair), 1, 88);
-        qmpi_csend(M(psi), 1, 88);
-    } else {
+        qmpi_csend(M(q), 1, 88);
+    } else if (rank == to) {
+        create_epr(from, 99, pair);
         if (qmpi_crecv(0, 88)) {
             X(pair);
         }
         if (qmpi_crecv(0, 88)) {
             Z(pair);
         }
-        print M(pair);
+
+        // Transfer the state from pair to q
+        SWAP(pair, q);
+    }
+}
+
+unit main() {
+    // At least two nodes are required
+    int size = qmpi_size();
+    if (size < 2) {
+        print -size;
+        return;
+    }
+
+    qbit q;
+    int rank = qmpi_comm_rank();
+    if (rank == 0) {
+        // Prepare a state to teleport
+        H(q);
+    }
+    teleport(q, 0, 1);
+    if (rank == 1) {
+        // Uncommute the state back to |0>
+        H(q);
+
+        print M(q); // Should be 0
     }
 }

@@ -874,7 +874,7 @@ generateMLIRModule file (xs, ssa) =
         ssa_rank = SSA {unSsa = "%r"}
         entry = MFunc MLIRPosUnknown (fromFuncName "__isq__entry") Nothing  [MLIRBlock (fromBlockName 1) (args ++ [(Index, ssa_arg_rank)]) [
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_initialize") [] False,
-                MUseGlobalMemref MLIRPosUnknown ssa_rank (fromFuncName "__qmpi_rank") (BorrowedRef Index),
+                MUseGlobalMemref MLIRPosUnknown ssa_rank (fromFuncName "qmpi.__qmpi_rank") (BorrowedRef Index),
                 MStore MLIRPosUnknown (BorrowedRef Index, ssa_rank) ssa_arg_rank,
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__main") args False,
                 MCall MLIRPosUnknown Nothing (fromFuncName "__isq__global_finalize") [] False,

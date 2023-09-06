@@ -88,7 +88,7 @@ processGlobal s qcis = do
             case compileRAII ast of
                 Left _ -> error "Global code RAII error"
                 Right raii -> do
-                    case typeCheckTop False "" raii MultiMap.empty 0 qcis of
+                    case typeCheckTop False "qmpi." raii MultiMap.empty 0 qcis of
                         Left x -> error $ "Global code type check error: " ++ (show $ encode x)
                         Right x -> x
 
@@ -236,6 +236,9 @@ globalSourceQcis = "int __measure_bundle(qbit q[])\
 
 globalQmpiSource :: String
 globalQmpiSource = "int __qmpi_rank;\
+\int qmpi_size(){}\
+\unit qmpi_csend(bool val, int recv, int tag){}\
+\bool qmpi_crecv(int send, int tag){}\
 \int qmpi_comm_rank()\
 \{\
 \    return __qmpi_rank;\

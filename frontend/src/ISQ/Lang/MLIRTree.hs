@@ -273,23 +273,11 @@ emitOpStep f env (MModule _ ops) =
       indented env $ "    isq.defgate @\"std.Rzp\"(!llvm.ptr<i8>, index, index) {definition = [#isq.gatedef<type = \"qir\", value = @\"__quantum__qis__rzp__body\">]}: !isq.gate<1>"
 
   ]++s ++ [indented env "}"])
-emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_me\"") _ _) = "\n\
-\func.func @qmpi.qmpi_me()->index { \n\
-\    %0 = isq.call_qop @__isq__qmpiprim__me() : [0]()->index \n\
-\    return %0 : index \n\
-\  } \n\
-\"
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_size\"") _ _) = "\n\
-\func.func @qmpi.qmpi_size() -> index {\n\
+\func.func @\"qmpi.qmpi_size\"() -> index {\n\
 \    %0 = isq.call_qop @__isq__qmpiprim__size() : [0]()->index\n\
 \    return %0 : index\n\
 \  }\n\
-\"
-emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_epr\"") _ _) = "\n\
-\func.func @qmpi.qmpi_epr(%qubit: !isq.qstate, %peer: index, %tag: index) {\n\
-\  isq.call_qop @__isq__qmpiprim__epr(%qubit, %self, %peer, %tag) : [1](index, index, index)->()\n\
-\  return\n\
-\}\n\
 \"
 emitOpStep f env (MFunc loc (FuncName "@\"qmpi.qmpi_csend\"") _ _) = "\n\
 \func.func @\"qmpi.qmpi_csend\"(%val: i1, %recv: index, %tag: index) {\n\
