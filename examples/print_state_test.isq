@@ -1,0 +1,10 @@
+import std;
+
+unit test(){
+    qbit a;
+}
+unit main(){
+    test();
+    qbit b;
+    bp;
+}

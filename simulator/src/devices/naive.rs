@@ -6,8 +6,15 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 use num_complex::Complex64;
+use serde::Serialize;
 extern crate std;
 use std::{println};
+
+#[derive(Serialize)]
+pub struct DebugInfo{
+    phy_state: Vec<(f64, f64)>,
+    phy_qubit_to_virt_qubit: Vec<usize>
+}
 
 #[derive(Clone)]
 pub struct NaiveSimulator {
@@ -395,9 +402,17 @@ impl QDevice for NaiveSimulator {
     }
     fn print_state(&mut self) {
         println!("Qubit states:");
+        let debug_info = DebugInfo{
+            phy_state: self.state.iter().map(|x| (x.re, x.im)).collect(),
+            phy_qubit_to_virt_qubit: self.qubit_map_inv.clone()
+        };
+        println!("{}", serde_json::to_string(&debug_info).unwrap());
+        /*
+        println!("Qubit states:");
         for (count, v) in self.state.iter().enumerate() {
             println!("{}: {}", count, v);
         }
+        */
     }
     fn assert(&self, qubits: &[&Self::Qubit], space: &[f64]) -> bool {
         // Get the real index of the qubits
