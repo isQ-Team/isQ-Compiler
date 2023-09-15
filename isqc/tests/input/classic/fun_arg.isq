@@ -1,0 +1,15 @@
+/*
+* The arguments of a procedure are allowed to be assigned.
+*/
+unit fun(double a, int b) {
+    a = 1.1;
+    print a;
+
+    b = 2;
+    print b;
+}
+
+unit main()
+{
+    fun(2, 3);
+}

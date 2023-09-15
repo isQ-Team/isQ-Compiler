@@ -1052,14 +1052,18 @@ typeCheckToplevel isMain prefix ast qcis = do
                     s<-defineSym (SymTempVar ret_id) pret (Type () Ref [ty])
                     return $ Just (Type () Ref [ty], s)
             -- resolve args
-            (args', new_tempvars)<-flip runStateT [] $ mapM (\(ty, i)->case ty of
-                Type _ Int [] -> do
-                    temp_arg<-lift $ nextId -- Temporary argument
-                    s<-lift $ defineSym (SymTempArg temp_arg) pos (intType ())
+            let processArg :: BuiltinType -> Ident -> StateT [AST Pos] TypeCheck (Type (), Int)
+                processArg ty i = do
+                    temp_arg <- lift $ nextId -- Temporary argument
+                    s <- lift $ defineSym (SymTempArg temp_arg) pos $ Type () ty []
                     -- Leave the good name for defvar.
                     --real_arg<-lift $ defineSym (SymVar i) pos (refType () (intType ()))
-                    modify' (++[NDefvar pos [(intType pos, i, Just $ ETempArg pos temp_arg, Nothing)]])
-                    return (ty, s)
+                    modify' (++[NDefvar pos [(Type pos ty [], i, Just $ ETempArg pos temp_arg, Nothing)]])
+                    return (Type () ty [], s)
+            (args', new_tempvars)<-flip runStateT [] $ mapM (\(ty, i)->case ty of
+                Type _ Bool [] -> processArg Bool i
+                Type _ Int [] -> processArg Int i
+                Type _ Double [] -> processArg Double i
                 x -> do
                     s<-lift $ defineSym (SymVar i) pos x
                     return (ty, s) 

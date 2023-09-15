@@ -27,6 +27,7 @@ use test_case::test_case;
 #[test_case("double_compare", &merge(&["1", "0", "1", "1"]))]
 #[test_case("double_to_int", &merge(&["1", "-1", "1"]))]
 #[test_case("int_to_bool", &merge(&["1", "0", "3", "2"]))]
+#[test_case("fun_arg", &merge(&["1.1", "2"]))]
 #[test_case("global", &merge(&["7.3", "4", "8"]))]
 #[test_case("pow", &("8".to_string()+LINE_ENDING+"5.289"))]
 #[test_case("switch", &merge(&["5"]))]

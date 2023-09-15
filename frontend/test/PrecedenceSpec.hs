@@ -26,9 +26,16 @@ precedenceSpec = do
             ast2 <- strToAst str2
             ast1 `shouldBe` ast2
 
-        it "evaluate ** before *" $ do
-            let str1 = "int fun(){ return 2 ** 3 * 4; }"
-            let str2 = "int fun(){ return(2 ** 3)* 4; }"
+        it "evaluate ** before -" $ do
+            let str1 = "int fun(){ return - 2 ** 2; }"
+            let str2 = "int fun(){ return -(2 ** 2); }"
+            ast1 <- strToAst str1
+            ast2 <- strToAst str2
+            ast1 `shouldBe` ast2
+
+        it "evaluate minus before *" $ do
+            let str1 = "int fun(){ return -2 * 2; }"
+            let str2 = "int fun(){ return(-2)* 2; }"
             ast1 <- strToAst str1
             ast2 <- strToAst str2
             ast1 `shouldBe` ast2

@@ -264,7 +264,15 @@ Expr2s : {- empty -} {\t -> t}
        | '%' Expr2 Expr2s { \t -> $3 $ EBinary $1 Mod t $2 }
 
 Expr2 :: {LExpr}
-Expr2 : Expr1 Expr1s { $2 $1 }
+Expr2 : Expr15 {$1}
+      | '-' Expr15 { EUnary $1 Neg $2 }
+      | '+' Expr15 { EUnary $1 Positive $2 }
+      | '!' Expr15 { EUnary $1 Not $2 }
+      | not Expr15 { EUnary $1 Not $2 }
+      | '~' Expr15 { EUnary $1 Noti $2 }
+
+Expr15 :: {LExpr}
+Expr15 : Expr1 Expr1s {$2 $1}
 
 -- Right associative, i.e., 2**3**4=2**(3**4)
 Expr1s :: {LExpr -> LExpr}
@@ -296,11 +304,6 @@ Primary : Expr1Left '.length' { EArrayLen $2 $1 }
         | ISQCore_MeasureExpr { $1 }
         | '(' Expr ')' { $2 }
         | Expr1Left { $1 }
-        | '-' Primary { EUnary $1 Neg $2 }
-        | '+' Primary { EUnary $1 Positive $2 }
-        | '!' Primary { EUnary $1 Not $2 }
-        | not Primary { EUnary $1 Not $2 }
-        | '~' Primary { EUnary $1 Noti $2 }
         | Ket { $1 }
 
 CallExpr :: {LExpr}
