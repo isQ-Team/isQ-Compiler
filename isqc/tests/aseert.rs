@@ -7,8 +7,9 @@ use test_case::test_case;
 
 #[test_case("array_negative", "Error: index out of bound")]
 #[test_case("array_out_of_bound", "Error: index out of bound")]
-#[test_case("divide_0", "Error: divide 0")]
 #[test_case("assert_false", "Error: failed assertion")]
+#[test_case("divide_0", "Error: divide 0")]
+#[test_case("same_qubit", "Error: Qubit argument")]
 fn test_assert_stdout(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
     let folder = Path::new("tests").join("input").join("assert");
@@ -19,7 +20,6 @@ fn test_assert_stdout(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
 }
 
 #[test_case("length_mismatch", "are cast incompatible")]
-#[test_case("same_qubit", "is used twice")]
 fn test_assert_stderr(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
     let folder = Path::new("tests").join("input").join("assert");

@@ -63,7 +63,7 @@ typeSpec = do
             typeTestTemplate str "UnsupportedType"
 
         it "returns an error when measuring an integer" $ do
-            let str = "bool fun(){ int a; return M<a>; }"
+            let str = "bool fun(){ int a; return M(a); }"
             typeTestTemplate str "TypeMismatch"
 
         it "returns an error when a qubit appears in an array" $ do
