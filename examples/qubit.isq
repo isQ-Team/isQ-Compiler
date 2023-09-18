@@ -8,10 +8,10 @@ defgate R1t = [1, 0;
 
 
 procedure CreateQubit(qbit q) {
-	H<q>;
-	R1t<q>;
-	H<q>;
-	S<q>;
+	H(q);
+	R1t(q);
+	H(q);
+	S(q);
 }
 
 procedure main()

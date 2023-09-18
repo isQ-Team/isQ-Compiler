@@ -16,8 +16,8 @@ qbit q1, q2, q3;
 
 procedure main()
 {
-    X<q1>;
-    X<q2>;
-    CCNOT<q1, q2, q3>;
-    print M<q3>;
+    X(q1);
+    X(q2);
+    CCNOT(q1, q2, q3);
+    print M(q3);
 }

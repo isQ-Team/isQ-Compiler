@@ -10,8 +10,8 @@ defgate CH = [
 qbit qa, qb;
 procedure main()
 {
-    X<qa>;
-    H<qb>;
-    CH<qa, qb>;
-    print M<qb>;
+    X(qa);
+    H(qb);
+    CH(qa, qb);
+    print M(qb);
 }

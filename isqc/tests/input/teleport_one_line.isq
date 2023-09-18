@@ -1,1 +1,1 @@
-import std;int m1,m2;qbit q_1,q_2,q_3;procedure Teleport(qbit qsrc, qbit qanc, qbit qdest){H<qanc>;CNOT<qanc,qdest>;CNOT<qsrc,qanc>;H<qsrc>;m1=M<qsrc>;m2=M<qanc>;if(m2==1){X<qdest>;}if(m1==1){Z<qdest>;}}procedure main(){Teleport(q_1,q_2,q_3);print M<q_3>;}
+import std;int m1,m2;qbit q_1,q_2,q_3;procedure Teleport(qbit qsrc, qbit qanc, qbit qdest){H(qanc);CNOT(qanc,qdest);CNOT(qsrc,qanc);H(qsrc);m1=M(qsrc);m2=M(qanc);if(m2==1){X(qdest);}if(m1==1){Z(qdest);}}procedure main(){Teleport(q_1,q_2,q_3);print M(q_3);}

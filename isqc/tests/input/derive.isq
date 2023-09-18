@@ -8,7 +8,7 @@ procedure myry(double theta, qbit q)
 procedure main()
 {
     qbit q1, q2;
-    X<q1>;
+    X(q1);
     ctrl myry(pi, q1, q2);
     int m = M(q2);
     print m;

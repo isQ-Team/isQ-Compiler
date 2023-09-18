@@ -2,7 +2,7 @@ import std;
 
 procedure main(){
     qbit q;
-    H<q>;
+    H(q);
     int a = M(q);
     int b = M(q);
     print a - b;

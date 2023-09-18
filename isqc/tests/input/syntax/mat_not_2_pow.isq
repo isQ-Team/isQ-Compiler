@@ -9,5 +9,5 @@ qbit q[3];
 
 procedure main()
 {
-    CCNOT<q[0]>;
+    CCNOT(q[0]);
 }

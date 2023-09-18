@@ -36,6 +36,6 @@ procedure recursive_fourier_sampling(int k){
 procedure main(){
     a = 0;
     recursive_fourier_sampling(a);
-    int g = M<p[0]>;    
+    int g = M(p[0]);    
     print g;
 }

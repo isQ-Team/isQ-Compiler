@@ -7,6 +7,6 @@ qbit q;
 
 procedure main()
 {
-    G<q>;
-    print M<q>;
+    G(q);
+    print M(q);
 }

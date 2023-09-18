@@ -30,8 +30,8 @@ int NBinaryBits(int number)
 int Random01()
 {
     qbit q;
-    H<q>;
-    return M<q>;
+    H(q);
+    return M(q);
 }
 
 int Random(int bound)

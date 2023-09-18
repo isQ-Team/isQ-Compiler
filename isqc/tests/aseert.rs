@@ -19,6 +19,7 @@ fn test_assert_stdout(name: &str, res: &str) -> Result<(), Box<dyn std::error::E
 }
 
 #[test_case("length_mismatch", "are cast incompatible")]
+#[test_case("same_qubit", "is used twice")]
 fn test_assert_stderr(name: &str, res: &str) -> Result<(), Box<dyn std::error::Error>> {
     let source_file = name.to_string() + ".isq";
     let folder = Path::new("tests").join("input").join("assert");

@@ -53,16 +53,6 @@ fn fixed_output(path: PathBuf, res: &str) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-#[test_case("same_qubit", "is used twice")]
-fn runtime_test(name: &str, syndrome: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let file_name = "runtime_".to_string() + name + ".isq";
-    let path = Path::new("tests").join("input").join(file_name);
-    let mut cmd = Command::cargo_bin("isqc")?;
-    cmd.arg("run").arg("--debug").arg(path.to_str().to_owned().unwrap());
-    cmd.assert().failure().stdout(predicate::str::contains(syndrome));
-    Ok(())
-}
-
 #[test_case("grover")]
 #[test_case("qubit")]
 #[test_case("random")]

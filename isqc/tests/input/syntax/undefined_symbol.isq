@@ -7,7 +7,7 @@ procedure main()
     while(s > 0)
     {
         s =  s - 1;
-        H<qt>;
-        m = M<qt>;
+        H(qt);
+        m = M(qt);
     }
 }

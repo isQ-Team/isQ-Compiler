@@ -3,6 +3,6 @@ qbit q[4];
 
 procedure main()
 {
-    inv ctrl<2> X<q[0], q[1], q[2]>;
-    ctrl inv<2> X<q[0], q[1], q[2]>;
+    inv ctrl<2> X(q[0], q[1], q[2]);
+    ctrl inv<2> X(q[0], q[1], q[2]);
 }

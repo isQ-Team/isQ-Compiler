@@ -10,10 +10,10 @@ procedure RepeatUntilSuccess()
     n = 0;
     while (m > 0)
     {
-        H<q1>;
-        T<q2>;
+        H(q1);
+        T(q2);
         n = n + 1;
-        m = M<q1>;
+        m = M(q1);
     }
     print n;
 }

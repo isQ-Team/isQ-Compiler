@@ -6,7 +6,7 @@ procedure Swaps()
 {
     for (i = 0 to 3)
     {
-        SWAP<_QS1[i], _QS2[i]>;
+        SWAP(_QS1[i], _QS2[i]);
     }
 }
 

@@ -4,8 +4,8 @@ int x,y;
 procedure main(){
 	x = 0;
 	while ( x==0) do
-		H <p>;
-		CNOT <p,q>;
+		H (p);
+		CNOT (p,q);
 		x = M[p];
 	od
 	y = M(p);
